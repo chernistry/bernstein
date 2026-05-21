@@ -150,7 +150,7 @@ class TestSafeChild:
         outside.mkdir()
 
         # Create a symlink INSIDE base pointing to outside.  The receiver
-        # names children as ``base / session_id[+suffix]`` — if a prior
+        # names children as ``base / session_id[+suffix]`` - if a prior
         # run placed a symlinked subdir with a valid-looking name, a
         # follow-up POST using that name would escape without containment
         # checks.
@@ -272,7 +272,7 @@ async def test_absolute_path_session_id_returns_400(client: AsyncClient, tmp_pat
 
     Starlette decodes percent-encoded ``/`` back into path separators, so
     the attacker's literal ``/etc/passwd`` cannot even reach the handler
-    as a single route parameter — it either mis-routes (404) or, with
+    as a single route parameter - it either mis-routes (404) or, with
     backslashes that Starlette does not split, the handler rejects it
     with 400.  Both outcomes are security-equivalent: no filesystem
     write happens under the hooks base, and crucially nothing is
@@ -280,7 +280,7 @@ async def test_absolute_path_session_id_returns_400(client: AsyncClient, tmp_pat
 
     We assert the backslash form reaches the handler and gets 400, and
     separately that the forward-slash form never reaches the handler
-    (so the 404 is fine — we just need to confirm no escape).
+    (so the 404 is fine - we just need to confirm no escape).
     """
     # Form 1: backslash-encoded absolute path survives Starlette routing
     # and hits the handler, which must reject it with 400.
@@ -291,7 +291,7 @@ async def test_absolute_path_session_id_returns_400(client: AsyncClient, tmp_pat
     )
     _assert_rejected(response.status_code, response.json())
 
-    # Form 2: forward-slash absolute path — Starlette splits and 404s.
+    # Form 2: forward-slash absolute path - Starlette splits and 404s.
     # This is still a secure outcome; no file is written outside base.
     response2 = await _signed_post(
         client,
@@ -308,7 +308,7 @@ async def test_url_encoded_dotdot_returns_400(client: AsyncClient, tmp_path: Pat
 
     The ``%2f`` suffix variant (``%2e%2e%2f``) is decoded by Starlette
     into ``../`` and then re-split, so it never reaches the handler as
-    a single segment (404).  We cover both shapes — the bare ``%2e%2e``
+    a single segment (404).  We cover both shapes - the bare ``%2e%2e``
     which the handler sees as ``..`` and rejects with 400, and the
     slash-suffixed form which Starlette fails to route at all (also
     secure).
@@ -322,7 +322,7 @@ async def test_url_encoded_dotdot_returns_400(client: AsyncClient, tmp_path: Pat
     _assert_rejected(response.status_code, response.json())
 
     # Slash-suffixed form is split by Starlette (404) or rejected (400)
-    # — either outcome prevents filesystem writes outside the base.
+    # - either outcome prevents filesystem writes outside the base.
     response2 = await _signed_post(
         client,
         "/hooks/%2e%2e%2f",
@@ -392,7 +392,7 @@ async def test_rejection_does_not_write_completion_marker(client: AsyncClient, t
         "/hooks/" + quote("../../SHUTDOWN", safe=""),
         body={"hook_event_name": "Stop"},
     )
-    # 307/400/404 are all acceptable — none leave the filesystem dirty.
+    # 307/400/404 are all acceptable - none leave the filesystem dirty.
     assert response.status_code in (307, 400, 404), f"traversal payload must be rejected, got {response.status_code}"
     if completed_dir.exists():
         assert not any(completed_dir.iterdir())

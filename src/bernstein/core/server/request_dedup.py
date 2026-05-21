@@ -8,7 +8,7 @@ cached response instead of re-executing the mutation.
 Strategy:
 - Exact match: O(1) dict lookup by request ID string.
 - TTL: configurable per-entry, default 300 s (5 min covers agent retries).
-- Eviction: LRU-style — oldest entries evicted once ``max_cache_size`` is hit.
+- Eviction: LRU-style - oldest entries evicted once ``max_cache_size`` is hit.
 - Storage: in-memory only (ephemeral, matches the task-server lifecycle).
 """
 
@@ -54,7 +54,7 @@ class DeduplicationConfig:
     Attributes:
         max_cache_size: Maximum number of entries before oldest are evicted.
         default_ttl_s: Default TTL applied when callers omit one.
-        enabled: Global kill-switch — when *False* all lookups return *None*.
+        enabled: Global kill-switch - when *False* all lookups return *None*.
     """
 
     max_cache_size: int = 10_000
@@ -71,7 +71,7 @@ class RequestDeduplicator:
     """In-memory request deduplication cache.
 
     Thread-safety note: the task server is single-process / async so a plain
-    ``dict`` is fine — no locking needed.
+    ``dict`` is fine - no locking needed.
     """
 
     def __init__(self, config: DeduplicationConfig | None = None) -> None:

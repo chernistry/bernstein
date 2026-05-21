@@ -63,7 +63,7 @@ def test_resolve_prefers_skill_when_available(tmp_path: Path) -> None:
     assert resolved.source == "skill"
     assert resolved.skill_name == "backend"
     # Role hint names the skill and tells the agent to load_skill; the
-    # full skill body is NOT inlined — agents fetch it on demand.
+    # full skill body is NOT inlined - agents fetch it on demand.
     assert "load_skill" in resolved.body
     assert "Role: backend" in resolved.body
     assert "Backend skill body" not in resolved.body

@@ -24,10 +24,10 @@ class TemplateError(Exception):
     """Raised when template rendering fails (missing file, bad syntax, etc.)."""
 
 
-# Default templates directory — works both from source tree and after pip install.
+# Default templates directory - works both from source tree and after pip install.
 _DEFAULT_TEMPLATES_DIR = _BUNDLED_TEMPLATES_DIR / "roles"
 
-# Regex patterns — compiled once at module level.
+# Regex patterns - compiled once at module level.
 _IF_BLOCK_RE = re.compile(r"\{\{#IF\s+(\w+)\}\}(.*?)\{\{/IF\}\}", re.DOTALL)
 _IF_NOT_BLOCK_RE = re.compile(r"\{\{#IF_NOT\s+(\w+)\}\}(.*?)\{\{/IF_NOT\}\}", re.DOTALL)
 _PLACEHOLDER_RE = re.compile(r"\{\{(\w+)\}\}")
@@ -106,7 +106,7 @@ def _substitute_placeholders(template: str, context: dict[str, str]) -> str:
     """Replace {{VAR}} placeholders with values from context.
 
     Unknown placeholders (not in context) are left as-is for forward
-    compatibility — callers may layer multiple render passes.
+    compatibility - callers may layer multiple render passes.
 
     Args:
         template: Template string with placeholder tokens.
@@ -120,7 +120,7 @@ def _substitute_placeholders(template: str, context: dict[str, str]) -> str:
         var = match.group(1)
         if var in context:
             return context[var]
-        # Unknown placeholder — leave as-is.
+        # Unknown placeholder - leave as-is.
         return match.group(0)
 
     return _PLACEHOLDER_RE.sub(_replace, template)
@@ -176,7 +176,7 @@ def render_role_prompt(
     cacheable prefix (everything that drives KV-cache locality across
     spawns of the same role) is byte-identical to what callers got
     before the wiring landed.  When emission is disabled or the token
-    is the disabled sentinel, the footer is suppressed entirely — we
+    is the disabled sentinel, the footer is suppressed entirely - we
     never inject a useless ``<!-- bernstein-rev: 0…0 -->`` line.
 
     Args:
@@ -196,7 +196,7 @@ def render_role_prompt(
     template_path = base / role / "system_prompt.md"
     rendered = render_template(template_path, context)
 
-    # Lazy import — keeps templates/ importable in stripped test envs and
+    # Lazy import - keeps templates/ importable in stripped test envs and
     # avoids a cycle if identity ever needs templating.  Reading the gate
     # via the module attribute (not the re-export) means tests can flip
     # it with ``monkeypatch.setattr(install_rev, ...)`` and see live
@@ -212,6 +212,6 @@ def render_role_prompt(
     footer = render_md_footer()
     if DISABLED_SENTINEL in footer:
         return rendered
-    # Append-only — preserves prefix bytes verbatim for KV-cache reuse.
+    # Append-only - preserves prefix bytes verbatim for KV-cache reuse.
     sep = "" if rendered.endswith("\n") else "\n"
     return f"{rendered}{sep}{footer}\n"

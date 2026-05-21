@@ -163,7 +163,7 @@ async def await_tool_call(
         ApprovalTimeoutError: When the TTL expires without an operator
             decision. The caller MUST treat this as a rejection.
     """
-    # Per-tool permission policy runs first — it must apply regardless
+    # Per-tool permission policy runs first - it must apply regardless
     # of whether the interactive approval queue is on, so a fail-closed
     # profile cannot be bypassed by disabling approvals.
     policy_decision = _policy_reject(

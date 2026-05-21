@@ -43,7 +43,7 @@ from bernstein.core.agents.spawner_core import (
 
 
 class _NoopAdapter(CLIAdapter):
-    """Stub adapter — never spawns a process; just satisfies the constructor."""
+    """Stub adapter - never spawns a process; just satisfies the constructor."""
 
     def spawn(
         self,
@@ -77,7 +77,7 @@ def _make_spawner(workdir: Path) -> AgentSpawner:
 
 
 # ---------------------------------------------------------------------------
-# _render_auth_section — path absolutisation
+# _render_auth_section - path absolutisation
 # ---------------------------------------------------------------------------
 
 
@@ -119,7 +119,7 @@ def test_render_auth_section_mentions_env_fallback(tmp_path: Path) -> None:
 
     Even if the token file is unreadable (filesystem race, permission
     change, missing parent dir) the agent must have a documented second
-    channel — env var inheritance via the env_isolation allowlist.
+    channel - env var inheritance via the env_isolation allowlist.
     """
     section = _render_auth_section(tmp_path / "token")
     assert "BERNSTEIN_AUTH_TOKEN" in section
@@ -133,7 +133,7 @@ def test_render_auth_section_includes_authorization_header_example(tmp_path: Pat
 
 
 # ---------------------------------------------------------------------------
-# _issue_agent_token — writes the token file at an absolute path
+# _issue_agent_token - writes the token file at an absolute path
 # ---------------------------------------------------------------------------
 
 
@@ -151,7 +151,7 @@ def test_issue_agent_token_returns_absolute_path(tmp_path: Path, monkeypatch: An
 
     spawner = _make_spawner(relative_workdir)
 
-    # Stub out identity-store credential issuance — we are not testing JWT
+    # Stub out identity-store credential issuance - we are not testing JWT
     # signing here, just path handling.
     stub_identity = MagicMock()
     stub_identity.create_identity = MagicMock(return_value=(MagicMock(), "fake-jwt-token-body"))
@@ -177,7 +177,7 @@ def test_issue_agent_token_file_mode_is_0600(tmp_path: Path) -> None:
     Defence-in-depth: even with the absolute-path fix, a world-readable
     token file would leak credentials to other local users.
     """
-    if os.name == "nt":  # pragma: no cover — POSIX-only file modes
+    if os.name == "nt":  # pragma: no cover - POSIX-only file modes
         return
 
     spawner = _make_spawner(tmp_path)
@@ -218,7 +218,7 @@ def test_auth_section_in_prompt_resolves_when_agent_cwd_is_worktree(tmp_path: Pa
     section = _render_auth_section(token_path)
 
     # Extract the path from the rendered section the same way an agent
-    # would parse it — the absolute path appears in the fenced block.
+    # would parse it - the absolute path appears in the fenced block.
     assert str(token_path) in section
     assert token_path.is_absolute()
 

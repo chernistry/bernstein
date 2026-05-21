@@ -58,7 +58,7 @@ class ModelUsdPer1MTokens(TypedDict, total=False):
 
 
 # Per-model input/output pricing per 1M tokens (USD). Keys match substring checks in ``_model_cost``.
-# Updated 2026-05-05 from official API pricing pages — GPT-5.5 added (announced
+# Updated 2026-05-05 from official API pricing pages - GPT-5.5 added (announced
 # 2026-04-23, generally available in API on 2026-04-24).
 MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     "haiku": {"input": 1.0, "output": 5.0, "cache_read": 0.1, "cache_write": 1.25},
@@ -71,7 +71,7 @@ MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     MODEL_GPT_5_4: {"input": 2.5, "output": 15.0},
     "gpt-5.4-mini": {"input": 0.75, "output": 4.5},
     # OpenAI Agents SDK v2 baseline models (oai-001). Launch prices as of
-    # 2026-04-19 — gpt-5 is roughly sonnet-parity on input, cheaper on output;
+    # 2026-04-19 - gpt-5 is roughly sonnet-parity on input, cheaper on output;
     # gpt-5-mini is the default for the runner; o4 is the reasoning tier.
     "gpt-5": {"input": 2.5, "output": 15.0},
     "gpt-5-mini": {"input": 0.5, "output": 2.5},
@@ -85,7 +85,7 @@ MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     # DeepSeek V4 family (FEAT deepseek-v4-flash-eu, added 2026-05-07).
     # Hosted prices from deepseek.com release pages; the structural
     # arbitrage comes from V4-Flash at ~$1.74/MTok input (CAISI 2026-04
-    # evaluation places the model ~8 months behind frontier — adequate
+    # evaluation places the model ~8 months behind frontier - adequate
     # for the 60-70% of agentic workloads that are not the hardest 30%).
     # Self-hosted runs (Ollama / vLLM via :class:`OllamaAdapter`) reduce
     # input cost to electricity; the hosted entries below are the
@@ -93,7 +93,7 @@ MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     # "saved $X by self-hosting" in the run summary.
     "deepseek-v4-flash": {"input": 1.74, "output": 0.20},
     "deepseek-v4-pro": {"input": 4.50, "output": 1.50},
-    # Blended-only entries in ``_MODEL_COST_USD_PER_1K`` — approximate 40/60 input/output split of total $/1M.
+    # Blended-only entries in ``_MODEL_COST_USD_PER_1K`` - approximate 40/60 input/output split of total $/1M.
     "qwen-max": {"input": 0.8, "output": 1.2},
     "qwen-plus": {"input": 0.4, "output": 0.6},
     "qwen-turbo": {"input": 0.16, "output": 0.24},
@@ -103,16 +103,16 @@ MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
 # Updated 2026-03-28 from official API pricing pages.
 # Used only as a tiebreaker when multiple arms meet the quality threshold.
 _MODEL_COST_USD_PER_1K: dict[str, float] = {
-    # Claude (Anthropic) — per 1M tokens: Opus $5/$25, Sonnet $3/$15, Haiku $1/$5
+    # Claude (Anthropic) - per 1M tokens: Opus $5/$25, Sonnet $3/$15, Haiku $1/$5
     "haiku": 0.003,  # ($1 + $5) / 2 / 1000
     "sonnet": 0.009,  # ($3 + $15) / 2 / 1000
     "opus": 0.015,  # ($5 + $25) / 2 / 1000
-    # OpenAI — per 1M tokens: GPT-5.4 $2.50/$15, o3 $2/$8, o4-mini $1.10/$4.40.
+    # OpenAI - per 1M tokens: GPT-5.4 $2.50/$15, o3 $2/$8, o4-mini $1.10/$4.40.
     # _model_cost() uses substring matching, so more-specific keys (mini
     # variants, o4-mini) must come *before* the shorter stems they share
     # a prefix with.  Without this ordering, "gpt-5-mini" would hit the
     # "gpt-5" row and inherit its higher blended cost.
-    # GPT-5.5 family — substring matching ordering: mini before stem.
+    # GPT-5.5 family - substring matching ordering: mini before stem.
     "gpt-5.5-mini": 0.0018,  # ($0.60 + $3.00) / 2 / 1000
     MODEL_GPT_5_5: 0.00725,  # ($2.50 + $12.00) / 2 / 1000
     "gpt-5.4-mini": 0.002625,  # ($0.75 + $4.50) / 2 / 1000
@@ -124,16 +124,16 @@ _MODEL_COST_USD_PER_1K: dict[str, float] = {
     "o4-mini": 0.00275,  # ($1.10 + $4.40) / 2 / 1000
     "o4": 0.0075,  # ($3 + $12) / 2 / 1000
     "o3": 0.005,  # ($2 + $8) / 2 / 1000
-    # Gemini (Google) — per 1M tokens: 3-pro ~$3/$15, 3.1-pro $0.50/$3, 3-flash $0.15/$1
+    # Gemini (Google) - per 1M tokens: 3-pro ~$3/$15, 3.1-pro $0.50/$3, 3-flash $0.15/$1
     "gemini-3": 0.009,  # ($3 + $15) / 2 / 1000
     MODEL_GEMINI_3_1_PRO: 0.00175,  # ($0.50 + $3.00) / 2 / 1000
     "gemini-3-flash": 0.000575,  # ($0.15 + $1.00) / 2 / 1000
-    # Qwen — open-weight, very cheap via API
+    # Qwen - open-weight, very cheap via API
     "qwen3-coder": 0.00056,  # ($0.22 + $0.90) / 2 / 1000
     "qwen-max": 0.001,
     "qwen-plus": 0.0005,
     "qwen-turbo": 0.0002,
-    # DeepSeek V4 family — FEAT deepseek-v4-flash-eu.  Self-hosted runs
+    # DeepSeek V4 family - FEAT deepseek-v4-flash-eu.  Self-hosted runs
     # against vLLM/Ollama drop the marginal cost to electricity; these
     # blended figures reflect the hosted ``deepseek.com`` API prices and
     # are used as the opportunity-cost reference.  ``deepseek-v4-flash``
@@ -143,7 +143,7 @@ _MODEL_COST_USD_PER_1K: dict[str, float] = {
     "deepseek-v4-pro": 0.003,  # ($4.50 + $1.50) / 2 / 1000
 }
 
-# Cascade order — sonnet first (haiku removed: on Max plan sonnet is
+# Cascade order - sonnet first (haiku removed: on Max plan sonnet is
 # unlimited and produces much better results)
 CASCADE: list[str] = ["sonnet", "opus"]
 
@@ -178,7 +178,7 @@ def get_all_bandit_arms() -> list[str]:
         if model in seen:
             continue
         if model not in _MODEL_COST_USD_PER_1K:
-            # Skip arms without pricing data — we'd have no rational way to
+            # Skip arms without pricing data - we'd have no rational way to
             # compare them against the cascade during exploitation.
             continue
         seen.add(model)
@@ -337,8 +337,8 @@ class EpsilonGreedyBandit:
 
     The epsilon-greedy learning loop was retired in to unify model
     selection and cost forecasting on a single store. This class preserves
-    the original API — ``select``, ``record``, ``seed_arm``, ``get_arm``,
-    ``summary``, ``save``, ``load`` — but every mutation is now mirrored into
+    the original API - ``select``, ``record``, ``seed_arm``, ``get_arm``,
+    ``summary``, ``save``, ``load`` - but every mutation is now mirrored into
     the canonical ``BanditRouter`` state at ``.sdd/routing/``.
 
     * ``select(role, candidate_models)`` picks the cheapest arm whose
@@ -493,8 +493,8 @@ class EpsilonGreedyBandit:
         models = candidate_models or CASCADE.copy()
 
         # Exploration: random choice with probability epsilon
-        # S311: not security-sensitive — bandit exploration, not cryptography.
-        if random.random() < self.epsilon:  # NOSONAR — non-crypto RNG for bandit exploration
+        # S311: not security-sensitive - bandit exploration, not cryptography.
+        if random.random() < self.epsilon:  # NOSONAR - non-crypto RNG for bandit exploration
             chosen = random.choice(models)  # NOSONAR
             logger.debug("Bandit[%s]: explore → %s", role, chosen)
             return chosen
@@ -513,7 +513,7 @@ class EpsilonGreedyBandit:
         for model in models:
             arm = self._arms.get((role, model))
             if arm is None:
-                # Never seen — treat as a pessimistic 0-observation arm so
+                # Never seen - treat as a pessimistic 0-observation arm so
                 # it only wins via explicit exploration, not greedy price.
                 continue
             if arm.success_rate >= self.quality_threshold:
@@ -524,7 +524,7 @@ class EpsilonGreedyBandit:
                 qualifying.append((model, cost))
 
         if not qualifying:
-            # All arms are under-performing or unseen — fall back to the
+            # All arms are under-performing or unseen - fall back to the
             # cheapest model to keep trying (cascade will escalate on
             # actual failures, and epsilon-exploration will keep probing
             # new arms).
@@ -552,7 +552,7 @@ class EpsilonGreedyBandit:
         key = (role, model)
         if key in self._arms and self._arms[key].observations > 0:
             logger.debug(
-                "Bandit[%s/%s]: skipping seed — arm already has %d real observations",
+                "Bandit[%s/%s]: skipping seed - arm already has %d real observations",
                 role,
                 model,
                 self._arms[key].observations,
@@ -608,7 +608,7 @@ class EpsilonGreedyBandit:
             self._mirror_record_to_router(router, role=role, model=model, success=success)
 
         logger.debug(
-            "Bandit[%s/%s]: recorded success=%s, cost=%.5f — arm now: obs=%d, success_rate=%.2f",
+            "Bandit[%s/%s]: recorded success=%s, cost=%.5f - arm now: obs=%d, success_rate=%.2f",
             role,
             model,
             success,
@@ -668,8 +668,8 @@ class EpsilonGreedyBandit:
         Since the legacy ``record()`` API only has ``(role, model)`` and a
         success bit, we cannot reconstruct a full ``TaskContext``. Instead we
         build a ``TaskContext`` with neutral mid-range features so the
-        LinUCB update lands predominantly on the bias axis — the same axis
-        that :meth:`BanditPolicy.seed_arm` writes to — keeping live updates
+        LinUCB update lands predominantly on the bias axis - the same axis
+        that :meth:`BanditPolicy.seed_arm` writes to - keeping live updates
         coherent with seeds.
         """
         try:

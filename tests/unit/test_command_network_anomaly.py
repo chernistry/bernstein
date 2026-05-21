@@ -19,13 +19,13 @@ from bernstein.core.behavior_anomaly import (
 )
 
 # ---------------------------------------------------------------------------
-# Test fixture IPs / URLs — intentionally hardcoded for security tests.
+# Test fixture IPs / URLs - intentionally hardcoded for security tests.
 # These are NOT real endpoints; they are test payloads that verify the
 # behaviour anomaly detector correctly flags suspicious network targets.
 # ---------------------------------------------------------------------------
-_TEST_RFC1918_IP = "10.0.0.1"  # NOSONAR — test fixture for private IP detection
-_TEST_RFC1918_192 = "192.168.1.100"  # NOSONAR — test fixture for private IP detection
-_TEST_AWS_METADATA_IP = "169.254.169.254"  # NOSONAR — test fixture for cloud metadata detection
+_TEST_RFC1918_IP = "10.0.0.1"  # NOSONAR - test fixture for private IP detection
+_TEST_RFC1918_192 = "192.168.1.100"  # NOSONAR - test fixture for private IP detection
+_TEST_AWS_METADATA_IP = "169.254.169.254"  # NOSONAR - test fixture for cloud metadata detection
 _TEST_AWS_METADATA_URL = f"http://{_TEST_AWS_METADATA_IP}/latest/meta-data/"  # NOSONAR
 _TEST_AWS_METADATA_CRED_URL = (  # NOSONAR
     f"http://{_TEST_AWS_METADATA_IP}/latest/meta-data/iam/security-credentials/"
@@ -169,7 +169,7 @@ class TestExtractSuspiciousNetworkEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# RealtimeBehaviorMonitor — dangerous command detection
+# RealtimeBehaviorMonitor - dangerous command detection
 # ---------------------------------------------------------------------------
 
 
@@ -257,7 +257,7 @@ class TestMonitorDangerousCommandDetection:
 
 
 # ---------------------------------------------------------------------------
-# RealtimeBehaviorMonitor — suspicious network endpoint detection
+# RealtimeBehaviorMonitor - suspicious network endpoint detection
 # ---------------------------------------------------------------------------
 
 
@@ -329,7 +329,7 @@ class TestMonitorNetworkEndpointDetection:
         signals = monitor.record_progress(
             "session-net-5",
             "task-net-5",
-            message="Admin panel at http://127.0.0.1:8080/admin — accessing now",
+            message="Admin panel at http://127.0.0.1:8080/admin - accessing now",
         )
 
         assert any(s.rule == "suspicious_network_endpoint" for s in signals)

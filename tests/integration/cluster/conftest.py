@@ -1,9 +1,9 @@
 """Real-process two-node cluster harness.
 
 Boots two OS processes:
-  * ``central`` — uvicorn serving ``bernstein.core.server:app`` with cluster
+  * ``central`` - uvicorn serving ``bernstein.core.server:app`` with cluster
     mode + JWT auth enabled.
-  * ``worker`` — a minimal Python loop that registers, heartbeats, claims,
+  * ``worker`` - a minimal Python loop that registers, heartbeats, claims,
     and completes tasks. Spawned by the harness, *not* the production
     ``bernstein worker`` CLI (which would pull in the full agent spawner).
 
@@ -11,7 +11,7 @@ The harness only owns sockets, processes, and a Python-level proxy used
 to simulate a network partition without root privileges. It is portable
 across Linux and macOS; the iptables path described in the original ticket
 stays optional and lives behind ``BERNSTEIN_USE_IPTABLES=1`` (Linux+root
-only) — the default proxy is sufficient on either platform.
+only) - the default proxy is sufficient on either platform.
 """
 
 from __future__ import annotations
@@ -344,7 +344,7 @@ class ClusterHandle:
     """Public handle returned by the ``two_node_cluster`` fixture.
 
     All ``central_*`` and ``worker_*`` paths are absolute and live under
-    a per-test tmpdir; teardown removes nothing — pytest cleans the tmpdir.
+    a per-test tmpdir; teardown removes nothing - pytest cleans the tmpdir.
     """
 
     workdir: Path
@@ -545,7 +545,7 @@ def two_node_cluster(tmp_path: Path) -> Iterator[ClusterHandle]:
     """Boot a real two-process cluster and tear it down on exit.
 
     The fixture only allocates ports + spawns the central server. Tests
-    call ``handle.start_worker(...)`` to bring workers online — that gives
+    call ``handle.start_worker(...)`` to bring workers online - that gives
     each scenario explicit control over how many nodes participate.
     """
     central_port = _free_port()
@@ -628,7 +628,7 @@ def two_node_cluster(tmp_path: Path) -> Iterator[ClusterHandle]:
 # Windows-specific path nobody is going to run.
 # --------------------------------------------------------------------------- #
 
-if sys.platform == "win32":  # pragma: no cover — never executed on the supported targets
+if sys.platform == "win32":  # pragma: no cover - never executed on the supported targets
     collect_ignore_glob = ["test_real_2node.py"]
 
 

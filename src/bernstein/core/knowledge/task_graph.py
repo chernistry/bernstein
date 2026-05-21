@@ -3,11 +3,11 @@
 Builds a DAG from task ``depends_on`` fields and inferred file-overlap
 edges, then computes:
 
-* **Critical path** — the longest chain through the DAG (determines
+* **Critical path** - the longest chain through the DAG (determines
   minimum wall-clock completion time).
-* **Parallel width** — the maximum number of independent tasks that
+* **Parallel width** - the maximum number of independent tasks that
   can run concurrently at any point in the schedule.
-* **Bottleneck detection** — surfaces tasks that block the most
+* **Bottleneck detection** - surfaces tasks that block the most
   downstream work.
 """
 
@@ -39,13 +39,13 @@ class EdgeType(StrEnum):
 
     Controls scheduling and context injection behaviour:
 
-    - ``BLOCKS`` — hard dependency. Successor cannot start until predecessor
+    - ``BLOCKS`` - hard dependency. Successor cannot start until predecessor
       completes.  This is the default for all existing edges.
-    - ``INFORMS`` — soft dependency. Predecessor output is available to the
+    - ``INFORMS`` - soft dependency. Predecessor output is available to the
       successor but does **not** block scheduling.
-    - ``VALIDATES`` — successor verifies predecessor output. A validator
+    - ``VALIDATES`` - successor verifies predecessor output. A validator
       failure triggers predecessor retry.  Blocks scheduling like ``BLOCKS``.
-    - ``TRANSFORMS`` — predecessor output is input to successor with an
+    - ``TRANSFORMS`` - predecessor output is input to successor with an
       optional mapping. Does **not** block scheduling.
     """
 
@@ -91,7 +91,7 @@ class TaskGraph:
     Nodes are task IDs; edges represent ordering constraints (either
     explicit ``depends_on`` or inferred from shared ``owned_files``).
 
-    The graph is immutable after construction — rebuild it each tick.
+    The graph is immutable after construction - rebuild it each tick.
     """
 
     def __init__(self, tasks: Sequence[Task]) -> None:
@@ -235,7 +235,7 @@ class TaskGraph:
     # -- Topological sort ---------------------------------------------------
 
     def topological_order(self) -> list[str]:
-        """Kahn's algorithm — returns [] if cycle detected."""
+        """Kahn's algorithm - returns [] if cycle detected."""
         in_degree: dict[str, int] = dict.fromkeys(self._tasks, 0)
         for tid in self._tasks:
             for dep in self._forward.get(tid, []):
@@ -254,7 +254,7 @@ class TaskGraph:
                         queue.append(child)
 
         if len(order) != len(self._tasks):
-            logger.warning("Cycle detected in task graph — topological sort incomplete")
+            logger.warning("Cycle detected in task graph - topological sort incomplete")
             return []
         return order
 

@@ -181,7 +181,7 @@ class TestDetectFailureTypeContextOverflow:
 
     def test_returns_context_overflow_for_413_log(self, tmp_path: Path) -> None:
         log = tmp_path / "agent.log"
-        log.write_text("ERROR: 413 Payload Too Large — prompt is too long\n")
+        log.write_text("ERROR: 413 Payload Too Large - prompt is too long\n")
         tracker = RateLimitTracker()
         assert tracker.detect_failure_type(log) == "context_overflow"
 

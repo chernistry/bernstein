@@ -9,12 +9,12 @@ emit precise error codes for malformed frames.
 
 JSON-RPC 2.0 error codes used:
 
-* ``-32700`` — parse error (malformed JSON).
-* ``-32600`` — invalid request (missing ``jsonrpc``, ``method``, ``id`` for
+* ``-32700`` - parse error (malformed JSON).
+* ``-32600`` - invalid request (missing ``jsonrpc``, ``method``, ``id`` for
   request/response confusion, etc.).
-* ``-32601`` — method not found.
-* ``-32602`` — invalid params (schema mismatch).
-* ``-32603`` — internal error.
+* ``-32601`` - method not found.
+* ``-32602`` - invalid params (schema mismatch).
+* ``-32603`` - internal error.
 
 Bernstein-specific codes start at ``-32001``.
 """
@@ -83,7 +83,7 @@ class ParsedRequest:
         method: ACP method name (always present, always in
             :data:`SUPPORTED_METHODS`).
         params: Parameter dict (already shape-validated).
-        request_id: ``id`` field — ``None`` when the frame is a
+        request_id: ``id`` field - ``None`` when the frame is a
             notification.  JSON-RPC permits string, integer, or null IDs.
         is_notification: ``True`` when the frame had no ``id`` field; such
             frames must NOT receive a response envelope.
@@ -193,7 +193,7 @@ def validate_request(frame: Any) -> ParsedRequest:
     """Validate a single JSON-RPC frame and return a :class:`ParsedRequest`.
 
     Args:
-        frame: The decoded frame (already a Python object — the transport
+        frame: The decoded frame (already a Python object - the transport
             layer is responsible for turning bytes into JSON, not this
             module).
 
@@ -315,7 +315,7 @@ def make_notification(method: str, params: dict[str, Any]) -> dict[str, Any]:
     """Build a JSON-RPC notification frame (no id).
 
     For the small set of methods Bernstein both consumes and emits
-    (``streamUpdate`` and ``requestPermission`` — server → IDE prompt
+    (``streamUpdate`` and ``requestPermission`` - server → IDE prompt
     as a notification, IDE → server reply as a request envelope with a
     ``decision`` payload) we permit any supported ACP method here; the
     validate path enforces the ``id``-vs-no-``id`` invariant on ingress.

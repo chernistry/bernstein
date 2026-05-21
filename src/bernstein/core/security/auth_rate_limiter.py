@@ -5,7 +5,7 @@ by default. Client-supplied headers such as ``X-Forwarded-For`` are **ignored**
 unless upstream proxies are explicitly trusted via the
 ``BERNSTEIN_TRUSTED_PROXY_IPS`` environment variable (comma-separated list of
 proxy IPs). When trusted, the limiter walks the ``X-Forwarded-For`` chain from
-right to left and uses the right-most IP that is NOT a trusted proxy — i.e.
+right to left and uses the right-most IP that is NOT a trusted proxy - i.e.
 the closest original client address that the trusted proxy chain forwarded
 for us.
 
@@ -40,7 +40,7 @@ _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 # Environment variable used to declare IP addresses of reverse proxies whose
 # ``X-Forwarded-For`` header we trust. Comma-separated list, e.g.
 # ``BERNSTEIN_TRUSTED_PROXY_IPS=10.0.0.1,10.0.0.2``. Loopback (``127.0.0.1``,
-# ``::1``) is NEVER implicitly trusted — an operator must opt in explicitly
+# ``::1``) is NEVER implicitly trusted - an operator must opt in explicitly
 # if they terminate a reverse proxy on the same host.
 _TRUSTED_PROXY_ENV = "BERNSTEIN_TRUSTED_PROXY_IPS"
 
@@ -105,7 +105,7 @@ class AuthRateLimiter:
             self._cleanup(now)
 
         if len(timestamps) >= self.max_requests:
-            # Earliest timestamp that counts — retry after it expires
+            # Earliest timestamp that counts - retry after it expires
             retry_after = timestamps[0] - cutoff
             return max(retry_after, 1.0)
 
@@ -222,7 +222,7 @@ class RequestRateLimitMiddleware(BaseHTTPMiddleware):
                 self._sse_connections = max(0, self._sse_connections - 1)
 
         # Exempt loopback clients (orchestrator, spawner, agents) from rate
-        # limiting — they are internal components, not external callers.
+        # limiting - they are internal components, not external callers.
         # The exemption applies ONLY when the TCP peer is loopback AND no
         # X-Forwarded-For header is present. If a request arrives on
         # loopback but carries XFF, it came through a local reverse proxy
@@ -295,7 +295,7 @@ def _request_client_id(request: Request) -> str:
     """Return a stable rate-limit key for *request*.
 
     Default: the real TCP peer IP (``request.client.host``). Client-supplied
-    headers are IGNORED — rotating ``X-Forwarded-For`` values must never let
+    headers are IGNORED - rotating ``X-Forwarded-For`` values must never let
     an attacker create unbounded buckets.
 
     Opt-in proxy mode: if ``BERNSTEIN_TRUSTED_PROXY_IPS`` is set and the
@@ -317,7 +317,7 @@ def _request_client_id(request: Request) -> str:
     for hop in reversed(hops):
         if hop not in trusted:
             return hop
-    # Every hop was a trusted proxy — fall back to the direct peer.
+    # Every hop was a trusted proxy - fall back to the direct peer.
     return direct_client_ip
 
 

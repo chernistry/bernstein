@@ -321,13 +321,13 @@ class RateLimitTracker:
         """
         state = self._throttles.get(provider)
         if state is None:
-            return False  # No overload — let background proceed
+            return False  # No overload - let background proceed
 
         now = time.time()
         if now >= state.throttled_until:
-            return False  # Throttle expired — let background proceed
+            return False  # Throttle expired - let background proceed
 
-        # Provider is currently throttled — apply background suppression
+        # Provider is currently throttled - apply background suppression
         if state.trigger_count == 1:
             # First trigger: only suppress beyond the first retry
             return attempt > 1

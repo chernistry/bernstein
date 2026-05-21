@@ -8,7 +8,7 @@ canonicalisation must be byte-stable under:
 * NUL bytes embedded in strings (JSON allows ``\\u0000`` in strings)
 * Mixed-case unicode normal forms (NFC vs NFD)
 * Deeply nested dict / list structures
-* Numeric edge cases — very large / negative ints
+* Numeric edge cases - very large / negative ints
 
 Existing coverage in ``test_audit_chain_bughunt.py`` exercises some
 of these as single fixtures; the properties below are *parametric*
@@ -34,7 +34,7 @@ from hypothesis import strategies as st
 
 from bernstein.core.security.audit import AuditLog
 
-# Adversarial unicode pool — RTL marks, combining marks, control codes,
+# Adversarial unicode pool - RTL marks, combining marks, control codes,
 # unusual scripts. We intentionally exclude surrogate pairs (``Cs``)
 # because Python strings cannot contain lone surrogates and ``st.text``
 # would invent them only via the ``surrogate_pairs_allowed`` flag.
@@ -58,7 +58,7 @@ _ADVERSARIAL = st.one_of(
             "\U0001f600",  # emoji
             "🇺🇸",  # flag (regional indicator pair)
             "ё" * 32,  # mid-BMP repeat
-            "𒀀" * 8,  # cuneiform — outside BMP
+            "𒀀" * 8,  # cuneiform - outside BMP
         ]
     ),
 )
@@ -96,7 +96,7 @@ def test_adversarial_unicode_chain_verifies(payloads: list[dict[str, Any]]) -> N
     """Arbitrary-unicode details still produce a verifiable chain.
 
     Catches regressions where ``json.dumps`` is called without
-    ``ensure_ascii=True`` on one side and with it on the other — the
+    ``ensure_ascii=True`` on one side and with it on the other - the
     HMAC would then differ between writer and verifier on any non-ASCII
     string, breaking every chain that touches an emoji or RTL mark.
     """

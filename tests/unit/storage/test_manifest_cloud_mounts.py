@@ -70,7 +70,7 @@ def test_s3_mount_has_sensible_defaults() -> None:
 
 
 def test_r2_mount_requires_account_id() -> None:
-    """R2Mount.account_id has no default — enforced by dataclass signature."""
+    """R2Mount.account_id has no default - enforced by dataclass signature."""
     import inspect
 
     sig = inspect.signature(R2Mount)

@@ -275,7 +275,7 @@ class TestPlanBeforeApply:
         assert "-auto-approve" in script
 
     def test_script_body_is_prompt_independent(self) -> None:
-        # Regression: the script body MUST be a fixed literal — prompts
+        # Regression: the script body MUST be a fixed literal - prompts
         # used to be f-string interpolated, letting shell metachars
         # (``"``, ``$()``, ``;``, backticks) either break the script or
         # execute arbitrary commands inside ``bash -euo pipefail``.
@@ -335,7 +335,7 @@ class TestIaCAdapterName:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Tests for token tracker — per-agent token usage accounting."""
+"""Tests for token tracker - per-agent token usage accounting."""
 
 from __future__ import annotations
 

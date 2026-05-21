@@ -2,13 +2,13 @@
 
 The daemon module exposes four operations:
 
-* :func:`start` — fork a long-running poller that walks each
+* :func:`start` - fork a long-running poller that walks each
   configured repo every ``poll_interval_seconds``.
-* :func:`stop` — read the pid file under ``.sdd/runtime/autofix.pid``,
+* :func:`stop` - read the pid file under ``.sdd/runtime/autofix.pid``,
   send ``SIGTERM`` and wait for clean exit.
-* :func:`status` — return a typed :class:`DaemonStatus` describing
+* :func:`status` - return a typed :class:`DaemonStatus` describing
   whether the daemon is running and, if so, when it last ticked.
-* :func:`attach` — open the live status feed produced by the
+* :func:`attach` - open the live status feed produced by the
   running daemon (a JSONL tail) so an operator can watch attempts
   scroll by without checking GitHub.
 
@@ -168,7 +168,7 @@ def _process_alive(pid: int) -> bool:
 def append_status(workdir: Path, record: AttemptRecord) -> None:
     """Append one attempt record as JSONL into the daemon status log.
 
-    The log is plain JSONL — each line is a serialised
+    The log is plain JSONL - each line is a serialised
     :class:`AttemptRecord` so ``attach`` can stream it without
     parsing extra framing.
 
@@ -222,7 +222,7 @@ def read_status(workdir: Path) -> DaemonStatus:
             last_tick = log_path.stat().st_mtime
 
     if pid > 0 and not _process_alive(pid):
-        # Stale pid file — surface "not running" so callers can clean
+        # Stale pid file - surface "not running" so callers can clean
         # up rather than reporting a zombie as alive.
         return DaemonStatus(
             running=False,
@@ -433,7 +433,7 @@ def start(
         now_fn: Callable matching :func:`time.time`.  Tests inject
             a fixed clock.
         iterations: When set, the loop runs exactly that many ticks
-            then returns.  ``None`` means "run forever" — the
+            then returns.  ``None`` means "run forever" - the
             production behaviour.
 
     Returns:
@@ -509,7 +509,7 @@ def _clear_pid(workdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# attach() — read recent attempts from the JSONL status log
+# attach() - read recent attempts from the JSONL status log
 # ---------------------------------------------------------------------------
 
 

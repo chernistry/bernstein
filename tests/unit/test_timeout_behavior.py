@@ -441,7 +441,7 @@ class TestConfigWatcherDriftTiming:
         report = watcher.check()
         assert report.drifted is True
 
-        # Acknowledge and re-snapshot — next check should be clean
+        # Acknowledge and re-snapshot - next check should be clean
         watcher.acknowledge_report(report)
         watcher.re_snapshot()
         report2 = watcher.check()

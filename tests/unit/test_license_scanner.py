@@ -35,7 +35,7 @@ def _removed(content: str, filepath: str = "src/foo.py") -> str:
 
 
 # ---------------------------------------------------------------------------
-# SPDX identifier — strong copyleft
+# SPDX identifier - strong copyleft
 # ---------------------------------------------------------------------------
 
 
@@ -69,7 +69,7 @@ class TestSpdxStrongCopyleft:
 
 
 # ---------------------------------------------------------------------------
-# SPDX identifier — weak copyleft
+# SPDX identifier - weak copyleft
 # ---------------------------------------------------------------------------
 
 
@@ -230,7 +230,7 @@ class TestSeverityPrecedence:
 
 
 # ---------------------------------------------------------------------------
-# Deduplication — multi-line boilerplate should not multiply hits
+# Deduplication - multi-line boilerplate should not multiply hits
 # ---------------------------------------------------------------------------
 
 

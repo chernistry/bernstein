@@ -44,7 +44,7 @@ class TestGenerateSubcommand:
             ["generate", "--workdir", str(demo_repo), "--repo-name", "demo"],
         )
         assert result.exit_code == 0, result.output
-        assert "# demo — AGENTS.md" in result.output
+        assert "# demo - AGENTS.md" in result.output
 
     def test_cursor_target_prints_separator_per_file(self, demo_repo: Path) -> None:
         runner = CliRunner()
@@ -80,7 +80,7 @@ class TestWriteSubcommand:
         assert result.exit_code == 0, result.output
         agents_md = demo_repo / "AGENTS.md"
         assert agents_md.is_file()
-        assert "# demo — AGENTS.md" in agents_md.read_text()
+        assert "# demo - AGENTS.md" in agents_md.read_text()
 
     def test_dry_run_does_not_touch_disk(self, demo_repo: Path) -> None:
         runner = CliRunner()
@@ -121,7 +121,7 @@ class TestWriteSubcommand:
 
 
 # ---------------------------------------------------------------------------
-# sync — the killer command
+# sync - the killer command
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +142,7 @@ class TestSyncSubcommand:
 
 
 # ---------------------------------------------------------------------------
-# verify — CI gate
+# verify - CI gate
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +195,7 @@ class TestVerifySubcommand:
 
 
 # ---------------------------------------------------------------------------
-# diff — informational, exit 0 even with drift
+# diff - informational, exit 0 even with drift
 # ---------------------------------------------------------------------------
 
 

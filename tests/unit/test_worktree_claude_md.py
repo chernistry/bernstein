@@ -1,4 +1,4 @@
-"""Tests for worktree_claude_md — CLAUDE.md auto-injection per worktree."""
+"""Tests for worktree_claude_md - CLAUDE.md auto-injection per worktree."""
 
 from __future__ import annotations
 

@@ -117,7 +117,7 @@ class TestSemanticCacheManager:
         assert score == pytest.approx(1.0)
 
     def test_ttl_expiry(self, tmp_path: Path) -> None:
-        # TTL of 0.001 seconds — should expire immediately
+        # TTL of 0.001 seconds - should expire immediately
         mgr = SemanticCacheManager(tmp_path, ttl_seconds=0.001)
         mgr.store("old goal", "old plan", model="m1")
         time.sleep(0.01)
@@ -177,6 +177,6 @@ class TestSemanticCacheManager:
         cache_dir.mkdir(parents=True)
         (cache_dir / "semantic_cache.jsonl").write_text("not valid json")
 
-        # Should not raise — corrupted file is silently ignored
+        # Should not raise - corrupted file is silently ignored
         mgr = SemanticCacheManager(tmp_path)
         assert mgr.get_stats()["entries"] == 0

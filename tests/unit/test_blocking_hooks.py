@@ -1,4 +1,4 @@
-"""Tests for HOOK-002 — blocking hook support (blocking_hooks.py)."""
+"""Tests for HOOK-002 - blocking hook support (blocking_hooks.py)."""
 
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ class TestMakeBlockingPayload:
 
 
 # ---------------------------------------------------------------------------
-# BlockingHookRunner — allow
+# BlockingHookRunner - allow
 # ---------------------------------------------------------------------------
 
 
@@ -138,7 +138,7 @@ class TestBlockingHookRunnerAllow:
 
 
 # ---------------------------------------------------------------------------
-# BlockingHookRunner — deny
+# BlockingHookRunner - deny
 # ---------------------------------------------------------------------------
 
 
@@ -171,7 +171,7 @@ class TestBlockingHookRunnerDeny:
 
 
 # ---------------------------------------------------------------------------
-# BlockingHookRunner — timeout
+# BlockingHookRunner - timeout
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +195,7 @@ class TestBlockingHookRunnerTimeout:
 
 
 # ---------------------------------------------------------------------------
-# BlockingHookRunner — error handling
+# BlockingHookRunner - error handling
 # ---------------------------------------------------------------------------
 
 

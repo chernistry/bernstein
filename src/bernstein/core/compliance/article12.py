@@ -3,10 +3,10 @@
 This module produces the human- and machine-readable surfaces of the
 compliance pack:
 
-* :func:`render_pdf` — reportlab-driven PDF summary keyed off the
+* :func:`render_pdf` - reportlab-driven PDF summary keyed off the
   paragraph map below.
-* :func:`render_csv` — flat CSV with one row per :class:`LineageEntry`.
-* :data:`ARTICLE12_PARAGRAPH_MAP` — pure-function table mapping each
+* :func:`render_csv` - flat CSV with one row per :class:`LineageEntry`.
+* :data:`ARTICLE12_PARAGRAPH_MAP` - pure-function table mapping each
   Article 12 paragraph to the derived fact a compliance officer expects
   to see. Every value is a callable
   ``(entries: list[LineageEntry], period: tuple[str, str]) -> dict``
@@ -15,13 +15,13 @@ compliance pack:
 
 Article 12 references EU AI Act (Regulation (EU) 2024/1689):
 
-* 12(1)  — automatic event-logging exists.
-* 12(2)(a) — period of use.
-* 12(2)(b) — reference DB against which input data was checked (n/a here;
+* 12(1)  - automatic event-logging exists.
+* 12(2)(a) - period of use.
+* 12(2)(b) - reference DB against which input data was checked (n/a here;
               left to the deploying system to attest).
-* 12(2)(c) — input data that led to a match.
-* 12(2)(d) — identification of natural persons involved in verification.
-* 12(3)  — minimum 6-month retention (or 10 years for high-risk Annex III).
+* 12(2)(c) - input data that led to a match.
+* 12(2)(d) - identification of natural persons involved in verification.
+* 12(3)  - minimum 6-month retention (or 10 years for high-risk Annex III).
 """
 
 from __future__ import annotations
@@ -194,9 +194,9 @@ def render_pdf(
     """Render a multi-page PDF summarising Article 12 conformance.
 
     Layout:
-      * Header — org name + period.
+      * Header - org name + period.
       * Per-paragraph table with the derived fact.
-      * Footer — generation timestamp.
+      * Footer - generation timestamp.
     """
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -206,14 +206,14 @@ def render_pdf(
         rightMargin=2 * cm,
         topMargin=2 * cm,
         bottomMargin=2 * cm,
-        title=f"EU AI Act Article 12 — {org}",
+        title=f"EU AI Act Article 12 - {org}",
     )
     styles = getSampleStyleSheet()
     story: list[Any] = []
 
     story.extend(
         (
-            Paragraph("<b>EU AI Act Article 12 — Evidence Report</b>", styles["Title"]),
+            Paragraph("<b>EU AI Act Article 12 - Evidence Report</b>", styles["Title"]),
             Spacer(1, 0.4 * cm),
             Paragraph(f"<b>Organisation:</b> {org}", styles["Normal"]),
             Paragraph(f"<b>Period:</b> {period[0]} → {period[1]}", styles["Normal"]),

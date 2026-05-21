@@ -163,7 +163,7 @@ class TestKnownBinariesMatchAdapterSources:
         """Regression guard for audit-130.
 
         The kiro adapter must spawn ``kiro-cli`` (not ``kiro``) as the
-        first argument of its ``cmd`` list — if anyone changes that, the
+        first argument of its ``cmd`` list - if anyone changes that, the
         autodetect entry ``kiro-cli → kiro`` also needs to change.
         """
         adapter_file = self._adapters_dir() / "kiro.py"

@@ -1,4 +1,4 @@
-"""Tests for approval gates — gating merge after janitor verification.
+"""Tests for approval gates - gating merge after janitor verification.
 
 Tests follow TDD: written before implementation to define the API.
 """
@@ -61,7 +61,7 @@ class TestOrchestratorConfigApproval:
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate — auto mode
+# ApprovalGate - auto mode
 # ---------------------------------------------------------------------------
 
 
@@ -95,7 +95,7 @@ class TestApprovalGateAuto:
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate — review mode
+# ApprovalGate - review mode
 # ---------------------------------------------------------------------------
 
 
@@ -183,7 +183,7 @@ class TestApprovalGateReview:
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate — review mode with file-based polling
+# ApprovalGate - review mode with file-based polling
 # ---------------------------------------------------------------------------
 
 
@@ -215,13 +215,13 @@ class TestApprovalGateReviewFilePoll:
         approvals_dir = tmp_path / ".sdd" / "runtime" / "approvals"
         approvals_dir.mkdir(parents=True)
 
-        # No file written — should time out and default to approved
+        # No file written - should time out and default to approved
         decision = _default_poll_decision("T-timeout", approvals_dir, poll_interval_s=0.01, max_wait_s=0.05)
         assert decision == "approved"
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate — pr mode
+# ApprovalGate - pr mode
 # ---------------------------------------------------------------------------
 
 
@@ -379,7 +379,7 @@ class TestApprovalResult:
 
 
 # ---------------------------------------------------------------------------
-# Spawner — skip_merge parameter
+# Spawner - skip_merge parameter
 # ---------------------------------------------------------------------------
 
 
@@ -442,7 +442,7 @@ class TestSpawnerSkipMerge:
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate — auto_merge and pr_labels
+# ApprovalGate - auto_merge and pr_labels
 # ---------------------------------------------------------------------------
 
 
@@ -563,7 +563,7 @@ class TestApprovalGateAutoMerge:
 
 
 # ---------------------------------------------------------------------------
-# OrchestratorConfig — merge_strategy field
+# OrchestratorConfig - merge_strategy field
 # ---------------------------------------------------------------------------
 
 

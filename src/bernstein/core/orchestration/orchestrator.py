@@ -9,9 +9,9 @@ introduced, reintroduce a non-blocking guard (see git history for the removed
 ``tick_guard`` / ``concurrency_guard`` modules).
 
 This module is the public facade. Heavy lifting lives in:
-- tick_pipeline.py   — task fetching, batching, server interaction, TypedDicts
-- task_lifecycle.py  — claim/spawn, completion processing, retry/decompose
-- agent_lifecycle.py — agent tracking, heartbeat, crash detection, reaping
+- tick_pipeline.py   - task fetching, batching, server interaction, TypedDicts
+- task_lifecycle.py  - claim/spawn, completion processing, retry/decompose
+- agent_lifecycle.py - agent tracking, heartbeat, crash detection, reaping
 """
 
 from __future__ import annotations
@@ -360,7 +360,7 @@ class Orchestrator:
             providers_yaml = workdir / ".sdd" / "config" / "providers.yaml"
             if providers_yaml.exists():
                 load_providers_from_yaml(providers_yaml, self._router)
-        # Load model policy — checked on every init so late-bound routers pick it up
+        # Load model policy - checked on every init so late-bound routers pick it up
         if self._router is not None:
             model_policy_yaml = workdir / ".sdd" / "config" / "model_policy.yaml"
             if model_policy_yaml.exists():
@@ -389,7 +389,7 @@ class Orchestrator:
             self._evolution: EvolutionCoordinator | None = None
 
         # Adaptive governance: adjusts metric weights each evolution cycle.
-        # Always initialize the governor — it's lightweight and evolve mode
+        # Always initialize the governor - it's lightweight and evolve mode
         # can be activated at runtime via evolve.json even if not in config.
         self._governor = AdaptiveGovernor(state_dir=workdir / ".sdd")
 
@@ -530,7 +530,7 @@ class Orchestrator:
             _ctx_raw if isinstance(_ctx_raw, ContextDegradationConfig) else ContextDegradationConfig(enabled=False)
         )
         self._context_degradation = ContextDegradationDetector(_ctx_cfg, workdir)
-        # Recovery context keyed by task_id — consumed by the replacement
+        # Recovery context keyed by task_id - consumed by the replacement
         # agent's prompt.  Populated when a degraded session is evicted.
         self._context_recovery: dict[str, str] = {}
 
@@ -540,7 +540,7 @@ class Orchestrator:
 
         # Replay gateway: captures LLM + tool dispatch responses into
         # .sdd/runs/{run_id}/events.jsonl so a run can be re-executed
-        # against recorded fixtures. OFF by default — opt in with
+        # against recorded fixtures. OFF by default - opt in with
         # BERNSTEIN_RECORD=1 to avoid bloating .sdd/ for casual runs.
         from bernstein.core.replay import ReplayGateway as _ReplayGateway
 
@@ -633,7 +633,7 @@ class Orchestrator:
         self._convergence_guard = ConvergenceGuard(config.convergence)
 
         # AgentOps: SLO tracking, error budget, runbooks, incident response.
-        # Reset error budget AND metric collector each run — stale failure
+        # Reset error budget AND metric collector each run - stale failure
         # data from prior runs must not throttle a fresh run's agent capacity.
         self._slo_tracker = SLOTracker()
         # Clear prior-run task metrics so error budget starts at 0/0
@@ -665,7 +665,7 @@ class Orchestrator:
                     defn.phase_names(),
                 )
             else:
-                logger.warning("Unknown workflow %r — running in adaptive mode", config.workflow)
+                logger.warning("Unknown workflow %r - running in adaptive mode", config.workflow)
 
         # Run manifest: hashable configuration record for compliance (non-critical).
         self._manifest = None
@@ -742,7 +742,7 @@ class Orchestrator:
             audit_dir = workdir / ".sdd" / "audit"
             self._audit_log = AuditLog(audit_dir)
             set_audit_log(self._audit_log)
-            logger.info("SOC 2 audit mode active — logging to %s", audit_dir)
+            logger.info("SOC 2 audit mode active - logging to %s", audit_dir)
         else:
             self._audit_log = None
 
@@ -784,11 +784,11 @@ class Orchestrator:
         self._ci_autofix_pipeline: Any | None = None
         self._last_ci_poll_ts: float = 0.0
 
-        # LLM watcher (P1 — opt-in advisory observer above the deterministic
+        # LLM watcher (P1 - opt-in advisory observer above the deterministic
         # orchestrator).  Off by default; the watcher imports the LLM stack
         # only when ``BERNSTEIN_LLM_WATCHER_ENABLED`` is truthy.  It receives
-        # a frozen ``WatcherEvent`` snapshot only — no orchestrator handle,
-        # no task store, no spawner — so it is structurally read-only.  See
+        # a frozen ``WatcherEvent`` snapshot only - no orchestrator handle,
+        # no task store, no spawner - so it is structurally read-only.  See
         # ``bernstein.core.observability.llm_watcher`` for the full contract.
         from bernstein.core.observability.llm_watcher import build_watcher_from_env
 
@@ -1015,7 +1015,7 @@ class Orchestrator:
         result = apply_policy(self._budget_policy, status.percentage_used, tasks=tasks)
         if result.action != self._last_budget_action:
             logger.info(
-                "Budget policy transition: %s -> %s at %.1f%% spend (threshold %.0f%%) — %s",
+                "Budget policy transition: %s -> %s at %.1f%% spend (threshold %.0f%%) - %s",
                 self._last_budget_action.value,
                 result.action.value,
                 result.percentage_used * 100,
@@ -1096,7 +1096,7 @@ class Orchestrator:
         # 0. Ingest any new backlog files before fetching tasks.
         #    Rate-limited to 10 files/tick with title dedup to prevent
         #    server overload and duplicate task creation.
-        #    Gated behind _run_normal — no need to scan 300 files every tick.
+        #    Gated behind _run_normal - no need to scan 300 files every tick.
         if _run_normal:
             try:
                 from bernstein.core.roadmap_runtime import emit_roadmap_wave
@@ -1124,7 +1124,7 @@ class Orchestrator:
             self._consecutive_server_failures = getattr(self, "_consecutive_server_failures", 0) + 1
             if self._consecutive_server_failures >= ORCHESTRATOR.server_failure_threshold:
                 logger.critical(
-                    "Server unreachable for %d consecutive ticks — orchestrator stopping to prevent waste",
+                    "Server unreachable for %d consecutive ticks - orchestrator stopping to prevent waste",
                     self._consecutive_server_failures,
                 )
                 self._running = False
@@ -1188,7 +1188,7 @@ class Orchestrator:
         except OSError as exc:
             logger.warning("Failed to read pivot signals: %s", exc)
 
-        # 1b-i. Check task deadlines — warn or fail running tasks past deadline
+        # 1b-i. Check task deadlines - warn or fail running tasks past deadline
         try:
             self._check_task_deadlines(
                 tasks_by_status.get("claimed", []) + tasks_by_status.get("in_progress", []),
@@ -1241,7 +1241,7 @@ class Orchestrator:
             self._check_workflow_approval()
 
         # 1c. Build task graph and compute optimal parallelism
-        #     Graph analysis + dependency validation are expensive — gate behind
+        #     Graph analysis + dependency validation are expensive - gate behind
         #     _run_normal. The all_tasks list and task ID cache are always needed.
         all_tasks = list(itertools.chain.from_iterable(tasks_by_status.values()))
         self._latest_tasks_by_id = {task.id: task for task in all_tasks}
@@ -1256,7 +1256,7 @@ class Orchestrator:
                 logger.error("Dependency cycle detected: %s", " -> ".join(cycle))
             for task_id, dep_id, dep_status in dep_validation.stuck_deps:
                 logger.warning(
-                    "Task %s depends on %s which is %s — task remains blocked",
+                    "Task %s depends on %s which is %s - task remains blocked",
                     task_id,
                     dep_id,
                     dep_status,
@@ -1422,7 +1422,7 @@ class Orchestrator:
         elif budget_decision is not None and budget_decision.action == BudgetAction.ABORT:
             _bs = self._cost_tracker.status()
             logger.warning(
-                "Budget exhausted — $%.2f spent of $%.2f budget. "
+                "Budget exhausted - $%.2f spent of $%.2f budget. "
                 "Fix: increase budget with --budget N or wait for running tasks to complete",
                 _bs.spent_usd,
                 _bs.budget_usd,
@@ -1445,7 +1445,7 @@ class Orchestrator:
         elif budget_decision is not None and budget_decision.action == BudgetAction.PAUSE:
             _bs = self._cost_tracker.status()
             logger.warning(
-                "Budget policy PAUSE triggered at %.1f%% — holding spawns until approval",
+                "Budget policy PAUSE triggered at %.1f%% - holding spawns until approval",
                 _bs.percentage_used * 100,
             )
             # Fire a one-shot notification when the action first transitions.
@@ -1463,7 +1463,7 @@ class Orchestrator:
         process_completed_tasks(self, done_tasks, result)
 
         # 4x. Periodic git hygiene
-        # Gated behind _run_slow — git operations are IO-heavy.
+        # Gated behind _run_slow - git operations are IO-heavy.
         if _run_slow and len(done_tasks) > 0:
             with contextlib.suppress(Exception):
                 from bernstein.core.git_hygiene import run_hygiene
@@ -1472,7 +1472,7 @@ class Orchestrator:
                 run_hygiene(self._workdir, active_session_ids=active_ids)
 
         # 4x-ii. Periodic worktree garbage collection
-        # Gated behind _run_slow — worktree GC is IO-heavy.
+        # Gated behind _run_slow - worktree GC is IO-heavy.
         if _run_slow:
             try:
                 active_ids = {s.id for s in self._agents.values() if s.status != "dead"}
@@ -1527,12 +1527,12 @@ class Orchestrator:
             )
 
         # Run manager queue review when triggered (periodic correction pass)
-        # Gated behind _run_slow — manager review involves an LLM call.
+        # Gated behind _run_slow - manager review involves an LLM call.
         if _run_slow and self._should_trigger_manager_review(self._failures_since_review):
             self._run_manager_queue_review()
 
         # 4b.6 AgentOps: update SLOs, check error budget, detect incidents
-        # Gated behind _run_slow — SLO/incident tracking is expensive and
+        # Gated behind _run_slow - SLO/incident tracking is expensive and
         # doesn't need sub-minute granularity.
         if _run_slow:
             collector = get_collector()
@@ -1588,7 +1588,7 @@ class Orchestrator:
         check_loops_and_deadlocks(self)
 
         # 4d-ii.6 Three-tier watchdog: mechanical checks -> AI triage -> human escalation
-        # Gated behind _run_slow — watchdog sync is heavyweight.
+        # Gated behind _run_slow - watchdog sync is heavyweight.
         if _run_slow:
             self._watchdog.sync(collect_watchdog_findings(self))
 
@@ -1605,13 +1605,13 @@ class Orchestrator:
         # 4d-ii.8 Self-healing liveness watchdog (#1224): periodic check for
         # stuck adapter sessions on pre-approved safety prompts. Off by
         # default; opt-in via BERNSTEIN_WATCHDOG_ENABLED=1. Complementary
-        # to the stalled-manager detector above — different failure mode,
+        # to the stalled-manager detector above - different failure mode,
         # different recovery action.
         if _run_slow:
             self._run_liveness_watchdog()
 
         # 4d-iii. Cost anomaly detection: burn rate projection, stop on budget overrun
-        # Gated behind _run_slow — anomaly detection doesn't need every-tick granularity.
+        # Gated behind _run_slow - anomaly detection doesn't need every-tick granularity.
         if _run_slow:
             for sig in self._anomaly_detector.check_tick(list(self._agents.values()), self._cost_tracker):
                 self._handle_anomaly_signal(sig)
@@ -1641,7 +1641,7 @@ class Orchestrator:
         # 4e-ii. Log-growth idle heuristic: catch agents wedged in a
         #     dead MCP/tool call that still emit heartbeats from a side thread but
         #     produce no log output or git activity. Complements recycle_idle_agents
-        #     (heartbeat-based) — gated behind _run_normal since the log tail scan
+        #     (heartbeat-based) - gated behind _run_normal since the log tail scan
         #     is IO-heavy and does not need every-tick granularity.
         if _run_normal:
             try:
@@ -1664,12 +1664,12 @@ class Orchestrator:
                 logger.warning("Pending push retry failed: %s", exc)
 
         # 6. Run evolution analysis cycle every N ticks
-        # Gated behind _run_slow — evolution analysis is heavyweight.
+        # Gated behind _run_slow - evolution analysis is heavyweight.
         if _run_slow and self._evolution is not None and self._tick_count % self._config.evolution_tick_interval == 0:
             self._run_evolution_cycle(result)
 
         # 6b. Refresh knowledge base every 5 evolution intervals
-        # Gated behind _run_slow — knowledge base refresh is IO-heavy.
+        # Gated behind _run_slow - knowledge base refresh is IO-heavy.
         if _run_slow and self._tick_count % (self._config.evolution_tick_interval * 5) == 0:
             try:
                 refresh_knowledge_base(self._workdir)
@@ -1699,7 +1699,7 @@ class Orchestrator:
         # 12. LLM watcher (opt-in, off by default).  Single hook point that
         #     hands an immutable ``WatcherEvent`` snapshot to the watcher.
         #     The watcher receives no orchestrator handle and cannot mutate
-        #     state.  Failures are swallowed — orchestrator stability wins.
+        #     state.  Failures are swallowed - orchestrator stability wins.
         self._dispatch_watcher_events(result)
 
         return result
@@ -1710,7 +1710,7 @@ class Orchestrator:
         Called once at the end of ``_tick_internal``.  Builds a frozen
         snapshot per spawned/verified task and passes it to the watcher.
         The watcher receives no orchestrator handle, no task store, and
-        no spawner — only the snapshot.  This is the single, well-defined
+        no spawner - only the snapshot.  This is the single, well-defined
         hook required by the watcher's read-only contract.
 
         Args:
@@ -1788,7 +1788,7 @@ class Orchestrator:
                 inside_loop = False
 
             # If the tick ever runs inside an async context the watcher
-            # is skipped — the dispatcher refuses to nest event loops.
+            # is skipped - the dispatcher refuses to nest event loops.
             signals = asyncio.run(_drain()) if not inside_loop else []
 
             for sig in signals:
@@ -1864,7 +1864,7 @@ class Orchestrator:
         try:
             self._recover_from_wal()
         except Exception:
-            logger.exception("WAL recovery failed (non-fatal) — continuing startup")
+            logger.exception("WAL recovery failed (non-fatal) - continuing startup")
         # Audit log integrity check: verify the last N HMAC-chained entries.
         try:
             from bernstein.core.audit_integrity import verify_on_startup
@@ -1872,7 +1872,7 @@ class Orchestrator:
             _integrity = verify_on_startup(self._workdir / ".sdd")
             if not _integrity.valid:
                 logger.warning(
-                    "Audit integrity check found %d error(s) — review with 'bernstein audit verify'",
+                    "Audit integrity check found %d error(s) - review with 'bernstein audit verify'",
                     len(_integrity.errors),
                 )
             elif _integrity.entries_checked > 0:
@@ -1882,7 +1882,7 @@ class Orchestrator:
                     _integrity.duration_ms,
                 )
         except Exception:
-            logger.exception("Audit integrity check failed (non-fatal) — continuing startup")
+            logger.exception("Audit integrity check failed (non-fatal) - continuing startup")
         # Zombie cleanup: terminate orphaned agent processes from prior crashed runs.
         try:
             from bernstein.core.zombie_cleanup import scan_and_cleanup_zombies
@@ -1897,7 +1897,7 @@ class Orchestrator:
                     len(_zr.errors),
                 )
         except Exception:
-            logger.exception("Zombie cleanup failed (non-fatal) — continuing startup")
+            logger.exception("Zombie cleanup failed (non-fatal) - continuing startup")
         consecutive_failures = 0
         max_consecutive_failures = ORCHESTRATOR.max_consecutive_failures
         while self._running or self._has_active_agents():
@@ -1979,7 +1979,7 @@ class Orchestrator:
         """Check WAL files from previous runs for uncommitted entries.
 
         Scans all WAL files in ``.sdd/runtime/wal/`` (excluding the current
-        run) for entries written with ``committed=False`` — these represent
+        run) for entries written with ``committed=False`` - these represent
         task claims where the agent was never successfully spawned (crash
         between claim and spawn).
 
@@ -2014,7 +2014,7 @@ class Orchestrator:
         try:
             self._replay_wal_with_engine(sdd_dir)
         except Exception:
-            logger.exception("WAL replay engine failed (non-fatal) — continuing with legacy recovery")
+            logger.exception("WAL replay engine failed (non-fatal) - continuing with legacy recovery")
         uncommitted = WALRecovery.scan_all_uncommitted(
             sdd_dir,
             exclude_run_id=self._run_id,
@@ -2232,7 +2232,7 @@ class Orchestrator:
                 resp.raise_for_status()
             except Exception as exc:
                 logger.warning(
-                    "WAL replay: /tasks/%s/fail failed (%s) — orphan will be handled by legacy force-claim recovery",
+                    "WAL replay: /tasks/%s/fail failed (%s) - orphan will be handled by legacy force-claim recovery",
                     task_id,
                     exc,
                 )
@@ -2642,13 +2642,13 @@ class Orchestrator:
         assert isinstance(signal, AnomalySignal)
         self._anomaly_detector.record_signal(signal)
         if signal.action == "kill_agent" and signal.agent_id:
-            logger.warning("Anomaly [%s]: %s — killing agent", signal.rule, signal.message)
+            logger.warning("Anomaly [%s]: %s - killing agent", signal.rule, signal.message)
             session = self._agents.get(signal.agent_id)
             if session:
                 with contextlib.suppress(Exception):
                     self._spawner.kill(session)
         elif signal.action == "stop_spawning":
-            logger.warning("Anomaly [%s]: %s — stopping new spawns", signal.rule, signal.message)
+            logger.warning("Anomaly [%s]: %s - stopping new spawns", signal.rule, signal.message)
             self._stop_spawning = True
         else:
             logger.info("Anomaly [%s]: %s", signal.rule, signal.message)
@@ -2921,7 +2921,7 @@ class Orchestrator:
         """
         status = self._cost_tracker.status()
         if not status.should_stop:
-            # Budget was increased or the tracker reset — re-arm so a
+            # Budget was increased or the tracker reset - re-arm so a
             # future exhaustion triggers a fresh SHUTDOWN wave.
             if self._budget_stop_fired_at is not None:
                 logger.info("Budget kill-switch re-armed (spend back under threshold)")
@@ -2939,7 +2939,7 @@ class Orchestrator:
                 f"({status.percentage_used * 100:.1f}%)"
             )
             logger.warning(
-                "Budget kill-switch fired — sending SHUTDOWN to %d live agent(s); SIGKILL after %ds grace period",
+                "Budget kill-switch fired - sending SHUTDOWN to %d live agent(s); SIGKILL after %ds grace period",
                 len(live_sessions),
                 self._cost_tracker.kill_grace_period_s,
             )
@@ -2954,7 +2954,7 @@ class Orchestrator:
             )
             self._notify(
                 "budget.exhaust",
-                "Budget exhausted — terminating agents",
+                "Budget exhausted - terminating agents",
                 (
                     f"Spent ${status.spent_usd:.4f} of ${status.budget_usd:.2f} "
                     f"({status.percentage_used * 100:.1f}%). SHUTDOWN sent to "
@@ -3132,7 +3132,7 @@ class Orchestrator:
             self._consecutive_server_failures += 1
             if self._consecutive_server_failures >= ORCHESTRATOR.server_failure_warn:
                 logger.critical(
-                    "Task server health check failed %d consecutive times — "
+                    "Task server health check failed %d consecutive times - "
                     "server may have crashed (watchdog should restart it)",
                     self._consecutive_server_failures,
                 )
@@ -3205,7 +3205,7 @@ class Orchestrator:
 
             # Use claimed_at (when available) to measure actual time in claimed
             # state.  Fall back to created_at for legacy tasks that pre-date the
-            # claimed_at field — this is conservative (over-counts) but safe.
+            # claimed_at field - this is conservative (over-counts) but safe.
             claim_epoch = task.claimed_at if task.claimed_at is not None else task.created_at
             age_s = now - claim_epoch
             if age_s < timeout:
@@ -3220,7 +3220,7 @@ class Orchestrator:
                 )
                 released += 1
                 logger.warning(
-                    "Released stale claimed task %s (%s) — stuck for %.0fm",
+                    "Released stale claimed task %s (%s) - stuck for %.0fm",
                     task.id,
                     task.title,
                     age_s / 60,
@@ -3345,7 +3345,7 @@ class Orchestrator:
         if not all_files:
             return False
 
-        # In-memory ownership check — filters out dead agents explicitly.
+        # In-memory ownership check - filters out dead agents explicitly.
         for fpath in all_files:
             owner_id = self._file_ownership.get(fpath)
             if owner_id:
@@ -3600,7 +3600,7 @@ class Orchestrator:
             content = backlog_file.read_text(encoding="utf-8")
             parsed_task = parse_backlog_text(backlog_file.name, content)
             if parsed_task is None:
-                logger.warning("ingest_backlog: could not parse %s — skipping", backlog_file.name)
+                logger.warning("ingest_backlog: could not parse %s - skipping", backlog_file.name)
                 self._claim_backlog_file(backlog_file, open_dir, claimed_dir)
                 continue
 
@@ -3618,7 +3618,7 @@ class Orchestrator:
         if not batch_files:
             return 0
 
-        # Phase 2: POST batch — single HTTP call for all collected tasks
+        # Phase 2: POST batch - single HTTP call for all collected tasks
         payloads = [parsed.to_task_payload() for _, parsed in batch_files]
         try:
             resp = self._client.post(
@@ -3629,7 +3629,7 @@ class Orchestrator:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (404, 422):
                 # 404: server doesn't support batch yet (older build).
-                # 422: one task in the batch fails pydantic validation — a
+                # 422: one task in the batch fails pydantic validation - a
                 # single oversized title would otherwise poison every batch
                 # for the whole run.  Fall back to one-by-one so valid tasks
                 # still land and only the bad task keeps retrying.
@@ -3640,7 +3640,7 @@ class Orchestrator:
             logger.warning("ingest_backlog: batch POST failed: %s", exc)
             return 0
 
-        # Phase 3: Mark files as claimed — only on success
+        # Phase 3: Mark files as claimed - only on success
         count = 0
         for backlog_file, parsed in batch_files:
             title_key = parsed.title.lower().strip()
@@ -3655,7 +3655,7 @@ class Orchestrator:
         """Mark a backlog file as claimed.
 
         Files from ``open/`` are moved into ``claimed/``.
-        Files from ``issues/`` stay in place — only a marker is created in
+        Files from ``issues/`` stay in place - only a marker is created in
         ``claimed/`` so they are not re-ingested.
         """
         with contextlib.suppress(OSError):
@@ -4545,7 +4545,7 @@ if __name__ == "__main__":
 
             resolve_default_policy(workdir=workdir)
         except Exception as exc:
-            # Never let policy load kill the orchestrator — log and fall
+            # Never let policy load kill the orchestrator - log and fall
             # through to the legacy unscoped path. Only the exception
             # message is logged here, not credential values.
             # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
@@ -4577,7 +4577,7 @@ if __name__ == "__main__":
                 # Pass through the signing mode from bernstein.yaml
                 # (default 'warn' so the new gate is non-blocking).
                 # BERNSTEIN_MCP_SIGNING_MODE env-var still wins inside
-                # MCPManager — see _resolve_signing_mode.
+                # MCPManager - see _resolve_signing_mode.
                 signing_mode = getattr(seed, "mcp_signing_mode", "warn")
                 mcp_manager = MCPManager(
                     mcp_server_configs,

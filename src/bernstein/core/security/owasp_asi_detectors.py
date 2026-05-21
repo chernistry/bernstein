@@ -9,7 +9,7 @@ into the existing :class:`GuardrailPipeline` via
 phase). To opt out, set ``BERNSTEIN_DISABLE_OWASP_ASI=1`` or pass
 ``enable_owasp_asi=False`` to :meth:`GuardrailPipeline.default`.
 
-Honesty caveats — every detector here is a *heuristic*. Each docstring
+Honesty caveats - every detector here is a *heuristic*. Each docstring
 calls out the risk it tries to catch, the known false-positive
 patterns, and (where applicable) the deeper module that should
 eventually own the check. Deferred deeper integrations are flagged in
@@ -152,7 +152,7 @@ _GOAL_HIJACK_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
 
 
 def detect_asi01_goal_hijack(context: dict[str, Any]) -> ASIFinding:
-    """ASI01 Goal Hijack — lexical detector for goal-rewrite injections.
+    """ASI01 Goal Hijack - lexical detector for goal-rewrite injections.
 
     Risk: an attacker-controlled input rewrites the active task goal
     (e.g., via prompt-injection in retrieved content). This heuristic
@@ -192,7 +192,7 @@ def detect_asi01_goal_hijack(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi02_tool_misuse(context: dict[str, Any]) -> ASIFinding:
-    """ASI02 Tool Misuse — args shape vs declared tool description.
+    """ASI02 Tool Misuse - args shape vs declared tool description.
 
     Risk: a tool is called with arguments that fall outside its declared
     purpose (e.g., a "search" tool invoked with a shell command).
@@ -228,7 +228,7 @@ def detect_asi02_tool_misuse(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi03_identity_privilege(context: dict[str, Any]) -> ASIFinding:
-    """ASI03 Identity & Privilege Abuse — capability matrix violation.
+    """ASI03 Identity & Privilege Abuse - capability matrix violation.
 
     Risk: an agent attempts an action outside its capability grant
     (e.g., a read-only researcher invoking a write tool). Delegates
@@ -256,7 +256,7 @@ def detect_asi03_identity_privilege(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi04_supply_chain(context: dict[str, Any]) -> ASIFinding:
-    """ASI04 Agentic Supply Chain — unsigned MCP/plugin/skill load.
+    """ASI04 Agentic Supply Chain - unsigned MCP/plugin/skill load.
 
     Risk: an unsigned or unverified MCP server, plugin, or skill is
     loaded into the agent's tool surface. Heuristic: the caller
@@ -301,7 +301,7 @@ _CODE_EXEC_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
 
 
 def detect_asi05_code_execution(context: dict[str, Any]) -> ASIFinding:
-    """ASI05 Unexpected Code Execution — eval-shaped or shell-shaped args.
+    """ASI05 Unexpected Code Execution - eval-shaped or shell-shaped args.
 
     Risk: an agent crafts a tool argument that executes code outside
     the sandbox (e.g., shell injection through a "filename" field).
@@ -335,7 +335,7 @@ def detect_asi05_code_execution(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi06_memory_poisoning(context: dict[str, Any]) -> ASIFinding:
-    """ASI06 Memory & Context Poisoning — out-of-band memory writes.
+    """ASI06 Memory & Context Poisoning - out-of-band memory writes.
 
     Risk: an attacker-controlled retrieval pollutes long-term memory
     with payloads that hijack future runs. Heuristic flags memory
@@ -372,7 +372,7 @@ def detect_asi06_memory_poisoning(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi07_insecure_a2a(context: dict[str, Any]) -> ASIFinding:
-    """ASI07 Insecure Inter-Agent Communication — missing JWS on A2A msg.
+    """ASI07 Insecure Inter-Agent Communication - missing JWS on A2A msg.
 
     Risk: an agent-to-agent message arrives without a valid JWS, so
     its origin and integrity cannot be verified. Heuristic flags
@@ -402,7 +402,7 @@ def detect_asi07_insecure_a2a(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi08_unbounded_consumption(context: dict[str, Any]) -> ASIFinding:
-    """ASI08 Unbounded Consumption — task without budget envelope.
+    """ASI08 Unbounded Consumption - task without budget envelope.
 
     Risk: an agent runs a task without a budget cap, allowing runaway
     spend or compute. Heuristic flags any context where
@@ -428,7 +428,7 @@ def detect_asi08_unbounded_consumption(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi09_observability_gap(context: dict[str, Any]) -> ASIFinding:
-    """ASI09 Observability Gap — tool call missing from audit chain.
+    """ASI09 Observability Gap - tool call missing from audit chain.
 
     Risk: a tool call executes but its result is not journaled to the
     audit chain, blinding incident response. Heuristic flags context
@@ -452,7 +452,7 @@ def detect_asi09_observability_gap(context: dict[str, Any]) -> ASIFinding:
 
 
 def detect_asi10_misalignment_drift(context: dict[str, Any]) -> ASIFinding:
-    """ASI10 Misalignment Drift — stated intent vs imminent action.
+    """ASI10 Misalignment Drift - stated intent vs imminent action.
 
     Risk: an agent's chain-of-thought says one thing while the action
     it's about to take does another (e.g., "I'll only read X" then
@@ -483,7 +483,7 @@ def detect_asi10_misalignment_drift(context: dict[str, Any]) -> ASIFinding:
     return _ok(ASIClass.ASI10_MISALIGNMENT_DRIFT, name, DetectorStatus.DEFERRED)
 
 
-# Fixed-order registry of detectors — order matches ASI01..ASI10.
+# Fixed-order registry of detectors - order matches ASI01..ASI10.
 DEFAULT_DETECTORS: tuple[Detector, ...] = (
     detect_asi01_goal_hijack,
     detect_asi02_tool_misuse,
@@ -606,7 +606,7 @@ def is_owasp_asi_enabled(env: dict[str, str] | None = None) -> bool:
     truthy value such as ``true``, ``yes``, ``on``).
 
     The legacy ``BERNSTEIN_ENABLE_OWASP_ASI=1`` opt-in remains
-    accepted as a no-op for forward compatibility — explicitly setting
+    accepted as a no-op for forward compatibility - explicitly setting
     it to a falsy value (``0``, ``false``) suppresses the pack so
     operators who scripted the previous opt-in semantics keep their
     expected behaviour.

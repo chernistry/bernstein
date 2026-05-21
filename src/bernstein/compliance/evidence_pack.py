@@ -6,11 +6,11 @@ regulatory standard.
 
 Sources read:
 
-* ``.sdd/audit/*.jsonl`` — HMAC-chained audit log (RFC 2104 chain).
-* ``.sdd/lineage/log.jsonl`` — per-artefact transparency log (Sigstore-style).
-* ``.sdd/metrics/cost_history.jsonl`` — daily cost ledger snapshots.
-* ``.sdd/policy/`` (optional) — recorded operator policy decisions.
-* ``.sdd/attestations/`` (optional) — operator-supplied signed assertions.
+* ``.sdd/audit/*.jsonl`` - HMAC-chained audit log (RFC 2104 chain).
+* ``.sdd/lineage/log.jsonl`` - per-artefact transparency log (Sigstore-style).
+* ``.sdd/metrics/cost_history.jsonl`` - daily cost ledger snapshots.
+* ``.sdd/policy/`` (optional) - recorded operator policy decisions.
+* ``.sdd/attestations/`` (optional) - operator-supplied signed assertions.
 
 This module is intentionally read-only: it does not mutate or rotate
 the audit chain. The output zip is byte-deterministic for a given input
@@ -71,7 +71,7 @@ Standard = Literal["ai-act"]
 
 SUPPORTED_STANDARDS: tuple[str, ...] = ("ai-act",)
 
-#: Fixed mtime for every entry in the produced zip — required for
+#: Fixed mtime for every entry in the produced zip - required for
 #: byte-deterministic output. Zip cannot store dates before 1980.
 _FIXED_ZIP_DT: tuple[int, int, int, int, int, int] = (1980, 1, 1, 0, 0, 0)
 
@@ -80,12 +80,12 @@ _FIXED_ZIP_DT: tuple[int, int, int, int, int, int] = (1980, 1, 1, 0, 0, 0)
 # ---------------------------------------------------------------------------
 #
 # Each entry maps a regulatory ``control_id`` to:
-#   * ``requirement`` — short paraphrase of the underlying clause.
-#   * ``artefact``    — bundle file (relative to zip root) that satisfies it.
-#   * ``selector``    — informational: which event attribute carries the
+#   * ``requirement`` - short paraphrase of the underlying clause.
+#   * ``artefact``    - bundle file (relative to zip root) that satisfies it.
+#   * ``selector``    - informational: which event attribute carries the
 #                       primary evidence (``event_type``, ``resource_type``,
 #                       etc). Free-form string; not enforced at MVP.
-#   * ``status``      — ``"mapped"`` or ``"todo"``.
+#   * ``status``      - ``"mapped"`` or ``"todo"``.
 #
 # The ``ai-act`` block intentionally mirrors the structure used by the
 # Article 12 bundle (``article12_bundle.py``) so an auditor switching
@@ -132,14 +132,14 @@ _STANDARD_MAPS: dict[str, dict[str, Any]] = {
             },
             {
                 "control_id": "art-15(1)",
-                "requirement": "Accuracy, robustness and cybersecurity — evidence via lineage chain.",
+                "requirement": "Accuracy, robustness and cybersecurity - evidence via lineage chain.",
                 "artefact": "lineage/log.jsonl",
                 "selector": "content_hash,parent_hashes",
                 "status": "mapped",
             },
             {
                 "control_id": "art-13",
-                "requirement": "Transparency to deployers — cost + model attribution per task.",
+                "requirement": "Transparency to deployers - cost + model attribution per task.",
                 "artefact": "costs/cost_history.jsonl",
                 "selector": "model,task_id,usd",
                 "status": "mapped",
@@ -439,13 +439,13 @@ def _readme_for(standard: str, mapping: dict[str, Any]) -> bytes:
         "",
         "## Layout",
         "",
-        "- `manifest.json`        — bundle metadata + SHA-256 of every artefact.",
-        "- `controls.json`        — control_id -> artefact mapping for this standard.",
-        "- `audit-chain/`         — HMAC-chained audit events + per-resource catalog.",
-        "- `lineage/`             — Sigstore-style transparency log entries.",
-        "- `costs/`               — cost ledger snapshots over the export window.",
-        "- `policy/`              — operator policy snapshot (optional).",
-        "- `attestations/`        — operator-supplied attestations (optional).",
+        "- `manifest.json`        - bundle metadata + SHA-256 of every artefact.",
+        "- `controls.json`        - control_id -> artefact mapping for this standard.",
+        "- `audit-chain/`         - HMAC-chained audit events + per-resource catalog.",
+        "- `lineage/`             - Sigstore-style transparency log entries.",
+        "- `costs/`               - cost ledger snapshots over the export window.",
+        "- `policy/`              - operator policy snapshot (optional).",
+        "- `attestations/`        - operator-supplied attestations (optional).",
         "",
         "## Verification",
         "",
@@ -570,7 +570,7 @@ def build_evidence_pack(
     policy_files = _read_text_directory(policy_dir)
     attestation_files = _read_text_directory(attestations_dir)
 
-    # Assemble the artefact dict — keys are zip paths.
+    # Assemble the artefact dict - keys are zip paths.
     artefacts: dict[str, bytes] = {
         "audit-chain/events.jsonl": events_bytes,
         "audit-chain/data_catalog.json": data_catalog_bytes,

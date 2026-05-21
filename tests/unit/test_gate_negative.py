@@ -43,7 +43,7 @@ def _init_git_repo(workdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007a: Lint gate — bad code triggers failure
+# TEST-007a: Lint gate - bad code triggers failure
 # ---------------------------------------------------------------------------
 
 

@@ -62,7 +62,7 @@ _OPENAI_CREDENTIAL_KEYS: tuple[str, ...] = (
 # SDK's out-of-the-box provider that runs tools as subprocesses constrained
 # to the workdir Bernstein already passes in.  More capable providers
 # (``e2b``, ``modal``, ``docker``) can be selected per spawn via
-# ``mcp_config["sandbox_provider"]`` — see the runner script for the
+# ``mcp_config["sandbox_provider"]`` - see the runner script for the
 # full list.
 _DEFAULT_SANDBOX_PROVIDER: str = "unix_local"
 
@@ -129,7 +129,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
             import importlib.util
 
             return importlib.util.find_spec("agents") is not None
-        except Exception as exc:  # pragma: no cover — defensive
+        except Exception as exc:  # pragma: no cover - defensive
             logger.debug("openai_agents health_check import probe failed: %s", exc)
             return False
 
@@ -160,7 +160,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
     ) -> dict[str, Any]:
         """Serialize spawn parameters into the runner's stdin manifest.
 
-        The manifest schema is an adapter-internal contract — any field
+        The manifest schema is an adapter-internal contract - any field
         added here must also be consumed by ``openai_agents_runner``.
         ``mcp_config`` is passed through unchanged so MCP servers that
         Bernstein already manages (bernstein bridge, user-configured
@@ -217,7 +217,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
         return [sys.executable, "-m", "bernstein.adapters.openai_agents_runner"]
 
     # ------------------------------------------------------------------
-    # Public API — CLIAdapter contract
+    # Public API - CLIAdapter contract
     # ------------------------------------------------------------------
 
     def spawn(
@@ -259,7 +259,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
 
         if not os.environ.get("OPENAI_API_KEY"):
             logger.warning(
-                "OpenAIAgentsAdapter: OPENAI_API_KEY is not set — spawn will fail",
+                "OpenAIAgentsAdapter: OPENAI_API_KEY is not set - spawn will fail",
             )
 
         cmd = [*self._runner_command(), "--manifest", str(manifest_path)]

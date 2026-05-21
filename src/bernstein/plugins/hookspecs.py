@@ -1,4 +1,4 @@
-"""Hook specifications — defines extension points for Bernstein plugins."""
+"""Hook specifications - defines extension points for Bernstein plugins."""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ class BernsteinSpec:
         title: str,
         description: str,
     ) -> None:
-        """Called before a task is created — hooks may block by raising.
+        """Called before a task is created - hooks may block by raising.
 
         Implementations running shell scripts can exit with code 2 to
         block task creation (T719).
@@ -250,7 +250,7 @@ class BernsteinSpec:
         tool: str,
         tool_input: dict[str, Any],
     ) -> str | None:
-        """Called before a tool is executed — hooks may block with exit code 2 (T681).
+        """Called before a tool is executed - hooks may block with exit code 2 (T681).
 
         Implementations can return a structured denial hint or raise
         :class:`~bernstein.plugins.manager.HookBlockingError` via command hooks
@@ -389,7 +389,7 @@ class BernsteinSpec:
         tool: str,
         mode: str,
     ) -> None:
-        """Called before permission resolution — hooks can observe or pre-decide (T681).
+        """Called before permission resolution - hooks can observe or pre-decide (T681).
 
         In headless mode this fires before auto-deny/auto-allow resolution.
 
@@ -505,7 +505,7 @@ class BernsteinSpec:
         load order *after* the canonical built-in sections.
 
         Sections returned here participate in the cross-CLI rewrite the
-        same way as built-in sections — Cursor / Claude Code / Aider /
+        same way as built-in sections - Cursor / Claude Code / Aider /
         Goose all see the plugin's contribution. Use this hook to inject
         plugin-specific build commands, environment requirements, or
         operator notes that the user should not have to copy-paste into
@@ -666,10 +666,10 @@ class BernsteinSpec:
         currently emits the following families (the list grows as more
         surfaces wire the hook):
 
-        * ``task.<lifecycle>`` — task created / completed / failed.
-        * ``agent.<lifecycle>`` — agent spawned / reaped.
-        * ``vault.<op>`` — credential connect / read / revoke.
-        * ``sandbox.<op>`` — sandbox create / destroy / cap-violation.
+        * ``task.<lifecycle>`` - task created / completed / failed.
+        * ``agent.<lifecycle>`` - agent spawned / reaped.
+        * ``vault.<op>`` - credential connect / read / revoke.
+        * ``sandbox.<op>`` - sandbox create / destroy / cap-violation.
 
         Args:
             event_type: Namespaced event type (e.g. ``"task.completed"``).

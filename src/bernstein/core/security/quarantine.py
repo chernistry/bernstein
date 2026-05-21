@@ -1,4 +1,4 @@
-"""Cross-run task quarantine — track repeatedly-failing tasks across Bernstein runs.
+"""Cross-run task quarantine - track repeatedly-failing tasks across Bernstein runs.
 
 Tasks that fail ``QUARANTINE_THRESHOLD`` times are quarantined so the orchestrator
 can skip them on future runs instead of burning tokens on known-bad work.

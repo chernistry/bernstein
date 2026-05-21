@@ -70,7 +70,7 @@ def _verify_hook_signature(request: Request, body: bytes) -> JSONResponse | None
     request carries no (or an invalid) signature.  Returns ``None`` when
     validation passes.
 
-    When no secret is configured the endpoint is *disabled* (returns 401) —
+    When no secret is configured the endpoint is *disabled* (returns 401) -
     hooks cannot be authenticated and must not be trusted by default.
     Operators who deliberately run without auth set
     ``BERNSTEIN_AUTH_DISABLED=1`` at the app level; in that mode the SSO
@@ -129,7 +129,7 @@ async def receive_hook(session_id: str, request: Request) -> JSONResponse:
     The request body is verified against
     ``X-Bernstein-Hook-Signature-256`` (HMAC-SHA256 over the raw body,
     keyed with ``BERNSTEIN_HOOK_SECRET``) *before* any parsing or
-    filesystem work — this is the authentication boundary for the
+    filesystem work - this is the authentication boundary for the
     endpoint. The ``session_id`` is then validated against
     a strict allowlist to prevent path traversal.
 
@@ -166,7 +166,7 @@ async def receive_hook(session_id: str, request: Request) -> JSONResponse:
         event = parse_hook_event(session_id, body)
         result = process_hook_event(event, workdir)
     except InvalidSessionIdError as exc:
-        # Defense in depth — primary validation above should have
+        # Defense in depth - primary validation above should have
         # already caught this, but we re-map any downstream rejection
         # from the receiver to a 400 rather than a 500.
         logger.warning("Hook receiver rejected session_id downstream: %s", exc)

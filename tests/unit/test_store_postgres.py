@@ -148,7 +148,7 @@ def test_claim_by_id_releases_distributed_lock_on_version_conflict(monkeypatch: 
 def test_claim_next_filters_unmet_dependencies_in_single_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Dependency filtering is embedded in ``_CLAIM_NEXT_SQL`` — when the
+    """Dependency filtering is embedded in ``_CLAIM_NEXT_SQL`` - when the
     subquery returns no eligible row, ``claim_next`` returns ``None`` without
     executing any follow-up re-open statement.  The whole call must run
     inside a single acquired connection + transaction.
@@ -184,7 +184,7 @@ def test_claim_next_filters_unmet_dependencies_in_single_transaction(
     assert claimed is None
     assert len(conn.fetchrow_calls) == 1
     assert "FOR    UPDATE SKIP LOCKED" in conn.fetchrow_calls[0]
-    # No re-open — the race-prone second connection is gone.
+    # No re-open - the race-prone second connection is gone.
     assert conn.execute_calls == []
     # Transaction was entered (and exited) exactly once.
     assert conn.transaction_entered is True

@@ -128,7 +128,7 @@ def _pid_alive(pid: int) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        # PID exists, owned by another user — still a live process.
+        # PID exists, owned by another user - still a live process.
         return True
     except OSError:
         # On Windows, os.kill raises OSError(WinError 87) for dead/invalid
@@ -218,7 +218,7 @@ def build_resume_prompt(checkpoint: AgentCheckpoint, original_goal: str) -> str:
         f"- **Files modified**: {files_summary}\n\n"
         f"The files above are already in the worktree. Review them first, then "
         f"continue from where the previous agent left off. Do NOT restart from "
-        f"scratch — build on the existing work.\n\n"
+        f"scratch - build on the existing work.\n\n"
         f"Last output from previous agent:\n"
         f"```\n{checkpoint.last_output[:2000]}\n```\n"
     )

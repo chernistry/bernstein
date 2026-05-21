@@ -1,4 +1,4 @@
-"""A/B runner primitive — deterministic prompt-vs-prompt comparison.
+"""A/B runner primitive - deterministic prompt-vs-prompt comparison.
 
 This is the *primitive* layer for the eval harness + A/B. It runs two
 prompt variants over the same task set, scores each output, and produces a
@@ -14,7 +14,7 @@ Design notes:
       single live task via httpx). This module covers prompt-vs-prompt
       offline / synthetic eval.
     * Benchmark loaders (SWE-bench Pro, Terminal-Bench) are intentionally
-      out of scope — see ``feat-swe-bench-pro-terminal-bench-nightly``.
+      out of scope - see ``feat-swe-bench-pro-terminal-bench-nightly``.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class Variant:
         name: Human-readable variant id (e.g. ``"reviewer-v1"``).
         prompt: Prompt template / system prompt body.
         model: Optional model hint (``"haiku"`` etc.); not interpreted by
-            the runner — surfaced for downstream executors.
+            the runner - surfaced for downstream executors.
         metadata: Free-form extra fields persisted into the comparison.
     """
 
@@ -57,7 +57,7 @@ class Task:
 
     Attributes:
         task_id: Stable identifier (used for grouping in the comparison).
-        input: Task input — typed as ``Any`` so YAML / synthetic / real
+        input: Task input - typed as ``Any`` so YAML / synthetic / real
             payloads all flow through.
         expected: Optional reference answer used by deterministic scorers.
     """
@@ -129,7 +129,7 @@ class TaskDelta:
 
 @dataclass(frozen=True)
 class Comparison:
-    """A/B comparison artefact — the deliverable of this primitive.
+    """A/B comparison artefact - the deliverable of this primitive.
 
     Attributes:
         variant_a: Stats for the A side.
@@ -192,7 +192,7 @@ def exact_match_scorer(_variant: Variant, task: Task, output: Any) -> tuple[floa
 
     Args:
         _variant: Unused (kept for protocol compatibility).
-        task: The task being scored — uses ``task.expected``.
+        task: The task being scored - uses ``task.expected``.
         output: Raw executor output.
 
     Returns:
@@ -208,7 +208,7 @@ def exact_match_scorer(_variant: Variant, task: Task, output: Any) -> tuple[floa
 
 
 def echo_executor(variant: Variant, task: Task) -> RunResult:
-    """Deterministic dummy executor — returns ``f"{prompt}::{input}"``.
+    """Deterministic dummy executor - returns ``f"{prompt}::{input}"``.
 
     Used by the test fixtures and as a smoke-test default. Score is left
     at 0.0; pair with a scorer (e.g. :func:`exact_match_scorer`) to make
@@ -307,7 +307,7 @@ def run_ab(
 
 
 # ---------------------------------------------------------------------------
-# YAML / JSON I/O helpers (thin wrappers — keep deps light)
+# YAML / JSON I/O helpers (thin wrappers - keep deps light)
 # ---------------------------------------------------------------------------
 
 

@@ -75,7 +75,7 @@ class ReviewChunk:
 
 @dataclass
 class _Unit:
-    """An indivisible top-level slice — a function, class, or run of statements."""
+    """An indivisible top-level slice - a function, class, or run of statements."""
 
     start_line: int
     end_line: int
@@ -136,7 +136,7 @@ def _build_units(source: str, tree: ast.Module) -> list[_Unit]:
 
 def _format_header(path: str, symbols: list[str], start: int, end: int) -> str:
     sym_part = ", ".join(symbols) if symbols else "(no top-level symbols)"
-    return f"# {path} L{start}-{end} — symbols: {sym_part}"
+    return f"# {path} L{start}-{end} - symbols: {sym_part}"
 
 
 def _pack_units(units: list[_Unit], path: str, budget_tokens: int) -> list[ReviewChunk]:
@@ -171,7 +171,7 @@ def _pack_units(units: list[_Unit], path: str, budget_tokens: int) -> list[Revie
 
     for unit in units:
         u_tokens = _estimate_tokens(unit.text)
-        # A single unit larger than budget is emitted whole — never split a function.
+        # A single unit larger than budget is emitted whole - never split a function.
         if cur_tokens and cur_tokens + u_tokens > budget_tokens:
             flush()
         if cur_start is None:
@@ -204,7 +204,7 @@ def _line_based_chunks(path: str, source: str, budget_tokens: int) -> list[Revie
                 end_line=end,
                 symbols=(),
                 text=text,
-                header=f"# {path} L{start}-{end} — line-based fallback",
+                header=f"# {path} L{start}-{end} - line-based fallback",
                 language="text",
             )
         )
@@ -215,7 +215,7 @@ def _line_based_chunks(path: str, source: str, budget_tokens: int) -> list[Revie
 def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[ReviewChunk]:
     """Split *path* into reviewer-friendly chunks under *budget_tokens* each.
 
-    Python files are split on top-level AST boundaries — functions, classes,
+    Python files are split on top-level AST boundaries - functions, classes,
     and statement runs stay intact. Other languages (or Python that fails
     to parse) fall back to line-based windowing with a warning.
 
@@ -237,13 +237,13 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
     try:
         source = p.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        logger.warning("ast_chunker: cannot read %s (%s) — emitting no chunks", path_str, exc)
+        logger.warning("ast_chunker: cannot read %s (%s) - emitting no chunks", path_str, exc)
         return []
     if not source:
         return []
 
     if p.suffix != ".py":
-        logger.info("ast_chunker: %s is not Python — using line-based fallback", path_str)
+        logger.info("ast_chunker: %s is not Python - using line-based fallback", path_str)
         return _line_based_chunks(path_str, source, budget)
 
     # Strip a leading UTF-8 BOM so editor-saved files still take the AST path.
@@ -253,7 +253,7 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
         tree = ast.parse(source, filename=path_str)
     except SyntaxError as exc:
         logger.warning(
-            "ast_chunker: %s failed to parse (%s) — falling back to line-based chunking",
+            "ast_chunker: %s failed to parse (%s) - falling back to line-based chunking",
             path_str,
             exc,
         )

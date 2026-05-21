@@ -160,10 +160,10 @@ class AgentCredential:
     algorithm: str = "HS256"
     jti: str = ""
     tenant_id: str = "default"
-    # Zero-trust: task scope — the task IDs this credential is authorised to act on.
+    # Zero-trust: task scope - the task IDs this credential is authorised to act on.
     # An empty list means no task-scope restriction (legacy / manager tokens).
     task_ids: list[str] = field(default_factory=list)
-    # Zero-trust: file scope — glob patterns for files this credential may write.
+    # Zero-trust: file scope - glob patterns for files this credential may write.
     # An empty list means no file-scope restriction.
     allowed_files: list[str] = field(default_factory=list)
 
@@ -246,10 +246,10 @@ class AgentIdentity:
     credential: AgentCredential | None = None
     parent_identity_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    # Zero-trust task scope — tasks this identity is allowed to report on.
+    # Zero-trust task scope - tasks this identity is allowed to report on.
     # Empty means unrestricted (manager / orchestrator tokens).
     task_ids: list[str] = field(default_factory=list)
-    # Zero-trust file scope — glob patterns for files this identity may write.
+    # Zero-trust file scope - glob patterns for files this identity may write.
     allowed_files: list[str] = field(default_factory=list)
 
     @property
@@ -454,7 +454,7 @@ class AgentIdentityStore:
                 empty list means no restriction.
 
         Returns:
-            Tuple of ``(AgentIdentity, raw_token)`` — the raw bearer token is
+            Tuple of ``(AgentIdentity, raw_token)`` - the raw bearer token is
             returned exactly once and must be passed to the agent securely.
         """
         identity_id = session_id  # 1:1 mapping with agent session

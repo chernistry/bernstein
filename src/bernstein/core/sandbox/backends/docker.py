@@ -1,8 +1,8 @@
-"""Docker-daemon :class:`SandboxBackend` — first-party, ships in core.
+"""Docker-daemon :class:`SandboxBackend` - first-party, ships in core.
 
 The Docker backend launches a long-running container per session and
 proxies file I/O through ``docker cp`` and command execution through
-``docker exec``. The ``docker`` Python SDK is an optional install —
+``docker exec``. The ``docker`` Python SDK is an optional install -
 when it is missing the backend module still imports cleanly, but
 instantiating :class:`DockerSandboxBackend` raises a clear error so the
 registry can report the state via
@@ -71,7 +71,7 @@ def _safe_extract_single_file(tf: tarfile.TarFile, *, expected_name: str, resolv
       ``resolved.lstrip("/")``. This prevents a crafted or buggy tar
       from smuggling in a member called ``../etc/shadow`` or a
       symlink-style entry that resolves outside our intended target.
-    * Reject non-file members (directories, symlinks, devices) —
+    * Reject non-file members (directories, symlinks, devices) -
       ``session.read`` only ever wants a single file's bytes.
     * Reject any absolute-path member whose name starts with ``/`` or
       contains a ``..`` segment after normalisation. Even a matching
@@ -122,7 +122,7 @@ def _safe_extract_single_file(tf: tarfile.TarFile, *, expected_name: str, resolv
     if not acceptable:
         if saw_any_file:
             # A file member existed but its name did not match. Surface
-            # as FileNotFoundError to match the documented contract —
+            # as FileNotFoundError to match the documented contract -
             # the caller asked for a file that is not present under the
             # name they provided.
             raise FileNotFoundError(resolved)
@@ -137,7 +137,7 @@ def _safe_extract_single_file(tf: tarfile.TarFile, *, expected_name: str, resolv
 class DockerSandboxSession(SandboxSession):
     """A session backed by a running Docker container.
 
-    Construction is internal — obtain instances via
+    Construction is internal - obtain instances via
     :meth:`DockerSandboxBackend.create`.
     """
 
@@ -211,7 +211,7 @@ class DockerSandboxSession(SandboxSession):
             # constructed *here* from trusted inputs (``name`` derives
             # from ``self._resolve_posix`` which pins paths under
             # :attr:`workdir`; ``data`` is caller-supplied bytes with
-            # no path component) — it is then streamed straight to
+            # no path component) - it is then streamed straight to
             # ``put_archive``. There is no extraction step on our
             # side, so S5042 "tar extraction" guidance does not apply:
             # the only consumer is the docker daemon, which treats the

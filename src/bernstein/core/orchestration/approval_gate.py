@@ -255,7 +255,7 @@ def _classify_decision_files(approved: Path, rejected: Path) -> tuple[ApprovalOu
     Both files are checked because a misbehaving operator could land
     either; the first one to materialise wins. Approval files take
     precedence on the (defensive) chance that both arrive in the same
-    poll tick — better to honour an explicit approve than to swallow
+    poll tick - better to honour an explicit approve than to swallow
     operator intent.
     """
     if approved.exists():
@@ -341,7 +341,7 @@ def wait_for_approval(
         poll_interval_s: Seconds between filesystem checks.
         now: Optional injected wall-clock timestamp (used by
             :func:`write_pending_sentinel` for deterministic ISO strings).
-        monotonic: Optional injected monotonic clock — useful in tests
+        monotonic: Optional injected monotonic clock - useful in tests
             that drive the timeout deterministically. Must accept zero
             arguments and return a float; defaults to
             :func:`time.monotonic`.
@@ -403,7 +403,7 @@ def wait_for_approval(
         _cleanup_pending(root, task_id)
         return outcome
 
-    # No decision yet — write sentinel + emit pending event, then poll.
+    # No decision yet - write sentinel + emit pending event, then poll.
     write_pending_sentinel(root, task_id, spec, now=now)
     _emit_audit(
         audit_log,

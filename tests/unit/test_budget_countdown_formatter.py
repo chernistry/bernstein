@@ -96,7 +96,7 @@ class TestFormatCountdown:
 
         line = format_countdown(card, tracker, state)
 
-        # ``max_tokens=0`` means "unbounded" — banner reports 100% left.
+        # ``max_tokens=0`` means "unbounded" - banner reports 100% left.
         assert "(100%)" in line
 
     def test_thousands_separators(self) -> None:
@@ -124,7 +124,7 @@ class TestShouldFinishGracefully:
 
     def test_low_token_headroom_triggers_graceful_finish(self) -> None:
         card = _card(max_tokens=100_000, budget_mode="graceful-finish-on-low")
-        # 12% headroom — under default 20% threshold.
+        # 12% headroom - under default 20% threshold.
         state = TurnState(step=2, tokens_used=88_000)
 
         assert should_finish_gracefully(card, state)
@@ -143,7 +143,7 @@ class TestShouldFinishGracefully:
 
     def test_hard_stop_only_at_zero_tokens(self) -> None:
         card = _card(max_tokens=10_000, budget_mode="hard-stop-on-zero")
-        # 1% headroom — graceful mode would finish, hard-stop should not.
+        # 1% headroom - graceful mode would finish, hard-stop should not.
         almost_done = TurnState(step=99, tokens_used=9_900)
         zero = TurnState(step=99, tokens_used=10_000)
 

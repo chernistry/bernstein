@@ -1,4 +1,4 @@
-"""Cheaper model retry — use sonnet retry when opus fails."""
+"""Cheaper model retry - use sonnet retry when opus fails."""
 
 from __future__ import annotations
 

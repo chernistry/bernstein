@@ -1,4 +1,4 @@
-"""``bernstein reject`` — refuse a pending approval gate.
+"""``bernstein reject`` - refuse a pending approval gate.
 
 Mirror of :mod:`bernstein.cli.commands.approve_cmd`: writes
 ``<workdir>/.sdd/runtime/approvals/<task_id>.rejected`` so the

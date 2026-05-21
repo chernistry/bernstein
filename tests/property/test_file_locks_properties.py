@@ -1,18 +1,18 @@
 """Property tests for ``FileLockManager`` contention semantics.
 
 The lock manager mediates concurrent agent file ownership. Bugs here
-result in two agents simultaneously editing the same file — silent
+result in two agents simultaneously editing the same file - silent
 data corruption with no immediate signal. Properties:
 
-* **Acquire is exclusive across agents** — for any random sequence
+* **Acquire is exclusive across agents** - for any random sequence
   of acquires from distinct agents, no file ends up held by more than
   one agent simultaneously.
 
-* **Acquire is idempotent for the same agent** — repeated acquires
+* **Acquire is idempotent for the same agent** - repeated acquires
   by the same agent for overlapping file sets are silently accepted
   and do not deadlock or drop locks.
 
-* **Release purges everything for that agent** — after a release,
+* **Release purges everything for that agent** - after a release,
   zero locks attributed to that agent remain in the table.
 
 * **Concurrent acquire/release converges to a consistent state**
@@ -64,7 +64,7 @@ def test_no_two_agents_hold_same_file(
     """For any sequence of acquires, each file ends up held by ≤ 1 agent.
 
     The lock manager's primary invariant. A failure means two agents
-    could both run with the same file in their owned set — silent data
+    could both run with the same file in their owned set - silent data
     corruption when both spawn editors.
     """
     workdir = tmp_path_factory.mktemp("flock-prop")
@@ -132,7 +132,7 @@ def test_cross_agent_acquire_reports_conflicts(
     has to differentiate by ``agent_id`` rather than just key presence.
     """
     if agent_a == agent_b:
-        pytest.skip("identical agents — conflict path is not exercised")
+        pytest.skip("identical agents - conflict path is not exercised")
 
     workdir = tmp_path_factory.mktemp("flock-prop")
     mgr = FileLockManager(workdir)

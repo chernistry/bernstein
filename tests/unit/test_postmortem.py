@@ -90,7 +90,7 @@ def generator(workdir: Path, run_id: str) -> PostMortemGenerator:
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — data loading
+# PostMortemGenerator - data loading
 # ---------------------------------------------------------------------------
 
 
@@ -128,7 +128,7 @@ class TestPostMortemGeneratorDataLoading:
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — generate()
+# PostMortemGenerator - generate()
 # ---------------------------------------------------------------------------
 
 
@@ -177,7 +177,7 @@ class TestPostMortemGeneratorGenerate:
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — to_markdown()
+# PostMortemGenerator - to_markdown()
 # ---------------------------------------------------------------------------
 
 
@@ -219,7 +219,7 @@ class TestPostMortemMarkdown:
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — to_html()
+# PostMortemGenerator - to_html()
 # ---------------------------------------------------------------------------
 
 
@@ -273,7 +273,7 @@ class TestPostMortemHTML:
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — save()
+# PostMortemGenerator - save()
 # ---------------------------------------------------------------------------
 
 

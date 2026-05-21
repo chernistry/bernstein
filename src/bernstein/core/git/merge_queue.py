@@ -144,8 +144,8 @@ def detect_merge_conflicts(branch: str, base: str, cwd: Path) -> ConflictCheckRe
 
     Steps:
 
-    1. ``git merge-base <base> <branch>`` — find the common ancestor.
-    2. ``git merge-tree <ancestor> <base> <branch>`` — simulate the merge.
+    1. ``git merge-base <base> <branch>`` - find the common ancestor.
+    2. ``git merge-tree <ancestor> <base> <branch>`` - simulate the merge.
     3. Parse the output for conflict markers.
 
     When ``merge-base`` fails (e.g. unrelated histories) the function returns
@@ -202,7 +202,7 @@ class MergeQueue:
 
     Guarantees that only one git merge runs at a time, preventing
     concurrent merges that could cause conflicts between agent branches.
-    Jobs are processed in FIFO order — first-completed agent merges first.
+    Jobs are processed in FIFO order - first-completed agent merges first.
 
     The queue also exposes a ``merge_lock`` that callers can acquire
     directly when processing a job dequeued outside this class.
@@ -288,7 +288,7 @@ class MergeQueue:
         and the context manager yields the :class:`MergeJob`.  On exit the
         job is dequeued, the lock is released, and other waiters are woken.
 
-        This is the intended entry point for production callers — it
+        This is the intended entry point for production callers - it
         guarantees ``enqueue`` is actually called (fixing ) and
         keeps the ordering invariant even when multiple threads contend.
 

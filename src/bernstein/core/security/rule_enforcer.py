@@ -71,7 +71,7 @@ class RulesConfig:
     Attributes:
         version: Config format version (currently 1).
         rules: Ordered list of rule specs to enforce.
-        enabled: Master switch — when False, no rules run.
+        enabled: Master switch - when False, no rules run.
     """
 
     version: int = 1
@@ -479,7 +479,7 @@ def _evaluate_single_rule(
     }
     checker = _CHECKERS.get(rule.type)
     if checker is None:
-        logger.warning("Rule %s: unknown type %r — skipping", rule.id, rule.type)
+        logger.warning("Rule %s: unknown type %r - skipping", rule.id, rule.type)
         return None
     return checker(rule)
 

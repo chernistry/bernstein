@@ -194,7 +194,7 @@ class VerificationNudgeTracker:
             self._append_to_ledger(rec)
         if not verified:
             logger.info(
-                "Unverified completion: task %s (session %s) — no tests, quality gates, or completion signals detected",
+                "Unverified completion: task %s (session %s) - no tests, quality gates, or completion signals detected",
                 task_id,
                 session_id,
             )

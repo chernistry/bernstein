@@ -8,7 +8,7 @@ Usage:
     uv run python scripts/generate_openapi.py
 
 Output:
-    docs/openapi.json  — full OpenAPI 3.1 spec; committed to repo and served
+    docs/openapi.json  - full OpenAPI 3.1 spec; committed to repo and served
                          by Redoc at docs/api-reference.html.
 """
 

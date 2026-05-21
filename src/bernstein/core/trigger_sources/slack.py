@@ -1,4 +1,4 @@
-"""Slack trigger source — normalize Slack Events API payloads into TriggerEvents."""
+"""Slack trigger source - normalize Slack Events API payloads into TriggerEvents."""
 
 from __future__ import annotations
 

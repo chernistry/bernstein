@@ -1,4 +1,4 @@
-"""Self-update command — upgrade or rollback Bernstein via PyPI.
+"""Self-update command - upgrade or rollback Bernstein via PyPI.
 
 Commands:
   bernstein self-update              Check PyPI and upgrade if newer version exists.

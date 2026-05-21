@@ -77,7 +77,7 @@ def _parse_addr(addr: str) -> tuple[str, int]:
         addr: The address string.
 
     Returns:
-        ``(host, port)`` — host defaults to ``127.0.0.1`` when omitted.
+        ``(host, port)`` - host defaults to ``127.0.0.1`` when omitted.
 
     Raises:
         click.UsageError: If the address is malformed.

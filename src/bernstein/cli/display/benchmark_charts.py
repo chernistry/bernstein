@@ -1,7 +1,7 @@
 """Benchmark comparison charts with ASCII art visualization.
 
 Provides data loading and ASCII chart rendering for benchmark results stored
-in ``.sdd/benchmarks/*.json``.  All output is pure ASCII — no external
+in ``.sdd/benchmarks/*.json``.  All output is pure ASCII - no external
 charting libraries required.
 """
 

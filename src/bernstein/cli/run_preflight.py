@@ -273,7 +273,7 @@ def _emit_preflight_runtime_warnings(
         if band is not None:
             console.print(f"[bold yellow]{format_band(band)}[/bold yellow]")
             samples_note = (
-                f"{band.samples} historical sample(s)" if not band.cold_start else "no history yet — using heuristic"
+                f"{band.samples} historical sample(s)" if not band.cold_start else "no history yet - using heuristic"
             )
             console.print(
                 f"[dim]based on {estimate.task_count} task(s) at {estimate.model} pricing, {samples_note}[/dim]"
@@ -304,7 +304,7 @@ def _emit_preflight_runtime_warnings(
             raise SystemExit(1)
 
     # Cost confirmation is skipped when the plan approval prompt follows
-    # (it already shows cost and asks Y/N — no need to ask twice).
+    # (it already shows cost and asks Y/N - no need to ask twice).
     if (
         not auto_approve
         and not plan_approval_follows

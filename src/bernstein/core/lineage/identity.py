@@ -2,7 +2,7 @@
 
 The lineage layer signs every entry with an Ed25519 keypair issued per agent
 invocation. The Agent Card subset modelled here is the slice of the A2A v1.0
-Agent Card spec that's actually load-bearing for lineage verification — the
+Agent Card spec that's actually load-bearing for lineage verification - the
 agent id, the key id, and the PEM-encoded public key. External tools (auditor
 CLI) hold only the public side and a copy of the card; the operator-side
 recorder holds the private key.
@@ -66,7 +66,7 @@ def generate_keypair() -> tuple[str, str]:
 def sign_detached(payload: bytes, private_key_pem: str, *, kid: str) -> str:
     """Produce an Ed25519 JWS in detached form (RFC 7515 + RFC 7797).
 
-    The compact serialisation is `<protected>..<signature>` — the middle
+    The compact serialisation is `<protected>..<signature>` - the middle
     segment (payload) is empty because the verifier supplies the canonical
     bytes out-of-band. This keeps the on-disk `.jws` file independent of
     the entry it covers and lets the auditor re-canonicalise locally.

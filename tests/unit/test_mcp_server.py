@@ -313,7 +313,7 @@ async def test_bernstein_approve_completes_task() -> None:
 
 
 # ---------------------------------------------------------------------------
-# bernstein_health — liveness check
+# bernstein_health - liveness check
 # ---------------------------------------------------------------------------
 
 
@@ -337,7 +337,7 @@ async def test_bernstein_health_always_succeeds() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Crash protection — error_response helper
+# Crash protection - error_response helper
 # ---------------------------------------------------------------------------
 
 
@@ -361,7 +361,7 @@ def test_error_response_custom_hint() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Crash protection — tools return error JSON instead of crashing
+# Crash protection - tools return error JSON instead of crashing
 # ---------------------------------------------------------------------------
 
 

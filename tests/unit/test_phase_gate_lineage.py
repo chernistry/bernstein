@@ -1,7 +1,7 @@
 """Lineage-emission helper for phase-gate boundary events.
 
 The hook builder writes one ``phase_gate``-tagged record into the run's
-WAL per boundary.  The hash chain stays a single chain — we reuse the
+WAL per boundary.  The hash chain stays a single chain - we reuse the
 existing :class:`LineageWriter` rather than introducing a parallel one.
 """
 

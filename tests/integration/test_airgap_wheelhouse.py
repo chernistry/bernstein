@@ -11,7 +11,7 @@ Covers:
 - ``--profile airgap`` defaults the policy to deny-all and propagates the
   profile mode via the environment
 
-Tests don't actually fetch from PyPI — they construct a minimal fixture
+Tests don't actually fetch from PyPI - they construct a minimal fixture
 wheelhouse so the round-trip works without network. The build script
 itself is exercised separately when uv is available.
 """

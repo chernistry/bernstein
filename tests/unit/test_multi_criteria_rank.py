@@ -154,7 +154,7 @@ def test_parse_csv_rejects_blank_input() -> None:
 
 
 # ---------------------------------------------------------------------------
-# rank_candidates — degenerate cases
+# rank_candidates - degenerate cases
 # ---------------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ def test_one_candidate_missing_axis_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# rank_candidates — input validation
+# rank_candidates - input validation
 # ---------------------------------------------------------------------------
 
 
@@ -248,7 +248,7 @@ def test_zero_weight_sum_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# rank_candidates — 2-candidate sanity checks
+# rank_candidates - 2-candidate sanity checks
 # ---------------------------------------------------------------------------
 
 
@@ -290,7 +290,7 @@ def test_two_candidates_with_weights() -> None:
 
 
 # ---------------------------------------------------------------------------
-# rank_candidates — 5-candidate fixtures
+# rank_candidates - 5-candidate fixtures
 # ---------------------------------------------------------------------------
 
 
@@ -342,7 +342,7 @@ def test_five_candidates_speed_first_profile_picks_different_winner() -> None:
 
 
 # ---------------------------------------------------------------------------
-# rank_candidates — output structure
+# rank_candidates - output structure
 # ---------------------------------------------------------------------------
 
 
@@ -393,7 +393,7 @@ def test_result_descending_closeness() -> None:
 
 
 def test_identity_weights_used_when_not_specified() -> None:
-    """Identity weights — the default required by the issue spec."""
+    """Identity weights - the default required by the issue spec."""
     result = rank_candidates(
         [
             _cand("a", x=1.0, y=10.0),
@@ -401,7 +401,7 @@ def test_identity_weights_used_when_not_specified() -> None:
         ],
         ["x", "y"],
     )
-    # Symmetric scores under identity weights — keys break the tie.
+    # Symmetric scores under identity weights - keys break the tie.
     assert result[0].closeness == pytest.approx(result[1].closeness)
     assert [r.key for r in result] == ["a", "b"]
 
@@ -476,7 +476,7 @@ def test_mixed_direction_profile() -> None:
 
 
 def test_zero_column_does_not_break_ranking() -> None:
-    """A column that is identically zero contributes nothing — the
+    """A column that is identically zero contributes nothing - the
     remaining axes still produce a sensible ranking."""
     result = rank_candidates(
         [
@@ -511,7 +511,7 @@ def test_zero_column_with_zero_weight_axis() -> None:
 
 
 def test_weight_sum_non_normalised_is_renormalised_internally() -> None:
-    # Two equivalent profiles — only differ in weight scale.
+    # Two equivalent profiles - only differ in weight scale.
     p_small = build_criterion_profile(["a", "b"], weights=[0.5, 0.5])
     p_large = build_criterion_profile(["a", "b"], weights=[50.0, 50.0])
     cands = [_cand("x", a=1.0, b=2.0), _cand("y", a=2.0, b=1.0)]

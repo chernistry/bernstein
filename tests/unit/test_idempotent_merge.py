@@ -33,7 +33,7 @@ class TestMergeCheckResult:
             checked_at=datetime.now(UTC),
         )
         assert result.can_merge is True
-        # frozen — assignment should raise
+        # frozen - assignment should raise
         with suppress(AttributeError):
             result.can_merge = False  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover

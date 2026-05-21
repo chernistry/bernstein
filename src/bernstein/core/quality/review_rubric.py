@@ -11,7 +11,7 @@ Aggregates these into a composite score (0-10). Tasks below the configured
 threshold trigger automatic rework or human review.
 
 This is distinct from quality_score.py which provides a single binary
-pass/fail score from gate results — the rubric provides nuanced, per-dimension
+pass/fail score from gate results - the rubric provides nuanced, per-dimension
 feedback from an LLM reviewer.
 """
 
@@ -106,7 +106,7 @@ class ReviewRubricConfig:
     """Configuration for the multi-dimensional review rubric gate.
 
     Attributes:
-        enabled: Master switch — when False, the gate does not run.
+        enabled: Master switch - when False, the gate does not run.
         model: LLM model for review scoring.
         provider: LLM provider key.
         max_diff_chars: Truncate diff at this length for cost control.
@@ -298,7 +298,7 @@ async def score_diff(
             passed=True,
             blocked=False,
             needs_rework=False,
-            detail="No Python changes to review — rubric skipped.",
+            detail="No Python changes to review - rubric skipped.",
         )
 
     diff_truncated = diff[: config.max_diff_chars]
@@ -349,12 +349,12 @@ async def score_diff(
     needs_rework = composite < config.rework_threshold
 
     if passed:
-        detail = f"Review rubric PASSED — composite {composite:.1f}/10. {summary[:120]}"
+        detail = f"Review rubric PASSED - composite {composite:.1f}/10. {summary[:120]}"
     else:
         low_dims = [d for d in dimensions if d.score < 5]
         low_str = ", ".join(f"{d.name}={d.score}" for d in low_dims)
         detail = (
-            f"Review rubric FAILED — composite {composite:.1f}/10 "
+            f"Review rubric FAILED - composite {composite:.1f}/10 "
             f"(threshold {config.composite_threshold}). "
             f"Low scores: {low_str}. {summary[:100]}"
         )

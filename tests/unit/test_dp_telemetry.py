@@ -115,7 +115,7 @@ class TestDPTelemetryExporter:
         assert r1 is not None
         assert r2 is not None
 
-        # Third should be rejected — budget exhausted (epsilon 0.01/2 per query = 0.005,
+        # Third should be rejected - budget exhausted (epsilon 0.01/2 per query = 0.005,
         # two queries spend 0.01 = full budget)
         r3 = exporter.export({"task_count": 10})
         assert r3 is None

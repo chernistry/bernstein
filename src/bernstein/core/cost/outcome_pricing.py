@@ -59,7 +59,7 @@ def calculate_task_cost(
         cost = config.base_rate_per_task
     elif config.model == PricingModel.PAY_PER_SUCCESS:
         cost = config.base_rate_per_task * mult
-    else:  # pragma: no cover — exhaustive match
+    else:  # pragma: no cover - exhaustive match
         cost = token_cost
 
     return max(cost, 0.0)

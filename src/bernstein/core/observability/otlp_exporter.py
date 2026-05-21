@@ -167,7 +167,7 @@ class GenAIOTLPExporter:
         self._enabled = False
 
         if self._config.endpoint is tracer_provider is None:
-            # Disabled — keep everything as None so calls become no-ops.
+            # Disabled - keep everything as None so calls become no-ops.
             return
 
         self._enabled = self._init_tracer()
@@ -284,7 +284,7 @@ class GenAIOTLPExporter:
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
         except ImportError:
             logger.warning(
-                "OTLP exporter disabled — install 'bernstein[otel]' for "
+                "OTLP exporter disabled - install 'bernstein[otel]' for "
                 "opentelemetry-sdk + opentelemetry-exporter-otlp-proto-grpc",
             )
             return False
@@ -316,7 +316,7 @@ class GenAIOTLPExporter:
             self._tracer = trace.get_tracer(self._config.service_name, tracer_provider=self._provider)
         except ImportError:
             logger.warning(
-                "OTLP gRPC exporter missing — install 'bernstein[otel]' to enable",
+                "OTLP gRPC exporter missing - install 'bernstein[otel]' to enable",
             )
             return False
         except Exception as exc:

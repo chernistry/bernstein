@@ -13,7 +13,7 @@ from bernstein.core.sensitive_data import (
 )
 
 # ---------------------------------------------------------------------------
-# SensitiveData — basic wrapper behaviour
+# SensitiveData - basic wrapper behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -79,7 +79,7 @@ class TestIsSensitive:
 
 
 # ---------------------------------------------------------------------------
-# strip_sensitive_fields() — dict input
+# strip_sensitive_fields() - dict input
 # ---------------------------------------------------------------------------
 
 
@@ -122,7 +122,7 @@ class TestStripSensitiveFieldsDict:
 
 
 # ---------------------------------------------------------------------------
-# strip_sensitive_fields() — dataclass input
+# strip_sensitive_fields() - dataclass input
 # ---------------------------------------------------------------------------
 
 
@@ -157,7 +157,7 @@ class TestStripSensitiveFieldsDataclass:
 
 
 # ---------------------------------------------------------------------------
-# strip_sensitive_fields() — error handling
+# strip_sensitive_fields() - error handling
 # ---------------------------------------------------------------------------
 
 

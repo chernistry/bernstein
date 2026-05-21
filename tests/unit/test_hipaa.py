@@ -33,7 +33,7 @@ from bernstein.core.hipaa import (
 from bernstein.core.compliance import ComplianceConfig, CompliancePreset
 
 # ---------------------------------------------------------------------------
-# PHIDetector — pattern matching
+# PHIDetector - pattern matching
 # ---------------------------------------------------------------------------
 
 

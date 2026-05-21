@@ -77,7 +77,7 @@ class CommentIssue:
     """A single docstring quality finding.
 
     Attributes:
-        kind: Category — ``inaccurate``, ``redundant``, ``incomplete``,
+        kind: Category - ``inaccurate``, ``redundant``, ``incomplete``,
             ``wrong_style``.
         symbol: Qualified name of the function/class/method.
         file: Source file path relative to workdir.
@@ -293,7 +293,7 @@ def _check_param_accuracy(
 
     documented = _extract_documented_params(docstring, style)
     if not documented:
-        return issues  # Nothing documented — caught by completeness check
+        return issues  # Nothing documented - caught by completeness check
 
     # Params in docstring that don't exist in signature
     phantom = documented - actual_params

@@ -1,4 +1,4 @@
-"""Tests for #650 — plugin dependency resolution with version constraints."""
+"""Tests for #650 - plugin dependency resolution with version constraints."""
 
 from __future__ import annotations
 
@@ -166,7 +166,7 @@ class TestDetectConflicts:
 
 
 # ---------------------------------------------------------------------------
-# resolve_dependencies — happy path
+# resolve_dependencies - happy path
 # ---------------------------------------------------------------------------
 
 
@@ -212,7 +212,7 @@ class TestResolveDependencies:
 
 
 # ---------------------------------------------------------------------------
-# resolve_dependencies — failure cases
+# resolve_dependencies - failure cases
 # ---------------------------------------------------------------------------
 
 

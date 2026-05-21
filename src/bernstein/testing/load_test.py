@@ -1,7 +1,7 @@
 """Lightweight load-testing harness for the Bernstein task server API.
 
 Provides dataclasses for configuration and reporting, percentile computation,
-and threshold checking — all built on stdlib and httpx (no locust dependency).
+and threshold checking - all built on stdlib and httpx (no locust dependency).
 
 Usage::
 

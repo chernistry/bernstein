@@ -1,4 +1,4 @@
-"""Unit tests for bernstein.core.github — GitHub Issues integration."""
+"""Unit tests for bernstein.core.github - GitHub Issues integration."""
 
 from __future__ import annotations
 
@@ -462,7 +462,7 @@ def test_close_issue_returns_false_when_unavailable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# GitHubClient — repo parameter forwarded
+# GitHubClient - repo parameter forwarded
 # ---------------------------------------------------------------------------
 
 
@@ -486,7 +486,7 @@ def test_repo_forwarded_to_gh_commands() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pagination — audit-098
+# Pagination - audit-098
 # ---------------------------------------------------------------------------
 
 

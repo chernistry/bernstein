@@ -2,11 +2,11 @@
 
 Implements the classic circuit breaker pattern with three states:
 
-- **CLOSED** — normal operation; failures are counted.
-- **OPEN** — provider is unhealthy; all requests are rejected without
+- **CLOSED** - normal operation; failures are counted.
+- **OPEN** - provider is unhealthy; all requests are rejected without
   attempting them.  After a configurable timeout the breaker transitions
   to HALF_OPEN.
-- **HALF_OPEN** — a single probe request is allowed through.  If it
+- **HALF_OPEN** - a single probe request is allowed through.  If it
   succeeds the breaker resets to CLOSED; if it fails the breaker
   returns to OPEN.
 
@@ -16,9 +16,9 @@ and provides a single ``should_allow`` / ``record_success`` /
 ``record_failure`` API.
 
 Configurable parameters:
-- ``failure_threshold`` — consecutive failures before opening.
-- ``recovery_timeout_s`` — seconds to wait in OPEN before probing.
-- ``half_open_max_probes`` — max concurrent probes in HALF_OPEN state.
+- ``failure_threshold`` - consecutive failures before opening.
+- ``recovery_timeout_s`` - seconds to wait in OPEN before probing.
+- ``half_open_max_probes`` - max concurrent probes in HALF_OPEN state.
 """
 
 from __future__ import annotations

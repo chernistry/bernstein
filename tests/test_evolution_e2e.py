@@ -710,7 +710,7 @@ class TestCircuitBreakerIntegration:
             patch.object(
                 loop._breaker,
                 "can_evolve",
-                return_value=(False, "Circuit OPEN — cooling off (3500s remaining)"),
+                return_value=(False, "Circuit OPEN - cooling off (3500s remaining)"),
             ),
         ):
             result = loop.run_cycle()

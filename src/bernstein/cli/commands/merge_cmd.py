@@ -1,4 +1,4 @@
-"""merge command — pick the best agent solution and merge it into main.
+"""merge command - pick the best agent solution and merge it into main.
 
 Used after comparing parallel branches (A/B testing different models on the
 same task) to select a winner: ``bernstein merge --pick agent1``.

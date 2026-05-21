@@ -1,4 +1,4 @@
-"""Tests for lifecycle_diagrams — state machine extraction and rendering."""
+"""Tests for lifecycle_diagrams - state machine extraction and rendering."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""run-changelog command — generate a changelog from agent-produced diffs.
+"""run-changelog command - generate a changelog from agent-produced diffs.
 
 Distinct from ``bernstein changelog`` (which generates changelogs from
 conventional commits).  This command analyses what Bernstein agents actually

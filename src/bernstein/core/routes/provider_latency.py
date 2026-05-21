@@ -1,7 +1,7 @@
-"""Provider latency routes — historical percentile charts (ROAD-155).
+"""Provider latency routes - historical percentile charts (ROAD-155).
 
-GET /metrics/provider-latency          — current p50/p95/p99 per provider+model
-GET /metrics/provider-latency/history  — raw samples for time-series charting
+GET /metrics/provider-latency          - current p50/p95/p99 per provider+model
+GET /metrics/provider-latency/history  - raw samples for time-series charting
 """
 
 from __future__ import annotations

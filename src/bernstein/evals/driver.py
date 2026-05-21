@@ -1,12 +1,12 @@
-"""Nightly contamination-resistant eval driver — minimal viable slice.
+"""Nightly contamination-resistant eval driver - minimal viable slice.
 
 This module produces a single leaderboard JSON entry from one (potentially
 synthetic) task. Full HuggingFace dataset loaders and the multi-instance
-runner are deferred — see ``.sdd/backlog/closed/`` for the parent ticket.
+runner are deferred - see ``.sdd/backlog/closed/`` for the parent ticket.
 
 The output shape is the canonical Terminal-Bench 2.0 ``harness@version +
 model@version`` pair record (see ticket lines 95-100). All three target
-suites — SWE-bench Pro, Terminal-Bench 2.0, SWE-rebench — share this
+suites - SWE-bench Pro, Terminal-Bench 2.0, SWE-rebench - share this
 record; the suite name disambiguates.
 """
 
@@ -56,7 +56,7 @@ class LeaderboardEntry:
         duration_seconds: End-to-end wall-clock time for this single task.
         run_at: ISO-8601 UTC timestamp of when the task started.
         extra: Free-form per-suite metadata (language, repo visibility,
-            rebench-month, etc.). Kept loose intentionally — full schema
+            rebench-month, etc.). Kept loose intentionally - full schema
             lands when the per-suite loaders do.
     """
 
@@ -190,7 +190,7 @@ def render_badge_markdown(entries: list[LeaderboardEntry]) -> str:
         entries: Latest entry per (suite, model) pair.
 
     Returns:
-        Markdown source — three rows, one per suite, with a resolve-rate
+        Markdown source - three rows, one per suite, with a resolve-rate
         column. Empty input yields a placeholder.
     """
     if not entries:

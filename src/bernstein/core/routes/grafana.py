@@ -1,6 +1,6 @@
 """WEB-009: Grafana dashboard YAML/JSON generator endpoint.
 
-GET /grafana/dashboard — returns dashboard JSON from current metric definitions.
+GET /grafana/dashboard - returns dashboard JSON from current metric definitions.
 """
 
 from __future__ import annotations

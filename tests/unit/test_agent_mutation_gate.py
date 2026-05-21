@@ -119,7 +119,7 @@ class TestInferSourceFiles:
     def test_test_file_without_matching_name_pattern(self, tmp_path: Path) -> None:
         from bernstein.core.quality_gates import _infer_source_files
 
-        # "test_" prefix is required — "integration_test.py" won't match
+        # "test_" prefix is required - "integration_test.py" won't match
         test_files = ["tests/integration_suite.py"]
         result = _infer_source_files(test_files, tmp_path)
         assert result == []
@@ -156,7 +156,7 @@ class TestBuildAgentMutationCommand:
 
 
 # ---------------------------------------------------------------------------
-# Gate integration — no-op paths (no subprocess required)
+# Gate integration - no-op paths (no subprocess required)
 # ---------------------------------------------------------------------------
 
 

@@ -10,7 +10,7 @@ File formats
 
 Two on-disk shapes are supported:
 
-1. **Markdown checkbox list** — one task per line::
+1. **Markdown checkbox list** - one task per line::
 
        - [ ] [T001] [P] [US1] Add YAML loader
        - [ ] [T002]    [US1] Wire loader into orchestrator -> T001
@@ -20,7 +20,7 @@ Two on-disk shapes are supported:
    scheduling.  ``[US<n>]`` groups tasks into a user-story slice for
    rollback.  Dependencies use the trailing ``-> T002, T003`` arrow.
 
-2. **YAML** — a list of task dicts under ``tasks:``::
+2. **YAML** - a list of task dicts under ``tasks:``::
 
        tasks:
          - id: T001
@@ -37,7 +37,7 @@ Walking
 
 :func:`topological_iter_with_parallel` yields one frozenset per "batch"
 of tasks ready to run.  A batch contains the tasks whose dependencies
-are already complete and that share the ``parallel_safe`` flag — when a
+are already complete and that share the ``parallel_safe`` flag - when a
 batch contains a serial task, it is yielded alone.  Cycles raise
 :class:`TaskDagCycleError`.
 """

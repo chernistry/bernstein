@@ -1,4 +1,4 @@
-"""Unit tests for TaskStealPolicy — distributed load balancing."""
+"""Unit tests for TaskStealPolicy - distributed load balancing."""
 
 from __future__ import annotations
 

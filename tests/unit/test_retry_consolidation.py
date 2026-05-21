@@ -65,7 +65,7 @@ def _capture_client() -> tuple[MagicMock, list[dict]]:
             resp.json.return_value = {"id": f"NEW-{len(posted)}"}
             resp.status_code = 201
             return resp
-        # /tasks/{id}/fail and similar — return a benign 200.
+        # /tasks/{id}/fail and similar - return a benign 200.
         resp = MagicMock()
         resp.raise_for_status.return_value = None
         resp.status_code = 200
@@ -147,7 +147,7 @@ def test_maybe_retry_dlq_fires_from_typed_field():
     assert posted == []
     quarantine.record_failure.assert_called_once()
     (recorded_title, _reason) = quarantine.record_failure.call_args.args
-    # Title is not mutated — no stripping of a legacy prefix needed.
+    # Title is not mutated - no stripping of a legacy prefix needed.
     assert recorded_title == task.title
 
 
@@ -231,7 +231,7 @@ def test_retry_or_fail_task_uses_typed_field_and_triggers_dlq(
 
 
 def test_retry_or_fail_task_does_not_consult_description_marker():
-    """``[retry:N]`` description marker is ignored — the typed field wins."""
+    """``[retry:N]`` description marker is ignored - the typed field wins."""
     task = _build_task(
         retry_count=0,
         description="[retry:7] Stale marker from pre-audit-017 data.",
@@ -252,7 +252,7 @@ def test_retry_or_fail_task_does_not_consult_description_marker():
     assert len(posted) == 1
     # Counter came from the typed field (0 -> 1), not the marker (7).
     assert posted[0]["retry_count"] == 1
-    # The description is passed through verbatim — no new marker is added,
+    # The description is passed through verbatim - no new marker is added,
     # and the stale one is not stripped (migration-safe).
     assert posted[0]["description"] == task.description
 

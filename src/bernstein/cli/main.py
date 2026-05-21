@@ -3,18 +3,18 @@
 This module defines the top-level click group and registers all
 subcommand modules from:
 
-  task_cmd.py       — task lifecycle commands (cancel, add_task, etc.)
-  workspace_cmd.py  — workspace & config commands
-  advanced_cmd.py   — advanced tools (trace, replay, eval, benchmark, etc.)
+  task_cmd.py       - task lifecycle commands (cancel, add_task, etc.)
+  workspace_cmd.py  - workspace & config commands
+  advanced_cmd.py   - advanced tools (trace, replay, eval, benchmark, etc.)
 
 And existing subcommand modules:
-  helpers.py    — shared constants and utility functions
-  run_cmd.py    — init, run, start, demo
-  stop_cmd.py   — stop (soft/hard)
-  status_cmd.py — status, ps
-  agents_cmd.py — agents group
-  evolve_cmd.py — evolve group
-  cost.py       — cost_cmd
+  helpers.py    - shared constants and utility functions
+  run_cmd.py    - init, run, start, demo
+  stop_cmd.py   - stop (soft/hard)
+  status_cmd.py - status, ps
+  agents_cmd.py - agents group
+  evolve_cmd.py - evolve group
+  cost.py       - cost_cmd
 """
 
 from __future__ import annotations
@@ -686,7 +686,7 @@ def _validate_evolve_mode(evolve: bool, budget: float, max_cycles: int, yes: boo
     default=False,
     hidden=True,
     help=(
-        "Disable the skill-pack invisible-Unicode sanitizer (DANGEROUS — only for "
+        "Disable the skill-pack invisible-Unicode sanitizer (DANGEROUS - only for "
         "reproducing a poisoned-skill incident; see templates/skills/README.md)."
     ),
 )
@@ -771,7 +771,7 @@ def cli(
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     _splash_future = executor.submit(_background_startup, workdir)
 
-    # Show splash immediately (gradient + logo) — no agent data needed for visuals.
+    # Show splash immediately (gradient + logo) - no agent data needed for visuals.
     splash(
         console,
         version="",
@@ -785,10 +785,10 @@ def cli(
     # invoked below does not also print the compact banner (double-banner).
     ctx.obj["_BANNER_PRINTED"] = True
 
-    # Show immediate feedback while background finishes — no black screen.
+    # Show immediate feedback while background finishes - no black screen.
     console.print("[dim]Preparing...[/dim]", end="\r")
 
-    # Collect background results (should be done by now — splash took 3.5 seconds).
+    # Collect background results (should be done by now - splash took 3.5 seconds).
     _bg = _splash_future.result(timeout=10)
     executor.shutdown(wait=False)
 
@@ -803,7 +803,7 @@ def cli(
 
     _validate_evolve_mode(evolve, budget, max_cycles, yes)
 
-    # Main orchestration flow — call run's callback directly with mapped params
+    # Main orchestration flow - call run's callback directly with mapped params
     assert run.callback is not None
     run.callback(
         plan_file=None,

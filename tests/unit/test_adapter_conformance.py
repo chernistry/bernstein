@@ -218,7 +218,7 @@ def test_popen_target_contains_module_path() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConformanceHarness.replay_step — happy path
+# ConformanceHarness.replay_step - happy path
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ def test_replay_step_passes_for_generic_adapter(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Broken adapter stub — used to test exception detection
+# Broken adapter stub - used to test exception detection
 # ---------------------------------------------------------------------------
 
 
@@ -301,7 +301,7 @@ class _WrongExceptionAdapter(CLIAdapter):
 
 
 # ---------------------------------------------------------------------------
-# ConformanceHarness.replay_step — exception handling
+# ConformanceHarness.replay_step - exception handling
 # ---------------------------------------------------------------------------
 
 

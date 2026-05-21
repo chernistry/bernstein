@@ -16,12 +16,12 @@ is idempotent on disk (content-addressed filenames).
 
 The CLI surface is intentionally narrow:
 
-* ``bernstein eval generate-scenarios --from-traces N --out <dir>`` —
+* ``bernstein eval generate-scenarios --from-traces N --out <dir>`` -
   consume the latest ``N`` trace files under ``.sdd/traces/`` and emit
   one synthetic case per detected pattern.
 * ``bernstein eval synth-generate --scenario <id> --params k=v,... --count N``
-  — explicit scenario invocation.
-* ``bernstein eval synth-list`` — print the registry contents.
+  - explicit scenario invocation.
+* ``bernstein eval synth-list`` - print the registry contents.
 
 External LLMs are **not** called from this module. The "template
 generator" path takes a callable so tests can inject a deterministic
@@ -165,7 +165,7 @@ class ScenarioGenerator(Protocol):
 
     @property
     def axes(self) -> dict[str, tuple[Any, ...]]:
-        """Declared parameter axes — name to ordered tuple of values."""
+        """Declared parameter axes - name to ordered tuple of values."""
         ...
 
     def materialise(
@@ -188,7 +188,7 @@ class ScenarioRegistry:
 
     The registry is the only public lookup table; callers should not
     hold direct references to generator classes. Registration is
-    idempotent — registering a generator with the same id twice raises
+    idempotent - registering a generator with the same id twice raises
     a ``ValueError`` so silent collisions cannot happen.
     """
 
@@ -251,7 +251,7 @@ class _BaseGenerator:
         if len(prompt) > _MAX_PROMPT_LEN:
             prompt = prompt[:_MAX_PROMPT_LEN] + "..."
         case_id = _content_id(self.id, prompt, seed, merged)
-        # Resolve the timestamp deterministically — a fixed seed must
+        # Resolve the timestamp deterministically - a fixed seed must
         # always yield the same case. Hash the seed/scenario to a stable
         # float in the deterministic case so the snapshot doesn't drift.
         created_at = _deterministic_timestamp(self.id, seed, merged)
@@ -300,7 +300,7 @@ def _coerce_to_axis_type(default: Any, value: Any) -> Any:
 
 
 def _safe_format(template: str, params: Mapping[str, Any]) -> str:
-    """Format ``template`` with ``params`` — missing keys collapse to ``?``.
+    """Format ``template`` with ``params`` - missing keys collapse to ``?``.
 
     We use a manual scan instead of :func:`str.format_map` so a typo in
     a template never explodes a generator at run-time. The synthetic
@@ -382,7 +382,7 @@ def _deterministic_timestamp(scenario: str, seed: int, params: Mapping[str, Any]
     # to derive a fake timestamp; collisions are irrelevant.
     # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
     digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).digest()
-    # Take the first 4 bytes as an int in [0, 2**32) — divide to land
+    # Take the first 4 bytes as an int in [0, 2**32) - divide to land
     # in a sub-second window for readability.
     int_val = int.from_bytes(digest[:4], "big")
     return round(int_val / 1_000_000.0, 6)
@@ -521,7 +521,7 @@ def _make_stock_registry() -> ScenarioRegistry:
 
 
 def build_default_registry() -> ScenarioRegistry:
-    """Return a freshly-built default registry — never shared mutable state."""
+    """Return a freshly-built default registry - never shared mutable state."""
     return _make_stock_registry()
 
 
@@ -546,7 +546,7 @@ def list_scenarios(
 ) -> list[dict[str, Any]]:
     """Describe every registered scenario as a serialisable dict.
 
-    Returns an empty list when synthesis is disabled — callers can show
+    Returns an empty list when synthesis is disabled - callers can show
     a "synthesis disabled" hint to the operator.
     """
     if is_disabled():
@@ -625,7 +625,7 @@ def _iter_trace_records(path: Path) -> Iterable[dict[str, Any]]:
         return
     if st.st_size > _MAX_TRACE_BYTES:
         logger.warning(
-            "trace %s exceeds %d bytes (size=%d) — skipping",
+            "trace %s exceeds %d bytes (size=%d) - skipping",
             path,
             _MAX_TRACE_BYTES,
             st.st_size,
@@ -743,7 +743,7 @@ def generate_from_traces(
             detected.update(_detect_scenarios(records))
 
     # Always emit at least the P0 prompt-injection scenario when nothing
-    # is detected — operators want a non-empty corpus to attach to the
+    # is detected - operators want a non-empty corpus to attach to the
     # eval harness even on a fresh repo.
     if not detected:
         detected = {"prompt_injection"}
@@ -864,7 +864,7 @@ class _MalformedYAMLError(Exception):
 def _round_trip_yaml(text: str) -> dict[str, Any]:
     """Parse ``text`` with PyYAML; raise :class:`_MalformedYAMLError` on fail.
 
-    PyYAML is a soft import here — the project already depends on it
+    PyYAML is a soft import here - the project already depends on it
     via :mod:`bernstein.eval.golden`. Keeping the import local avoids
     expanding the cold-import surface of this module.
     """
@@ -962,7 +962,7 @@ def write_cases(
     return written
 
 
-# Re-export for ergonomics — callers commonly want both at once.
+# Re-export for ergonomics - callers commonly want both at once.
 def materialise_and_write(
     scenario_id: str,
     *,

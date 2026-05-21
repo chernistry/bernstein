@@ -2,7 +2,7 @@
 
 A privacy-paranoid user who sets ``BERNSTEIN_DISABLE_IDENTITY=1`` must
 see zero ``bernstein-rev:`` strings in **every** artefact bernstein
-produces — yaml, trace JSONL, role prompt md.  This file is the
+produces - yaml, trace JSONL, role prompt md.  This file is the
 single regression catch for the public-facing kill-switch contract.
 
 The same sweep is repeated for the operator-side gate
@@ -117,7 +117,7 @@ def _assert_no_rev_anywhere(artefacts: dict[str, str]) -> None:
     for slot, payload in artefacts.items():
         assert "bernstein-rev:" not in payload, f"{slot} leaks bernstein-rev:"
         assert DISABLED_SENTINEL not in payload, f"{slot} leaks the sentinel"
-        # Trace jsonl gets a stricter check — no _rev key in any line.
+        # Trace jsonl gets a stricter check - no _rev key in any line.
         if slot == "trace-jsonl":
             for line in payload.splitlines():
                 if not line:
@@ -175,7 +175,7 @@ class TestKillSwitchSuppressesEverywhere:
         tmp_path: Path,
     ) -> None:
         # Operator gate ON but the user has no seed (the realistic state
-        # for every end-user install — they never have the operator's
+        # for every end-user install - they never have the operator's
         # secret).  Every emit site short-circuits to a no-op rather
         # than spelling the sentinel into the public artefact.
         monkeypatch.setattr(ir, "IDENTITY_EMISSION_ENABLED", True)

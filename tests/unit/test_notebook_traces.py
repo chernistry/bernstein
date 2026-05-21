@@ -1,4 +1,4 @@
-"""Tests for notebook_traces — notebook-aware trace recording."""
+"""Tests for notebook_traces - notebook-aware trace recording."""
 
 from __future__ import annotations
 

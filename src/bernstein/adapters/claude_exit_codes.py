@@ -5,14 +5,14 @@ conditions.  This module maps those codes to Bernstein's lifecycle
 enums so the orchestrator can make informed retry/abort decisions.
 
 Exit code semantics (from Claude Code CLI docs):
-- 0: Success — task completed normally
-- 1: General error — unspecified failure
+- 0: Success - task completed normally
+- 1: General error - unspecified failure
 - 2: User interrupt (SIGINT / Ctrl+C)
-- 3: Context window overflow — conversation exceeded model context
-- 4: Permission denied — agent attempted disallowed action
-- 130: SIGINT (128 + 2) — process killed by interrupt signal
-- 137: SIGKILL (128 + 9) — process killed forcefully (OOM or timeout)
-- 143: SIGTERM (128 + 15) — graceful shutdown requested
+- 3: Context window overflow - conversation exceeded model context
+- 4: Permission denied - agent attempted disallowed action
+- 130: SIGINT (128 + 2) - process killed by interrupt signal
+- 137: SIGKILL (128 + 9) - process killed forcefully (OOM or timeout)
+- 143: SIGTERM (128 + 15) - graceful shutdown requested
 """
 
 from __future__ import annotations

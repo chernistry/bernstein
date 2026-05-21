@@ -101,7 +101,7 @@ class FastPathStats:
 # Classification rules
 # ---------------------------------------------------------------------------
 
-# Regex patterns for L0 (trivial) tasks — matched against lowercased title+description
+# Regex patterns for L0 (trivial) tasks - matched against lowercased title+description
 # These are lowercase because they are reassigned by load_fast_path_config().
 _l0_patterns: list[tuple[re.Pattern[str], FastPathAction, str]] = [
     (re.compile(r"\b(format|formatting|auto-?format|black|prettier)\b"), FastPathAction.RUFF_FORMAT, "formatting"),
@@ -118,7 +118,7 @@ _l0_patterns: list[tuple[re.Pattern[str], FastPathAction, str]] = [
     ),
 ]
 
-# Regex patterns for L1 (simple) tasks — route to cheapest model
+# Regex patterns for L1 (simple) tasks - route to cheapest model
 # These are lowercase because they are reassigned by load_fast_path_config().
 _l1_patterns: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(add docstring|update docstring|missing docstring)\b"), "docstring"),
@@ -182,7 +182,7 @@ def classify_task(task: Task) -> ClassificationResult:
             )
 
     # Low-complexity + small-scope tasks that didn't match L0/L1 patterns
-    # still benefit from the cheapest model — they're simple by metadata.
+    # still benefit from the cheapest model - they're simple by metadata.
     if task.complexity == Complexity.LOW and task.scope == Scope.SMALL:
         return ClassificationResult(
             level=TaskLevel.L1,
@@ -196,7 +196,7 @@ def classify_task(task: Task) -> ClassificationResult:
 
 
 # ---------------------------------------------------------------------------
-# L0 executors — deterministic, no LLM
+# L0 executors - deterministic, no LLM
 # ---------------------------------------------------------------------------
 
 
@@ -426,10 +426,10 @@ def execute_fast_path(
 
 
 # ---------------------------------------------------------------------------
-# L1 model override — cheapest model for simple tasks
+# L1 model override - cheapest model for simple tasks
 # ---------------------------------------------------------------------------
 
-# Default L1 model: sonnet (not haiku — on Max plan sonnet is unlimited
+# Default L1 model: sonnet (not haiku - on Max plan sonnet is unlimited
 # and produces much better results for the same cost).
 _l1_model_config = ModelConfig(model="sonnet", effort="normal", max_tokens=50_000)
 
@@ -520,7 +520,7 @@ def load_fast_path_config(routing_yaml: Path) -> bool:
     global _l0_patterns, _l1_patterns, _l1_model_config
 
     try:
-        import yaml  # lazy import — only needed if routing.yaml is present
+        import yaml  # lazy import - only needed if routing.yaml is present
     except ImportError:
         logger.debug("PyYAML not available; using default fast-path patterns")
         return False
@@ -528,7 +528,7 @@ def load_fast_path_config(routing_yaml: Path) -> bool:
     try:
         data: object = yaml.safe_load(routing_yaml.read_text(encoding="utf-8"))
     except Exception as exc:
-        logger.warning("Could not read %s: %s — using default fast-path patterns", routing_yaml, exc)
+        logger.warning("Could not read %s: %s - using default fast-path patterns", routing_yaml, exc)
         return False
 
     if not isinstance(data, dict):
@@ -700,9 +700,9 @@ def try_fast_path_batch(
             result.summary,
         )
     else:
-        # Mark task failed — it will be retried via normal LLM path
+        # Mark task failed - it will be retried via normal LLM path
         logger.warning(
-            "Fast-path failed for task %s: %s — will retry via LLM",
+            "Fast-path failed for task %s: %s - will retry via LLM",
             task.id,
             result.error,
         )

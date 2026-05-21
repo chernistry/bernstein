@@ -1,7 +1,7 @@
 """Tool-masking pass for KV-cache-locality-preserving spawn prompts.
 
 Manus's lesson #2: when a tool should be unavailable for a step, do **not**
-remove it from the tool list — that shifts every byte after the removed entry
+remove it from the tool list - that shifts every byte after the removed entry
 and busts the Anthropic prompt-cache prefix (90% discount on cache hits).
 Instead, keep the entry in place and flip a ``unavailable: True`` flag plus an
 ``unavailable_reason`` string so the model sees the entry but is steered away
@@ -13,7 +13,7 @@ Adapter compatibility:
   through the tool definitions).
 - **Other adapters** fall back to physical removal because their tool schemas
   don't carry an ``unavailable`` field. Callers can detect this by inspecting
-  the returned :class:`MaskResult` — when ``fallback_removed`` is non-empty the
+  the returned :class:`MaskResult` - when ``fallback_removed`` is non-empty the
   adapter must drop those tools instead.
 
 This module is intentionally pure-data: it never touches the prompt string and

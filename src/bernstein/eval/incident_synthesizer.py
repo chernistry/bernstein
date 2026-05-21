@@ -9,7 +9,7 @@ Pipeline
 --------
 1. **Read** new incidents from the dead-letter queue and post-mortem
    reports.
-2. **Minimise** the trigger — keep only the smallest prompt / config /
+2. **Minimise** the trigger - keep only the smallest prompt / config /
    tool sequence that would reproduce the failure. Long tracebacks are
    collapsed to their first useful frames.
 3. **Redact** with the existing PII / secret scanner. If a finding
@@ -21,9 +21,9 @@ Pipeline
 
 Severity routing follows the ticket convention:
 
-* ``P0`` — security / data-loss / prompt-injection. Blocks merge.
-* ``P1`` — correctness / orchestration regressions. Warn-only.
-* ``P2`` — flaky / transient. Warn-only.
+* ``P0`` - security / data-loss / prompt-injection. Blocks merge.
+* ``P1`` - correctness / orchestration regressions. Warn-only.
+* ``P2`` - flaky / transient. Warn-only.
 
 The CLI (``bernstein eval sync-incidents``) and the
 ``run_incident_eval_gate`` function below are the two entry points.
@@ -187,7 +187,7 @@ class IncidentSynthesizer:
     def synthesize_from_dlq_entry(self, entry: DLQEntry) -> IncidentEvalCase | None:
         """Build a single eval case from a DLQ entry.
 
-        Returns ``None`` when redaction fails. Pure function — does not
+        Returns ``None`` when redaction fails. Pure function - does not
         touch the filesystem.
         """
         return self._case_from_dlq(entry)
@@ -309,7 +309,7 @@ class IncidentSynthesizer:
         body = _to_yaml(case)
         findings = scan_text(body)
         if findings:
-            logger.warning("incident eval case %s contains residual secrets — dropping", case.id)
+            logger.warning("incident eval case %s contains residual secrets - dropping", case.id)
             return
         path.write_text(body, encoding="utf-8")
         logger.info("incident eval case written: %s (%s)", path, case.severity)
@@ -332,7 +332,7 @@ def run_incident_eval_gate(workdir: Path) -> tuple[bool, str, dict[str, int]]:
 
     Returns:
         ``(passed, detail, counts)``. ``passed`` is False when any P0
-        case has no candidate solution wired up yet — i.e. the case is
+        case has no candidate solution wired up yet - i.e. the case is
         present but the harness cannot prove regression status. The gate
         fails closed: missing harness data on a P0 incident blocks merge.
     """
@@ -478,7 +478,7 @@ def _redact(text: str) -> str | None:
 
 # Conservative redaction patterns covering the high-confidence rules in
 # pii_output_gate.SECRET_RULES. Regex-only is sufficient because the
-# scanner is also regex-only — anything it flags one of these will mask.
+# scanner is also regex-only - anything it flags one of these will mask.
 _SECRET_REDACTION_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bghp_[A-Za-z0-9]{36,}\b"),

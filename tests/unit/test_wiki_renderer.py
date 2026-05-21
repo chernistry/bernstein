@@ -31,7 +31,7 @@ def test_render_wiki_emits_three_sections_for_empty_inputs() -> None:
     graph = SemanticGraph()
     output = render_wiki(graph, [], repo_name="empty")
 
-    assert output.startswith("# empty — Repo Wiki\n")
+    assert output.startswith("# empty - Repo Wiki\n")
     assert "## Top-level structure" in output
     assert "## Public API summary" in output
     assert "## Test layout" in output
@@ -83,12 +83,12 @@ def test_render_wiki_is_deterministic_for_fixture_repo(tmp_path: Path, monkeypat
     assert first == second
 
     # Header + provenance.
-    assert first.startswith("# fixture — Repo Wiki\n")
+    assert first.startswith("# fixture - Repo Wiki\n")
     assert "Auto-generated from the AST symbol graph" in first
 
     # Top-level structure: only 'src' and 'tests' should appear, not the
     # leaf files. We strip ``src/`` so the entry should read ``pkg/`` is
-    # NOT a top-level — top levels are ``pkg`` and ``tests`` thanks to the
+    # NOT a top-level - top levels are ``pkg`` and ``tests`` thanks to the
     # ``src/``-stripping rule.
     assert "- `pkg/`" in first
     assert "- `tests/`" in first

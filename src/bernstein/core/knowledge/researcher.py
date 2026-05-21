@@ -266,7 +266,7 @@ def run_research_sync(workdir: Path) -> ResearchReport:
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # Already inside an event loop — run in a new thread
+            # Already inside an event loop - run in a new thread
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:

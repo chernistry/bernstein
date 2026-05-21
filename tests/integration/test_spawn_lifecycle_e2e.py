@@ -4,7 +4,7 @@ These tests treat the orchestrator as a black box: feed it tasks via
 the FastAPI task server, drive it via :meth:`Orchestrator.tick`, and
 assert on the resulting state in the task store, the audit log, and
 the spawner. The :class:`unittest.mock.MagicMock` spawner is used as
-a controllable test double — no real subprocesses are spawned so the
+a controllable test double - no real subprocesses are spawned so the
 tests run < 1s each on CI.
 
 Failure modes covered (complements ``test_lifecycle.py`` and the
@@ -157,7 +157,7 @@ def test_happy_path_spawn_complete_reap(tmp_path: Path) -> None:
         assert complete.status_code == 200
         assert complete.json()["status"] == "done"
 
-        # Tick 2: agent process "dies" — reap, summary, no errors.
+        # Tick 2: agent process "dies" - reap, summary, no errors.
         spawner.check_alive.return_value = False
         result2 = orch.tick()
         assert result2.active_agents == 0
@@ -206,7 +206,7 @@ def test_worker_crash_mid_run_is_detected(tmp_path: Path) -> None:
         result2 = orch.tick()
         assert result2.active_agents == 0, "dead agent must be reaped"
 
-        # The task did NOT complete — it is either still claimed or
+        # The task did NOT complete - it is either still claimed or
         # has been reverted to open by the reaper. Either way it must
         # not be ``done``.
         final = client.get(f"/tasks/{task_id}").json()
@@ -247,7 +247,7 @@ def test_spawn_failure_is_reported_not_silent(tmp_path: Path) -> None:
 def test_spawn_with_empty_task_list_raises(tmp_path: Path) -> None:
     """The spawner contract refuses to spawn an agent for zero tasks.
 
-    Direct contract test — guards against a regression where the
+    Direct contract test - guards against a regression where the
     orchestrator might mass-spawn idle workers in response to backlog
     polling races (each with an empty batch).
     """
@@ -279,7 +279,7 @@ def test_spawn_with_empty_task_list_raises(tmp_path: Path) -> None:
 
 
 def test_concurrent_agents_no_double_assignment(tmp_path: Path) -> None:
-    """5 tasks of the same role — agents are spawned without re-spawning
+    """5 tasks of the same role - agents are spawned without re-spawning
     the same task into multiple sessions on a single tick."""
     app = create_app(jsonl_path=tmp_path / "tasks.jsonl")
 
@@ -357,9 +357,9 @@ def test_reap_clears_active_session_after_death(tmp_path: Path) -> None:
 
 
 def test_max_agents_caps_spawns_per_tick(tmp_path: Path) -> None:
-    """max_agents=1 with 3 open tasks — only one spawn per tick.
+    """max_agents=1 with 3 open tasks - only one spawn per tick.
 
-    Guards the cap on parallelism — without it the orchestrator would
+    Guards the cap on parallelism - without it the orchestrator would
     fork a worker per task and exhaust the host.
     """
     app = create_app(jsonl_path=tmp_path / "tasks.jsonl")

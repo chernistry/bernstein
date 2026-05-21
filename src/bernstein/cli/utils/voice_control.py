@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Intent patterns — (regex, action) pairs evaluated in order
+# Intent patterns - (regex, action) pairs evaluated in order
 # ---------------------------------------------------------------------------
 
 INTENT_PATTERNS: list[tuple[str, str]] = [

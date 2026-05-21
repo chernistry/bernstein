@@ -1,4 +1,4 @@
-"""Agent voting protocol — configurable multi-model consensus for task verification.
+"""Agent voting protocol - configurable multi-model consensus for task verification.
 
 VotingProtocol wraps one or more LLM reviewers into a single verdict using
 configurable strategies: MAJORITY, QUORUM, WEIGHTED, or UNANIMOUS.
@@ -379,7 +379,7 @@ class VotingProtocol:
                 temperature=0.0,
             )
         except RuntimeError as exc:
-            logger.warning("voting: voter %s failed: %s — abstaining", model, exc)
+            logger.warning("voting: voter %s failed: %s - abstaining", model, exc)
             return Vote(
                 voter_model=model,
                 verdict="abstain",
@@ -405,12 +405,12 @@ class VotingProtocol:
                     data = json.loads(text[start:end])
 
         if not data:
-            logger.warning("voting: unparseable response from %s — abstaining: %.100s", model, text)
+            logger.warning("voting: unparseable response from %s - abstaining: %.100s", model, text)
             return Vote(
                 voter_model=model,
                 verdict="abstain",
                 confidence=0.0,
-                reasoning="Unparseable response — abstaining",
+                reasoning="Unparseable response - abstaining",
             )
 
         raw_verdict = str(data.get("verdict", "abstain")).lower()

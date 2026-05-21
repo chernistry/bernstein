@@ -77,17 +77,17 @@ class RoutePermission:
 
 # Default route permission rules.  Order matters: first match wins.
 _DEFAULT_ROUTE_RULES: Final[list[RoutePermission]] = [
-    # Auth management — admin only
+    # Auth management - admin only
     RoutePermission(_PATH_AUTH_USERS, "POST", _PERM_AUTH_MANAGE),
     RoutePermission(_PATH_AUTH_USERS, "DELETE", _PERM_AUTH_MANAGE),
     RoutePermission(_PATH_AUTH_USERS, "PUT", _PERM_AUTH_MANAGE),
     RoutePermission("/auth/roles", "*", _PERM_AUTH_MANAGE),
-    # Config — admin only for writes
+    # Config - admin only for writes
     RoutePermission(_PATH_CONFIG, "POST", _PERM_CONFIG_WRITE),
     RoutePermission(_PATH_CONFIG, "PUT", _PERM_CONFIG_WRITE),
     RoutePermission(_PATH_CONFIG, "DELETE", _PERM_CONFIG_WRITE),
     RoutePermission(_PATH_CONFIG, "GET", "config:read"),
-    # Webhooks — admin only
+    # Webhooks - admin only
     RoutePermission(_PATH_WEBHOOKS, "POST", _PERM_WEBHOOKS_MANAGE),
     RoutePermission(_PATH_WEBHOOKS, "PUT", _PERM_WEBHOOKS_MANAGE),
     RoutePermission(_PATH_WEBHOOKS, "DELETE", _PERM_WEBHOOKS_MANAGE),
@@ -109,7 +109,7 @@ _DEFAULT_ROUTE_RULES: Final[list[RoutePermission]] = [
     RoutePermission("/bulletin", "GET", "bulletin:read"),
     # Cost tracking
     RoutePermission("/costs", "GET", "costs:read"),
-    # Status — lowest permission level
+    # Status - lowest permission level
     RoutePermission("/status", "GET", "status:read"),
     RoutePermission("/health", "*", ""),  # No auth needed
 ]

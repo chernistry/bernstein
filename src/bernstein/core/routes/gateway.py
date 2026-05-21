@@ -1,7 +1,7 @@
-"""Gateway metrics route — exposes per-tool MCP call stats.
+"""Gateway metrics route - exposes per-tool MCP call stats.
 
 Route:
-    GET /gateway/metrics  — per-tool call/latency/error metrics from the
+    GET /gateway/metrics  - per-tool call/latency/error metrics from the
                             active gateway session (empty if no gateway running).
 """
 

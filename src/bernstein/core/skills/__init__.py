@@ -13,13 +13,13 @@ is used instead.
 
 The package is organised as:
 
-- :mod:`manifest`    — Pydantic model for ``SKILL.md`` frontmatter.
-- :mod:`source`      — ``SkillSource`` / ``LazySkillSource`` ABCs.
-- :mod:`sources.local_dir` — default loader (reads ``templates/skills/``).
-- :mod:`sources.plugin`    — pluggy entry-point loader.
-- :mod:`loader`      — ``SkillLoader`` orchestrator with conflict detection.
-- :mod:`index_builder` — builds the compact index injected into prompts.
-- :mod:`load_skill_tool` — ``load_skill`` MCP tool implementation.
+- :mod:`manifest`    - Pydantic model for ``SKILL.md`` frontmatter.
+- :mod:`source`      - ``SkillSource`` / ``LazySkillSource`` ABCs.
+- :mod:`sources.local_dir` - default loader (reads ``templates/skills/``).
+- :mod:`sources.plugin`    - pluggy entry-point loader.
+- :mod:`loader`      - ``SkillLoader`` orchestrator with conflict detection.
+- :mod:`index_builder` - builds the compact index injected into prompts.
+- :mod:`load_skill_tool` - ``load_skill`` MCP tool implementation.
 """
 
 from __future__ import annotations

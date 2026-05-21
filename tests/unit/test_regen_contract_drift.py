@@ -66,7 +66,7 @@ def test_self_check_passes_when_regen_is_idempotent(regen_module, monkeypatch):
 
 def test_self_check_aborts_when_fixture_keeps_writing(regen_module, monkeypatch, capsys):
     """Negative: fixture reports True twice in a row -> abort with code 2."""
-    # Stub keeps returning True forever — i.e. the regen is non-idempotent and
+    # Stub keeps returning True forever - i.e. the regen is non-idempotent and
     # would keep editing the file on every pass. The self-check must catch this.
     stub = _make_stub_fixture([True, True, True])
     monkeypatch.setattr(regen_module, "FIXTURES", {"DOCUMENTED_COMMANDS": stub}, raising=True)
@@ -86,7 +86,7 @@ def test_self_check_aborts_when_git_diff_dirties_on_second_pass(regen_module, mo
     (claiming nothing to do) yet still mutates files. The git-diff probe
     detects the resulting dirty tree and trips the self-check.
     """
-    # Fixture reports True once, then False — but the working-tree check flips
+    # Fixture reports True once, then False - but the working-tree check flips
     # from clean to dirty between the two passes, mimicking a stealth write.
     stub = _make_stub_fixture([True, False])
     monkeypatch.setattr(regen_module, "FIXTURES", {"DOCUMENTED_COMMANDS": stub}, raising=True)

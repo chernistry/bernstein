@@ -2,12 +2,12 @@
 
 Bernstein has two related path safety surfaces:
 
-1. ``bernstein.core.config.platform_compat.normalize_path`` — used to
+1. ``bernstein.core.config.platform_compat.normalize_path`` - used to
    canonicalise operator-supplied paths before they hit subprocess
    args, gitignore patterns, etc. Bugs here surface as broken path
    matching on either platform.
 
-2. ``bernstein.core.lineage.recorder._is_unsafe_path`` — the
+2. ``bernstein.core.lineage.recorder._is_unsafe_path`` - the
    defence-in-depth check that rejects absolute and traversal
    artefact paths before they reach disk. A regression here is a
    direct path-traversal vulnerability (the recorder could write
@@ -15,18 +15,18 @@ Bernstein has two related path safety surfaces:
 
 Properties:
 
-* **``normalize_path`` is idempotent** — running it twice yields the
+* **``normalize_path`` is idempotent** - running it twice yields the
   same string. Catches regressions where the normaliser leaves a
   trailing separator on some inputs that a second pass would strip.
 
-* **``normalize_path`` collapses ``"./"`` segments** — the contract
+* **``normalize_path`` collapses ``"./"`` segments** - the contract
   that downstream gitignore-style matchers depend on.
 
-* **``_is_unsafe_path`` rejects every traversal segment** — for any
+* **``_is_unsafe_path`` rejects every traversal segment** - for any
   segment count and position, ``..`` anywhere in the path is
   detected.
 
-* **Trusted relative paths are accepted** — pure-relative paths
+* **Trusted relative paths are accepted** - pure-relative paths
   without traversal segments must pass cleanly; otherwise the
   recorder would refuse legitimate writes.
 
@@ -45,7 +45,7 @@ from bernstein.core.lineage.recorder import _is_unsafe_path
 _SAFE_SEG = st.text(
     alphabet=st.characters(
         min_codepoint=0x61,
-        max_codepoint=0x7A,  # lowercase ascii — boring, safe segments
+        max_codepoint=0x7A,  # lowercase ascii - boring, safe segments
     ),
     min_size=1,
     max_size=8,

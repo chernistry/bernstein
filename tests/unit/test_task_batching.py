@@ -190,7 +190,7 @@ class TestCompactSmallTasks:
         t1 = self._small_task("t1", minutes=40)
         t2 = self._small_task("t2", minutes=30)
         result = compact_small_tasks([[t1], [t2]], max_per_batch=3)
-        # 40 + 30 = 70 > 60 — should NOT merge
+        # 40 + 30 = 70 > 60 - should NOT merge
         assert len(result) == 2
 
     def test_scope_small_triggers_compact(self) -> None:

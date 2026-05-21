@@ -40,7 +40,7 @@ class ACPSession:
     """A live ACP session.
 
     Attributes:
-        session_id: Bernstein task id (and ACP session id) — the same
+        session_id: Bernstein task id (and ACP session id) - the same
             string is returned by the task server for ``GET /tasks/{id}``.
         cwd: Working directory the editor reported in ``initialize`` /
             ``prompt``.
@@ -49,7 +49,7 @@ class ACPSession:
         role: Optional Bernstein role hint forwarded to the task store.
         created_at: Unix timestamp.
         last_activity: Unix timestamp of the most recent inbound message.
-        source: Always ``"acp"`` — surfaced via ``bernstein status --json``.
+        source: Always ``"acp"`` - surfaced via ``bernstein status --json``.
     """
 
     session_id: str
@@ -183,7 +183,7 @@ class ACPSessionStore:
             ``role``, ``cwd``, ``source``, ``created_at``, and
             ``last_activity``.
         """
-        # Copy under no lock — snapshot tolerates a torn read because the
+        # Copy under no lock - snapshot tolerates a torn read because the
         # caller only consumes immutable strings/floats.
         return [
             {

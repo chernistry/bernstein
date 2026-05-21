@@ -73,7 +73,7 @@ def _setup_quickstart_project(project_dir: Path, adapter: str) -> None:
     """
     import shutil as _shutil
 
-    # Copy bundled examples/quickstart/ — go up 4 levels from this file to repo root
+    # Copy bundled examples/quickstart/ - go up 4 levels from this file to repo root
     examples_dir = Path(__file__).parent.parent.parent.parent / "examples" / "quickstart"
     if examples_dir.exists():
         _shutil.copytree(str(examples_dir), str(project_dir), dirs_exist_ok=True)
@@ -251,7 +251,7 @@ def _print_quickstart_summary(
     failed = sum(1 for t in tasks_data if t.get("status") == "failed")
     total = len(tasks_data)
 
-    elapsed_str = f"{elapsed_secs:.0f}s" if elapsed_secs > 0 else "—"
+    elapsed_str = f"{elapsed_secs:.0f}s" if elapsed_secs > 0 else "-"
 
     console.print("\n[bold cyan]── Quickstart Summary ────────────────────[/bold cyan]")
 
@@ -308,8 +308,8 @@ def quickstart_cmd(keep: bool, timeout: int, adapter: str | None) -> None:
     """Zero-config demo: orchestrate 3 tasks on a Flask TODO API.
 
     \b
-    Creates a temp project (Flask TODO API with gaps), seeds 3 tasks — input
-    validation, error handling, and a pytest suite — then runs agents to
+    Creates a temp project (Flask TODO API with gaps), seeds 3 tasks - input
+    validation, error handling, and a pytest suite - then runs agents to
     complete them. No prior setup or bernstein.yaml required.
 
     \b

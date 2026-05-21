@@ -106,7 +106,7 @@ def resolve_secret(
 
     Returns:
         A :class:`VaultResolution`. The caller decides how to react when
-        ``found`` is ``False`` — the existing CLI commands raise their own
+        ``found`` is ``False`` - the existing CLI commands raise their own
         auth-error types so error messages stay consistent.
     """
     provider = require_provider(provider_id)

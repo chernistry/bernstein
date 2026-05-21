@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.git_ops — centralized git write operations."""
+"""Tests for bernstein.core.git_ops - centralized git write operations."""
 
 from __future__ import annotations
 
@@ -376,7 +376,7 @@ class TestSafePush:
 
     # Helper: every safe_push() call now starts with a remote_exists()
     # probe (``git remote get-url origin``) so the function can no-op
-    # cleanly on local-only repos — see smoke-test follow-up #6.
+    # cleanly on local-only repos - see smoke-test follow-up #6.
     _REMOTE_OK = GitResult(0, "git@github.com:x/y.git", "")
 
     @patch("bernstein.core.git_basic.run_git")
@@ -727,7 +727,7 @@ class TestPullRequestResult:
 
 
 class TestCreateBranch:
-    """Tests for create_branch — creates a branch from a base without checkout."""
+    """Tests for create_branch - creates a branch from a base without checkout."""
 
     @patch("bernstein.core.git.git_pr.run_git")
     def test_creates_from_main(self, mock: MagicMock) -> None:
@@ -759,7 +759,7 @@ class TestCreateBranch:
 
 
 class TestDeleteOldBranches:
-    """Tests for delete_old_branches — auto-cleanup of stale branches."""
+    """Tests for delete_old_branches - auto-cleanup of stale branches."""
 
     @patch("bernstein.core.git.git_pr.time.time", return_value=1_000_000.0)
     @patch("bernstein.core.git.git_pr.run_git")
@@ -860,7 +860,7 @@ class TestPushBranch:
 
 
 class TestPushHeadAs:
-    """Tests for push_head_as — pushes HEAD as a named remote branch."""
+    """Tests for push_head_as - pushes HEAD as a named remote branch."""
 
     @patch("bernstein.core.git.git_pr.run_git")
     def test_pushes_head_via_refspec(self, mock: MagicMock) -> None:
@@ -891,7 +891,7 @@ class TestPushHeadAs:
 
 
 class TestCreateGithubPr:
-    """Tests for create_github_pr — delegates to the gh CLI."""
+    """Tests for create_github_pr - delegates to the gh CLI."""
 
     @patch("bernstein.core.git.git_pr.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:

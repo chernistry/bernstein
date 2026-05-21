@@ -13,16 +13,16 @@ pack:
 
 The resulting bundle is:
 
-* **HMAC-chained** — the full audit log slice for the period, with each
+* **HMAC-chained** - the full audit log slice for the period, with each
   entry's chain anchor preserved (verifiable by the existing
   ``AuditLog.verify`` API or the standalone verifier shipped here).
-* **Deterministic** — the same input window produces a byte-identical
+* **Deterministic** - the same input window produces a byte-identical
   bundle on every run (sorted JSONL, fixed key order, no timestamps in
   the bundle metadata that depend on wall-clock).
-* **Retention-pinned** — bundle metadata records the ``retention_until``
+* **Retention-pinned** - bundle metadata records the ``retention_until``
   date matching Article 12(3): 10 years for high-risk systems, 6 months
   minimum otherwise.
-* **Self-describing** — manifests for the input/output catalog (data
+* **Self-describing** - manifests for the input/output catalog (data
   governance evidence per Article 10 / Annex IV §2(d)) and a clause map
   showing which bundle artefact maps to which Article 12 sub-clause.
 
@@ -52,12 +52,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: Article 12(3) — high-risk AI systems must keep logs for the lifetime
+#: Article 12(3) - high-risk AI systems must keep logs for the lifetime
 #: of the system *and* at least 10 years (Article 19(1)).  Bernstein
 #: pins 10 years as the default cap; operators can opt to keep longer.
 HIGH_RISK_RETENTION_YEARS: int = 10
 
-#: Article 12(3) — minimum retention for any AI system covered by
+#: Article 12(3) - minimum retention for any AI system covered by
 #: Article 12 ("at least six months").
 MINIMUM_RETENTION_DAYS: int = 183  # half a calendar year, leap-safe lower bound
 
@@ -114,7 +114,7 @@ class Article12Bundle:
     """Result of an Article 12 evidence-pack export.
 
     Attributes:
-        bundle_id: Stable hash over (since, until, risk_class) — the
+        bundle_id: Stable hash over (since, until, risk_class) - the
             deterministic identifier auditors can quote when referring
             to a bundle.
         since: Inclusive lower bound of the export window (ISO-8601).
@@ -403,7 +403,7 @@ def build_article12_bundle(
         output_dir: Where to write the bundle zip.  Defaults to
             ``audit_dir.parent / 'evidence'`` (i.e. ``.sdd/evidence/``).
         write: If False, build the bundle in-memory only and skip the
-            on-disk write — useful for ``--dry-run`` and tests.
+            on-disk write - useful for ``--dry-run`` and tests.
 
     Returns:
         An :class:`Article12Bundle` describing the produced pack.
@@ -604,8 +604,8 @@ def _verify_run_chain(
     """Walk a per-run audit JSONL, verifying HMAC links eagerly.
 
     The runtime per-run file uses the same canonical HMAC payload as
-    :class:`bernstein.core.security.audit.AuditLog` — ``HMAC(key,
-    prev_hmac + canonical_json(entry_without_hmac))`` — so we can
+    :class:`bernstein.core.security.audit.AuditLog` - ``HMAC(key,
+    prev_hmac + canonical_json(entry_without_hmac))`` - so we can
     re-derive each event's MAC and refuse to proceed at the first break.
 
     Args:
@@ -631,7 +631,7 @@ def _verify_run_chain(
         try:
             entry = json.loads(line)
         except json.JSONDecodeError as exc:
-            raise ChainBreakError(f"{run_audit_path.name}:{line_no}: invalid JSON — {exc}") from None
+            raise ChainBreakError(f"{run_audit_path.name}:{line_no}: invalid JSON - {exc}") from None
 
         if not isinstance(entry, dict):
             raise ChainBreakError(
@@ -720,7 +720,7 @@ def _walk_lineage_records(
 
     Reads from the same WAL the orchestrator writes via
     :class:`bernstein.core.persistence.lineage.LineageWriter`, so the
-    catalog is grounded in the production hash chain — not a parallel
+    catalog is grounded in the production hash chain - not a parallel
     file the agent would need to cooperate with separately.
 
     Args:
@@ -732,11 +732,11 @@ def _walk_lineage_records(
     Returns:
         Stable-ordered list of catalog projections.
     """
-    # Lazy import — keeps article12_bundle a leaf-importable module for
+    # Lazy import - keeps article12_bundle a leaf-importable module for
     # tooling that doesn't pull the persistence stack.
     try:
         from bernstein.core.persistence.lineage import LineageReader
-    except ImportError:  # pragma: no cover — defensive, lineage ships alongside
+    except ImportError:  # pragma: no cover - defensive, lineage ships alongside
         return []
 
     reader = LineageReader(sdd_dir)
@@ -840,7 +840,7 @@ def _load_clause_map_from_yaml(path: Path) -> bytes:
         raise FileNotFoundError(f"clause map config not found: {path}")
     try:
         import yaml
-    except ImportError as exc:  # pragma: no cover — yaml ships in core deps
+    except ImportError as exc:  # pragma: no cover - yaml ships in core deps
         raise ImportError(
             "PyYAML is required for assemble_from_run; install via the core dependency set",
         ) from exc
@@ -860,13 +860,13 @@ def _load_clause_map_from_yaml(path: Path) -> bytes:
 
 @dataclass(frozen=True, slots=True)
 class RunBundleResult:
-    """Output of :func:`assemble_from_run` — the bundle plus catalog stats.
+    """Output of :func:`assemble_from_run` - the bundle plus catalog stats.
 
     Attributes:
         bundle: The :class:`Article12Bundle` describing the produced pack.
         run_id: The run id that anchored the bundle.
         chain_event_count: Total events read from the per-run chain file
-            *before* window filtering — useful for sanity-checking that
+            *before* window filtering - useful for sanity-checking that
             the window did not drop anything unexpectedly.
         catalog_artefact_count: Number of lineage artefacts cross-
             referenced into ``data_catalog.json``.
@@ -937,7 +937,7 @@ def assemble_from_run(
         output_dir: Where to write the bundle zip. Defaults to
             ``<sdd>/evidence``.
         write: When False, build everything in-memory and skip the disk
-            write — useful for ``--dry-run`` and tests.
+            write - useful for ``--dry-run`` and tests.
 
     Returns:
         :class:`RunBundleResult` carrying the bundle plus diagnostic

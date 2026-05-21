@@ -1,7 +1,7 @@
 """Property tests for patch extraction and application.
 
 Tests invariants of ``bernstein.testing.patch_harness.extract_patch`` and
-``apply_patch`` — the canonical implementations used by the SWE-Bench harness
+``apply_patch`` - the canonical implementations used by the SWE-Bench harness
 and any adapter that produces unified diffs.
 
 Property tests here are parametrised over a ``PatchGenerator`` instead of a
@@ -32,7 +32,7 @@ from bernstein.testing.patch_harness import (
 )
 
 # ---------------------------------------------------------------------------
-# extract_patch — invariant properties
+# extract_patch - invariant properties
 # ---------------------------------------------------------------------------
 
 
@@ -60,7 +60,7 @@ def test_extract_patch_nonempty_contract(scenario: ExtractionScenario) -> None:
 
 @pytest.mark.parametrize("scenario", PatchGenerator.all_scenarios(), ids=str)
 def test_extract_patch_result_is_always_stripped(scenario: ExtractionScenario) -> None:
-    """Property: result is always stripped — no leading or trailing whitespace."""
+    """Property: result is always stripped - no leading or trailing whitespace."""
     result = extract_patch(scenario.input_text)
     assert result == result.strip(), f"Result for {scenario.label!r} is not stripped: {result!r}"
 
@@ -94,7 +94,7 @@ def test_extract_patch_multiple_blocks_returns_first() -> None:
 
 
 # ---------------------------------------------------------------------------
-# apply_patch — invariant properties (require a real git repo in tmp_path)
+# apply_patch - invariant properties (require a real git repo in tmp_path)
 # ---------------------------------------------------------------------------
 
 
@@ -154,7 +154,7 @@ def test_apply_patch_idempotency_second_application_fails(tmp_path: Path) -> Non
     _init_git_repo(tmp_path, "target.py", old_content)
     patch = PatchGenerator.valid_git_patch("target.py", old="x = 1\n", new="x = 2\n")
     assert apply_patch(patch, tmp_path) is True
-    # File is now "x = 2\n" — the old context no longer matches.
+    # File is now "x = 2\n" - the old context no longer matches.
     assert apply_patch(patch, tmp_path) is False
 
 
@@ -185,7 +185,7 @@ def test_harness_catches_regression() -> None:
 
     # The correct implementation returns "" for non-diff blocks.
     assert extract_patch(python_block) == "", (
-        "extract_patch must return '' for non-diff fenced blocks — "
+        "extract_patch must return '' for non-diff fenced blocks - "
         "a regression to a generic block matcher would break this."
     )
 

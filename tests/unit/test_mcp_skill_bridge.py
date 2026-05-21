@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.mcp_skill_bridge — MCP-to-skill bridge."""
+"""Tests for bernstein.core.mcp_skill_bridge - MCP-to-skill bridge."""
 
 from __future__ import annotations
 

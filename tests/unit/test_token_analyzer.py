@@ -292,7 +292,7 @@ def test_analyze_from_disk(tmp_path: Path) -> None:
     tasks_file.write_text("\n".join(json.dumps(r) for r in records) + "\n")
 
     analyzer = TokenUsageAnalyzer(tmp_path)
-    result = analyzer.analyze()  # No records arg — reads from disk.
+    result = analyzer.analyze()  # No records arg - reads from disk.
 
     assert len(result.task_stats) == 1
     assert result.task_stats[0].task_id == "disk-t1"

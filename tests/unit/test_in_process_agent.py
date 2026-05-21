@@ -1,4 +1,4 @@
-"""Tests for in-process agent backend — mocks adapter and subprocess."""
+"""Tests for in-process agent backend - mocks adapter and subprocess."""
 
 from __future__ import annotations
 

@@ -13,7 +13,7 @@ Why opt-in? Unconditional beartype across 300k+ LOC slows tests by
 
 Why not just decorate every function? Beartype's ``claws`` mode
 auto-applies the decorator to every public function in a target
-package without code changes — exactly what we need to catch type
+package without code changes - exactly what we need to catch type
 errors that would otherwise only surface on the first production call.
 """
 
@@ -25,7 +25,7 @@ import os
 def maybe_install_beartype_claw() -> None:
     """Install beartype's import hook iff ``BEARTYPE_USE_CLAW=enable``.
 
-    Safe to call multiple times — ``beartype_packages`` is idempotent.
+    Safe to call multiple times - ``beartype_packages`` is idempotent.
     """
     if os.environ.get("BEARTYPE_USE_CLAW", "").lower() not in {"enable", "1", "true", "yes"}:
         return
@@ -43,7 +43,7 @@ def maybe_install_beartype_claw() -> None:
     # ``bernstein.core.persistence.lineage`` is excluded because
     # ``LineageReader.iter_records`` annotates the return as
     # ``Iterator[LineageRecord]`` with the import gated behind
-    # ``TYPE_CHECKING`` — beartype's runtime claw cannot resolve the
+    # ``TYPE_CHECKING`` - beartype's runtime claw cannot resolve the
     # forward reference and raises at decoration time. Promoting the
     # import out of ``TYPE_CHECKING`` is tracked as a follow-up.
     beartype_packages(

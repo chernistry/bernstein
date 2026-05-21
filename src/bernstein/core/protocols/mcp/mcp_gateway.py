@@ -1,4 +1,4 @@
-"""MCP Gateway Proxy — transparent recording and replay.
+"""MCP Gateway Proxy - transparent recording and replay.
 
 Intercepts all JSON-RPC MCP traffic between clients and upstream servers,
 recording each tool call to the WAL and supporting offline replay.
@@ -102,7 +102,7 @@ class GatewayReplay:
         except FileNotFoundError:
             pass  # No cache file yet; start with empty index
         except Exception:
-            # Malformed or partially-written WAL — load what was indexed so far
+            # Malformed or partially-written WAL - load what was indexed so far
             # and continue without crashing.  This is intentionally broad: any
             # corruption in the WAL file must not take down the gateway process.
             pass
@@ -218,7 +218,7 @@ class MCPGateway:
                     if fut and not fut.done():
                         fut.set_result(msg)
         except Exception:
-            # Upstream died — fail all pending futures
+            # Upstream died - fail all pending futures
             for fut in self._pending.values():
                 if not fut.done():
                     fut.set_exception(RuntimeError("Upstream process died"))
@@ -360,8 +360,8 @@ def create_gateway_sse_app(gateway: MCPGateway, *, run_id: str) -> Any:
     """Create a FastAPI SSE app that proxies MCP over HTTP.
 
     Implements a minimal MCP SSE transport:
-    - ``GET /sse``     — opens SSE stream; sends session endpoint URL as first event
-    - ``POST /message`` — accepts JSON-RPC, forwards through gateway, pushes
+    - ``GET /sse``     - opens SSE stream; sends session endpoint URL as first event
+    - ``POST /message`` - accepts JSON-RPC, forwards through gateway, pushes
                          response back via SSE
 
     Args:

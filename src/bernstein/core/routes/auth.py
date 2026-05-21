@@ -44,7 +44,7 @@ class AuthProvidersResponse(BaseModel):
 
 
 class DeviceCodeRequest(BaseModel):
-    """Body for POST /auth/cli/device — initiate device auth flow."""
+    """Body for POST /auth/cli/device - initiate device auth flow."""
 
     client_name: str = "bernstein-cli"
 
@@ -60,7 +60,7 @@ class DeviceCodeResponse(BaseModel):
 
 
 class DevicePollRequest(BaseModel):
-    """Body for POST /auth/cli/token — poll for device authorization."""
+    """Body for POST /auth/cli/token - poll for device authorization."""
 
     device_code: str
     grant_type: str = "urn:ietf:params:oauth:grant-type:device_code"
@@ -77,7 +77,7 @@ class DevicePollResponse(BaseModel):
 
 
 class DeviceAuthorizeRequest(BaseModel):
-    """Body for POST /auth/cli/authorize — authorize a device code."""
+    """Body for POST /auth/cli/authorize - authorize a device code."""
 
     user_code: str
 

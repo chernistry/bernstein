@@ -146,7 +146,7 @@ class TestTaskFilteringIsolation:
         assert "a-task" not in result
 
     def test_tenant_b_cannot_modify_tenant_a_task(self, manager: TenantIsolationManager) -> None:
-        """Modifying a filtered-out task is silently impossible — it's not returned."""
+        """Modifying a filtered-out task is silently impossible - it's not returned."""
         tasks: dict[str, Any] = {
             "shared-id": FakeTask(id="shared-id", tenant_id="tenant-a"),
         }

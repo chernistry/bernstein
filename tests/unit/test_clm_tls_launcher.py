@@ -126,7 +126,7 @@ def test_install_httpx_mtls_defaults_injects_verify_kwarg(
 
     def _capture(self: httpx.Client, *args: object, **kwargs: object) -> None:
         captured.update(kwargs)
-        # Don't actually open sockets — abort here once we've recorded
+        # Don't actually open sockets - abort here once we've recorded
         # what the patched __init__ chose to forward.
         raise RuntimeError("captured")
 
@@ -151,7 +151,7 @@ def test_install_httpx_mtls_defaults_honours_explicit_verify(
     tmp_path: Path,
     httpx_init_restored: object,
 ) -> None:
-    """If the caller already passed ``verify=`` we keep their choice — no silent override."""
+    """If the caller already passed ``verify=`` we keep their choice - no silent override."""
     pki = _make_pki(tmp_path)
     cfg = TLSConfig(
         ca_file=pki["ca"],
@@ -204,7 +204,7 @@ def test_install_httpx_mtls_defaults_also_patches_async_client(
 
     The OpenAI SDK uses ``httpx.AsyncClient`` for its async paths; if
     only ``httpx.Client`` were patched, async callers would skip the
-    customer cert and fall back to the system CA bundle — silent mTLS
+    customer cert and fall back to the system CA bundle - silent mTLS
     bypass.  This pins the async monkey-patch.
     """
     pki = _make_pki(tmp_path)
@@ -272,7 +272,7 @@ def test_install_httpx_mtls_defaults_required_mode_keeps_hostname_check(
     """In ``required`` mode the SSLContext must enforce hostname verification.
 
     A frequent mTLS regression is silently disabling hostname checks in
-    pursuit of a "just make it work" patch — that turns full mTLS into
+    pursuit of a "just make it work" patch - that turns full mTLS into
     transport encryption only and lets a leaf cert be lifted onto a
     different gateway DNS name.  This test pins ``check_hostname=True``
     on the context the launcher injects.
@@ -425,7 +425,7 @@ def test_resolve_tls_falls_back_to_required_for_bogus_verify_mode(
     triple; reaching ``_resolve_tls_from_env`` with a bogus value would
     indicate operator tampering or env corruption.  The defensive
     behaviour is to refuse to silently relax to anything other than
-    ``required`` — fail-safe, not fail-open.
+    ``required`` - fail-safe, not fail-open.
     """
     pki = _make_pki(tmp_path)
     monkeypatch.setenv(CLM_CERT_FILE_ENV, str(pki["cert"]))

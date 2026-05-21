@@ -55,7 +55,7 @@ class TestCORSConfiguration:
                 },
             )
             # Starlette CORSMiddleware with wildcard port patterns:
-            # unmatched origins get 400 on preflight — verify middleware is present
+            # unmatched origins get 400 on preflight - verify middleware is present
             assert resp.status_code in (200, 400)
 
     @pytest.mark.anyio
@@ -547,7 +547,7 @@ class TestDashboardAuth:
     async def test_dashboard_accessible_without_password(self, client: AsyncClient) -> None:
         """Dashboard should be accessible when no password is set."""
         resp = await client.get("/dashboard")
-        # May be 200 (HTML) or 500 (template not found in test env) — not 401
+        # May be 200 (HTML) or 500 (template not found in test env) - not 401
         assert resp.status_code != 401
 
     @pytest.mark.anyio

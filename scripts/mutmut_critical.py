@@ -15,7 +15,7 @@ mutations in that file. A module is "passing" when
     kill_rate >= threshold
 
 where ``kill_rate = killed / total`` and ``total = killed + survivors``
-(timeouts count as kills — an infinite loop is a meaningful signal).
+(timeouts count as kills - an infinite loop is a meaningful signal).
 
 CLI:
 
@@ -26,9 +26,9 @@ CLI:
 
 Exit codes:
 
-    0 — every module met its threshold
-    1 — at least one module below threshold (gate failed)
-    2 — baseline tests fail (cannot trust mutation results)
+    0 - every module met its threshold
+    1 - at least one module below threshold (gate failed)
+    2 - baseline tests fail (cannot trust mutation results)
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ class Module:
 
 
 # Fixed critical-path modules. Paths verified against the worktree layout
-# (see CLAUDE.md "Module map"). Thresholds start at 0.70 per TC-D brief —
+# (see CLAUDE.md "Module map"). Thresholds start at 0.70 per TC-D brief -
 # this is the *gate setup* PR, scores get raised once humans backfill
 # tests for any module that falls short.
 MODULES: tuple[Module, ...] = (
@@ -252,7 +252,7 @@ def _mutate_module(mod: Module, *, verbose: bool = True) -> ModuleResult:
     if verbose:
         print(f"[{mod.key}] baseline tests: {mod.tests}", flush=True)
     if not _run_tests(mod.tests):
-        print(f"[{mod.key}] baseline fails — cannot trust mutation run", file=sys.stderr)
+        print(f"[{mod.key}] baseline fails - cannot trust mutation run", file=sys.stderr)
         res.baseline_ok = False
         return res
 

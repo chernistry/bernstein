@@ -1,4 +1,4 @@
-"""Per-agent token usage tracker — lightweight thread-safe token accounting."""
+"""Per-agent token usage tracker - lightweight thread-safe token accounting."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.adaptive_parallelism — adaptive agent scaling."""
+"""Tests for bernstein.core.adaptive_parallelism - adaptive agent scaling."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class TestHighErrorRate:
 
         assert ap.effective_max_agents() == 1
 
-        # Record more failures — should stay at 1, not go to 0
+        # Record more failures - should stay at 1, not go to 0
         for _ in range(5):
             ap.record_outcome(success=False)
 
@@ -136,7 +136,7 @@ class TestLowErrorRate:
         ap.effective_max_agents()
         assert ap._current_max == 4
 
-        # Timer should be reset — immediate second call should NOT increase
+        # Timer should be reset - immediate second call should NOT increase
         result = ap.effective_max_agents()
         assert result == 4  # no increase without waiting again
 
@@ -165,7 +165,7 @@ class TestLowErrorRate:
 
 class TestCpuOverload:
     # ``_CPU_PAUSE_THRESHOLD`` is 300% (3 fully-pinned cores on a multi-core
-    # machine — the metric is a sum across cores, not a single-core %).
+    # machine - the metric is a sum across cores, not a single-core %).
     # Use 350% in tests to simulate sustained multi-core pressure.
     _OVERLOAD_CPU = 350.0
     _BELOW_THRESHOLD_CPU = 250.0
@@ -195,7 +195,7 @@ class TestCpuOverload:
 
     @patch("bernstein.core.orchestration.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_exactly_at_threshold_does_not_pause(self, mock_cpu: object) -> None:
-        # Threshold is strict ``>`` — hitting it exactly does not trigger.
+        # Threshold is strict ``>`` - hitting it exactly does not trigger.
         mock_cpu.return_value = 300.0  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
 
@@ -297,5 +297,5 @@ class TestRulePriority:
     def test_no_outcomes_defaults_to_configured_max(self, mock_cpu: object) -> None:
         mock_cpu.return_value = 30.0  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
-        # No outcomes recorded — error rate is 0
+        # No outcomes recorded - error rate is 0
         assert ap.effective_max_agents() == 6

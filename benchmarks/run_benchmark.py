@@ -3,9 +3,9 @@
 Measures wall-clock time, cost, and quality for 10 real-world engineering tasks
 under three configurations:
 
-  single    — one agent works through all subtasks sequentially
-  multi-3   — Bernstein orchestrates 3 parallel agents
-  multi-5   — Bernstein orchestrates 5 parallel agents
+  single    - one agent works through all subtasks sequentially
+  multi-3   - Bernstein orchestrates 3 parallel agents
+  multi-5   - Bernstein orchestrates 5 parallel agents
 
 This harness is for internal modeling and workflow exploration. It is not the
 source of public benchmark claims. Public benchmark publication is gated on
@@ -108,7 +108,7 @@ _DIFFICULTY_MINUTES: dict[str, float] = {
     "hard": 24.0,
 }
 
-# Role assignment by issue category — drives cost model
+# Role assignment by issue category - drives cost model
 _CATEGORY_ROLES: dict[str, list[str]] = {
     "bug_fix": ["backend", "backend", "qa"],
     "feature": ["backend", "backend", "backend", "qa", "docs"],
@@ -132,7 +132,7 @@ _ISSUES_SEED = 42
 
 
 # ---------------------------------------------------------------------------
-# Statistical utilities (stdlib only — no scipy required)
+# Statistical utilities (stdlib only - no scipy required)
 # ---------------------------------------------------------------------------
 
 
@@ -853,7 +853,7 @@ def _read_test_pass_rate(sdd_dir: Path = Path(".sdd")) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Issues benchmark — simulation and statistical analysis
+# Issues benchmark - simulation and statistical analysis
 # ---------------------------------------------------------------------------
 
 
@@ -969,9 +969,9 @@ def simulate_issues(
     """Simulate the benchmark on a list of GitHub issues.
 
     For each issue, three scenarios are simulated:
-    - ``single``   — one Sonnet agent, sequential
-    - ``multi-3``  — Bernstein 3-agent pipeline
-    - ``multi-5``  — Bernstein 5-agent pool
+    - ``single``   - one Sonnet agent, sequential
+    - ``multi-3``  - Bernstein 3-agent pipeline
+    - ``multi-5``  - Bernstein 5-agent pool
 
     Resolve outcomes use a seeded PRNG so results are reproducible.
     Wall-clock time and cost are computed via the dependency-aware scheduler
@@ -1204,7 +1204,7 @@ Cohen's h = {h_sm5:.2f} ({_effect_label(h_sm5)} effect)
 | Wall-clock speedup (3 agents) | **{mean_spd3:.2f}x** | [{spd3_lo:.2f}x, {spd3_hi:.2f}x] |
 | Wall-clock speedup (5 agents) | **{mean_spd5:.2f}x** | [{spd5_lo:.2f}x, {spd5_hi:.2f}x] |
 | Cost ratio (multi-3 / single) | {mean_cr:.2f} | [{cr_lo:.2f}, {cr_hi:.2f}] |
-| Cost savings (multi-3 vs single) | **{(1 - mean_cr) * 100:.0f}%** | — |
+| Cost savings (multi-3 vs single) | **{(1 - mean_cr) * 100:.0f}%** | - |
 """
 
 
@@ -1290,7 +1290,7 @@ def write_issues_results(
 > Bernstein 3-agent pipeline resolves **{m3_rate * 100:.0f}%** of issues vs **{s_rate * 100:.0f}%** for a single
 > agent - **{(m3_rate - s_rate) * 100:+.0f}pp** improvement - at **{mean_spd:.2f}x** faster and
 > **{(1 - mean_cr) * 100:.0f}%** lower cost.
-> *(Simulated — see Methodology for model details)*
+> *(Simulated - see Methodology for model details)*
 
 ## Per-Issue Results
 
@@ -1369,7 +1369,7 @@ def _print_issues_suite(suite: IssuesBenchmarkSuite) -> None:
     cost_ratios = [r.cost_ratio for r in multi3_rs]
     mean_cr = sum(cost_ratios) / len(cost_ratios) if cost_ratios else 1.0
 
-    print(f"\nBernstein Issues Benchmark — N={n} — {suite.run_at}\n")
+    print(f"\nBernstein Issues Benchmark - N={n} - {suite.run_at}\n")
     print("-" * 80)
     print(f"{'Scenario':<20} {'Resolved':>8} {'Rate':>6}  {'Notes'}")
     print("-" * 80)
@@ -1552,7 +1552,7 @@ speedup because all five fixes are fully independent.
 
 The security audit task ({_find_task_by_id(suite, "task-010")}) demonstrates
 another strong case: four audit subtasks run in parallel, then four fix
-subtasks run in parallel — the dependency structure maps cleanly to a 5-agent
+subtasks run in parallel - the dependency structure maps cleanly to a 5-agent
 pool.
 
 ### When multi-agent wins least
@@ -1592,7 +1592,7 @@ def _find_task_by_id(suite: BenchmarkSuite, task_id: str) -> str:
 
 def _print_suite(suite: BenchmarkSuite) -> None:
     """Print a human-readable summary to stdout."""
-    print(f"\nBernstein Benchmark — {suite.mode} mode — {suite.run_at}\n")
+    print(f"\nBernstein Benchmark - {suite.mode} mode - {suite.run_at}\n")
     print("-" * 100)
     header = f"{'Task':<36} {'Cat':<12} {'ST':>2}  {'1-agent':>7}  {'3-agent':>7}  {'5-agent':>7}  {'Spd3x':>6}  {'Spd5x':>6}  {'Cost-':>6}  {'QA+':>4}"
     print(header)

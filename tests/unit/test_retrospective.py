@@ -122,7 +122,7 @@ class TestBuildRecommendations:
 
 
 # ---------------------------------------------------------------------------
-# generate_retrospective — file output
+# generate_retrospective - file output
 # ---------------------------------------------------------------------------
 
 

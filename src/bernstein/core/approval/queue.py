@@ -370,7 +370,7 @@ class ApprovalQueue:
                 f"Approval {approval_id} for tool '{pending.tool_name}' "
                 f"timed out after {pending.ttl_seconds}s without an operator decision."
             )
-            # Already-resolved in a race is fine — fall through and
+            # Already-resolved in a race is fine - fall through and
             # return whichever resolution landed first.
             with contextlib.suppress(KeyError):
                 self.resolve(approval_id, ApprovalDecision.REJECT, reason=reason)
@@ -380,7 +380,7 @@ class ApprovalQueue:
             raise ApprovalTimeoutError(reason) from exc
 
         resolved = self.get_resolution(approval_id)
-        if resolved is None:  # pragma: no cover — defensive
+        if resolved is None:  # pragma: no cover - defensive
             raise RuntimeError(f"Approval {approval_id} event fired without a recorded resolution")
         return resolved
 
@@ -471,7 +471,7 @@ def _derive_rule(approval: PendingApproval) -> dict[str, Any]:
         "input_pattern": "*",
         "description": (
             f"Promoted from interactive approval {approval.id}; "
-            "no recognisable input field — review before relying on this rule."
+            "no recognisable input field - review before relying on this rule."
         ),
     }
 

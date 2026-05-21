@@ -380,7 +380,7 @@ def test_get_status_icon_is_case_insensitive() -> None:
     assert icon_lower == icon_upper
 
 
-# -- Frozen dataclass — icon sets are immutable -------------------------------
+# -- Frozen dataclass - icon sets are immutable -------------------------------
 
 
 def test_nerd_font_icons_are_immutable() -> None:

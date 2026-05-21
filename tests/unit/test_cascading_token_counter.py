@@ -1,4 +1,4 @@
-"""Tests for cascading_token_counter — API→cheap model→bytes/4 fallback chain."""
+"""Tests for cascading_token_counter - API→cheap model→bytes/4 fallback chain."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ class TestCountTokensBytesEstimate:
 
 
 # ---------------------------------------------------------------------------
-# count_tokens_cascading — integration / cascade logic
+# count_tokens_cascading - integration / cascade logic
 # ---------------------------------------------------------------------------
 
 

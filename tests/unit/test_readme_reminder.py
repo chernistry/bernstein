@@ -11,7 +11,7 @@ from __future__ import annotations
 from bernstein.core.readme_reminder import APIChange, detect_api_changes, remind_message
 
 # ---------------------------------------------------------------------------
-# Helpers — minimal diff builders
+# Helpers - minimal diff builders
 # ---------------------------------------------------------------------------
 
 _CLI_FILE = "src/bernstein/cli/run_cmd.py"
@@ -25,7 +25,7 @@ def _make_diff(file: str, added_lines: list[str]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# detect_api_changes — no changes
+# detect_api_changes - no changes
 # ---------------------------------------------------------------------------
 
 
@@ -39,7 +39,7 @@ def test_no_changes_on_non_api_diff() -> None:
 
 
 def test_no_changes_on_removed_lines() -> None:
-    """Lines starting with '-' are removals, not additions — must be ignored."""
+    """Lines starting with '-' are removals, not additions - must be ignored."""
     diff = _make_diff(_CLI_FILE, [])
     # Add a removal line manually
     diff += "-@click.command()\n"
@@ -53,7 +53,7 @@ def test_no_changes_outside_cli_or_config_path() -> None:
 
 
 # ---------------------------------------------------------------------------
-# detect_api_changes — CLI commands
+# detect_api_changes - CLI commands
 # ---------------------------------------------------------------------------
 
 
@@ -84,7 +84,7 @@ def test_unnamed_command_has_fallback_name() -> None:
 
 
 # ---------------------------------------------------------------------------
-# detect_api_changes — click options / arguments
+# detect_api_changes - click options / arguments
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ def test_extracts_option_name_with_short_flag() -> None:
 
 
 # ---------------------------------------------------------------------------
-# detect_api_changes — config keys
+# detect_api_changes - config keys
 # ---------------------------------------------------------------------------
 
 
@@ -158,7 +158,7 @@ def test_remind_message_lists_all_changes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration — guardrails.check_readme_reminder
+# Integration - guardrails.check_readme_reminder
 # ---------------------------------------------------------------------------
 
 

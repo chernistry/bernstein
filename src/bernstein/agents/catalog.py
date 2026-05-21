@@ -1,4 +1,4 @@
-"""Agent catalog registry — loads agent definitions from external sources.
+"""Agent catalog registry - loads agent definitions from external sources.
 
 Supports two catalog types:
 - ``agency``: Remote Agency-format agent catalog (GitHub repo or local path).
@@ -25,8 +25,8 @@ CatalogType = Literal["agency", "generic"]
 
 _DEFAULT_AGENCY_SOURCE = "https://github.com/msitarzewski/agency-agents"
 _CACHE_FILE = Path(".sdd/agents/catalog.json")
-_REMOTE_TTL = 3600  # 1 hour — default TTL for remote provider entries
-_LOCAL_TTL = 300  # 5 minutes — default TTL for local provider entries
+_REMOTE_TTL = 3600  # 1 hour - default TTL for remote provider entries
+_LOCAL_TTL = 300  # 5 minutes - default TTL for local provider entries
 
 # Hardcoded fallback roles used when providers and cache both fail.
 _BUILTIN_AGENT_ENTRIES: list[dict[str, Any]] = [
@@ -56,7 +56,7 @@ class CatalogAgent:
         tools: Tool names the agent prefers (e.g. "pytest", "ruff").
         capabilities: Declared capability keywords for task matching
             (e.g. "api-design", "authentication", "jwt").
-        priority: Matching priority — lower value wins (default 100).
+        priority: Matching priority - lower value wins (default 100).
         source: Origin label (e.g. "catalog", "agency").
     """
 
@@ -77,7 +77,7 @@ class CatalogEntry:
 
     Attributes:
         name: Unique identifier for this catalog.
-        type: Provider type — ``"agency"`` or ``"generic"``.
+        type: Provider type - ``"agency"`` or ``"generic"``.
         enabled: Whether this catalog is active.
         priority: Load priority; higher values are checked first.
         source: Remote source URL (agency type only).
@@ -339,7 +339,7 @@ class CatalogRegistry:
                 )
 
         if not fetched_any:
-            logger.info("Catalog: no providers available — using built-in roles")
+            logger.info("Catalog: no providers available - using built-in roles")
 
         self.write_cache()
         logger.info(
@@ -352,7 +352,7 @@ class CatalogRegistry:
         """Attempt to load agents from each configured CatalogEntry.
 
         Iterates providers in their sorted priority order (highest first).
-        Higher-priority providers win on role conflicts — an entry already
+        Higher-priority providers win on role conflicts - an entry already
         present in ``_cached_roles`` is never overwritten.
 
         Returns:
@@ -413,7 +413,7 @@ class CatalogRegistry:
         if entry.type == "generic" and entry.path:
             return self._load_generic_entry(entry)
 
-        # Remote agency (no local path) — not fetched at discover time
+        # Remote agency (no local path) - not fetched at discover time
         logger.debug("Skipping remote provider '%s' (no local path configured)", entry.name)
         return {}
 
@@ -457,7 +457,7 @@ class CatalogRegistry:
                 "effort": str(raw.get(fm.get("effort", "effort"), "normal")),
             }
 
-        # Discover SKILL.md files — these use frontmatter metadata instead
+        # Discover SKILL.md files - these use frontmatter metadata instead
         # of a separate YAML file.
         results.update(_load_skill_md_files(catalog_dir))
 
@@ -475,12 +475,12 @@ class CatalogRegistry:
         """Pick the best agent from an exact-role match list.
 
         Returns None when no agent has meaningful capability overlap with
-        the task description — lets the spawner fall back to template-based
+        the task description - lets the spawner fall back to template-based
         prompts instead of injecting an irrelevant catalog persona.
 
         Agents that declare no capabilities at all (legacy ``load_from_agency``
         path, simple test fixtures) bypass the score threshold and are
-        selected by priority — there's nothing meaningful to score against.
+        selected by priority - there's nothing meaningful to score against.
         """
         # No-capability cohort: fall through to priority-only selection so
         # legacy agents loaded without capability metadata remain matchable.
@@ -495,7 +495,7 @@ class CatalogRegistry:
             return winner
 
         if not keywords:
-            # Generic task description against capability-bearing agents —
+            # Generic task description against capability-bearing agents -
             # too risky to pick a specialised persona without signal.
             logger.debug(
                 "Catalog exact match skipped for '%s': task has no keywords (>3 chars)",
@@ -600,7 +600,7 @@ class CatalogRegistry:
 
 
 # ---------------------------------------------------------------------------
-# Role affinity — which roles can substitute for each other
+# Role affinity - which roles can substitute for each other
 # ---------------------------------------------------------------------------
 
 # Each role maps to a frozenset of roles that are "close enough" to consider

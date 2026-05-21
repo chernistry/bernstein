@@ -89,7 +89,7 @@ def _author_to_role(author: str) -> str:
 # Core: git log runner
 # ---------------------------------------------------------------------------
 
-# Format: one line per commit — author<TAB>additions<TAB>deletions
+# Format: one line per commit - author<TAB>additions<TAB>deletions
 _GIT_LOG_FMT = "%an <%ae>%t%ad"
 _GIT_NUMSTAT_FMT = "%aN%n"  # author name then numstat block
 
@@ -220,7 +220,7 @@ def collect_commit_stats(
         A ``CommitStatsResult`` with per-role and total stats.
 
     Raises:
-        Nothing — returns ``error`` field on failure instead.
+        Nothing - returns ``error`` field on failure instead.
     """
     try:
         rows = _run_git_log(repo_dir, since, until)

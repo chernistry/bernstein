@@ -81,8 +81,8 @@ class SandboxSelectionError(RuntimeError):
 class SandboxPolicy:
     """Operator-supplied selection policy.
 
-    All fields default to "unrestricted" so the simplest invocation —
-    :class:`SandboxPolicy()` — picks the cheapest backend that can
+    All fields default to "unrestricted" so the simplest invocation -
+    :class:`SandboxPolicy()` - picks the cheapest backend that can
     satisfy the manifest. Operators tighten the policy by setting one
     or more fields; the selector treats every field as an AND-condition
     against the candidate backend list.
@@ -108,7 +108,7 @@ class SandboxPolicy:
             absent.
         precedence: Optional override of :data:`DEFAULT_PRECEDENCE`.
             Useful for tests and for operators who prefer e.g. e2b
-            over docker. The list need not be exhaustive — backends
+            over docker. The list need not be exhaustive - backends
             not mentioned are appended alphabetically.
     """
 
@@ -181,12 +181,12 @@ def select_sandbox(
             defaults (cheapest backend, paid disallowed, FILE_RW + EXEC
             required).
         environment: Snapshot of orchestrator-side state. ``None`` means
-            no credentials and no budget tracking — equivalent to a
+            no credentials and no budget tracking - equivalent to a
             fresh process with an empty environment.
 
     Returns:
         The chosen :class:`SandboxBackend`. Always one of the supplied
-        backends — the selector never instantiates new ones.
+        backends - the selector never instantiates new ones.
 
     Raises:
         SandboxSelectionError: When no backend in *backends* satisfies
@@ -223,7 +223,7 @@ def _resolve_override(
 
     Override-first means the operator's intent wins, but we still
     refuse to pretend the backend is usable when its capability or
-    credential preconditions are not met — silent fallbacks have
+    credential preconditions are not met - silent fallbacks have
     bitten us before in surfaces where ``--sandbox`` was treated as a
     hint rather than a contract.
     """

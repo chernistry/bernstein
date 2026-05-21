@@ -55,8 +55,8 @@ class RemoteServerConfig:
     Attributes:
         name: Human-readable identifier for the server.
         url: Base URL of the remote MCP server.
-        transport: Transport type — ``"streamable-http"`` or ``"sse"``.
-        auth_type: Authentication method — ``"none"``, ``"bearer"``, or ``"oauth"``.
+        transport: Transport type - ``"streamable-http"`` or ``"sse"``.
+        auth_type: Authentication method - ``"none"``, ``"bearer"``, or ``"oauth"``.
         auth_token: Bearer token when auth_type is ``"bearer"``.
         oauth_client_id: OAuth client ID when auth_type is ``"oauth"``.
         oauth_client_secret: OAuth client secret when auth_type is ``"oauth"``.

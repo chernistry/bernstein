@@ -11,7 +11,7 @@ backends. The tests below confirm:
 3. ``--allow-paid`` flips ``BERNSTEIN_SANDBOX_ALLOW_PAID=1`` so a paid
    backend (modal) becomes selectable when no explicit override is set.
 4. Combining ``--sandbox modal`` (paid) without ``--allow-paid`` exits
-   non-zero with a diagnostic — silent fallbacks have bitten us before.
+   non-zero with a diagnostic - silent fallbacks have bitten us before.
 5. An unknown ``--sandbox`` value is rejected by Click with a parse
    error, never reaches the runtime, and never leaks half-set env state.
 
@@ -146,7 +146,7 @@ class TestSandboxFlag:
         """``--sandbox modal --allow-paid`` exports paid runtime + opt-in.
 
         The selector reads ``BERNSTEIN_SANDBOX_ALLOW_PAID`` to decide
-        whether to consider non-free backends — without the bit, modal
+        whether to consider non-free backends - without the bit, modal
         would be filtered out before precedence is applied.
         """
         captured = _stub_run_body(monkeypatch)
@@ -157,7 +157,7 @@ class TestSandboxFlag:
         assert result.exit_code == 0, result.output
         assert os.environ.get("BERNSTEIN_SANDBOX_RUNTIME") == "modal"
         assert os.environ.get("BERNSTEIN_SANDBOX_ALLOW_PAID") == "1"
-        # Modal is a remote backend — it must NOT trip the legacy
+        # Modal is a remote backend - it must NOT trip the legacy
         # container flag (those backends manage their own runtime).
         assert os.environ.get("BERNSTEIN_CONTAINER") != "1"
         assert captured["estimated"] is True
@@ -183,7 +183,7 @@ class TestSandboxFlag:
         assert "allow-paid" in result.output.lower() or "allow_paid" in result.output.lower()
         # Env must NOT be left half-populated when the run aborts.
         # The runtime gets written before the exit, so the cleanup
-        # contract is "selector treats absence of allow_paid as veto" —
+        # contract is "selector treats absence of allow_paid as veto" -
         # we confirm the opt-in is OFF rather than absence of runtime.
         assert os.environ.get("BERNSTEIN_SANDBOX_ALLOW_PAID") != "1"
 

@@ -1,4 +1,4 @@
-"""``bernstein pr`` — open a pull request from a completed session.
+"""``bernstein pr`` - open a pull request from a completed session.
 
 This command reads the newest (or a specific) session's wrap-up state,
 derives a conventional-commit title, composes a markdown body with the

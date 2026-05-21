@@ -101,7 +101,7 @@ class TestMapDivision:
 
 
 # ---------------------------------------------------------------------------
-# parse_agency_agent — valid inputs
+# parse_agency_agent - valid inputs
 # ---------------------------------------------------------------------------
 
 
@@ -145,7 +145,7 @@ class TestParseAgencyAgentValid:
 
 
 # ---------------------------------------------------------------------------
-# parse_agency_agent — invalid inputs
+# parse_agency_agent - invalid inputs
 # ---------------------------------------------------------------------------
 
 
@@ -267,7 +267,7 @@ class TestSpawnerAgencyCatalogIntegration:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
 
-        # Look up by role "backend" — should find "perf-optimizer" by role match
+        # Look up by role "backend" - should find "perf-optimizer" by role match
         result = _render_fallback("backend", templates_dir, catalog)
         assert result == "You optimize backend performance."
 

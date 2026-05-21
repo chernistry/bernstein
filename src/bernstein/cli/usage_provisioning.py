@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Optional yaml import — graceful fallback if PyYAML is unavailable.
+# Optional yaml import - graceful fallback if PyYAML is unavailable.
 # ---------------------------------------------------------------------------
 
 try:
@@ -103,14 +103,14 @@ def load_usage_budget_config(workdir: Path) -> UsageBudgetConfig | None:
 
     config_path = workdir / ".bernstein" / "usage_budget.yaml"
     if not config_path.exists():
-        logger.debug("No usage budget config at %s — feature disabled", config_path)
+        logger.debug("No usage budget config at %s - feature disabled", config_path)
         return None
 
     try:
         with config_path.open("r", encoding="utf-8") as fh:
             raw: dict[str, Any] = _yaml.safe_load(fh) or {}
     except Exception:
-        logger.exception("Failed to read %s — usage budget feature disabled", config_path)
+        logger.exception("Failed to read %s - usage budget feature disabled", config_path)
         return None
 
     daily_limit_usd: float | None = raw.get("daily_limit_usd")
@@ -158,7 +158,7 @@ def _next_midnight_ts() -> float:
 def _read_cost_metric_points(metrics_dir: Path, today: str) -> list[dict[str, Any]]:
     """Read all ``cost_efficiency_{today}.jsonl`` points from *metrics_dir*.
 
-    This is the most reliably-written cost metric — it covers every completed
+    This is the most reliably-written cost metric - it covers every completed
     task that had a cost > 0.
 
     Args:

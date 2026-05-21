@@ -1,4 +1,4 @@
-"""Tests for tool_use_context — per-agent tool invocation tracking."""
+"""Tests for tool_use_context - per-agent tool invocation tracking."""
 
 from __future__ import annotations
 

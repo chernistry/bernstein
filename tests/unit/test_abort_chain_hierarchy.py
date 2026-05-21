@@ -66,7 +66,7 @@ class TestAbortPolicy:
 
 
 # ---------------------------------------------------------------------------
-# TOOL scope — abort_tool
+# TOOL scope - abort_tool
 # ---------------------------------------------------------------------------
 
 
@@ -120,7 +120,7 @@ class TestAbortTool:
         chain.register_child("parent", "child-a")
         chain.register_child("parent", "child-b")
 
-        # Default policy (contain only) — child-b must NOT receive SHUTDOWN.
+        # Default policy (contain only) - child-b must NOT receive SHUTDOWN.
         chain.abort_tool("child-a", "Bash", "exit 1")
         assert not (signals_dir / "child-b" / "SHUTDOWN").exists()
 
@@ -162,7 +162,7 @@ class TestAbortTool:
 
 
 # ---------------------------------------------------------------------------
-# SIBLING scope — abort_siblings
+# SIBLING scope - abort_siblings
 # ---------------------------------------------------------------------------
 
 
@@ -250,7 +250,7 @@ class TestAbortSiblings:
 
 
 # ---------------------------------------------------------------------------
-# SESSION scope — propagate_abort (regression + hierarchy interaction)
+# SESSION scope - propagate_abort (regression + hierarchy interaction)
 # ---------------------------------------------------------------------------
 
 
@@ -279,7 +279,7 @@ class TestSessionAbortHierarchy:
 
 
 # ---------------------------------------------------------------------------
-# Reverse index — get_parent / get_siblings
+# Reverse index - get_parent / get_siblings
 # ---------------------------------------------------------------------------
 
 
@@ -333,7 +333,7 @@ class TestFullEscalationChain:
         assert len(cascaded) >= 2
 
     def test_tool_contained_then_sibling_contained(self, signals_dir: Path) -> None:
-        """Each scope independently contained — nothing leaks upward."""
+        """Each scope independently contained - nothing leaks upward."""
         chain = AbortChain(signals_dir=signals_dir)
         chain.register_child("grandparent", "parent")
         chain.register_child("parent", "child-a")

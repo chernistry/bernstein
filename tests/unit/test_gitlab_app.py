@@ -1,4 +1,4 @@
-"""Unit tests for ``bernstein.gitlab_app.app`` — config + URL helpers."""
+"""Unit tests for ``bernstein.gitlab_app.app`` - config + URL helpers."""
 
 from __future__ import annotations
 

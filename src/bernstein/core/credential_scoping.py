@@ -3,11 +3,11 @@
 Provides two layers of scoping:
 
 1. **Logical scopes** (:class:`CredentialScope`, :class:`ScopedCredential`,
-   :class:`CredentialScopeManager`) — restrict each logical credential to
+   :class:`CredentialScopeManager`) - restrict each logical credential to
    an operation/model/token budget.  These are enforced at request time by
    :func:`validate_request_against_scope`.
 
-2. **Environment credential policy** (:class:`AgentCredentialPolicy`) —
+2. **Environment credential policy** (:class:`AgentCredentialPolicy`) -
    restrict which OS-level API-key env vars an agent subprocess is allowed
    to inherit. This closes the gap where every agent received
    the full provider key set from ``build_filtered_env``'s ``extra_keys``.
@@ -72,7 +72,7 @@ class UnknownCredentialKeyError(CredentialScopingError):
 
     The policy must enumerate every credential key that any agent might be
     granted.  Requesting an undeclared key is a configuration bug, not a
-    permission denial — so we raise rather than silently drop.
+    permission denial - so we raise rather than silently drop.
     """
 
 
@@ -564,7 +564,7 @@ class AgentCredentialPolicy:
         requested = frozenset(requested_keys)
         unknown = requested - self.known_keys
         if unknown and self.known_keys:
-            # Only validate against known_keys when it is populated — an
+            # Only validate against known_keys when it is populated - an
             # empty known_keys means the policy is effectively inert and
             # should not block adapters that pre-date it.
             msg = (
@@ -581,7 +581,7 @@ class AgentCredentialPolicy:
         return tuple(sorted(requested & allowed))
 
 
-# Module-level default policy — overridden at orchestrator startup.
+# Module-level default policy - overridden at orchestrator startup.
 _default_policy: AgentCredentialPolicy = AgentCredentialPolicy()
 
 
@@ -651,7 +651,7 @@ def load_policy_from_file(path: str | Path) -> AgentCredentialPolicy:
 
     data: dict[str, Any]
     if p.suffix.lower() in {".yaml", ".yml"}:
-        import yaml  # local import — yaml is a heavy dep
+        import yaml  # local import - yaml is a heavy dep
 
         loaded = yaml.safe_load(text) or {}
     else:
@@ -680,14 +680,14 @@ def load_policy_from_file(path: str | Path) -> AgentCredentialPolicy:
 
 
 # ---------------------------------------------------------------------------
-# Default-on resolver — finds the first available credential policy file
+# Default-on resolver - finds the first available credential policy file
 # from a known-locations chain so operators get fail-closed scoping out of
 # the box, with a clean opt-out path.
 # ---------------------------------------------------------------------------
 
 #: Env-var operators set to ``1`` (or any truthy value accepted by
 #: :func:`_truthy_opt_out`) to disable credential scoping at startup. The
-#: legacy unscoped behaviour is restored — every adapter sees every key
+#: legacy unscoped behaviour is restored - every adapter sees every key
 #: the orchestrator has loaded. Logged once at INFO so the choice is
 #: visible in audit.
 ENV_DISABLE_CREDENTIAL_SCOPING: str = "BERNSTEIN_DISABLE_CREDENTIAL_SCOPING"
@@ -761,7 +761,7 @@ def resolve_default_policy(
     source_env = env if env is not None else os.environ.copy()
     base = Path(workdir) if workdir is not None else Path.cwd()
 
-    # 1. Explicit opt-out — short-circuit before any I/O.
+    # 1. Explicit opt-out - short-circuit before any I/O.
     if _truthy_opt_out(source_env.get(ENV_DISABLE_CREDENTIAL_SCOPING)):
         import logging
 
@@ -793,7 +793,7 @@ def resolve_default_policy(
                 set_default_policy(policy)
             return policy
 
-    # 4. Nothing found — log once and fall through to the unscoped policy.
+    # 4. Nothing found - log once and fall through to the unscoped policy.
     import logging
 
     logger = logging.getLogger(__name__)

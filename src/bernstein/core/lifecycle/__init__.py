@@ -4,8 +4,8 @@ Provides a unified registry that fans events out to pluggy hook
 implementations, Python callables, and shell scripts declared in
 ``bernstein.yaml``.
 
-Historically ``bernstein.core.lifecycle`` resolved — via the in-tree
-core-redirect finder — to :mod:`bernstein.core.tasks.lifecycle`, the
+Historically ``bernstein.core.lifecycle`` resolved - via the in-tree
+core-redirect finder - to :mod:`bernstein.core.tasks.lifecycle`, the
 task/agent governance FSM. Turning it into a package (so we could
 land new modules like :mod:`.hooks` and :mod:`.pluggy_bridge`) would
 normally break that redirect because real packages win over meta-path
@@ -56,7 +56,7 @@ for _name, _value in _hook_exports.items():
         setattr(_task_lifecycle, _name, _value)
 
 # Preserve package discovery for ``bernstein.core.lifecycle.hooks`` and
-# ``bernstein.core.lifecycle.pluggy_bridge`` after the alias — the real
+# ``bernstein.core.lifecycle.pluggy_bridge`` after the alias - the real
 # package object carries ``__path__``; copy it onto the FSM module so
 # import of our submodules still works post-alias.
 if not hasattr(_task_lifecycle, "__path__"):

@@ -31,7 +31,7 @@ _TEST_TIMEOUT_S = 120
 _PROMPT_TEMPLATE = """\
 You are an expert Python test engineer. An AI coding agent just made the \
 following changes to a Python codebase. Your job is to write a pytest \
-**integration test** that exercises the changed code path in context — \
+**integration test** that exercises the changed code path in context - \
 using real imports, real function calls, and real data where feasible. \
 Do NOT write unit tests with mocks; write integration tests that actually \
 invoke the changed code.
@@ -52,12 +52,12 @@ invoke the changed code.
 2. Import the modules that were changed directly. Use `sys.path` manipulation \
 if needed but prefer standard imports.
 3. The test must call the changed functions/classes and assert meaningful \
-postconditions — not trivial `assert True`.
+postconditions - not trivial `assert True`.
 4. Keep the test self-contained: create any required fixtures inline.
 5. If the diff touches a web server, CLI, or external service, test via the \
 public Python API (not the network) by calling the underlying function.
 6. Output ONLY valid Python code. No markdown fences, no explanations.
-7. Start the file with: `# auto-generated integration test — do not edit`
+7. Start the file with: `# auto-generated integration test - do not edit`
 
 Output ONLY the Python test file content.
 """
@@ -180,7 +180,7 @@ async def generate_and_run(
         return IntegTestGenResult(
             passed=True,
             blocked=False,
-            detail="No Python changes detected — skipping integration test generation.",
+            detail="No Python changes detected - skipping integration test generation.",
         )
 
     diff_truncated = diff[: config.max_diff_chars]

@@ -13,11 +13,11 @@ imported lazily inside :func:`_import_playwright`. Instantiating
 
 Public surface:
 
-- :class:`PlaywrightScenario` / :class:`PlaywrightStep` — scenario schema.
-- :class:`PlaywrightRunResult` — run output (per-scenario results +
+- :class:`PlaywrightScenario` / :class:`PlaywrightStep` - scenario schema.
+- :class:`PlaywrightRunResult` - run output (per-scenario results +
   judge verdict).
-- :func:`load_scenarios` — YAML loader.
-- :class:`PlaywrightRunner` — orchestrator.
+- :func:`load_scenarios` - YAML loader.
+- :class:`PlaywrightRunner` - orchestrator.
 
 Output layout (under ``output_dir``)::
 
@@ -32,11 +32,11 @@ Output layout (under ``output_dir``)::
 
 Step types supported in v1:
 
-- ``navigate`` — ``{url: str}``
-- ``click`` — ``{selector: str}``
-- ``type`` — ``{selector: str, text: str}``
-- ``assert_visible`` — ``{selector: str}``
-- ``screenshot`` — ``{name?: str}``
+- ``navigate`` - ``{url: str}``
+- ``click`` - ``{selector: str}``
+- ``type`` - ``{selector: str, text: str}``
+- ``assert_visible`` - ``{selector: str}``
+- ``screenshot`` - ``{name?: str}``
 
 Out of scope (per ticket): mobile, SSIM diffing, cross-browser. Chromium
 only in v1.
@@ -439,7 +439,7 @@ def _optional_str(payload: dict[str, object], key: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-# Judge prompt used when the LLM judge is enabled. Kept terse — the
+# Judge prompt used when the LLM judge is enabled. Kept terse - the
 # agent harness, not Bernstein, owns image attachment, so we describe
 # the artefacts by reference rather than embedding base64 here.
 _JUDGE_PROMPT = """\

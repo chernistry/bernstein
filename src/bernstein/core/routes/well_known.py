@@ -1,4 +1,4 @@
-"""Static service manifest routes — A2A v1.0 agent card, JWKS, llms.txt.
+"""Static service manifest routes - A2A v1.0 agent card, JWKS, llms.txt.
 
 External agents (Claude Code, Codex, third-party orchestrators) discover the
 Bernstein task API by fetching ``/.well-known/agent.json`` (A2A v1.0 card,
@@ -7,17 +7,17 @@ of the signing keys), or ``/llms.txt`` (markdown summary).
 
 The structured manifest and the markdown summary derive from the same
 in-module ``_ENDPOINTS`` table so the markdown summary cannot drift from
-the structured manifest — the regression test in
+the structured manifest - the regression test in
 ``tests/unit/test_well_known.py`` enforces that every entry in the table is
 mentioned in the rendered llms.txt body.
 
 A2A v1.0 conformance
 --------------------
 - ``protocolVersion: "1.0"`` (RFC 8785 + RFC 7515 baseline).
-- ``supportedInterfaces[]`` — the wire formats this server speaks.
-- ``securitySchemes[]`` — Bearer JWT today, with a stub for the upcoming
+- ``supportedInterfaces[]`` - the wire formats this server speaks.
+- ``securitySchemes[]`` - Bearer JWT today, with a stub for the upcoming
   ``mtls`` scheme that ``auth_middleware.py`` will land in a follow-up.
-- ``signatures[]`` — list of detached JWS objects (RFC 7515 §A.5) over the
+- ``signatures[]`` - list of detached JWS objects (RFC 7515 §A.5) over the
   JCS-canonical body bytes (RFC 8785). Verifiers strip ``signatures`` from
   the body, recompute the canonical bytes, and verify the JWS using the
   matching ``kid`` from the JWKS endpoint.
@@ -225,7 +225,7 @@ def _security_schemes() -> list[dict[str, Any]]:
 
     Today only ``Bearer`` is fully wired. ``mtls`` is listed as a stub
     (``"required": false``) because client-cert verification at the
-    middleware layer is the next ticket in the same family — declaring it
+    middleware layer is the next ticket in the same family - declaring it
     early lets external clients negotiate it as soon as it lands without a
     discovery-cache miss.
     """
@@ -241,14 +241,14 @@ def _security_schemes() -> list[dict[str, Any]]:
             "id": "mtls",
             "type": "mutualTLS",
             "scheme": "mtls",
-            "description": "TLS client cert (deferred — declared for forward-compat).",
+            "description": "TLS client cert (deferred - declared for forward-compat).",
             "required": False,
         },
     ]
 
 
 def _agent_card_body(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
-    """Build the A2A v1.0 card body — the bytes the JWS attests to.
+    """Build the A2A v1.0 card body - the bytes the JWS attests to.
 
     The result excludes the ``signatures`` array; ``_agent_card_payload``
     appends the JWS list after JCS-canonicalising this body.
@@ -297,7 +297,7 @@ def _sign_canonical_body(canonical_body: bytes, private_pem: bytes, *, kid: str)
     """Produce a detached JWS over ``canonical_body`` (RFC 7515 §A.5).
 
     Mirrors :func:`agent_card_signer.sign_agent_card` but operates on the
-    raw canonical bytes — the agent card we publish here is a server-card
+    raw canonical bytes - the agent card we publish here is a server-card
     (not an ``AgentIdentityCard`` instance), so we cannot reuse
     ``sign_agent_card`` directly without inventing a synthetic dataclass.
     The signing input shape (header.body) and ``typ`` value match exactly,
@@ -306,7 +306,7 @@ def _sign_canonical_body(canonical_body: bytes, private_pem: bytes, *, kid: str)
     Args:
         canonical_body: JCS-canonicalised body bytes.
         private_pem: PEM PKCS#8 Ed25519 private key.
-        kid: Key identifier — must match the JWK published at
+        kid: Key identifier - must match the JWK published at
             ``/.well-known/agent.json/keys``.
 
     Returns:
@@ -337,7 +337,7 @@ def _resolve_base_url() -> str:
 
 
 def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
-    """Build the full A2A v1.0 card payload — body plus signatures.
+    """Build the full A2A v1.0 card payload - body plus signatures.
 
     Verifiers strip ``signatures`` from this payload, JCS-canonicalise the
     rest, and compare against the ``signatures[].jws`` header+sig segments
@@ -378,7 +378,7 @@ def _render_llms_txt() -> str:
         "## Endpoints",
         "",
     ]
-    lines.extend(f"- `{e.method} {e.path}` — {e.summary}" for e in _ENDPOINTS)
+    lines.extend(f"- `{e.method} {e.path}` - {e.summary}" for e in _ENDPOINTS)
     lines += [
         "",
         "## Auth",
@@ -402,7 +402,7 @@ def agent_json() -> Response:
 
     Body bytes are JCS-canonical (RFC 8785) so verifiers can recompute the
     JWS signing input bit-perfect after stripping the ``signatures`` array.
-    Cache for an hour — the card body changes only when the server config
+    Cache for an hour - the card body changes only when the server config
     or the orchestrator's signing key rotates.
     """
     payload = _agent_card_payload(_resolve_base_url())
@@ -418,7 +418,7 @@ def agent_json() -> Response:
 def agent_json_keys() -> dict[str, Any]:
     """Return the JWKS for verifying ``/.well-known/agent.json`` signatures.
 
-    JWKS shape per RFC 7517 — ``{"keys": [<jwk>, ...]}``. The current
+    JWKS shape per RFC 7517 - ``{"keys": [<jwk>, ...]}``. The current
     orchestrator key always appears first; during a rotation grace window
     (24h by default) any archived public keys still inside the window are
     appended so verifiers cached on the old ``kid`` keep validating until
@@ -426,7 +426,7 @@ def agent_json_keys() -> dict[str, Any]:
     card route) ages out and they refetch the fresh JWKS.
     """
     # Ensure both the cached PEM and the keystore binding exist before we
-    # query the archive — the side-effect of ``_get_signing_keypair`` is
+    # query the archive - the side-effect of ``_get_signing_keypair`` is
     # what materialises the on-disk directory on first run.
     _private_pem, public_pem = _get_signing_keypair()
     jwks: list[dict[str, str]] = [ed25519_public_jwk(public_pem, kid=_DEFAULT_KID)]

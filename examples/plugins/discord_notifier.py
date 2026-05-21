@@ -4,7 +4,7 @@ Posts task failure, completion, and evolution-proposal alerts to a Discord
 channel via a Webhook URL.  Uses Discord's embed format for color-coded,
 structured messages.
 
-Usage — add to bernstein.yaml:
+Usage - add to bernstein.yaml:
 
     plugins:
       - examples.plugins.discord_notifier:DiscordNotifier
@@ -44,7 +44,7 @@ class DiscordNotifier:
         self._webhook_url = webhook_url or os.getenv("DISCORD_WEBHOOK_URL", "")
         if not self._webhook_url:
             log.warning(
-                "DiscordNotifier: no webhook URL configured — "
+                "DiscordNotifier: no webhook URL configured - "
                 "set DISCORD_WEBHOOK_URL or pass webhook_url= at construction time"
             )
 

@@ -58,7 +58,7 @@ def _make_repo(root: Path, *, with_git: bool = False) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# generate() — top-level behaviour
+# generate() - top-level behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -120,7 +120,7 @@ class TestGenerate:
 
 
 # ---------------------------------------------------------------------------
-# render_canonical() — shape contracts
+# render_canonical() - shape contracts
 # ---------------------------------------------------------------------------
 
 
@@ -129,15 +129,15 @@ class TestRenderCanonical:
         _make_repo(tmp_path)
         sections = generate(tmp_path, GenerateOptions(include_git_workflow=False))
         out = render_canonical(sections, repo_name="demo")
-        assert out.splitlines()[0] == "# demo — AGENTS.md"
-        # No YAML frontmatter — agents.md spec is explicitly schema-free.
+        assert out.splitlines()[0] == "# demo - AGENTS.md"
+        # No YAML frontmatter - agents.md spec is explicitly schema-free.
         assert not out.startswith("---")
 
     def test_section_headings_use_h2(self, tmp_path: Path) -> None:
         _make_repo(tmp_path)
         sections = generate(tmp_path, GenerateOptions(include_git_workflow=False))
         out = render_canonical(sections, repo_name="demo")
-        # Every section must render as `## Title` — never H3 or H1.
+        # Every section must render as `## Title` - never H3 or H1.
         for sec in sections:
             assert f"\n## {sec.title}\n" in out
 
@@ -152,11 +152,11 @@ class TestRenderCanonical:
         _make_repo(tmp_path)
         sections = generate(tmp_path, GenerateOptions(include_git_workflow=False))
         out = render_canonical(sections)
-        assert "Project — AGENTS.md" in out
+        assert "Project - AGENTS.md" in out
 
 
 # ---------------------------------------------------------------------------
-# Section builder edges — module map preserves gen_agents_md.py contract
+# Section builder edges - module map preserves gen_agents_md.py contract
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +320,7 @@ class TestRenderTwoColumnTable:
 
 
 # ---------------------------------------------------------------------------
-# AgentsMdSection — frozen + minimal
+# AgentsMdSection - frozen + minimal
 # ---------------------------------------------------------------------------
 
 

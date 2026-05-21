@@ -149,7 +149,7 @@ def test_brier_sample_count_matches_input() -> None:
 
 
 def test_ece_empty_returns_zero() -> None:
-    """ECE on empty inputs returns 0.0 — there is no error to report."""
+    """ECE on empty inputs returns 0.0 - there is no error to report."""
     assert expected_calibration_error([], []) == 0.0
 
 
@@ -352,7 +352,7 @@ def test_record_rejects_non_bool_outcome() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Log I/O — round-trip and edge cases
+# Log I/O - round-trip and edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -441,7 +441,7 @@ def test_log_rejects_missing_outcome(tmp_path: Path) -> None:
 
 
 def test_log_rejects_non_bool_outcome_in_json(tmp_path: Path) -> None:
-    """Outcomes stored as ints are rejected — bool only."""
+    """Outcomes stored as ints are rejected - bool only."""
     log = tmp_path / "calibration.jsonl"
     payload = {
         "ts": 0.0,
@@ -504,7 +504,7 @@ def test_log_filter_by_since_drops_old_records(tmp_path: Path) -> None:
 
 
 def test_log_default_path_constant_is_under_sdd_metrics() -> None:
-    """The default log path lives under .sdd/metrics — operator contract."""
+    """The default log path lives under .sdd/metrics - operator contract."""
     assert Path(".sdd/metrics/calibration.jsonl") == DEFAULT_LOG_PATH
 
 
@@ -514,7 +514,7 @@ def test_log_default_path_constant_is_under_sdd_metrics() -> None:
 
 
 def test_compute_report_empty_returns_nulls() -> None:
-    """Empty records produce a report with null Brier and ECE — no crash."""
+    """Empty records produce a report with null Brier and ECE - no crash."""
     report = compute_report([])
     assert report.decisions == 0
     assert report.brier is None
@@ -649,7 +649,7 @@ def test_hundred_sample_fixture_ece_matches_reference() -> None:
 
 
 def test_record_is_hashable_and_frozen() -> None:
-    """CalibrationRecord is a frozen dataclass — hashable when metadata empty."""
+    """CalibrationRecord is a frozen dataclass - hashable when metadata empty."""
     record = CalibrationRecord(
         timestamp=0.0,
         decision_kind="k",

@@ -18,7 +18,7 @@ from bernstein.core.models import AgentHeartbeat, ProgressSnapshot, Task
 
 logger = logging.getLogger(__name__)
 
-# Idle agent detection thresholds — sourced from defaults
+# Idle agent detection thresholds - sourced from defaults
 IDLE_LOG_AGE_THRESHOLD_SECONDS = int(AGENT.idle_log_age_threshold_s)
 
 

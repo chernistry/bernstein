@@ -1,4 +1,4 @@
-"""Per-task resume checkpoints — pick up paused/killed/crashed tasks.
+"""Per-task resume checkpoints - pick up paused/killed/crashed tasks.
 
 This module is the storage layer for ``bernstein resume <task-id>``. It is
 deliberately narrow: a single JSON file per task captured after every
@@ -11,26 +11,26 @@ Layout::
 
 Schema (versioned via :data:`SCHEMA_VERSION`):
 
-* ``task_id`` — identifies the task this checkpoint belongs to.
-* ``last_completed_step_id`` — last step the orchestrator confirmed done.
-* ``trace_cursor`` — byte offset into ``.sdd/traces/<task-id>.jsonl``
+* ``task_id`` - identifies the task this checkpoint belongs to.
+* ``last_completed_step_id`` - last step the orchestrator confirmed done.
+* ``trace_cursor`` - byte offset into ``.sdd/traces/<task-id>.jsonl``
   marking the last replayed event.
-* ``scratchpad_path`` / ``scratchpad_sha256`` — pointer + content hash for
+* ``scratchpad_path`` / ``scratchpad_sha256`` - pointer + content hash for
   the recovered scratchpad. The hash is recorded so a downstream resume
   can detect post-checkpoint scratchpad tampering.
-* ``adapter`` / ``adapter_session_id`` — adapter name and the session
+* ``adapter`` / ``adapter_session_id`` - adapter name and the session
   identifier the adapter handed us when the task was first spawned.
-* ``worktree_path`` — absolute path to the preserved worktree (``v1``
+* ``worktree_path`` - absolute path to the preserved worktree (``v1``
   scope is local-only, so this is intentionally a literal path).
-* ``resume_count`` — how many times this task has been resumed; the CLI
+* ``resume_count`` - how many times this task has been resumed; the CLI
   bumps it before re-spawning so flaky tasks are visible in the dashboard.
-* ``merge_cursor`` — *optional* streaming-merge cursor handed in by
+* ``merge_cursor`` - *optional* streaming-merge cursor handed in by
   :mod:`bernstein.core.streaming_merge`. Coordination with the merge
   pipeline is a follow-up; we capture the shape now so adopters do not
   have to migrate later.
-* ``meta`` — adapter-opaque key/value bag (model, role, etc.). Adapters
+* ``meta`` - adapter-opaque key/value bag (model, role, etc.). Adapters
   with a ``resume()`` capability can stash anything they need here.
-* ``created_at`` / ``updated_at`` — UTC ISO-8601 timestamps.
+* ``created_at`` / ``updated_at`` - UTC ISO-8601 timestamps.
 
 The on-disk write is atomic: we write to ``checkpoint.json.tmp`` then
 ``os.replace`` so a kill during persist cannot leave a partial file.

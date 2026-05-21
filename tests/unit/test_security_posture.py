@@ -159,7 +159,7 @@ class TestScorePolicyCompliance:
 
 
 # ---------------------------------------------------------------------------
-# compute_posture — perfect, mixed, poor
+# compute_posture - perfect, mixed, poor
 # ---------------------------------------------------------------------------
 
 

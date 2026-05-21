@@ -166,7 +166,7 @@ class TestTrainingObservation:
 
 
 # ---------------------------------------------------------------------------
-# PredictiveCostModel — heuristic fallback
+# PredictiveCostModel - heuristic fallback
 # ---------------------------------------------------------------------------
 
 
@@ -214,7 +214,7 @@ class TestHeuristicFallback:
 
 
 # ---------------------------------------------------------------------------
-# PredictiveCostModel — trained predictions
+# PredictiveCostModel - trained predictions
 # ---------------------------------------------------------------------------
 
 
@@ -346,7 +346,7 @@ class TestSaveLoad:
 
         loaded = PredictiveCostModel.load(save_path)
 
-        # pyright: ignore[reportPrivateUsage] — intentional for round-trip verification
+        # pyright: ignore[reportPrivateUsage] - intentional for round-trip verification
         assert loaded._weights == model._weights  # pyright: ignore[reportPrivateUsage]
         assert loaded._bias == model._bias  # pyright: ignore[reportPrivateUsage]
         assert loaded._min_observations == model._min_observations  # pyright: ignore[reportPrivateUsage]

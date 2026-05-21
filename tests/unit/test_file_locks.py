@@ -291,7 +291,7 @@ def _backdate_persisted_lock(workdir: Path, file_path: str, age_seconds: float) 
 
     Used by TTL tests: since every public method reloads state from disk under
     the cross-process guard, merely mutating ``mgr._locks`` in memory is no
-    longer enough — the next call would re-read the fresh timestamp from disk.
+    longer enough - the next call would re-read the fresh timestamp from disk.
     """
     lock_path = workdir / ".sdd" / "runtime" / "file_locks.json"
     data = json.loads(lock_path.read_text())

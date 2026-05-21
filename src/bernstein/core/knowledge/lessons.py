@@ -4,7 +4,7 @@ Agents file lessons when they complete tasks. New agents receive relevant
 lessons by tag overlap. Lessons are stored in .sdd/memory/lessons.jsonl and
 decay over time.
 
-Lessons are canonical — deduplication prevents storing the same lesson twice.
+Lessons are canonical - deduplication prevents storing the same lesson twice.
 Each lesson is immutable once filed, but can be updated with higher confidence
 if the same lesson appears again from a different source.
 
@@ -43,10 +43,10 @@ logger = logging.getLogger(__name__)
 class MemoryType(StrEnum):
     """Typed memory categories for lesson classification.
 
-    - USER: Observations from agent workflow — slowest decay.
-    - FEEDBACK: Corrections from human review — fastest decay (assumes fix).
-    - PROJECT: Project-specific conventions — medium decay.
-    - REFERENCE: External docs/best practices — slow decay.
+    - USER: Observations from agent workflow - slowest decay.
+    - FEEDBACK: Corrections from human review - fastest decay (assumes fix).
+    - PROJECT: Project-specific conventions - medium decay.
+    - REFERENCE: External docs/best practices - slow decay.
     """
 
     USER = "user"
@@ -55,7 +55,7 @@ class MemoryType(StrEnum):
     REFERENCE = "reference"
 
 
-# Per-type decay rates (in days — faster decay = lower half-life)
+# Per-type decay rates (in days - faster decay = lower half-life)
 # Rationale (T651):
 # - user: Workflow observations, moderate persistence → 30 days.
 # - feedback: Human corrections, assume fix applied → 7 days.
@@ -142,7 +142,7 @@ class Lesson:
     task_id: str
     memory_type: MemoryType = MemoryType.USER
     version: int = 1
-    # Integrity fields (OWASP ASI06 2026 — Memory Provenance & Integrity)
+    # Integrity fields (OWASP ASI06 2026 - Memory Provenance & Integrity)
     content_hash: str | None = None  # SHA-256 of immutable fields
     prev_hash: str | None = None  # chain_hash of predecessor entry
     chain_hash: str | None = None  # SHA-256 of (content_hash + prev_hash)
@@ -198,7 +198,7 @@ def file_lesson(
             task_id,
             poison.reason,
         )
-        raise ValueError(f"Lesson rejected — {poison.reason}")
+        raise ValueError(f"Lesson rejected - {poison.reason}")
 
     # Use lock protocol for read-check-write (dedup or update decision)
     with guarded_memory_write(lessons_path) as guard:
@@ -373,7 +373,7 @@ def gather_lessons_for_context(
         # Check if adding this lesson would exceed the budget
         candidate = "\n".join([*lines, lesson_block])
         if len(candidate) > max_chars:
-            # Skip this lesson — if any lessons remain, append truncation notice
+            # Skip this lesson - if any lessons remain, append truncation notice
             return "\n".join(lines) + _TRUNCATION_WARNING
         lines.append(lesson_block)
 
@@ -455,7 +455,7 @@ def _parse_lesson(data: Any) -> Lesson | None:
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers — content-based (lock-protocol aware)
+# Internal helpers - content-based (lock-protocol aware)
 # ---------------------------------------------------------------------------
 
 

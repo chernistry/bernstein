@@ -3,7 +3,7 @@
 Exercises the full canonical-IR → render → write → verify → diff → re-sync
 loop on a synthetic Bernstein-shaped fixture repo. Each test case invokes
 the click commands via ``CliRunner`` so the CLI surface is covered as well
-as the underlying generator/bridge functions — the closest the unit suite
+as the underlying generator/bridge functions - the closest the unit suite
 can get to "actually shipping it".
 
 The fixture repo (created in ``tmp_path``) carries:
@@ -89,13 +89,13 @@ uv run pytest
 # Module sources keyed by relative path. Each carries a Google-style
 # docstring so the module-map table renders meaningful Purpose cells.
 _MODULES: dict[str, str] = {
-    "src/bernstein/__init__.py": '"""Bernstein fixture package — root."""\n',
-    "src/bernstein/core/__init__.py": '"""Orchestration engine — core sub-package init."""\n',
+    "src/bernstein/__init__.py": '"""Bernstein fixture package - root."""\n',
+    "src/bernstein/core/__init__.py": '"""Orchestration engine - core sub-package init."""\n',
     "src/bernstein/core/models.py": '"""Core data models for tasks, agents, and cells."""\n',
     "src/bernstein/core/orchestrator.py": ('"""Orchestrator loop: watch tasks, spawn agents, verify completion."""\n'),
-    "src/bernstein/cli/__init__.py": '"""Click CLI — commands sub-package init."""\n',
+    "src/bernstein/cli/__init__.py": '"""Click CLI - commands sub-package init."""\n',
     "src/bernstein/cli/main.py": '"""CLI entry point for the bernstein-fixture binary."""\ndef cli() -> None:\n    pass\n',
-    "src/bernstein/adapters/__init__.py": '"""CLI agent adapters — registry and base class."""\n',
+    "src/bernstein/adapters/__init__.py": '"""CLI agent adapters - registry and base class."""\n',
     "src/bernstein/adapters/base.py": '"""Base adapter for CLI coding agents."""\n',
 }
 
@@ -138,7 +138,7 @@ def _git_init(repo: Path) -> None:
     Falls back gracefully if git is missing (CI runners always have git, so
     this is mostly defensive against ad-hoc local runs).
     """
-    if shutil.which("git") is None:  # pragma: no cover — CI has git
+    if shutil.which("git") is None:  # pragma: no cover - CI has git
         pytest.skip("git not available in this environment")
 
     env = {
@@ -189,7 +189,7 @@ def _invoke(args: list[str], workdir: Path) -> tuple[int, str]:
     ``False`` so test failures surface raw tracebacks rather than the
     runner's neutered "1" exit code.
 
-    Returns ``(exit_code, combined_stdout_stderr)`` — Click 8.3 dropped
+    Returns ``(exit_code, combined_stdout_stderr)`` - Click 8.3 dropped
     ``mix_stderr``, so we fold ``stderr_bytes`` (when present) into the
     same string the legacy contract used to expose.
     """
@@ -204,7 +204,7 @@ def _invoke(args: list[str], workdir: Path) -> tuple[int, str]:
 
 
 # ---------------------------------------------------------------------------
-# 1. generate end-to-end — every renderer produces at least one file
+# 1. generate end-to-end - every renderer produces at least one file
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ class TestGeneratePipeline:
         assert sections, "generator must return at least one section for a populated repo"
         keys = {sec.key for sec in sections}
         # Overview, module-map, build-test, setup, architecture, git-workflow,
-        # roles — every section the fixture is shaped to produce.
+        # roles - every section the fixture is shaped to produce.
         assert {"overview", "module-map", "build-test", "setup", "architecture", "git-workflow", "roles"} <= keys
 
     def test_render_all_emits_at_least_one_file_per_target(self, fixture_repo: Path) -> None:
@@ -230,7 +230,7 @@ class TestGeneratePipeline:
     def test_canonical_h1_uses_repo_name(self, fixture_repo: Path) -> None:
         sections = generate(fixture_repo)
         out = render(sections, "canonical", repo_name="bernstein-fixture")
-        assert out.files["AGENTS.md"].startswith("# bernstein-fixture — AGENTS.md\n")
+        assert out.files["AGENTS.md"].startswith("# bernstein-fixture - AGENTS.md\n")
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ class TestRoundTripRecovery:
 
 
 # ---------------------------------------------------------------------------
-# 6. diff is informational only — exit code 0 even when content drifts
+# 6. diff is informational only - exit code 0 even when content drifts
 # ---------------------------------------------------------------------------
 
 
@@ -362,7 +362,7 @@ class TestDiffSubcommand:
 
 
 # ---------------------------------------------------------------------------
-# 7. dry-run honesty — sync --dry-run reports the right count
+# 7. dry-run honesty - sync --dry-run reports the right count
 # ---------------------------------------------------------------------------
 
 
@@ -385,7 +385,7 @@ class TestDryRunCounting:
 
 
 # ---------------------------------------------------------------------------
-# 8. repo-name inference — defaults to project name in pyproject.toml
+# 8. repo-name inference - defaults to project name in pyproject.toml
 # ---------------------------------------------------------------------------
 
 
@@ -399,16 +399,16 @@ class TestRepoNameInference:
         _invoke(["sync"], fixture_repo)
         agents_md = (fixture_repo / "AGENTS.md").read_text(encoding="utf-8")
         # The fixture's pyproject says ``name = "bernstein-fixture"``.
-        assert agents_md.startswith("# bernstein-fixture — AGENTS.md\n")
+        assert agents_md.startswith("# bernstein-fixture - AGENTS.md\n")
 
     def test_explicit_repo_name_overrides_pyproject(self, fixture_repo: Path) -> None:
         _invoke(["sync", "--repo-name", "MyOverride"], fixture_repo)
         agents_md = (fixture_repo / "AGENTS.md").read_text(encoding="utf-8")
-        assert agents_md.startswith("# MyOverride — AGENTS.md\n")
+        assert agents_md.startswith("# MyOverride - AGENTS.md\n")
 
 
 # ---------------------------------------------------------------------------
-# 9. selective verify — single-target verify gates only that target
+# 9. selective verify - single-target verify gates only that target
 # ---------------------------------------------------------------------------
 
 

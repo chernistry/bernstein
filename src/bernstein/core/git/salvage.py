@@ -2,7 +2,7 @@
 
 When an agent fails, is killed, or its worktree is otherwise reaped while it
 still has dirty state, ``git worktree remove --force`` silently discards the
-work.  Diffs and untracked files are lost — not even ``git reflog`` can
+work.  Diffs and untracked files are lost - not even ``git reflog`` can
 recover them because no ref ever pointed at the work.
 
 This module adds a lightweight pre-cleanup step that captures any dirty
@@ -10,7 +10,7 @@ state into a durable location *before* the worktree is removed:
 
 1. ``salvage/<session-id>`` branch created in the repo with a WIP commit
    containing every tracked modification + untracked file (except
-   ``.gitignore`` matches).  Preferred path — the branch is easy to inspect
+   ``.gitignore`` matches).  Preferred path - the branch is easy to inspect
    with ``git log`` / ``git diff`` and ``git checkout``.
 2. If the branch cannot be pushed to ``origin`` (no remote, network error,
    etc.) a filesystem fallback writes the diff + untracked file inventory
@@ -18,7 +18,7 @@ state into a durable location *before* the worktree is removed:
 
 The functions here are intentionally best-effort: any exception raised by
 a salvage step is logged and swallowed so that cleanup itself never fails
-because of a salvage failure — we'd rather lose the salvage than block the
+because of a salvage failure - we'd rather lose the salvage than block the
 orchestrator.
 """
 
@@ -77,7 +77,7 @@ def _collect_status(worktree_path: Path) -> tuple[bool, list[str]]:
     """Return ``(has_changes, untracked_files)`` for the worktree.
 
     Uses ``git status --porcelain`` which already honours ``.gitignore``
-    — ignored files do not appear in the output.
+    - ignored files do not appear in the output.
 
     Args:
         worktree_path: Path to the worktree directory.
@@ -147,7 +147,7 @@ def _write_patch_fallback(
     errors: list[str] = []
     out_dir = _salvage_dir(repo_root, session_id, ts)
 
-    # 1. Tracked diff — pre-captured so it reflects the worktree state *before*
+    # 1. Tracked diff - pre-captured so it reflects the worktree state *before*
     #    the branch path committed the changes.
     patch_path = out_dir / "diff.patch"
     try:
@@ -156,7 +156,7 @@ def _write_patch_fallback(
         errors.append(f"write diff.patch: {exc}")
         return None, errors
 
-    # 2. Untracked files — dump name + base64 bytes so binary blobs survive.
+    # 2. Untracked files - dump name + base64 bytes so binary blobs survive.
     import base64
 
     untracked_payload: list[dict[str, str]] = []
@@ -212,7 +212,7 @@ def _try_salvage_branch(
 
     Strategy:
     1. ``git add -A`` inside the worktree so tracked edits + new files land
-       on the index.  ``.gitignore`` matches are skipped by ``git add`` —
+       on the index.  ``.gitignore`` matches are skipped by ``git add`` -
        no explicit filter needed.
     2. ``git commit -m "WIP: salvage <id>"`` (allowed-empty so we still
        leave an audit marker when the diff is trivial).
@@ -224,7 +224,7 @@ def _try_salvage_branch(
     Args:
         worktree_path: Path to the dirty worktree.
         repo_root: Repository root (used to resolve the main repo for
-            remote queries if needed — currently unused but kept for
+            remote queries if needed - currently unused but kept for
             future extensions).
         session_id: Agent session identifier.
 
@@ -291,7 +291,7 @@ def salvage_worktree(
 ) -> SalvageResult:
     """Capture any uncommitted work from *worktree_path* before it is removed.
 
-    The preferred strategy is a salvage branch — it's the easiest to
+    The preferred strategy is a salvage branch - it's the easiest to
     inspect (``git log salvage/<id>``, ``git diff main...salvage/<id>``).
     When the branch cannot be pushed to the remote we still keep the
     local ref, *and* we always write a filesystem patch as a belt-and-
@@ -315,11 +315,11 @@ def salvage_worktree(
     if not worktree_path.exists():
         return SalvageResult(salvaged=False, had_changes=False, errors=["worktree path does not exist"])
 
-    # Quick status probe — if the worktree is clean we exit immediately with no
+    # Quick status probe - if the worktree is clean we exit immediately with no
     # side effects.  This is the common case for successful agent runs.
     try:
         has_changes, untracked = _collect_status(worktree_path)
-    except Exception as exc:  # pragma: no cover — defensive
+    except Exception as exc:  # pragma: no cover - defensive
         logger.warning("salvage: status probe failed for %s: %s", session_id, exc)
         return SalvageResult(salvaged=False, had_changes=False, errors=[f"status probe: {exc}"])
 
@@ -331,7 +331,7 @@ def salvage_worktree(
     pushed = False
     patch_path: Path | None = None
 
-    # 0. Capture the diff BEFORE the branch path — ``_try_salvage_branch``
+    # 0. Capture the diff BEFORE the branch path - ``_try_salvage_branch``
     #    commits the dirty state, which advances HEAD and makes ``git diff HEAD``
     #    empty.  We still want the fs fallback to contain the real diff.
     diff_r = run_git(["diff", "HEAD"], worktree_path, timeout=_SALVAGE_TIMEOUT_S)
@@ -344,13 +344,13 @@ def salvage_worktree(
         branch, pushed, branch_errors = _try_salvage_branch(worktree_path, repo_root, session_id)
         errors.extend(branch_errors)
         if not push and branch is not None:
-            # Caller asked us not to push — reset the flag so the result is accurate.
+            # Caller asked us not to push - reset the flag so the result is accurate.
             pushed = False
-    except Exception as exc:  # pragma: no cover — defensive
+    except Exception as exc:  # pragma: no cover - defensive
         logger.warning("salvage: branch path failed for %s: %s", session_id, exc)
         errors.append(f"branch path: {exc}")
 
-    # 2. Always write the filesystem patch fallback.  Cheap insurance — even
+    # 2. Always write the filesystem patch fallback.  Cheap insurance - even
     #    a successful branch push can be overwritten or force-deleted later.
     try:
         patch_path, patch_errors = _write_patch_fallback(
@@ -362,7 +362,7 @@ def salvage_worktree(
             diff_text,
         )
         errors.extend(patch_errors)
-    except Exception as exc:  # pragma: no cover — defensive
+    except Exception as exc:  # pragma: no cover - defensive
         logger.warning("salvage: patch fallback failed for %s: %s", session_id, exc)
         errors.append(f"patch fallback: {exc}")
 
@@ -379,7 +379,7 @@ def salvage_worktree(
         )
     else:
         logger.error(
-            "Failed to salvage uncommitted work for session %s — changes may be lost. errors=%s",
+            "Failed to salvage uncommitted work for session %s - changes may be lost. errors=%s",
             session_id,
             errors,
         )

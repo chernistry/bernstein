@@ -48,10 +48,10 @@ _CLICK_COMMAND: Final = re.compile(r"@(?:click\.command|app\.command)\b")
 # Signals a new click option or argument decorator
 _CLICK_OPTION: Final = re.compile(r"@click\.(?:option|argument)\b")
 
-# Config key: assignment of a string constant — e.g. ``"model" = "claude-sonnet"``
+# Config key: assignment of a string constant - e.g. ``"model" = "claude-sonnet"``
 _CONFIG_KEY: Final = re.compile(r'["\']([a-z][a-z0-9_]{2,})["\'\s]*(?::=|=)\s*["\'\d]')
 
-# File header in a unified diff — tells us which file follows
+# File header in a unified diff - tells us which file follows
 _FILE_HEADER: Final = re.compile(r"^\+\+\+ b/(.+)$")
 
 # CLI source files live here
@@ -169,7 +169,7 @@ def _extract_option_name(line: str) -> str:
 # Reminder message
 # ---------------------------------------------------------------------------
 
-_REMINDER_HEADER: Final = "README update required — the following public API additions were detected:"
+_REMINDER_HEADER: Final = "README update required - the following public API additions were detected:"
 
 
 def remind_message(changes: list[APIChange]) -> str:

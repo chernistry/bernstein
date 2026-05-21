@@ -63,7 +63,7 @@ class TestDeriveKey:
 
     def test_secrets_redacted_in_key(self) -> None:
         # Two prompts that differ only by an API key MUST produce identical
-        # keys — otherwise rotating creds invalidates the entire cache.
+        # keys - otherwise rotating creds invalidates the entire cache.
         a = derive_key(
             model_id="m",
             prompt="Authorization: Bearer sk-ant-AAAAAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -192,7 +192,7 @@ class TestModes:
 
 
 # ---------------------------------------------------------------------------
-# Eviction stress (delegated to MemoStore — we just confirm the cap holds
+# Eviction stress (delegated to MemoStore - we just confirm the cap holds
 # when ActionRecord payloads are written through ActionCache).
 # ---------------------------------------------------------------------------
 

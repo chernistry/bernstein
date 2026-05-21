@@ -2,17 +2,17 @@
 
 Three guarantees we want CI to enforce on every PR:
 
-1. **Soundness** — appending any new event to a previously valid prefix
+1. **Soundness** - appending any new event to a previously valid prefix
    produces a chain that ``verify()`` accepts. No matter what details
    payload Hypothesis throws at us, the writer must produce an entry
    that can be re-verified by the same key.
 
-2. **Tamper-evidence (single-byte flip)** — flipping any byte of any
+2. **Tamper-evidence (single-byte flip)** - flipping any byte of any
    on-disk JSONL entry must cause ``verify()`` to flag at least one
    error. This catches downstream regressions in the verifier (e.g.,
    accidentally trimming the HMAC field).
 
-3. **Cross-day chain continuity** — when log rotation crosses days
+3. **Cross-day chain continuity** - when log rotation crosses days
    (multiple ``YYYY-MM-DD.jsonl`` files), the prev_hmac of the first
    entry on day N+1 must equal the hmac of the last entry on day N.
 
@@ -60,7 +60,7 @@ def _new_audit_log() -> tuple[AuditLog, Path]:
     """Build a freshly-isolated audit log inside a tempdir.
 
     Returns the log and the tempdir path so the caller can clean up.
-    Hypothesis examples MUST start with clean state — relying on
+    Hypothesis examples MUST start with clean state - relying on
     pytest fixtures with ``function`` scope does not isolate the
     individual generated examples within a single test invocation.
     """
@@ -92,7 +92,7 @@ def test_chain_extends_with_arbitrary_events(
     assert valid, f"Chain rejected its own writes: {errors}"
 
 
-@settings(max_examples=30)  # IO-heavy — tighter than smoke default.
+@settings(max_examples=30)  # IO-heavy - tighter than smoke default.
 @given(
     events=st.lists(
         st.tuples(_TEXT, _TEXT, _TEXT, _TEXT, _DETAILS),
@@ -120,7 +120,7 @@ def test_single_byte_flip_breaks_verification(
     target = files[0]
     raw = target.read_bytes()
     if not raw:
-        pytest.skip("empty log file — nothing to flip")
+        pytest.skip("empty log file - nothing to flip")
     pos = flip_offset % len(raw)
 
     mutated = bytearray(raw)
@@ -201,7 +201,7 @@ def test_reordering_lines_breaks_verification(events: list[str]) -> None:
     target.write_text("\n".join(lines) + "\n")
 
     valid, errors = audit_log.verify()
-    assert not valid, "line swap went undetected — chain ordering is not enforced"
+    assert not valid, "line swap went undetected - chain ordering is not enforced"
     assert errors
 
 

@@ -65,7 +65,7 @@ def _load_remote_agents_from_snapshot(runtime_dir: Path) -> list[dict[str, Any]]
                 "command": f"[remote] {runtime_backend}",
                 "model": item.get("model", "?"),
                 "worker_pid": "remote",
-                "child_pid": "—",
+                "child_pid": "-",
                 "runtime": runtime_str,
                 "started_at": started_at,
                 "runtime_backend": runtime_backend,
@@ -202,7 +202,7 @@ def status(as_json: bool, no_color: bool, view_mode: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ps — process visibility
+# ps - process visibility
 # ---------------------------------------------------------------------------
 
 
@@ -305,7 +305,7 @@ def ps_cmd(as_json: bool, pid_dir: str) -> None:
             str(a.get("worker_badge", "")),
             ", ".join(cast("list[str]", a.get("skill_badges", []))),
             str(a["worker_pid"]),
-            str(a["child_pid"] or "—"),
+            str(a["child_pid"] or "-"),
             a["runtime"],
         )
 
@@ -325,7 +325,7 @@ def _print_parked(parked: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# doctor — self-diagnostic helpers
+# doctor - self-diagnostic helpers
 # ---------------------------------------------------------------------------
 
 _CheckFn = Any  # Callable[[str, bool, str, str, str], None]
@@ -373,7 +373,7 @@ def _doctor_check_postgres(_check: _CheckFn) -> None:
         import asyncio
 
         asyncio.run(_check_pg())
-        _check(_STORAGE_BACKEND_LABEL, True, f"postgres — connected ({db_url[:40]}...)", "")
+        _check(_STORAGE_BACKEND_LABEL, True, f"postgres - connected ({db_url[:40]}...)", "")
     except ImportError:
         _check(
             _STORAGE_BACKEND_LABEL,
@@ -385,7 +385,7 @@ def _doctor_check_postgres(_check: _CheckFn) -> None:
         _check(
             _STORAGE_BACKEND_LABEL,
             False,
-            f"postgres — connection failed: {exc}",
+            f"postgres - connection failed: {exc}",
             "Check BERNSTEIN_DATABASE_URL and ensure PostgreSQL is running",
         )
 
@@ -529,7 +529,7 @@ def _doctor_auto_fix(
 
 
 # ---------------------------------------------------------------------------
-# doctor — self-diagnostic
+# doctor - self-diagnostic
 # ---------------------------------------------------------------------------
 
 
@@ -566,7 +566,7 @@ def _doctor_check_adapters(checks: list[dict[str, Any]]) -> bool:
             f"Adapter: {adapter_name}",
             found,
             "found in PATH" if found else "not in PATH",
-            f"Install {adapter_name} CLI — see docs" if not found else "",
+            f"Install {adapter_name} CLI - see docs" if not found else "",
         )
     return any_adapter
 
@@ -955,7 +955,7 @@ def _detect_runtime_environment() -> str:
 
 
 # ---------------------------------------------------------------------------
-# commit-stats — agent attribution report
+# commit-stats - agent attribution report
 # ---------------------------------------------------------------------------
 
 

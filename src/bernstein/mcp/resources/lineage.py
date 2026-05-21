@@ -13,7 +13,7 @@ Per ADR-009 §7:
       and that the canonical bytes still hash to the recorded ``entry_hash``.
 
 Default-off in remote/SSE MCP, on for local stdio. Callers pass
-``enabled=False`` for the remote registrar — the function then returns
+``enabled=False`` for the remote registrar - the function then returns
 ``False`` without touching the FastMCP instance.
 """
 
@@ -168,10 +168,10 @@ def _verify_chain(store: LineageStore, artefact_path: str) -> tuple[bool, str | 
             entries.append((h, list(entry.parent_hashes), entry.artefact_path))
 
     if not entries:
-        return True, None  # nothing recorded for this artefact — trivially valid
+        return True, None  # nothing recorded for this artefact - trivially valid
 
     # The canonical-bytes byte-equality check needs raw bytes from the log,
-    # not the parsed entry — re-read the raw lines and verify each one
+    # not the parsed entry - re-read the raw lines and verify each one
     # round-trips through canonicalise().
     log_path = store.log_path
     if log_path.exists():

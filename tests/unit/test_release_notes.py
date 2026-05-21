@@ -1,4 +1,4 @@
-"""Tests for release_notes — release notes fetch and display."""
+"""Tests for release_notes - release notes fetch and display."""
 
 from __future__ import annotations
 

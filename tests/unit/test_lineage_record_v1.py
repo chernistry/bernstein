@@ -4,7 +4,7 @@ These complement :mod:`tests.unit.test_lineage_record` by covering the
 v1-specific failure modes the audit surfaced:
 
 * a torn write that leaves ``output_artifact`` missing must NOT crash
-  the iterator — a long chain with one bad row should still walk the
+  the iterator - a long chain with one bad row should still walk the
   remaining records;
 * malformed artifact dicts must degrade to an empty :class:`ArtifactRef`,
   not a ``KeyError``;
@@ -12,7 +12,7 @@ v1-specific failure modes the audit surfaced:
   honour the v1 path/line filter.
 
 We deliberately avoid the schema-v2 fields (``regulatory_class``,
-``customer_signature``) here — those live in the regulatory-lineage
+``customer_signature``) here - those live in the regulatory-lineage
 verification suite.
 """
 
@@ -58,7 +58,7 @@ def _make_v1_record(path: str = "src/foo.py") -> LineageRecord:
         cost_usd=0.01,
         tokens=1000,
         timestamp=1700000000.0,
-        # Explicitly v1 — leave regulatory_class / customer_signature unset.
+        # Explicitly v1 - leave regulatory_class / customer_signature unset.
         schema_version=SCHEMA_VERSION_V1,
     )
 
@@ -206,7 +206,7 @@ class TestV1OnDiskShape:
     def test_v1_record_serialised_with_optional_fields_omitted(self, tmp_path: Path) -> None:
         sdd = _sdd(tmp_path)
         writer = LineageWriter.for_run("run-3", sdd)
-        # Emit a record marked v1 — optional v2 fields stay None.
+        # Emit a record marked v1 - optional v2 fields stay None.
         writer.emit(_make_v1_record())
 
         wal_path = sdd / "runtime" / "wal" / "run-3.wal.jsonl"
@@ -234,7 +234,7 @@ class TestV1OnDiskShape:
         line_a = (sdd_a / "runtime" / "wal" / "run-x.wal.jsonl").read_text().splitlines()[0]
         line_b = (sdd_b / "runtime" / "wal" / "run-x.wal.jsonl").read_text().splitlines()[0]
         # Strip the timestamp field which is set by the WAL writer to
-        # ``time.time()`` — the rest of the payload must match exactly.
+        # ``time.time()`` - the rest of the payload must match exactly.
         d_a = json.loads(line_a)
         d_b = json.loads(line_b)
         for d in (d_a, d_b):
@@ -255,7 +255,7 @@ class TestEndToEndResilience:
         """The WAL hash chain remains intact even when one row is torn.
 
         ``output_artifact`` may be missing from the payload, but the WAL
-        hashing happens over the *whole* JSON line — so the chain stays
+        hashing happens over the *whole* JSON line - so the chain stays
         verifiable. Only the lineage decoder needs to tolerate the gap.
         """
         sdd = _sdd(tmp_path)

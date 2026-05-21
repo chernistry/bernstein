@@ -262,7 +262,7 @@ def format_exercise_report(results: list[ExerciseResult]) -> str:
     buf.write("\nTask Details:\n")
     for r in results:
         status = "PASS" if r.success else "FAIL"
-        buf.write(f"  [{status}] {r.student_id}/{r.task_id} — ${r.cost_usd:.4f}, {r.duration_s:.1f}s")
+        buf.write(f"  [{status}] {r.student_id}/{r.task_id} - ${r.cost_usd:.4f}, {r.duration_s:.1f}s")
         if r.agent_decisions:
             buf.write(f" ({len(r.agent_decisions)} decisions)")
         buf.write("\n")

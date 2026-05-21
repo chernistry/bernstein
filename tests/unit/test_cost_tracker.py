@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.cost_tracker — per-run cost budget tracker."""
+"""Tests for bernstein.core.cost_tracker - per-run cost budget tracker."""
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ class TestBudgetStatus:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — recording and status
+# CostTracker - recording and status
 # ---------------------------------------------------------------------------
 
 
@@ -183,7 +183,7 @@ class TestCostTrackerRecording:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — unlimited budget
+# CostTracker - unlimited budget
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ class TestCostTrackerUnlimited:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — threshold warnings
+# CostTracker - threshold warnings
 # ---------------------------------------------------------------------------
 
 
@@ -255,14 +255,14 @@ class TestCostTrackerThresholds:
             critical_threshold=0.70,
             hard_stop_threshold=0.90,
         )
-        # At 5.0 / 10.0 = 50% — should warn
+        # At 5.0 / 10.0 = 50% - should warn
         status = tracker.record(
             agent_id="a1", task_id="t1", model="sonnet", input_tokens=0, output_tokens=0, cost_usd=5.0
         )
         assert status.should_warn is True
         assert status.should_stop is False
 
-        # At 9.0 / 10.0 = 90% — should stop
+        # At 9.0 / 10.0 = 90% - should stop
         status = tracker.record(
             agent_id="a2", task_id="t2", model="sonnet", input_tokens=0, output_tokens=0, cost_usd=4.0
         )
@@ -270,7 +270,7 @@ class TestCostTrackerThresholds:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — logging
+# CostTracker - logging
 # ---------------------------------------------------------------------------
 
 
@@ -301,7 +301,7 @@ class TestCostTrackerLogging:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — persistence
+# CostTracker - persistence
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +366,7 @@ class TestCostTrackerPersistence:
 
 
 # ---------------------------------------------------------------------------
-# CostTracker — budget status reporting
+# CostTracker - budget status reporting
 # ---------------------------------------------------------------------------
 
 

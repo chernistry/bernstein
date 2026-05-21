@@ -97,7 +97,7 @@ class TestCascadeFallback:
         """Should prefer free agents over paid ones."""
         result = cascade.find_fallback(Complexity.MEDIUM, frozenset({"claude"}))
         assert isinstance(result, CascadeDecision)
-        # gemini is free and very_high reasoning — should be preferred
+        # gemini is free and very_high reasoning - should be preferred
         assert result.fallback_provider == "gemini"
 
     def test_skips_throttled_agents(

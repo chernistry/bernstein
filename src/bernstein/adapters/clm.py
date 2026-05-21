@@ -1,4 +1,4 @@
-"""CLM sovereign LLM adapter — drives a customer-side CLM gateway.
+"""CLM sovereign LLM adapter - drives a customer-side CLM gateway.
 
 Some sovereign-AI vendors deploy a customer-side Cyber Language Model
 (CLM) served behind NVIDIA NIM, which exposes an OpenAI-compatible HTTP API
@@ -7,11 +7,11 @@ talk to that gateway via ``OPENAI_API_BASE`` / ``OPENAI_API_KEY``,
 unlocking Bernstein's HMAC audit chain, lineage trail, and
 fingerprint memoisation for engineering workflows against CLM.
 
-Phase 1 — adapter MVP. Phase 2 partial — tool-calling allowlist
+Phase 1 - adapter MVP. Phase 2 partial - tool-calling allowlist
 (T578) wired into the OpenAI-compatible ``tools=[]`` request shape,
 lethal-trifecta refusal, and streaming-assembly helper whose lineage
-payload always carries the full response — never just the first
-chunk. Phase 2.5 (this module) — opt-in mTLS to the customer
+payload always carries the full response - never just the first
+chunk. Phase 2.5 (this module) - opt-in mTLS to the customer
 gateway, reusing :class:`bernstein.core.protocols.cluster.cluster_tls.TLSConfig`
 plumbing. When ``CLM_CERT_FILE`` / ``CLM_KEY_FILE`` / ``CLM_CA_FILE``
 are set, the adapter routes the spawn through a small launcher
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Env-var keys that scope the adapter to a customer's CLM gateway.
-# CLM_TOKEN is a customer-issued scoped JWT — never log, never persist.
+# CLM_TOKEN is a customer-issued scoped JWT - never log, never persist.
 CLM_ENDPOINT_ENV = "CLM_ENDPOINT"
 CLM_TOKEN_ENV = "CLM_TOKEN"
 CLM_MODEL_ENV = "CLM_MODEL"
@@ -79,7 +79,7 @@ CLM_MAX_RETRIES_ENV = "CLM_MAX_RETRIES"
 # it as ``tools=[...]`` on the chat-completions request.
 CLM_TOOLS_SCHEMA_ENV = "CLM_TOOLS_SCHEMA"
 
-# Phase 2.5 — opt-in mTLS to the customer gateway. When all three are
+# Phase 2.5 - opt-in mTLS to the customer gateway. When all three are
 # set the adapter wires a launcher shim (clm_tls_launcher) into the
 # spawn cmd and forwards the paths so the in-process httpx client
 # presents the customer-issued client certificate during the TLS
@@ -88,7 +88,7 @@ CLM_CERT_FILE_ENV = "CLM_CERT_FILE"
 CLM_KEY_FILE_ENV = "CLM_KEY_FILE"
 CLM_CA_FILE_ENV = "CLM_CA_FILE"
 # Optional verification mode override, mirroring TLSConfig.verify_mode.
-# Defaults to "required" — a missing peer cert at the gateway aborts.
+# Defaults to "required" - a missing peer cert at the gateway aborts.
 CLM_VERIFY_MODE_ENV = "CLM_VERIFY_MODE"
 
 # Stable adapter token used by the lethal-trifecta capability matrix.
@@ -102,7 +102,7 @@ _DEFAULT_MAX_RETRIES = 2
 # persisted to lineage / audit / .sdd/runtime/. Path keys are listed so
 # operators with a "scrub anything CLM_*" rule see them; the token key
 # is the load-bearing one. Cert/key files themselves stay on disk where
-# the operator's PKI placed them — only the env-var *values* (which are
+# the operator's PKI placed them - only the env-var *values* (which are
 # paths and could leak deployment topology) are kept off the wire.
 _REDACTABLE_CLM_ENV_KEYS: frozenset[str] = frozenset(
     {
@@ -192,7 +192,7 @@ def tls_config_from_env(env: Mapping[str, str] | None = None) -> TLSConfig | Non
     """Resolve an optional :class:`TLSConfig` from ``CLM_CERT_FILE`` / ``CLM_KEY_FILE`` / ``CLM_CA_FILE``.
 
     Returns ``None`` when none of the three are set (operator opted out
-    of mTLS — equivalent to plain HTTPS / HTTP behaviour). Returns a
+    of mTLS - equivalent to plain HTTPS / HTTP behaviour). Returns a
     fully-validated :class:`TLSConfig` when all three are set. A
     *partial* triple is treated as misconfiguration, since presenting a
     client cert without trusting a CA bundle (or vice versa) is almost
@@ -246,7 +246,7 @@ def build_openai_tools_schema(allowlist: Sequence[str]) -> list[dict[str, Any]]:
 
     NIM exposes the OpenAI-compatible tools API; the per-spawn allowlist
     (``BERNSTEIN_TOOL_ALLOWLIST``) caps which tools the model is allowed
-    to call. The schemas are intentionally minimal — tool descriptions
+    to call. The schemas are intentionally minimal - tool descriptions
     and JSON-Schema parameter shapes are owned by the catalog, not the
     adapter; we forward only the names so the catalog stays the single
     source of truth and the adapter cannot accidentally widen them.
@@ -279,7 +279,7 @@ class StreamingLineagePayload:
 
     The contract this dataclass defends, asserted by the regression
     test, is that lineage records carry the *full* assembled response
-    even when streaming is on — never just the first chunk.
+    even when streaming is on - never just the first chunk.
 
     Attributes:
         content: Full assistant message body, joined from every chunk.
@@ -299,7 +299,7 @@ def assemble_streaming_response(events: Iterable[StreamingChunk]) -> StreamingLi
 
     Done in adapter code (not delegated to the SDK) because the lineage
     contract requires the full body, and SDK iterators have historically
-    been the source of "first-chunk-only" lineage bugs — see the Phase 2
+    been the source of "first-chunk-only" lineage bugs - see the Phase 2
     streaming regression test.
     """
     content_parts: list[str] = []
@@ -336,7 +336,7 @@ def _evaluate_lethal_trifecta(
     therefore unions the full trifecta. Enforcement runs *before* the
     CLM call is made, per the Phase 2 acceptance criterion.
 
-    Only the *declared* subset of the chain is evaluated — undeclared
+    Only the *declared* subset of the chain is evaluated - undeclared
     tools default-deny in the matrix but should not block a spawn here
     (the spawner_core path surfaces them as warnings via the audit CLI),
     matching the policy already used in :mod:`spawner_core`.
@@ -363,7 +363,7 @@ class ClmAdapter(CLIAdapter):
     The adapter is a thin shim: aider handles the OpenAI HTTP wire
     format, while Bernstein's spawner provides lifecycle, timeouts,
     audit chaining, and lineage. Master tokens never leave the
-    operator's machine — only the customer-issued CLM_TOKEN is
+    operator's machine - only the customer-issued CLM_TOKEN is
     forwarded to the spawned subprocess.
     """
 
@@ -428,7 +428,7 @@ class ClmAdapter(CLIAdapter):
         env = build_filtered_env(extra_keys)
         # Aider speaks the OpenAI wire format; rewire it onto the CLM
         # gateway via the standard OpenAI env vars. The scoped CLM_TOKEN
-        # rides as the Bearer credential — never the operator's master.
+        # rides as the Bearer credential - never the operator's master.
         env["OPENAI_API_BASE"] = config.endpoint
         env["OPENAI_API_KEY"] = config.token
         env["OPENAI_API_TIMEOUT"] = str(config.request_timeout_seconds)

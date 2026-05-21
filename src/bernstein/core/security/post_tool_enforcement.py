@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Redaction patterns — mirrors secret patterns from guardrails, applied to
+# Redaction patterns - mirrors secret patterns from guardrails, applied to
 # tool *output* (what the agent sees or what gets persisted).
 # ---------------------------------------------------------------------------
 
@@ -163,7 +163,7 @@ def run_post_tool_enforcement(
         # actual secret values stay in the redacted-output buffer.
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug(
-            "Post-tool redaction: %d secret(s) found in tool output — session=%s, tool=%s",
+            "Post-tool redaction: %d secret(s) found in tool output - session=%s, tool=%s",
             len(secrets_found),
             session_id,
             tool,

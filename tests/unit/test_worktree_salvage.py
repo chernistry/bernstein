@@ -1,7 +1,7 @@
 """Tests for worktree cleanup salvage (audit-088).
 
 These tests use a real git repo + real ``git worktree add`` because the salvage
-codepath shells out to ``git`` for status, add, commit, branch -M, and diff —
+codepath shells out to ``git`` for status, add, commit, branch -M, and diff -
 mocking all of that would defeat the purpose.  Each test runs in ``tmp_path``
 so no state escapes the sandbox.
 """
@@ -18,7 +18,7 @@ from bernstein.core.git.worktree import WorktreeManager
 
 
 def _run(cmd: list[str], cwd: Path) -> None:
-    """Run a git command, raising on failure — test helper."""
+    """Run a git command, raising on failure - test helper."""
     subprocess.run(
         cmd,
         cwd=cwd,

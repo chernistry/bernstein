@@ -35,7 +35,7 @@ def test_rotate_log_file_keeps_multiple_backups(tmp_path: Path) -> None:
         assert not log_path.exists()
 
     backups = sorted(tmp_path.glob("api_usage_20260417.jsonl.*"))
-    # Only .1, .2, .3 survive — older rollovers are deleted.
+    # Only .1, .2, .3 survive - older rollovers are deleted.
     assert [p.name for p in backups] == [
         "api_usage_20260417.jsonl.1",
         "api_usage_20260417.jsonl.2",

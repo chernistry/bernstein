@@ -1,17 +1,17 @@
 """Lock contention and deadlock probes.
 
-* Many concurrent writers should scale near-linearly (or better) —
+* Many concurrent writers should scale near-linearly (or better) -
   *not* quadratically.  Quadratic degradation usually means a global
   lock with O(N) work inside the critical section, which is a real
   cliff in production.
 
 * Acquiring two locks in opposite orders across threads must not
-  deadlock — we time-budget each scenario and fail loudly if any
+  deadlock - we time-budget each scenario and fail loudly if any
   thread is still blocked at the deadline.
 
 The TaskStore concurrency model uses ``asyncio.Lock`` (single-process
 single-loop).  We exercise it via ``asyncio.gather`` over many coroutines
-running on one event loop — which is the production topology — instead
+running on one event loop - which is the production topology - instead
 of OS threads (the production model never sees real threaded callers).
 """
 
@@ -38,7 +38,7 @@ async def test_taskstore_concurrent_writers_finish_in_absolute_budget(tmp_path: 
     nightly CI runners share the host with other jobs (and on a dev
     laptop with parallel pytest sessions the baseline drifts wildly),
     so a ratio cap flakes under ambient contention while the absolute
-    budget still catches a true quadratic regression — a quadratic
+    budget still catches a true quadratic regression - a quadratic
     impl would clear the 40 s ceiling almost regardless of host noise.
 
     Single-writer steady state is roughly 1-5 ms / create depending on
@@ -70,7 +70,7 @@ async def test_taskstore_concurrent_writers_finish_in_absolute_budget(tmp_path: 
     budget_s = 40.0
     assert elapsed <= budget_s, (
         f"TaskStore contended writes blew the budget: "
-        f"{total_ops} ops took {elapsed:.2f}s (cap {budget_s:.1f}s) — "
+        f"{total_ops} ops took {elapsed:.2f}s (cap {budget_s:.1f}s) - "
         f"possible quadratic regression in the critical section"
     )
     # Sanity: every task landed exactly once.
@@ -80,7 +80,7 @@ async def test_taskstore_concurrent_writers_finish_in_absolute_budget(tmp_path: 
 def test_two_locks_opposite_order_does_not_deadlock() -> None:
     """Acquiring two locks in opposite orders should converge within 5 s.
 
-    This is a contrived synthetic case — both threads serialise on a
+    This is a contrived synthetic case - both threads serialise on a
     shared third lock that always gets acquired first.  Implementing
     the test here documents the "deadlock smoke test" pattern for
     future stress cases that target a real lock hierarchy.
@@ -116,8 +116,8 @@ def test_two_locks_opposite_order_does_not_deadlock() -> None:
     t_ab.join(timeout=5.0)
     t_ba.join(timeout=5.0)
 
-    assert not t_ab.is_alive(), "ab worker still alive after 5 s — deadlock?"
-    assert not t_ba.is_alive(), "ba worker still alive after 5 s — deadlock?"
+    assert not t_ab.is_alive(), "ab worker still alive after 5 s - deadlock?"
+    assert not t_ba.is_alive(), "ba worker still alive after 5 s - deadlock?"
     assert finished.is_set(), "ba worker did not signal completion"
     assert errors == [], f"workers raised: {errors}"
 
@@ -127,7 +127,7 @@ def test_thread_enumerate_returns_to_baseline_after_workers_exit() -> None:
 
     Catches: daemon threads or background pollers spawned by helper
     functions that never exit.  Production has seen "thread leaks"
-    from forgotten Timer threads — this test would have caught one.
+    from forgotten Timer threads - this test would have caught one.
     """
 
     baseline_threads = {t.ident for t in threading.enumerate()}

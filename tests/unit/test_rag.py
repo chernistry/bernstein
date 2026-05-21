@@ -13,7 +13,7 @@ import pytest
 
 pytestmark = pytest.mark.skipif(
     True,  # Always skip until memory leak in FTS5 indexer is fixed
-    reason="test_rag leaks ~5GB RAM via FTS5 indexer — skipped to prevent OOM",
+    reason="test_rag leaks ~5GB RAM via FTS5 indexer - skipped to prevent OOM",
 )
 
 from bernstein.core.rag import (

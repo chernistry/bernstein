@@ -114,7 +114,7 @@ class TestBanditArm:
 
 
 # ---------------------------------------------------------------------------
-# EpsilonGreedyBandit — persistence
+# EpsilonGreedyBandit - persistence
 # ---------------------------------------------------------------------------
 
 
@@ -141,7 +141,7 @@ class TestEpsilonGreedyBanditPersistence:
 
 
 # ---------------------------------------------------------------------------
-# audit-071 — legacy state migration into unified BanditRouter
+# audit-071 - legacy state migration into unified BanditRouter
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ class TestAudit071Migration:
         bandit.record(role="backend", model="sonnet", success=True, cost_usd=0.01)
         bandit.save(metrics_dir)
 
-        # Legacy file remains renamed — no new write there.
+        # Legacy file remains renamed - no new write there.
         assert not (metrics_dir / "bandit_state.json").exists()
         assert (metrics_dir / "bandit_state.json.bak").exists()
         # Routing file now reflects the new observation.
@@ -300,7 +300,7 @@ class TestAudit071Migration:
 
 
 # ---------------------------------------------------------------------------
-# EpsilonGreedyBandit — selection
+# EpsilonGreedyBandit - selection
 # ---------------------------------------------------------------------------
 
 
@@ -324,7 +324,7 @@ class TestEpsilonGreedyBanditSelect:
     def test_avoids_arm_below_quality_threshold(self) -> None:
         """haiku has <80% success rate; bandit should prefer sonnet."""
         bandit = EpsilonGreedyBandit(epsilon=0.0, min_observations=5, quality_threshold=0.8)
-        # haiku: 3/6 = 50% — below threshold
+        # haiku: 3/6 = 50% - below threshold
         for _ in range(6):
             bandit.record(
                 role="backend",
@@ -332,7 +332,7 @@ class TestEpsilonGreedyBanditSelect:
                 success=(_ < 3),
                 cost_usd=0.0004,
             )
-        # sonnet: 5/5 = 100% — above threshold
+        # sonnet: 5/5 = 100% - above threshold
         for _ in range(5):
             bandit.record(role="backend", model="sonnet", success=True, cost_usd=0.003)
 
@@ -411,7 +411,7 @@ class TestBanditArmPool:
         from bernstein.core.cost.cost import get_all_bandit_arms
 
         arms = get_all_bandit_arms()
-        # These were "new arms" flagged by audit-069 — the pool makes them
+        # These were "new arms" flagged by audit-069 - the pool makes them
         # visible to the bandit for explicit exploration once seeded, but
         # they cannot greedily win selection (success_rate is pessimistic).
         assert "gemini-3-flash" in arms
@@ -563,7 +563,7 @@ class TestComputeSavingsVsOpus:
         assert compute_savings_vs_opus([]) == pytest.approx(0.0)
 
     def test_savings_for_haiku_task(self) -> None:
-        # 1000 tokens at haiku cost — opus would have cost much more
+        # 1000 tokens at haiku cost - opus would have cost much more
         records = [
             {
                 "model": "haiku",

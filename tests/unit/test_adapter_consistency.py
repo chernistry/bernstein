@@ -5,7 +5,7 @@ Parametrized test instantiating every adapter, verifying protocol compliance:
 - All have spawn() with the correct signature
 - All have name() method returning a non-empty string
 - spawn() returns SpawnResult with required fields
-- detect_tier() returns ApiTierInfo or None — never raises
+- detect_tier() returns ApiTierInfo or None - never raises
 - is_installed() is callable and returns bool (when present)
 - build_command() / _build_command() returns a list of strings (when present)
 """
@@ -26,7 +26,7 @@ from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.registry import _ADAPTERS, get_adapter
 
 # ---------------------------------------------------------------------------
-# Adapter factories — enumerate every known adapter
+# Adapter factories - enumerate every known adapter
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ for _name in _all_adapter_names():
 
 
 # ---------------------------------------------------------------------------
-# TEST-006a: Protocol compliance — interface checks
+# TEST-006a: Protocol compliance - interface checks
 # ---------------------------------------------------------------------------
 
 
@@ -249,7 +249,7 @@ class TestAdapterBuildCommand:
                 "test prompt",
             )
         except (TypeError, AttributeError):
-            # Accept adapters with different _build_command signatures — just
+            # Accept adapters with different _build_command signatures - just
             # verify the method exists and is callable, which we already did.
             return
 
@@ -260,7 +260,7 @@ class TestAdapterBuildCommand:
 
 
 # ---------------------------------------------------------------------------
-# TEST-006c: Adapter registry — get_adapter by name
+# TEST-006c: Adapter registry - get_adapter by name
 # ---------------------------------------------------------------------------
 
 

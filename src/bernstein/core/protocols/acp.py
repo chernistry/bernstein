@@ -5,15 +5,15 @@ auto-discoverable in editors that support ACP (JetBrains Air, Zed,
 Neovim, Emacs) without requiring custom plugins.
 
 Protocol endpoints exposed:
-  GET  /.well-known/acp.json          — discovery document
-  GET  /acp/v0/agents                 — list available agents
-  GET  /acp/v0/agents/{agent_id}      — agent metadata + capabilities
-  POST /acp/v0/runs                   — create a run (→ Bernstein task)
-  GET  /acp/v0/runs/{run_id}          — run status (synced from task server)
-  DELETE /acp/v0/runs/{run_id}        — cancel a run
+  GET  /.well-known/acp.json          - discovery document
+  GET  /acp/v0/agents                 - list available agents
+  GET  /acp/v0/agents/{agent_id}      - agent metadata + capabilities
+  POST /acp/v0/runs                   - create a run (→ Bernstein task)
+  GET  /acp/v0/runs/{run_id}          - run status (synced from task server)
+  DELETE /acp/v0/runs/{run_id}        - cancel a run
 
 ACP "run" maps 1-to-1 with a Bernstein task.  The agent is always
-"bernstein" — the orchestrator itself is the ACP-visible agent.
+"bernstein" - the orchestrator itself is the ACP-visible agent.
 """
 
 from __future__ import annotations

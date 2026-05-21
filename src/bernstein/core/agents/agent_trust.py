@@ -1,4 +1,4 @@
-"""Graduated access control for agents — trust expands with demonstrated reliability.
+"""Graduated access control for agents - trust expands with demonstrated reliability.
 
 New agents start at UNTRUSTED with minimal read-only permissions.  As they
 complete tasks without security violations their trust level increases and
@@ -123,7 +123,7 @@ _DEFAULT_POLICIES: dict[str, TrustPolicy] = {
         max_security_violations=2,
         min_consecutive_successes=10,
     ),
-    # ELEVATED is terminal — no outbound policy.
+    # ELEVATED is terminal - no outbound policy.
 }
 
 # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ def get_permissions_for_trust_level(level: TrustLevel) -> AgentPermissions:
                 ),
             )
         case TrustLevel.TRUSTED:
-            # Standard permissions — matches the "backend" role profile.
+            # Standard permissions - matches the "backend" role profile.
             return AgentPermissions(
                 allowed_paths=(_PATH_SRC, _PATH_TESTS, "docs/*", "scripts/*", "pyproject.toml"),
                 denied_paths=(_PATH_SDD, _PATH_GITHUB, _PATH_ROLES),
@@ -212,7 +212,7 @@ def get_permissions_for_trust_level(level: TrustLevel) -> AgentPermissions:
                 ),
             )
         case TrustLevel.ELEVATED:
-            # Expanded — infrastructure files and CI allowed.
+            # Expanded - infrastructure files and CI allowed.
             return AgentPermissions(
                 allowed_paths=(_PATH_SRC, _PATH_TESTS, "docs/*", "scripts/*", _PATH_GITHUB, "Dockerfile*", "*.yml"),
                 denied_paths=(_PATH_SDD, _PATH_ROLES),

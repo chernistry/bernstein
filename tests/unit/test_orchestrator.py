@@ -1,4 +1,4 @@
-"""Tests for the Orchestrator — httpx calls and spawner are always mocked."""
+"""Tests for the Orchestrator - httpx calls and spawner are always mocked."""
 
 from __future__ import annotations
 
@@ -567,7 +567,7 @@ class TestTickStarvingRolePriority:
             return httpx.Response(404)
 
         # max_agents=2, pre-seed ONE alive backend agent so only 1 slot remains.
-        # Both backend and qa are under their per-role caps — without starving-first
+        # Both backend and qa are under their per-role caps - without starving-first
         # prioritization, backend (appearing first in alphabetical round-robin) would
         # steal the last slot; with it, qa (starving) must get it.
         cfg = OrchestratorConfig(
@@ -657,7 +657,7 @@ class TestPerRoleCapDistribution:
 
         result = orch.tick()
 
-        # Only QA agent(s) should spawn — backend is at its per-role cap
+        # Only QA agent(s) should spawn - backend is at its per-role cap
         spawned_roles = [orch._agents[sid].role for sid in result.spawned if sid in orch._agents]
         assert "backend" not in spawned_roles, (
             f"backend is at its per-role cap; should not spawn more. Got: {spawned_roles}"
@@ -699,7 +699,7 @@ class TestPerRoleCapDistribution:
 
         Setup: max_agents=5, backend: 9 tasks, qa: 1 task (total 10).
         Backend cap = ceil(5 * 9 / 10) = 5, qa cap = ceil(5 * 1 / 10) = 1.
-        Pre-seed 5 backend agents (at cap). 0 free global slots — no qa spawn.
+        Pre-seed 5 backend agents (at cap). 0 free global slots - no qa spawn.
         This confirms the formula doesn't round qa cap to 0 (ceil enforces >= 1).
         """
         backend_tasks = [_make_task(id=f"T-be{i}", role="backend", title=f"Backend {i}") for i in range(9)]
@@ -730,7 +730,7 @@ class TestPerRoleCapDistribution:
 
         result = orch.tick()
 
-        # Global cap hit — no new spawns
+        # Global cap hit - no new spawns
         assert len(result.spawned) == 0, f"global cap (5/5) should block all spawns; got {result.spawned}"
 
     def test_qa_gets_slot_before_backend_third(self, tmp_path: Path) -> None:
@@ -738,7 +738,7 @@ class TestPerRoleCapDistribution:
 
         Setup: max_agents=3, backend: 5 tasks with 2 alive agents (per-role cap = 2),
         qa: 3 tasks with 0 alive agents (per-role cap = 2).
-        Per-role cap for backend: ceil(3 * 5/8) = 2 — backend is already at cap.
+        Per-role cap for backend: ceil(3 * 5/8) = 2 - backend is already at cap.
         One global slot remains. qa is starving (0 agents) so it is promoted to the
         front of the spawn queue. The slot must go to qa, not to a 3rd backend agent.
         """
@@ -755,7 +755,7 @@ class TestPerRoleCapDistribution:
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(self._make_handler(task_dicts)), config=cfg)
 
-        # Pre-seed 2 alive backend agents — exactly at their per-role cap (ceil(3 * 5/8) = 2)
+        # Pre-seed 2 alive backend agents - exactly at their per-role cap (ceil(3 * 5/8) = 2)
         for i in range(2):
             session = AgentSession(
                 id=f"existing-backend-{i}",
@@ -797,7 +797,7 @@ class TestPerRoleCapDistribution:
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(self._make_handler(task_dicts)), config=cfg)
 
-        # Pre-seed 2 alive backend agents — one per open backend batch
+        # Pre-seed 2 alive backend agents - one per open backend batch
         for i in range(2):
             session = AgentSession(
                 id=f"alive-backend-{i}",
@@ -814,7 +814,7 @@ class TestPerRoleCapDistribution:
 
         spawned_roles = [orch._agents[sid].role for sid in result.spawned if sid in orch._agents]
         assert "backend" not in spawned_roles, (
-            f"backend has {2} agents for {2} batches — must not spawn more. Got: {spawned_roles}"
+            f"backend has {2} agents for {2} batches - must not spawn more. Got: {spawned_roles}"
         )
         assert "qa" in spawned_roles, f"qa (0 agents, 1 batch) should get a slot; got: {spawned_roles}"
 
@@ -866,7 +866,7 @@ class TestRoleFilteredClaiming:
         assert any("claim" in e for e in result.errors), "claim error should be recorded"
 
     def test_only_matching_role_tasks_per_agent(self, tmp_path: Path) -> None:
-        """Spawned agents hold tasks of exactly one role — no cross-role mixing."""
+        """Spawned agents hold tasks of exactly one role - no cross-role mixing."""
         tasks = [
             _make_task(id="T-be1", role="backend", title="Backend 1"),
             _make_task(id="T-be2", role="backend", title="Backend 2"),
@@ -1114,7 +1114,7 @@ class TestOrchestratorTick:
         task_b = _make_task(id="T-B", role="backend")
         task_b.depends_on = ["T-A"]
 
-        # Tick 1: A is open, B depends on A — only A should be scheduled
+        # Tick 1: A is open, B depends on A - only A should be scheduled
         transport = _mock_transport(
             {
                 "GET /tasks": httpx.Response(200, json=[_task_as_dict(task_a), _task_as_dict(task_b)]),
@@ -1359,7 +1359,7 @@ class TestSpawnResiliency:
     """Server outage and spawn failure scenarios."""
 
     def test_claim_500_aborts_spawn(self, tmp_path: Path) -> None:
-        """Server 500 on task claim aborts spawn — agent must not be launched."""
+        """Server 500 on task claim aborts spawn - agent must not be launched."""
         task = _make_task(id="T-claim-500")
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -1417,7 +1417,7 @@ class TestSpawnResiliency:
         assert adapter.spawn.call_count == 1
         assert any("spawn" in e for e in r1.errors)
 
-        # Tick 2: immediately after — still within backoff window, batch must be skipped
+        # Tick 2: immediately after - still within backoff window, batch must be skipped
         r2 = orch.tick()
         assert len(r2.spawned) == 0
         assert adapter.spawn.call_count == 1  # not retried
@@ -3220,7 +3220,7 @@ class TestAssignedTaskIdDoubleSpawn:
         assert len(r1.spawned) == 1  # first tick spawns
 
         r2 = orch.tick()
-        assert len(r2.spawned) == 0  # second tick skips — task already assigned
+        assert len(r2.spawned) == 0  # second tick skips - task already assigned
 
         # Only one agent should exist in total
         non_dead = [s for s in orch.active_agents.values() if s.status != "dead"]
@@ -3440,7 +3440,7 @@ class TestMaybeRetryTask:
         assert body["effort"] == "medium"  # low → medium
 
     def test_first_retry_title_unchanged(self, tmp_path: Path) -> None:
-        # audit-017: retry_count tracks attempts — no `[RETRY N]` prefix on
+        # audit-017: retry_count tracks attempts - no `[RETRY N]` prefix on
         # title or description.
         task = Task(
             id="T-fail",
@@ -3595,7 +3595,7 @@ class TestReplenishBacklog:
         },
         {
             "filename": "src/baz.py",
-            "code": "E501",  # duplicate rule — should deduplicate
+            "code": "E501",  # duplicate rule - should deduplicate
             "message": "Line too long (99 > 88 characters)",
             "location": {"row": 20, "column": 1},
         },
@@ -3658,7 +3658,7 @@ class TestReplenishBacklog:
             result.open_tasks = 0
             # Phase 1: submit future
             orch._replenish_backlog(result)
-            assert len(posted) == 0  # no tasks yet — future is pending
+            assert len(posted) == 0  # no tasks yet - future is pending
             # Wait for background thread to finish
             assert orch._pending_ruff_future is not None
             orch._pending_ruff_future.result()
@@ -3748,10 +3748,10 @@ class TestReplenishBacklog:
             orch._replenish_backlog(result)
             assert orch._pending_ruff_future is not None
             orch._pending_ruff_future.result()  # wait for thread
-            # Phase 2: harvest — creates 2 tasks
+            # Phase 2: harvest - creates 2 tasks
             orch._replenish_backlog(result)
             tasks_after_harvest = len(posted)
-            # Phase 3: immediate retry — cooldown blocks new submission
+            # Phase 3: immediate retry - cooldown blocks new submission
             orch._replenish_backlog(result)
 
         assert tasks_after_harvest == 2
@@ -4337,7 +4337,7 @@ class TestRunEvolutionCycle:
         result = TickResult()
         orch._run_evolution_cycle(result)
 
-        # Only the PENDING proposal should create a task — APPLIED one is skipped.
+        # Only the PENDING proposal should create a task - APPLIED one is skipped.
         assert len(posted) == 1
         assert posted[0]["title"] == "Upgrade: Pending proposal"
         assert result.errors == []
@@ -5554,7 +5554,7 @@ class TestShouldTriggerManagerReview:
 
 
 class TestRunManagerQueueReview:
-    """Tests for Orchestrator._run_manager_queue_review — mocked ManagerAgent."""
+    """Tests for Orchestrator._run_manager_queue_review - mocked ManagerAgent."""
 
     def _make_orch(self, tmp_path: Path, transport: httpx.MockTransport) -> Orchestrator:
         return _build_orchestrator(tmp_path, transport)
@@ -5749,7 +5749,7 @@ class TestRunManagerQueueReview:
             mock_cls.return_value = mock_agent
             orch._run_manager_queue_review()
 
-        # No PATCH/POST/cancel calls — only the ManagerAgent was invoked
+        # No PATCH/POST/cancel calls - only the ManagerAgent was invoked
         assert not any(m for m in requests_made if "PATCH" in m or "cancel" in m)
 
 

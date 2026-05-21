@@ -1,4 +1,4 @@
-"""Plugin manifest validation — strict schema with anti-impersonation and path traversal prevention (T776).
+"""Plugin manifest validation - strict schema with anti-impersonation and path traversal prevention (T776).
 
 Mirrors Claude Code's Zod-style plugin manifest validation from
 ``utils/plugins/schemas.ts``.
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # Plugin manifest schema
 # ---------------------------------------------------------------------------
 
-#: Regex for valid plugin names — alphanumeric, hyphens, underscores.
+#: Regex for valid plugin names - alphanumeric, hyphens, underscores.
 #: Blocks special characters, slashes, and lookalike impersonation (e.g. "anthropic-").
 _PLUGIN_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
 
@@ -107,7 +107,7 @@ def _validate_plugin_name(name: str) -> list[str]:
     name_lower = name.lower()
     for prefix in _OFFICIAL_PREFIXES:
         if name_lower.startswith(prefix):
-            errors.append(f"Plugin name '{name}' is reserved — cannot impersonate official '{prefix}' plugins.")
+            errors.append(f"Plugin name '{name}' is reserved - cannot impersonate official '{prefix}' plugins.")
 
     return errors
 
@@ -193,7 +193,7 @@ def validate_manifest(manifest: dict[str, Any]) -> PluginManifest:
     """
     errors: list[str] = []
 
-    # Required fields — cast to str for type safety (values come from Any dict)
+    # Required fields - cast to str for type safety (values come from Any dict)
     name: str = str(manifest.get("name", ""))
     version: str = str(manifest.get("version", ""))
     description: str = str(manifest.get("description", ""))

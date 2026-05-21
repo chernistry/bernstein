@@ -1,4 +1,4 @@
-"""Tests for T498 — fast mode coordinator with cooldown on rate limit."""
+"""Tests for T498 - fast mode coordinator with cooldown on rate limit."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 from bernstein.core.fast_mode import CooldownState, FastModeCoordinator
 
 # ---------------------------------------------------------------------------
-# Fast mode — base behavior
+# Fast mode - base behavior
 # ---------------------------------------------------------------------------
 
 

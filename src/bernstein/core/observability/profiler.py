@@ -6,8 +6,8 @@ human-readable ``.txt`` report to ``.sdd/runtime/profiles/``.
 
 Provides two APIs:
 
-- ``ProfilerSession`` — context manager that wraps a code block
-- ``OrchestratorProfiler`` — explicit start/stop with ``ProfileResult``
+- ``ProfilerSession`` - context manager that wraps a code block
+- ``OrchestratorProfiler`` - explicit start/stop with ``ProfileResult``
 
 Usage (context manager)::
 
@@ -187,8 +187,8 @@ class ProfilerSession:
     """Context manager that profiles the wrapped code block with cProfile.
 
     On exit, writes two files to *output_dir*:
-    - ``profile-{timestamp}.prof`` — binary pstats dump (open with SnakeViz)
-    - ``profile-{timestamp}.txt`` — top-N functions by cumulative time
+    - ``profile-{timestamp}.prof`` - binary pstats dump (open with SnakeViz)
+    - ``profile-{timestamp}.txt`` - top-N functions by cumulative time
 
     Args:
         output_dir: Directory to write profile artifacts into.
@@ -222,7 +222,7 @@ class ProfilerSession:
         prof_path = self._output_dir / f"profile-{ts}.prof"
         txt_path = self._output_dir / f"profile-{ts}.txt"
 
-        # Binary dump — readable by pstats, SnakeViz, pyinstrument
+        # Binary dump - readable by pstats, SnakeViz, pyinstrument
         self._profiler.dump_stats(str(prof_path))
 
         # Human-readable report
@@ -264,7 +264,7 @@ def _extract_top_functions(
     stats.sort_stats("cumulative")
 
     result: list[tuple[str, float, int]] = []
-    # pstats.Stats internal attributes — not in type stubs.
+    # pstats.Stats internal attributes - not in type stubs.
     # stats.stats: dict[(file, line, func) -> (cc, nc, tt, ct, callers)]
     # stats.fcn_list: sorted keys after sort_stats()
     raw_stats: Any = getattr(stats, "stats", {})

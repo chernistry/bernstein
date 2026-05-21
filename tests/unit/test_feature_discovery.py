@@ -27,7 +27,7 @@ def _make_backlog_ticket(tmp_path: Path, subdir: str, filename: str, title: str)
     d = tmp_path / ".sdd" / "backlog" / subdir
     d.mkdir(parents=True, exist_ok=True)
     p = d / filename
-    p.write_text(f"# 999 — {title}\n\n**Role:** backend\n", encoding="utf-8")
+    p.write_text(f"# 999 - {title}\n\n**Role:** backend\n", encoding="utf-8")
     return p
 
 
@@ -49,7 +49,7 @@ def test_feature_ticket_defaults() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — TODO/FIXME scanning
+# FeatureDiscovery - TODO/FIXME scanning
 # ---------------------------------------------------------------------------
 
 
@@ -86,7 +86,7 @@ def test_discover_skips_test_files(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — deduplication
+# FeatureDiscovery - deduplication
 # ---------------------------------------------------------------------------
 
 
@@ -125,7 +125,7 @@ def test_discover_no_duplicate_titles_in_output(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — cap
+# FeatureDiscovery - cap
 # ---------------------------------------------------------------------------
 
 
@@ -152,7 +152,7 @@ def test_discover_default_cap_is_five(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — ticket writing
+# FeatureDiscovery - ticket writing
 # ---------------------------------------------------------------------------
 
 
@@ -216,7 +216,7 @@ def test_discover_assigns_sequential_ticket_ids(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — missing pattern detection
+# FeatureDiscovery - missing pattern detection
 # ---------------------------------------------------------------------------
 
 
@@ -248,7 +248,7 @@ def test_discover_skips_missing_pattern_when_already_present(tmp_path: Path) -> 
 
 
 # ---------------------------------------------------------------------------
-# FeatureDiscovery — empty / edge cases
+# FeatureDiscovery - empty / edge cases
 # ---------------------------------------------------------------------------
 
 

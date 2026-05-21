@@ -3,12 +3,12 @@
 Provides vendor-specific APM setup beyond the generic OTLP export already
 available in :mod:`bernstein.core.telemetry`.  Use this module when you need:
 
-* Datadog APM — span tags, service maps, infrastructure correlation via
+* Datadog APM - span tags, service maps, infrastructure correlation via
   ``ddtrace``.
-* New Relic APM — distributed tracing, error inbox, and logs-in-context via
+* New Relic APM - distributed tracing, error inbox, and logs-in-context via
   the ``newrelic`` agent SDK.
 * Forwarding OTLP signals to Datadog/New Relic *without* a local agent (direct
-  API key path — useful for containers / serverless deployments).
+  API key path - useful for containers / serverless deployments).
 
 Quick start::
 
@@ -27,20 +27,20 @@ Quick start::
 Environment variables consumed:
 
 Datadog
-    ``DD_API_KEY``            — Datadog API key (required for direct ingest)
-    ``DD_SITE``               — Datadog intake site (default: datadoghq.com)
-    ``DD_SERVICE``            — service name (default: bernstein)
-    ``DD_ENV``                — deployment environment (default: production)
-    ``DD_VERSION``            — service version tag
-    ``DD_AGENT_HOST``         — Datadog Agent host for ddtrace (default: localhost)
-    ``DD_TRACE_AGENT_PORT``   — Datadog Agent trace port (default: 8126)
-    ``DATADOG_API_KEY``       — alias for ``DD_API_KEY`` (both accepted)
+    ``DD_API_KEY``            - Datadog API key (required for direct ingest)
+    ``DD_SITE``               - Datadog intake site (default: datadoghq.com)
+    ``DD_SERVICE``            - service name (default: bernstein)
+    ``DD_ENV``                - deployment environment (default: production)
+    ``DD_VERSION``            - service version tag
+    ``DD_AGENT_HOST``         - Datadog Agent host for ddtrace (default: localhost)
+    ``DD_TRACE_AGENT_PORT``   - Datadog Agent trace port (default: 8126)
+    ``DATADOG_API_KEY``       - alias for ``DD_API_KEY`` (both accepted)
 
 New Relic
-    ``NEW_RELIC_LICENSE_KEY`` — New Relic ingest licence / API key (required)
-    ``NEW_RELIC_APP_NAME``    — app name in New Relic UI (default: bernstein)
-    ``NEW_RELIC_ENVIRONMENT`` — deployment environment label
-    ``NEWRELIC_API_KEY``      — alias for ``NEW_RELIC_LICENSE_KEY`` (both accepted)
+    ``NEW_RELIC_LICENSE_KEY`` - New Relic ingest licence / API key (required)
+    ``NEW_RELIC_APP_NAME``    - app name in New Relic UI (default: bernstein)
+    ``NEW_RELIC_ENVIRONMENT`` - deployment environment label
+    ``NEWRELIC_API_KEY``      - alias for ``NEW_RELIC_LICENSE_KEY`` (both accepted)
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ _DD_DEFAULT_SITE = "datadoghq.com"
 _DD_DEFAULT_AGENT_HOST = "localhost"
 _DD_DEFAULT_AGENT_PORT = 8126
 
-# New Relic OTLP endpoint — used when forwarding via OTLP instead of the SDK
+# New Relic OTLP endpoint - used when forwarding via OTLP instead of the SDK
 _NR_OTLP_ENDPOINT = "otlp.nr-data.net:4317"
 _NR_OTLP_ENDPOINT_EU = "otlp.eu01.nr-data.net:4317"
 
@@ -94,7 +94,7 @@ class DatadogConfig:
         site: Datadog intake site (e.g. ``"datadoghq.com"`` or ``"datadoghq.eu"``).
         service: Service name reported to Datadog.
         env: Deployment environment (dev / staging / production).
-        version: Service version string — shown in Datadog deployment tracking.
+        version: Service version string - shown in Datadog deployment tracking.
         agent_host: ddtrace agent host.  Set to ``None`` to use direct OTLP ingest
             instead of a local agent.
         agent_port: ddtrace agent trace port.
@@ -198,11 +198,11 @@ def configure_datadog(cfg: DatadogConfig | None = None) -> bool:
 
     Attempts two strategies in order:
 
-    1. **ddtrace** — if the ``ddtrace`` package is installed, patches the
+    1. **ddtrace** - if the ``ddtrace`` package is installed, patches the
        process via ``ddtrace.patch_all()`` and registers global tags.
        Works with a local Datadog Agent (``DD_AGENT_HOST``) or the agentless
        OTLP intake (``DD_API_KEY`` + ``cfg.use_otlp=True``).
-    2. **OTLP fallback** — if ``ddtrace`` is absent, falls back to
+    2. **OTLP fallback** - if ``ddtrace`` is absent, falls back to
        :func:`bernstein.core.telemetry.init_telemetry_from_preset` with the
        ``"datadog"`` preset so spans still reach the Datadog Agent OTLP
        receiver on port 4317.
@@ -231,12 +231,12 @@ def configure_datadog(cfg: DatadogConfig | None = None) -> bool:
             tracer,  # type: ignore[import-untyped]
         )
 
-        # Configure tracer target — agent or agentless
+        # Configure tracer target - agent or agentless
         tracer_kwargs: dict[str, Any] = {}
         if cfg.use_otlp:
             api_key = _resolve_dd_api_key(cfg)
             if not api_key:
-                logger.warning("Datadog OTLP mode enabled but DD_API_KEY is not set — skipping ddtrace init")
+                logger.warning("Datadog OTLP mode enabled but DD_API_KEY is not set - skipping ddtrace init")
                 return False
             # Route to Datadog OTLP intake endpoint
             tracer_kwargs["writer"] = None  # will be handled via ddtrace's OTLP writer
@@ -269,7 +269,7 @@ def configure_datadog(cfg: DatadogConfig | None = None) -> bool:
         return True
 
     except ImportError:
-        logger.debug("ddtrace not installed — falling back to OTLP preset")
+        logger.debug("ddtrace not installed - falling back to OTLP preset")
 
     # --- Strategy 2: OTLP fallback (Datadog Agent receives on port 4317) ---
     try:
@@ -301,10 +301,10 @@ def configure_newrelic(cfg: NewRelicConfig | None = None) -> bool:
 
     Attempts two strategies in order:
 
-    1. **OTLP export** (``cfg.use_otlp=True``, default) — exports via the
+    1. **OTLP export** (``cfg.use_otlp=True``, default) - exports via the
        OpenTelemetry SDK to New Relic's OTLP endpoint using the licence key as
        the ``api-key`` HTTP header.  No New Relic agent required.
-    2. **newrelic agent SDK** — if the ``newrelic`` package is installed and
+    2. **newrelic agent SDK** - if the ``newrelic`` package is installed and
        ``cfg.use_otlp=False``, initialises the New Relic Python agent with
        an in-memory INI configuration so no ``newrelic.ini`` file is needed.
 
@@ -323,7 +323,7 @@ def configure_newrelic(cfg: NewRelicConfig | None = None) -> bool:
     if not license_key:
         logger.warning(
             "New Relic APM: no licence key found in config or environment "
-            "(set NEW_RELIC_LICENSE_KEY or NEWRELIC_API_KEY) — skipping"
+            "(set NEW_RELIC_LICENSE_KEY or NEWRELIC_API_KEY) - skipping"
         )
         return False
 
@@ -344,7 +344,7 @@ def configure_newrelic(cfg: NewRelicConfig | None = None) -> bool:
             )
             return True
         except Exception as exc:
-            logger.warning("New Relic OTLP init failed: %s — trying SDK fallback", exc)
+            logger.warning("New Relic OTLP init failed: %s - trying SDK fallback", exc)
 
     # --- Strategy 2: newrelic agent SDK ---
     try:
@@ -369,7 +369,7 @@ def configure_newrelic(cfg: NewRelicConfig | None = None) -> bool:
         return True
 
     except ImportError:
-        logger.debug("newrelic package not installed — OTLP path already attempted")
+        logger.debug("newrelic package not installed - OTLP path already attempted")
     except Exception as exc:
         logger.warning("New Relic agent SDK init failed: %s", exc)
 
@@ -411,6 +411,6 @@ def auto_configure_apm() -> list[APMProvider]:
             configured.append(APMProvider.NEWRELIC)
 
     if not configured:
-        logger.debug("auto_configure_apm: no APM credentials found — set DD_API_KEY or NEW_RELIC_LICENSE_KEY")
+        logger.debug("auto_configure_apm: no APM credentials found - set DD_API_KEY or NEW_RELIC_LICENSE_KEY")
 
     return configured

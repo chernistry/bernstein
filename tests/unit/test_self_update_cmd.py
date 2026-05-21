@@ -1,4 +1,4 @@
-"""Tests for bernstein.cli.self_update_cmd — self-update command."""
+"""Tests for bernstein.cli.self_update_cmd - self-update command."""
 
 from __future__ import annotations
 
@@ -118,7 +118,7 @@ class TestFetchChangelog:
         assert len(entries) == 2
         assert any("1.3.0" in e for e in entries)
         assert any("1.2.0" in e for e in entries)
-        # 1.1.0 is the current version — should not be included
+        # 1.1.0 is the current version - should not be included
         assert not any("1.1.0" in e for e in entries)
 
     def test_returns_empty_on_network_error(self) -> None:
@@ -169,7 +169,7 @@ class TestPipInstall:
 
 
 # ---------------------------------------------------------------------------
-# self_update_cmd — CLI integration
+# self_update_cmd - CLI integration
 # ---------------------------------------------------------------------------
 
 

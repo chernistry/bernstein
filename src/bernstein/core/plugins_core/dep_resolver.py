@@ -1,7 +1,7 @@
 """Plugin dependency resolution with version constraint satisfaction (#650).
 
 Provides topological sorting and version constraint checking for plugin
-dependency graphs.  Pure Python — no pip or packaging internals.
+dependency graphs.  Pure Python - no pip or packaging internals.
 
 Usage:
     >>> from bernstein.core.plugins_core.dep_resolver import (

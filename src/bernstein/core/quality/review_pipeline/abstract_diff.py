@@ -7,17 +7,17 @@ unified diff plus a task description into a per-file intent summary
 reviewers see *what* changed at the behavioural level with drill-down
 to the raw diff via a collapsible GitHub ``<details>`` block.
 
-Pattern source: ``nibzard/awesome-agentic-patterns`` —
+Pattern source: ``nibzard/awesome-agentic-patterns`` -
 ``abstracted-code-representation-for-review``.
 
 Public API:
 
-* :class:`IntentSummary` — per-file abstracted view.
-* :class:`TaskContext` — minimal task metadata fed to the summariser.
-* :func:`summarize_diff` — async, calls the cheap-tier LLM per file.
-* :func:`pseudo_for_function` — AST-walked pseudocode for a single
+* :class:`IntentSummary` - per-file abstracted view.
+* :class:`TaskContext` - minimal task metadata fed to the summariser.
+* :func:`summarize_diff` - async, calls the cheap-tier LLM per file.
+* :func:`pseudo_for_function` - AST-walked pseudocode for a single
   Python function.
-* :func:`render_pr_body` — markdown wrapper used by ``pr_gen``.
+* :func:`render_pr_body` - markdown wrapper used by ``pr_gen``.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ _OPUS_MARKER: str = "opus"
 
 _SUMMARY_PROMPT_TEMPLATE: str = """\
 You are summarising a single file's diff for a human reviewer.
-Give a *behavioural* summary — what the change accomplishes — not a
+Give a *behavioural* summary - what the change accomplishes - not a
 line-by-line restatement.
 
 ## Task
@@ -130,7 +130,7 @@ class _FileDiff:
 def _split_unified_diff(diff: str) -> list[_FileDiff]:
     """Split a unified diff into per-file blocks.
 
-    Only ``diff --git`` headers are recognised — that is what ``git diff``
+    Only ``diff --git`` headers are recognised - that is what ``git diff``
     emits. The post-image (post-change source) is reconstructed from
     ``+`` lines so :func:`pseudo_for_function` can run against syntactically
     valid Python where possible.
@@ -179,8 +179,8 @@ def _extract_path(header: str) -> str:
 def pseudo_for_function(func_src: str) -> str:
     """Return a pseudocode rendering of a Python function.
 
-    Walks the AST and emits one statement per significant node — control
-    flow keywords, returns, assignments, and calls — collapsing bodies to
+    Walks the AST and emits one statement per significant node - control
+    flow keywords, returns, assignments, and calls - collapsing bodies to
     pseudocode. Non-functions and unparseable input return an empty
     string so callers can skip them silently.
 
@@ -289,7 +289,7 @@ def _extract_post_functions(post_image: str) -> tuple[str, ...]:
 
 def _disallow_opus(model: str) -> str:
     if _OPUS_MARKER in model.lower():
-        logger.info("abstract_diff: opus tier disallowed (%s) — falling back to gemini-flash", model)
+        logger.info("abstract_diff: opus tier disallowed (%s) - falling back to gemini-flash", model)
         return "google/gemini-flash-1.5"
     return model
 
@@ -425,11 +425,11 @@ async def summarize_diff(
 
     if len(files) > cap:
         logger.info(
-            "abstract_diff: %d files exceeds cap %d — emitting top-level summary only",
+            "abstract_diff: %d files exceeds cap %d - emitting top-level summary only",
             len(files),
             cap,
         )
-        bullet = f"{len(files)} files changed — exceeds abstract-diff cap of {cap}; see raw diff for per-file detail."
+        bullet = f"{len(files)} files changed - exceeds abstract-diff cap of {cap}; see raw diff for per-file detail."
         return [
             IntentSummary(
                 path="<aggregate>",

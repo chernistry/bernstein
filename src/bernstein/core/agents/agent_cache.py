@@ -189,7 +189,7 @@ class AgentCache:
             if not src.exists():
                 continue
             if dst.exists() or dst.is_symlink():
-                # Already present — skip
+                # Already present - skip
                 continue
             try:
                 # Use relative symlink so the cache is relocatable

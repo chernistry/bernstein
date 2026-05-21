@@ -28,7 +28,7 @@ from bernstein.core.lifecycle import IllegalTransitionError
 from bernstein.core.role_classifier import classify_role
 from bernstein.core.routes._rate_limit_headers import rate_limit_exception
 
-# Import Pydantic models from server — this works because server.py's
+# Import Pydantic models from server - this works because server.py's
 # __getattr__ defers the `app` creation, so the module body (class defs)
 # loads without triggering create_app().
 from bernstein.core.server import (
@@ -211,7 +211,7 @@ def _try_check_realtime_anomaly(
     """Run real-time anomaly detection on a progress update (best-effort).
 
     Writes a kill-signal file automatically when KILL_AGENT severity is
-    detected; logs warnings for lower-severity signals.  Non-blocking —
+    detected; logs warnings for lower-severity signals.  Non-blocking -
     any exception is caught and logged so the progress route always succeeds.
     """
     if not session_id:
@@ -261,7 +261,7 @@ def _try_attest_task_completion(
 ) -> None:
     """Best-effort Sigstore/Ed25519 attestation for a completed task.
 
-    Non-blocking — logs a warning and continues if attestation fails.
+    Non-blocking - logs a warning and continues if attestation fails.
     """
     import hashlib
 
@@ -304,7 +304,7 @@ def _try_generate_sbom(request: Request) -> None:
     """Best-effort SBOM generation triggered after task completion.
 
     Runs only when ``BERNSTEIN_SBOM_ON_COMPLETE=1`` is set in the environment
-    or when ``request.app.state.sbom_on_complete`` is truthy.  Non-blocking —
+    or when ``request.app.state.sbom_on_complete`` is truthy.  Non-blocking -
     any exception is caught and logged so the task completion route always
     succeeds.
 
@@ -443,7 +443,7 @@ async def create_task(body: TaskCreate, request: Request) -> TaskResponse:
         try:
             pm = get_plugin_manager()
             pm.fire_pre_task_create(
-                task_id="",  # ID not yet assigned — use empty string
+                task_id="",  # ID not yet assigned - use empty string
                 role=effective_body.role,
                 title=effective_body.title,
                 description=effective_body.description,
@@ -509,7 +509,7 @@ async def create_tasks_batch(body: BatchCreateRequest, request: Request) -> Batc
                 description=effective.description,
             )
         except HookBlockingError:
-            logger.warning("Pre-create hook blocked task '%s' — skipping", effective.title)
+            logger.warning("Pre-create hook blocked task '%s' - skipping", effective.title)
             continue
 
         prepared.append(effective)
@@ -706,7 +706,7 @@ async def claim_task(
     responses={
         404: {"description": "Task not found"},
         409: {"description": "Invalid state transition"},
-        422: {"description": "Empty result_summary — task auto-failed"},
+        422: {"description": "Empty result_summary - task auto-failed"},
     },
 )
 async def complete_task(task_id: str, body: TaskCompleteRequest, request: Request) -> TaskResponse:
@@ -873,7 +873,7 @@ async def cancel_task(task_id: str, body: TaskCancelRequest, request: Request) -
         if existing_task is None:
             raise KeyError
         _require_task_access(existing_task, request)
-        # Preserve the legacy 409 for a root task that is already terminal —
+        # Preserve the legacy 409 for a root task that is already terminal -
         # ``cancel_cascade`` silently skips terminal tasks, so we check here.
         cancellable = {
             "open",
@@ -968,7 +968,7 @@ async def progress_task(task_id: str, body: TaskProgressRequest, request: Reques
     _store_progress_snapshot(store, task_id, body)
     _persist_lines_if_present(request, task, body)
 
-    # Real-time behavior anomaly detection — checks file access, commands,
+    # Real-time behavior anomaly detection - checks file access, commands,
     # network endpoints, output size, and file-change velocity against learned
     # baselines.  Kill signals are written automatically for KILL_AGENT severity.
     _try_check_realtime_anomaly(
@@ -1234,8 +1234,8 @@ def task_counts(
     counts = store.count_by_status(tenant_id=effective_tenant)
     # Expose every TaskStatus value so the GUI can render real numbers for
     # closed / in_progress / planned / pending_approval / waiting_for_subtasks
-    # / orphaned instead of falling back to ``—``.  Missing keys default to 0
-    # — back-compat for the six original buckets is preserved.
+    # / orphaned instead of falling back to ``-``.  Missing keys default to 0
+    # - back-compat for the six original buckets is preserved.
     return TaskCountsResponse(
         open=counts.get("open", 0),
         claimed=counts.get("claimed", 0),
@@ -1303,7 +1303,7 @@ def get_task_graph_neighbors(task_id: str, request: Request) -> dict[str, Any]:
 
     Powers the dashboard Deps tab: upstream tasks the requested one waits
     on (its ``depends_on`` list) and downstream tasks that declare it as a
-    dependency.  Depth is intentionally fixed at 1 — the panel renders two
+    dependency.  Depth is intentionally fixed at 1 - the panel renders two
     flat lists, not a transitive graph.
     """
     store = _get_store(request)
@@ -1331,7 +1331,7 @@ def get_task_graph_neighbors(task_id: str, request: Request) -> dict[str, Any]:
         seen_up.add(dep_id)
         dep = by_id.get(dep_id)
         if dep is None:
-            # Missing dep — surface the ID so the operator can see the gap
+            # Missing dep - surface the ID so the operator can see the gap
             # without a hard 404.
             upstream.append({"id": dep_id, "title": None, "status": "missing", "role": None})
         else:
@@ -1390,7 +1390,7 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
 
 @router.patch("/tasks/{task_id}", responses={404: {"description": "Task not found"}})
 async def patch_task(task_id: str, body: TaskPatchRequest, request: Request) -> TaskResponse:
-    """Update mutable task fields (role, priority, model) — manager corrections.
+    """Update mutable task fields (role, priority, model) - manager corrections.
 
     Used by the manager agent or dashboard to correct mis-assigned tasks,
     adjust priority, or change model without interrupting the orchestrator.

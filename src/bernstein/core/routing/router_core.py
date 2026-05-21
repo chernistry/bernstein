@@ -37,7 +37,7 @@ _CAST_DICT_STR_ANY = "dict[str, Any]"
 # When the run is close to its budget cap, ``_check_opus_override`` refuses to
 # escalate a task to opus/max (which can cost ~$1.50 per 200k-token task) and
 # lets the downstream heuristics pick sonnet instead.  The flag is on by
-# default — a single opus task near the cap can overshoot by 150% or more.
+# default - a single opus task near the cap can overshoot by 150% or more.
 # Callers can disable the behaviour per-run via ``set_budget_context`` or by
 # passing ``budget_aware_routing_enabled=False`` directly into ``route_task``.
 #
@@ -57,7 +57,7 @@ BUDGET_AWARE_OPUS_MARGIN: float = 2.0
 
 
 _budget_context_state: dict[str, Any] = {
-    "budget_remaining_usd": None,  # float | None — ``None`` = unknown / disabled
+    "budget_remaining_usd": None,  # float | None - ``None`` = unknown / disabled
     "enabled": True,
     "estimated_opus_cost_usd": DEFAULT_OPUS_TASK_COST_USD,
 }
@@ -436,7 +436,7 @@ class TierAwareRouter:
                 and p.health.success_rate >= self.state.min_health_score
             ]
 
-        # Apply model policy filter — denied providers are never returned
+        # Apply model policy filter - denied providers are never returned
         providers = self.policy_filter.filter_providers(providers)
 
         # Sort by score (health * cost efficiency)
@@ -971,7 +971,7 @@ def _check_opus_override(
 
     when ``budget_aware_routing_enabled`` (default: module-level
     flag) is True and ``budget_remaining_usd`` < 2x estimated opus task cost,
-    the override returns None so the caller routes to sonnet instead — a
+    the override returns None so the caller routes to sonnet instead - a
     single opus task near the cap can overshoot by 150%+.  Explicit keyword
     arguments take precedence over ``set_budget_context`` module state.
 
@@ -1022,7 +1022,7 @@ def _check_opus_override(
         estimated_opus_cost_usd=opus_cost,
     ):
         logger.info(
-            "Task %s: budget-aware downgrade from opus/max (remaining=$%.2f < %.1fx $%.2f) — reason: %s",
+            "Task %s: budget-aware downgrade from opus/max (remaining=$%.2f < %.1fx $%.2f) - reason: %s",
             task.id,
             float(remaining) if remaining is not None else float("nan"),
             BUDGET_AWARE_OPUS_MARGIN,
@@ -1186,7 +1186,7 @@ def _select_model_config(
     if criterion_result is not None:
         return criterion_result
 
-    # High-stakes roles/scope/priority skip bandit — always use premium models
+    # High-stakes roles/scope/priority skip bandit - always use premium models
     # (unless budget-aware routing downgrades the call: ).
     opus_reason = _check_opus_override(
         task,

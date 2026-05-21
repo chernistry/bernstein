@@ -90,7 +90,7 @@ def test_recover_stale_release_is_flushed_to_jsonl(tmp_path: Path) -> None:
     replayed = store2.get_task(task_id)
     assert replayed is not None, "task missing after restart"
     assert replayed.status == TaskStatus.OPEN, (
-        f"expected OPEN after restart, got {replayed.status.value!r} — recover_stale release not persisted"
+        f"expected OPEN after restart, got {replayed.status.value!r} - recover_stale release not persisted"
     )
 
 

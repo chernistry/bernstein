@@ -1,8 +1,8 @@
 """Agent token consumption breakdown by category.
 
 Analyses a completed agent session and breaks token usage into semantic
-categories — system prompt, context files, task description, output, and
-tool results — so operators can identify where tokens are being spent and
+categories - system prompt, context files, task description, output, and
+tool results - so operators can identify where tokens are being spent and
 where waste can be reduced.
 
 Usage::
@@ -188,11 +188,11 @@ def estimate_waste(breakdown: TokenBreakdown, files_used: list[str]) -> float:
 
     Waste heuristics:
 
-    1. **Unused-file penalty** — if ``context_files`` tokens are nonzero but
+    1. **Unused-file penalty** - if ``context_files`` tokens are nonzero but
        ``files_used`` is empty, all context file tokens are counted as waste.
-    2. **Bloated-category penalty** — for each category exceeding its bloat
+    2. **Bloated-category penalty** - for each category exceeding its bloat
        threshold, the excess tokens are counted as waste.
-    3. **Low-output ratio** — if output tokens are < 5 % of total, the
+    3. **Low-output ratio** - if output tokens are < 5 % of total, the
        session likely accomplished little relative to its context cost.
 
     Args:

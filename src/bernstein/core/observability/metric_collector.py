@@ -84,10 +84,10 @@ class PrivacyLevel(Enum):
     """Analytics privacy presets controlling what metric data is collected and exported.
 
     Attributes:
-        FULL: All data collected — task IDs, agent IDs, costs, tokens, error detail.
-        STANDARD: Aggregate-safe — strip individual task/agent/session identifiers
+        FULL: All data collected - task IDs, agent IDs, costs, tokens, error detail.
+        STANDARD: Aggregate-safe - strip individual task/agent/session identifiers
             from labels, but retain cost and performance signals.
-        MINIMAL: Counts only — suppress identifiers, cost, and token data; only
+        MINIMAL: Counts only - suppress identifiers, cost, and token data; only
             aggregate success/failure counts are retained.
     """
 
@@ -458,7 +458,7 @@ class MetricsCollector:
                 },
             )
 
-        # Write token usage — enables avg-tokens-per-task queries in /quality
+        # Write token usage - enables avg-tokens-per-task queries in /quality
         if tokens_used > 0 and self._privacy_level is not PrivacyLevel.MINIMAL:
             self._write_metric_point(
                 MetricType.API_USAGE,
@@ -472,7 +472,7 @@ class MetricsCollector:
         # Update usage quota
         self._update_usage_quota(metrics.provider, metrics.model, tokens_used)
 
-        # Flush buffered points — task completion is a natural checkpoint
+        # Flush buffered points - task completion is a natural checkpoint
         self._flush_buffer()
 
         return metrics
@@ -506,7 +506,7 @@ class MetricsCollector:
             role: Agent role.
             model: Model being used.
             provider: API provider.
-            agent_source: Where the agent prompt came from — ``"catalog"``,
+            agent_source: Where the agent prompt came from - ``"catalog"``,
                 ``"agency"``, or ``"built-in"`` (default).
 
         Returns:
@@ -950,7 +950,7 @@ class MetricsCollector:
             try:
                 # Bound per-file growth: rotate *before* appending so the new
                 # write starts a fresh file once the threshold is crossed.
-                # See — previously these JSONL files grew unbounded.
+                # See - previously these JSONL files grew unbounded.
                 rotate_log_file(
                     filepath,
                     max_bytes=_METRIC_FILE_ROTATE_BYTES,
@@ -1207,7 +1207,7 @@ class MetricsCollector:
 
         Returns:
             Dict with keys ``per_model``, ``overall``, ``guardrail_pass_rate``,
-            ``review_rejection_rate``, and ``gate_stats`` (empty dict — gate
+            ``review_rejection_rate``, and ``gate_stats`` (empty dict - gate
             data is read from JSONL by the API layer).
         """
         import statistics

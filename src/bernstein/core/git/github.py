@@ -21,15 +21,15 @@ Community evolve protocol:
   6. On merge, the issue is automatically closed.
 
 Labels:
-  - ``bernstein-evolve``    — all evolution proposals
-  - ``auto-generated``      — machine-generated proposals
-  - ``evolve-claimed``      — issue is being worked on by an instance
-  - ``evolve-hash-<hex>``   — 8-char SHA-256 prefix of the lowercased title
+  - ``bernstein-evolve``    - all evolution proposals
+  - ``auto-generated``      - machine-generated proposals
+  - ``evolve-claimed``      - issue is being worked on by an instance
+  - ``evolve-hash-<hex>``   - 8-char SHA-256 prefix of the lowercased title
                               (used for deduplication across instances)
-  - ``evolve-candidate``    — community request eligible for community evolve
-  - ``feature-request``     — community feature request (also eligible)
-  - ``evolve-in-progress``  — Bernstein is actively working on this issue
-  - ``maintainer-approved`` — maintainer trust override for community issues
+  - ``evolve-candidate``    - community request eligible for community evolve
+  - ``feature-request``     - community feature request (also eligible)
+  - ``evolve-in-progress``  - Bernstein is actively working on this issue
+  - ``maintainer-approved`` - maintainer trust override for community issues
 
 All operations degrade gracefully when ``gh`` is unavailable or unauthenticated.
 """
@@ -64,7 +64,7 @@ _LABEL_MAINTAINER_APPROVED = "maintainer-approved"
 # Prefix for per-proposal dedup labels.
 _HASH_LABEL_PREFIX = "evolve-hash-"
 
-# Community issue scanning labels — either of these qualifies.
+# Community issue scanning labels - either of these qualifies.
 _COMMUNITY_LABELS: tuple[str, ...] = (_LABEL_EVOLVE_CANDIDATE, _LABEL_FEATURE_REQUEST)
 
 # Upper cap on the number of issues fetched per `gh issue list` call.
@@ -119,7 +119,7 @@ def _warn_if_truncated(count: int, limit: int, context: str) -> None:
     """
     if count >= limit:
         logger.warning(
-            "%s: fetched %d issues, hit page cap of %d — results may be "
+            "%s: fetched %d issues, hit page cap of %d - results may be "
             "truncated. Increase BERNSTEIN_GITHUB_PAGE_LIMIT to sync more.",
             context,
             count,
@@ -766,18 +766,18 @@ def _label_color(name: str) -> str:
         6-character hex color string (without ``#``).
     """
     _colors: dict[str, str] = {
-        _LABEL_EVOLVE: "0075ca",  # blue — evolution
-        _LABEL_CLAIMED: "e4e669",  # yellow — claimed
-        _LABEL_AUTO: "cfd3d7",  # grey — machine-generated
-        _LABEL_EVOLVE_CANDIDATE: "a2eeef",  # cyan — community request
-        _LABEL_FEATURE_REQUEST: "a2eeef",  # cyan — community request
-        _LABEL_IN_PROGRESS: "fbca04",  # orange — in progress
-        _LABEL_MAINTAINER_APPROVED: "0e8a16",  # green — trusted
+        _LABEL_EVOLVE: "0075ca",  # blue - evolution
+        _LABEL_CLAIMED: "e4e669",  # yellow - claimed
+        _LABEL_AUTO: "cfd3d7",  # grey - machine-generated
+        _LABEL_EVOLVE_CANDIDATE: "a2eeef",  # cyan - community request
+        _LABEL_FEATURE_REQUEST: "a2eeef",  # cyan - community request
+        _LABEL_IN_PROGRESS: "fbca04",  # orange - in progress
+        _LABEL_MAINTAINER_APPROVED: "0e8a16",  # green - trusted
     }
     if name in _colors:
         return _colors[name]
     if name.startswith(_HASH_LABEL_PREFIX):
-        return "d4edda"  # light green — dedup key
+        return "d4edda"  # light green - dedup key
     return "ededed"
 
 
@@ -980,7 +980,7 @@ def _should_skip_issue(
         existing_titles: Already-existing backlog titles (non-GitHub sources).
 
     Returns:
-        (skip, is_assigned) — True to skip, is_assigned indicates assignee skip.
+        (skip, is_assigned) - True to skip, is_assigned indicates assignee skip.
     """
     number: int = issue.get("number", 0)
     if not number:
@@ -991,7 +991,7 @@ def _should_skip_issue(
     assignees_raw: list[dict[str, Any]] = issue.get("assignees", []) or []
     if any(a.get("login") for a in assignees_raw):
         logger.info(
-            "Skipping GitHub issue #%d — already assigned to %s",
+            "Skipping GitHub issue #%d - already assigned to %s",
             number,
             ",".join(str(a.get("login", "?")) for a in assignees_raw),
         )

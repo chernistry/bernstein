@@ -266,7 +266,7 @@ class PhaseValidationError(ValueError):
         schema_id: Stable ``$id`` of the failing schema (for audit).
         field_path: First failing field path (``""`` if the failure was
             at the root object).
-        errors: Full ordered list of :class:`PhaseSchemaError` entries —
+        errors: Full ordered list of :class:`PhaseSchemaError` entries -
             preserved so the boundary-gate retry path can seed every
             violation into ``open_questions`` rather than only the first.
     """
@@ -328,7 +328,7 @@ def register_with_capability_matrix(registry: CapabilityRegistry) -> list[str]:
         )
         registered.append(tool_name)
         # Also stash the schema id under the tool name for audit lookups
-        # — the matrix only stores capability sets, but this index lets
+        # - the matrix only stores capability sets, but this index lets
         # external callers prove which schema gate was active.
         _PHASE_EMIT_SCHEMA_INDEX[tool_name] = str(schema.get("$id", ""))
     return registered

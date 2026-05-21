@@ -1,4 +1,4 @@
-"""Tests for eval metrics — individual metrics and composite scoring."""
+"""Tests for eval metrics - individual metrics and composite scoring."""
 
 from __future__ import annotations
 

@@ -166,7 +166,7 @@ def test_fire_evolve_proposal(pm: PluginManager) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Partial-hook plugins — unimplemented hooks must not crash
+# Partial-hook plugins - unimplemented hooks must not crash
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +175,7 @@ def test_unimplemented_hooks_do_not_crash(pm: PluginManager) -> None:
     plugin = _PartialPlugin()
     pm.register(plugin, name="partial")
 
-    # These hooks are NOT implemented by _PartialPlugin — must not raise.
+    # These hooks are NOT implemented by _PartialPlugin - must not raise.
     pm.fire_task_created(task_id="x", role="r", title="t")
     pm.fire_task_failed(task_id="x", role="r", error="e")
     pm.fire_agent_spawned(session_id="s", role="r", model="m")
@@ -188,7 +188,7 @@ def test_unimplemented_hooks_do_not_crash(pm: PluginManager) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Broken plugins — exceptions must not propagate
+# Broken plugins - exceptions must not propagate
 # ---------------------------------------------------------------------------
 
 
@@ -276,7 +276,7 @@ def test_load_from_workdir_no_yaml(tmp_path: Path) -> None:
     """load_from_workdir() succeeds even when bernstein.yaml is absent."""
     local_pm = PluginManager()
     with patch("bernstein.plugins.manager.entry_points", return_value=[]):
-        local_pm.load_from_workdir(tmp_path)  # no bernstein.yaml — must not raise
+        local_pm.load_from_workdir(tmp_path)  # no bernstein.yaml - must not raise
     assert local_pm.registered_names == []
 
 
@@ -370,7 +370,7 @@ class TestWorkspaceTrustGating:
 
     def test_hooks_skipped_when_untrusted(self, tmp_path: Path) -> None:
         """Hooks are no-ops when workspace is not trusted."""
-        # No trust file — workspace is untrusted
+        # No trust file - workspace is untrusted
         pm = PluginManager(workdir=tmp_path)
         plugin = _CollectorPlugin()
         pm.register(plugin, name="c")

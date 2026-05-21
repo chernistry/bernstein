@@ -96,7 +96,7 @@ def _candidates(target: Path) -> list[tuple[int, str, str, str]]:
       - comments (#)
       - any line inside a triple-quoted docstring block
       - decorator argument lines (@dataclass(...), @click.command(...), etc.)
-        — those are configuration knobs, not behaviour, so flipping True/False
+        - those are configuration knobs, not behaviour, so flipping True/False
         in them produces synthetic mutations that don't model real bugs.
     """
     out: list[tuple[int, str, str, str]] = []
@@ -156,7 +156,7 @@ def main() -> int:
                     survived = _run_tests()
                 except subprocess.TimeoutExpired:
                     timeouts += 1
-                    # Treat as killed — infinite loop also a meaningful signal.
+                    # Treat as killed - infinite loop also a meaningful signal.
                     killed += 1
                     continue
                 if survived:

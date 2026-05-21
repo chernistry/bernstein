@@ -212,7 +212,7 @@ def bootstrap_ca(
     ``node.crt``, and ``node.key`` to ``--out-dir`` (default
     ``~/.bernstein/cluster/``). Private keys are written 0600.
 
-    This is a self-hosted, self-signed CA — appropriate for internal
+    This is a self-hosted, self-signed CA - appropriate for internal
     clusters on infrastructure you control. For production deployments
     use your existing PKI (step-ca, cert-manager, Vault, etc.).
     """

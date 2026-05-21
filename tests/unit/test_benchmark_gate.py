@@ -36,7 +36,7 @@ def _write_results(path: Path, benchmarks: list[dict[str, object]]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# evaluate() — pass / fail
+# evaluate() - pass / fail
 # ---------------------------------------------------------------------------
 
 
@@ -44,7 +44,7 @@ def test_evaluate_passes_when_no_regression(monkeypatch: pytest.MonkeyPatch, tmp
     gate = _gate(tmp_path)
     baseline = {"test_foo": BenchmarkMetrics(mean_s=0.010, ops=100.0, memory_mb=None)}
     current = {"test_foo": BenchmarkMetrics(mean_s=0.011, ops=95.0, memory_mb=None)}
-    # 10% slower and 5% less throughput — both under 15% threshold
+    # 10% slower and 5% less throughput - both under 15% threshold
     monkeypatch.setattr(gate, "_load_or_measure_baseline", lambda: baseline)
     monkeypatch.setattr(gate, "measure_current", lambda: current)
 
@@ -129,7 +129,7 @@ def test_detect_regressions_below_threshold_is_clean(tmp_path: Path) -> None:
     gate = _gate(tmp_path, threshold=0.20)
     baseline = {"t": BenchmarkMetrics(mean_s=1.0, ops=100.0, memory_mb=100.0)}
     current = {"t": BenchmarkMetrics(mean_s=1.15, ops=85.0, memory_mb=115.0)}
-    # mean_s +15%, ops -15%, memory +15% — all at threshold or below
+    # mean_s +15%, ops -15%, memory +15% - all at threshold or below
     regressions = gate._detect_regressions(baseline, current)
     assert regressions == []
 
@@ -137,7 +137,7 @@ def test_detect_regressions_below_threshold_is_clean(tmp_path: Path) -> None:
 def test_detect_regressions_exactly_at_threshold_is_clean(tmp_path: Path) -> None:
     gate = _gate(tmp_path, threshold=0.15)
     baseline = {"t": BenchmarkMetrics(mean_s=1.0, ops=None, memory_mb=None)}
-    # Exactly 15% slower — must NOT block (> threshold, not >=)
+    # Exactly 15% slower - must NOT block (> threshold, not >=)
     current = {"t": BenchmarkMetrics(mean_s=1.15, ops=None, memory_mb=None)}
     regressions = gate._detect_regressions(baseline, current)
     assert regressions == []

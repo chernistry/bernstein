@@ -140,7 +140,7 @@ def test_update_task_priority_does_not_leak_heap_entries(tmp_path: Path) -> None
     assert len(heap) == 1
 
     # Flip priority 500 times.  Before the fix, this appended a new entry
-    # each call without removing the old one — heap grew unboundedly.
+    # each call without removing the old one - heap grew unboundedly.
     # After the fix, old entries stay (lazy delete), so the heap grows but
     # each update appends at most ONE entry and there is no duplication
     # compared to pre-fix behaviour of missing a remove.
@@ -175,7 +175,7 @@ def test_update_task_priority_does_not_leak_heap_entries(tmp_path: Path) -> None
 async def test_top_k_selection_is_sublinear_in_n(tmp_path: Path) -> None:
     """Popping top-k stale/prioritized tasks stays fast even with 10k tasks.
 
-    This is a loose performance sanity check — we don't assert wall-clock
+    This is a loose performance sanity check - we don't assert wall-clock
     times (too flaky in CI).  Instead we assert the priority heap mechanism:
     a single ``claim_next`` must not iterate all N items.  We verify by
     counting heap pops indirectly via an instrumented comparison.
@@ -215,10 +215,10 @@ async def test_top_k_selection_is_sublinear_in_n(tmp_path: Path) -> None:
     # would be empty or near-empty.
     shrinkage = snapshot_len - len(pq)
     assert 10 <= shrinkage <= 50, (
-        f"claim_next popped {shrinkage} entries to claim 10 tasks — expected ~10 (allowing small lazy-delete slack)"
+        f"claim_next popped {shrinkage} entries to claim 10 tasks - expected ~10 (allowing small lazy-delete slack)"
     )
 
-    # Sanity: heap size didn't collapse to zero — we still have ~N-10 tasks.
+    # Sanity: heap size didn't collapse to zero - we still have ~N-10 tasks.
     assert len(pq) > n - 100
 
     # Confirm heap order is still intact: the min entry is still <= claimed[-1].

@@ -2,7 +2,7 @@
 
 Regression coverage for **audit-037**: prior to the fix, a second caller
 arriving during an active gate run received ``passed=True`` with an empty
-``gate_results`` list — a silent bypass.  The coalescer now serializes all
+``gate_results`` list - a silent bypass.  The coalescer now serializes all
 callers through a FIFO queue and returns each caller its own real result.
 """
 
@@ -58,7 +58,7 @@ class TestInitialState:
 
 
 # ---------------------------------------------------------------------------
-# Single run — no contention
+# Single run - no contention
 # ---------------------------------------------------------------------------
 
 
@@ -111,7 +111,7 @@ class TestSingleRun:
 
 class TestSerializedExecution:
     def test_each_queued_request_runs_its_own_gates(self, tmp_path: Path) -> None:
-        """Every concurrent caller must get its OWN task's gate result — no silent bypass."""
+        """Every concurrent caller must get its OWN task's gate result - no silent bypass."""
         config = QualityGatesConfig(enabled=False)
         call_log: list[str] = []
         first_started = threading.Event()
@@ -162,7 +162,7 @@ class TestSerializedExecution:
             assert results[task_id].passed
 
     def test_queued_caller_receives_fail_result_not_silent_pass(self, tmp_path: Path) -> None:
-        """If a queued caller's own gate run fails, the fail result propagates — no bypass."""
+        """If a queued caller's own gate run fails, the fail result propagates - no bypass."""
         config = QualityGatesConfig(enabled=False)
         first_started = threading.Event()
         release_first = threading.Event()

@@ -1,4 +1,4 @@
-"""Tests for differential_privacy module — (ε, δ)-DP for telemetry export."""
+"""Tests for differential_privacy module - (ε, δ)-DP for telemetry export."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def test_dp_config_defaults() -> None:
 
 
 # ---------------------------------------------------------------------------
-# GaussianMechanism — sigma formula
+# GaussianMechanism - sigma formula
 # ---------------------------------------------------------------------------
 
 
@@ -58,7 +58,7 @@ def test_gaussian_mechanism_sigma_shrinks_with_larger_epsilon() -> None:
 
 
 # ---------------------------------------------------------------------------
-# GaussianMechanism — add_noise
+# GaussianMechanism - add_noise
 # ---------------------------------------------------------------------------
 
 
@@ -85,14 +85,14 @@ def test_gaussian_mechanism_custom_clip_min() -> None:
     """Custom clip_min is respected."""
     cfg = DPConfig(epsilon=0.001, delta=1e-5, clip_min=-1e6)
     mech = GaussianMechanism(sensitivity=1.0, config=cfg)
-    # clip_min is very negative — allow negative results
+    # clip_min is very negative - allow negative results
     results = [mech.add_noise(0.0) for _ in range(200)]
     # Should still not go below clip_min
     assert all(r >= -1e6 for r in results)
 
 
 # ---------------------------------------------------------------------------
-# apply_dp_to_export — structure preservation
+# apply_dp_to_export - structure preservation
 # ---------------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ def test_apply_dp_perturbs_numeric_task_fields() -> None:
     """tokens_used, cost_usd, duration_seconds are perturbed (not identical) with high probability."""
     data = _sample_export_data()
     cfg = DPConfig(epsilon=1.0, delta=1e-5)
-    # Run many times — probability that all are identical is astronomically small
+    # Run many times - probability that all are identical is astronomically small
     changed = set()
     for _ in range(20):
         result = apply_dp_to_export(data, cfg)

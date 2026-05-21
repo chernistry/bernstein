@@ -1,6 +1,6 @@
 """Trace timeline endpoint for the Bernstein dashboard.
 
-GET /dashboard/tasks/{task_id}/trace — return a chronologically-ordered list
+GET /dashboard/tasks/{task_id}/trace - return a chronologically-ordered list
 of trace events for *task_id*, flattened across every retry/spawn captured in
 ``.sdd/traces/{task_id}.jsonl``.
 
@@ -34,12 +34,12 @@ class TraceTimelineEvent(BaseModel):
         id: Stable per-task event identifier (``"{trace_idx}:{step_idx}"`` for
             steps; ``"{trace_idx}:meta"`` for the synthetic trace-level summary).
         ts: Unix timestamp (seconds, float). 0.0 means unknown.
-        kind: Event kind — mirrors the TUI vocabulary
+        kind: Event kind - mirrors the TUI vocabulary
             (``spawn|orient|plan|edit|verify|complete|fail|compact|trace_meta``).
-        actor: Best-effort attribution string — usually ``{role}/{model}`` or
+        actor: Best-effort attribution string - usually ``{role}/{model}`` or
             ``{session_id}``. Empty when unknown.
         summary: One-line human-readable description.
-        outcome: ``success | failed | unknown | neutral`` — drives colour coding.
+        outcome: ``success | failed | unknown | neutral`` - drives colour coding.
         trace_id: Owning trace id (so the FE can group events from the same spawn).
         session_id: Owning session id (mirrors the agent log filename).
         payload: Full event payload for the expandable JSON card.
@@ -87,7 +87,7 @@ def _read_trace_lines(traces_dir: Path, task_id: str) -> list[dict[str, Any]]:
     """Read every JSONL trace record for *task_id*.
 
     Returns the parsed dicts in file order. Lines that fail to parse are
-    skipped silently — a malformed line should not break the whole tab.
+    skipped silently - a malformed line should not break the whole tab.
     """
     path = traces_dir / f"{task_id}.jsonl"
     if not path.is_file():
@@ -164,7 +164,7 @@ def _flatten_trace_events(traces: list[dict[str, Any]]) -> list[TraceTimelineEve
                 actor=actor,
                 summary=f"Spawn {role or 'agent'}"
                 + (f" ({model})" if model else "")
-                + (" — running" if end_ts_raw is None else f" — {trace_outcome}"),
+                + (" - running" if end_ts_raw is None else f" - {trace_outcome}"),
                 outcome="failed" if trace_outcome == "failed" else "neutral",
                 trace_id=trace_id,
                 session_id=session_id,

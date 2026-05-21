@@ -85,7 +85,7 @@ class CodyAdapter(CLIAdapter):
 
         if not os.environ.get("SRC_ACCESS_TOKEN"):
             logger.warning(
-                "CodyAdapter: SRC_ACCESS_TOKEN not set — spawn may fail. "
+                "CodyAdapter: SRC_ACCESS_TOKEN not set - spawn may fail. "
                 "Run 'cody auth login' or set SRC_ACCESS_TOKEN and SRC_ENDPOINT."
             )
         if mcp_config:

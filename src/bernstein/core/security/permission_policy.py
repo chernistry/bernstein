@@ -284,7 +284,7 @@ def resolve_profile(
         2. ``BERNSTEIN_PERMISSION_PROFILE`` env var
         3. ``permissions.profile`` in ``bernstein.toml`` / ``bernstein.yaml``
 
-    Returns ``None`` when nothing is configured — callers MUST treat that
+    Returns ``None`` when nothing is configured - callers MUST treat that
     as "no policy installed" and preserve current default behaviour.
     """
     section = load_permissions_config(workdir) or {}
@@ -296,7 +296,7 @@ def resolve_profile(
     chosen_norm = str(chosen).strip().lower()
     base = get_builtin_profile(chosen_norm)
     if base is None:
-        # Unknown profile name — fail closed by returning a deny-all
+        # Unknown profile name - fail closed by returning a deny-all
         # skeleton named after what the operator asked for so the
         # audit trail shows the typo verbatim.
         logger.warning("Unknown permission profile %r; falling back to deny-all", chosen)
@@ -309,7 +309,7 @@ def resolve_profile(
 
 
 # ---------------------------------------------------------------------------
-# PolicyChecker — the one and only dispatch hook
+# PolicyChecker - the one and only dispatch hook
 # ---------------------------------------------------------------------------
 
 
@@ -390,7 +390,7 @@ class PolicyChecker:
         """
         prof = self._profile
 
-        # Deny paths always lose — even when the tool is broadly allowed.
+        # Deny paths always lose - even when the tool is broadly allowed.
         if call.path is not None and _match_glob(call.path, prof.deny_paths):
             return PermissionDecision(
                 type=DecisionType.DENY,
@@ -550,7 +550,7 @@ def check_tool_call(
     When *profile* is omitted the active profile is resolved via
     :func:`resolve_profile`. If no profile is configured at all the
     returned decision is :class:`DecisionType.ALLOW` with a reason that
-    flags the no-op path — callers can rely on the same return type in
+    flags the no-op path - callers can rely on the same return type in
     both modes.
     """
     effective = profile if profile is not None else resolve_profile(workdir=workdir)

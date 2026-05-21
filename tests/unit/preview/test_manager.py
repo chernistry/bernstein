@@ -58,7 +58,7 @@ class _FakeTunnel(TunnelBridge):
     """Tunnel bridge that returns a deterministic handle (or fails)."""
 
     def __init__(self, *, fail: bool = False) -> None:
-        # Skip the parent constructor — we override every method.
+        # Skip the parent constructor - we override every method.
         self.opened: list[tuple[int, str | None, str]] = []
         self.closed: list[str] = []
         self._fail = fail
@@ -166,7 +166,7 @@ def test_start_persists_state_and_writes_audit_chain(tmp_path: Path) -> None:
     audit = _audit_log(tmp_path)
     store = PreviewStore(path=tmp_path / "preview.json")
 
-    # Replace probe_port with an instant success — we don't want the
+    # Replace probe_port with an instant success - we don't want the
     # test to actually open a TCP socket.
     import bernstein.core.preview.manager as mgr_mod
 

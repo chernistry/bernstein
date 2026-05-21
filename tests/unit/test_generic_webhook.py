@@ -1,4 +1,4 @@
-"""Tests for POST /webhook — generic inbound webhook task creation."""
+"""Tests for POST /webhook - generic inbound webhook task creation."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ _WEBHOOK_SECRET = "s3cr3t"
 
 @pytest.fixture()
 def app(jsonl_path: Path, monkeypatch: pytest.MonkeyPatch):
-    # audit-042: endpoint now fail-closes when the secret is unset —
+    # audit-042: endpoint now fail-closes when the secret is unset -
     # every basic-creation test must therefore configure the secret and
     # pass it on each request.
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
@@ -53,7 +53,7 @@ def _signed(
     """Build valid HMAC + timestamp headers for ``POST /webhook`` (audit-121).
 
     ``ts`` is the value placed in the ``X-Bernstein-Timestamp`` header.
-    ``signed_ts`` is the value used when deriving the HMAC input —
+    ``signed_ts`` is the value used when deriving the HMAC input -
     defaults to ``ts`` so the signature matches.  Pass a different
     ``signed_ts`` to construct a mismatched request for negative tests.
     """
@@ -214,7 +214,7 @@ async def test_webhook_timestamp_header_bound_into_hmac(client: AsyncClient, mon
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
     now = int(time.time())
-    # Sign with one timestamp, advertise another — the server must reject.
+    # Sign with one timestamp, advertise another - the server must reject.
     headers = _signed(body, ts=now, signed_ts=now - 1)
     resp = await client.post("/webhook", content=body, headers=headers)
     assert resp.status_code == 401

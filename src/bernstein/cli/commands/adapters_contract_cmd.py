@@ -1,4 +1,4 @@
-"""``bernstein adapters contract-check`` — capability check for adapter CLIs.
+"""``bernstein adapters contract-check`` - capability check for adapter CLIs.
 
 Loads ``tests/contract/contracts/<name>.yaml``, runs the upstream CLI's
 ``--help`` in a sandboxed subprocess, and asserts every entry in
@@ -9,12 +9,12 @@ is set, the configured model-list command is also run and
 
 Exit codes:
 
-* ``0`` — contract holds. (Or binary not installed locally —
+* ``0`` - contract holds. (Or binary not installed locally -
   informational for developer machines; the CI workflow installs the
   CLI first.)
-* ``2`` — capability failure (missing flag/subcommand or model). Drift
+* ``2`` - capability failure (missing flag/subcommand or model). Drift
   is a hard fail per the refined design in #1291.
-* ``3`` — upstream CLI runtime failure (``--help`` exited non-zero with
+* ``3`` - upstream CLI runtime failure (``--help`` exited non-zero with
   empty output or no required tokens). The contract has not been
   evaluated; an operator should investigate the CLI install. The
   workflow treats this as a checker error rather than drift.
@@ -95,7 +95,7 @@ def contract_check_cmd(name: str | None, as_json: bool, list_only: bool) -> None
     #   3 -> upstream CLI runtime failure (--help broken). Surface as a
     #        distinct "checker degraded" code so the workflow does not
     #        misattribute it to contract drift.
-    # A missing binary is informational for developer machines — the CI
+    # A missing binary is informational for developer machines - the CI
     # workflow installs the CLI before invocation, so it never reaches
     # the capability-failure branches.
     if result.capability_failures or result.model_failures:

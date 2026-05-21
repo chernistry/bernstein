@@ -9,7 +9,7 @@ These tests exercise the full flow:
 * Corrupt trace → actionable error.
 * ``resume_count`` increments on each invocation.
 
-No live network, no spawned subprocesses — we drive the public API
+No live network, no spawned subprocesses - we drive the public API
 surface directly (CLI runner + the storage + adapter contract).
 """
 
@@ -183,7 +183,7 @@ def test_fallback_fresh_adapter_gets_scratchpad_reinjection(project_root: Path) 
     # fresh agent has the continuity it needs.
     assert "REMEMBER: we already wrote tests/foo.py" in plan.resume_context
 
-    # And the default CLIAdapter.resume() returns None — the orchestrator
+    # And the default CLIAdapter.resume() returns None - the orchestrator
     # uses that to decide "fall back to fresh".
     class _DefaultAdapter(CLIAdapter):
         def spawn(self, **_kwargs: object) -> object:  # type: ignore[override]
@@ -199,7 +199,7 @@ def test_fallback_fresh_adapter_gets_scratchpad_reinjection(project_root: Path) 
 def test_native_resume_adapter_can_return_reattachment(project_root: Path) -> None:
     """Adapters that override ``resume()`` return a SpawnResult.
 
-    We don't actually spawn a process here — we just verify the override
+    We don't actually spawn a process here - we just verify the override
     contract works without needing a real subprocess.
     """
     _simulate_step_transitions(
@@ -284,7 +284,7 @@ def test_resume_context_block_is_safe_to_prepend(project_root: Path) -> None:
     )
     cp = load_checkpoint(project_root, "prefix")
     block = build_resume_context(cp)
-    # Banner first, blank line, then prompt resumes — verify shape.
+    # Banner first, blank line, then prompt resumes - verify shape.
     assert block.startswith("## Resume context")
     assert "only-step" in block
     assert "some pad content" in block

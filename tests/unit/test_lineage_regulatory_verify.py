@@ -146,7 +146,7 @@ class TestSchemaForwardCompat:
                 "producer": {"agent_id": "a", "run_id": "run-future", "tick_id": None},
                 "prompt_sha": "p",
                 "model": "m",
-                # v3 hypothetical extra field — must not crash the v2 reader
+                # v3 hypothetical extra field - must not crash the v2 reader
                 "future_classification": "TLP-RED",
             },
             output={
@@ -492,10 +492,10 @@ class TestCsvEscaping:
     def test_regulatory_class_with_unicode_survives_round_trip(self) -> None:
         """Non-ASCII (e.g. cyrillic) characters round-trip without
         mojibake."""
-        rec = _make_record(regulatory_class="Конфиденциально — TLP:AMBER")
+        rec = _make_record(regulatory_class="Конфиденциально - TLP:AMBER")
         text = render_csv([_row_for(rec)])
         rows = list(csv.DictReader(io.StringIO(text)))
-        assert rows[0]["regulatory_class"] == "Конфиденциально — TLP:AMBER"
+        assert rows[0]["regulatory_class"] == "Конфиденциально - TLP:AMBER"
 
     def test_csv_preserves_full_signature_unlike_html(self) -> None:
         """The HTML view truncates the signature for readability; the CSV

@@ -1,10 +1,10 @@
 """Custom Textual widgets for the Bernstein TUI.
 
 This module is a thin re-export shim.  The actual implementations live in:
-- ``task_list``      — task display widgets, sparklines, constants
-- ``agent_log``      — log and quality gate widgets
-- ``status_bar``     — status, scratchpad, and coordinator widgets
-- ``approval_panel`` — approval, waterfall, tool observer, and SLO widgets
+- ``task_list``      - task display widgets, sparklines, constants
+- ``agent_log``      - log and quality gate widgets
+- ``status_bar``     - status, scratchpad, and coordinator widgets
+- ``approval_panel`` - approval, waterfall, tool observer, and SLO widgets
 """
 
 # pyright: reportPrivateUsage=false

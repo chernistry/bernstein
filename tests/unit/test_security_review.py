@@ -1,4 +1,4 @@
-"""Tests for security review module — pattern scanning on diffs."""
+"""Tests for security review module - pattern scanning on diffs."""
 
 from __future__ import annotations
 

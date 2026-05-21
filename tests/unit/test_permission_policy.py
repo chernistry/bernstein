@@ -260,7 +260,7 @@ class TestResolveProfile:
         profile = resolve_profile(workdir=tmp_path, cli_override="banana")
         assert profile is not None
         assert profile.name == "banana"
-        # No allow_tools — every check fails.
+        # No allow_tools - every check fails.
         decision = PolicyChecker(profile).check(ToolCall(tool="fs.read"))
         assert decision.type == DecisionType.DENY
 

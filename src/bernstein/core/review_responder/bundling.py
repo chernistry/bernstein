@@ -5,7 +5,7 @@ arrived inside :attr:`ResponderConfig.quiet_window_s` seconds.  Once
 sealed, the round is handed to :class:`ReviewResponder.run_round`.
 
 The bundler is intentionally clock-injectable so tests can drive it
-deterministically — :meth:`drain` accepts a ``now`` argument and the
+deterministically - :meth:`drain` accepts a ``now`` argument and the
 constructor accepts a ``clock`` callable.
 """
 
@@ -97,7 +97,7 @@ class RoundBundler:
         Args:
             now: Wall-clock to compare against.  Defaults to ``self.clock()``.
             force: When ``True``, seal every non-empty bundle regardless of
-                the quiet-window — used at shutdown / drain-mode.
+                the quiet-window - used at shutdown / drain-mode.
 
         Returns:
             List of sealed :class:`ReviewRound` instances, ordered by

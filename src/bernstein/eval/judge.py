@@ -1,4 +1,4 @@
-"""LLM judge — evaluate code quality of agent-produced changes.
+"""LLM judge - evaluate code quality of agent-produced changes.
 
 Dual-attempt strategy: standard prompt first, strict JSON suffix on parse failure.
 Circuit breaker stops after consecutive failures. Retry with exponential backoff.

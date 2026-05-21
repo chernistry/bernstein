@@ -1,4 +1,4 @@
-"""Failure taxonomy — classify every eval failure into a closed set.
+"""Failure taxonomy - classify every eval failure into a closed set.
 
 Tracking failure categories across runs reveals instability patterns
 and guides targeted improvements.

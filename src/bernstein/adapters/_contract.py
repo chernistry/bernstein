@@ -2,7 +2,7 @@
 
 For every Bernstein adapter we ship a YAML contract under
 ``tests/contract/contracts/<adapter>.yaml`` describing the *required*
-surface of the upstream CLI binary — the flags and subcommands the
+surface of the upstream CLI binary - the flags and subcommands the
 adapter always passes when it invokes the CLI.
 
 This module loads those contracts and asserts the local binary's
@@ -165,7 +165,7 @@ def _sandbox_env(extra: dict[str, str] | None = None) -> dict[str, str]:
 
     Equivalent to ``env -i`` plus the runtime variables a CLI typically
     needs (``PATH``, ``HOME``, locale, ``TERM``). Auth-bearing variables
-    are passed through only when ``extra`` opts them in — the help check
+    are passed through only when ``extra`` opts them in - the help check
     deliberately runs without auth.
     """
     keep = ("PATH", "HOME", "LANG", "LC_ALL", "TERM", "USER", "LOGNAME")
@@ -294,7 +294,7 @@ def check_contract(spec: ContractSpec) -> ContractResult:
     rc, help_text = _run_capture(spec.resolved_help_command(), timeout=_HELP_TIMEOUT_SECONDS)
     result.help_exit_code = rc
     if rc == 127:
-        # Race between shutil.which() and spawn — extremely rare but
+        # Race between shutil.which() and spawn - extremely rare but
         # we report it cleanly.
         result.binary_installed = False
         result.skipped_reason = help_text.strip()

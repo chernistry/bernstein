@@ -58,7 +58,7 @@ async def _create_task(
 
 
 # ---------------------------------------------------------------------------
-# POST /tasks — task creation contract
+# POST /tasks - task creation contract
 # ---------------------------------------------------------------------------
 
 
@@ -91,7 +91,7 @@ async def test_create_task_assigns_unique_ids(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# GET /tasks — list and filter
+# GET /tasks - list and filter
 # ---------------------------------------------------------------------------
 
 
@@ -121,7 +121,7 @@ async def test_list_tasks_filter_by_status_open(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# GET /tasks/{id} — single task fetch
+# GET /tasks/{id} - single task fetch
 # ---------------------------------------------------------------------------
 
 
@@ -144,7 +144,7 @@ async def test_get_task_returns_404_for_unknown_id(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /tasks/{id}/claim — task claiming
+# POST /tasks/{id}/claim - task claiming
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +160,7 @@ async def test_claim_task_sets_status_to_claimed(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /tasks/{id}/complete — task completion
+# POST /tasks/{id}/complete - task completion
 # ---------------------------------------------------------------------------
 
 
@@ -198,7 +198,7 @@ async def test_complete_task_stores_result_summary(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# POST /tasks/{id}/fail — task failure
+# POST /tasks/{id}/fail - task failure
 # ---------------------------------------------------------------------------
 
 
@@ -218,7 +218,7 @@ async def test_fail_task_sets_status_failed(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# GET /status — server health
+# GET /status - server health
 # ---------------------------------------------------------------------------
 
 

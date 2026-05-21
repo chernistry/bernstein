@@ -235,7 +235,7 @@ class TestJanitorPipeline:
         task = _make_task(status=TaskStatus.DONE, signals=[])
 
         results = await run_janitor([task], tmp_path)
-        assert len(results) == 0  # Skipped — no signals
+        assert len(results) == 0  # Skipped - no signals
 
 
 # ---------------------------------------------------------------------------
@@ -441,7 +441,7 @@ class TestFullSpawnExecuteVerifyMergePipeline:
         assert all_passed is False
         assert len(failed) > 0
 
-        # Task should NOT be closed — re-open for retry
+        # Task should NOT be closed - re-open for retry
         transition_task(task, TaskStatus.FAILED, actor="janitor")
         assert task.status == TaskStatus.FAILED
 

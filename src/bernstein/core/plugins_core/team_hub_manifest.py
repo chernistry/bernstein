@@ -1,7 +1,7 @@
 """Pydantic schema for a team-hub manifest (first slice).
 
 A *team hub* is a git repository that ships shared agents, skills, and
-rules so a whole team works against one source of truth — using ``git``
+rules so a whole team works against one source of truth - using ``git``
 as the substrate (no SaaS dial-in, no second auth surface, normal PR
 review).
 
@@ -46,7 +46,7 @@ _NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9-]*$")
 _MAX_MANIFEST_BYTES = 64 * 1024
 
 # Conservative shipping-bucket allowlist. Adding a new bucket is a deliberate
-# schema change — silently accepting unknown buckets would let a hub author
+# schema change - silently accepting unknown buckets would let a hub author
 # ship arbitrary directories that the loader has no merge policy for.
 _ALLOWED_BUCKETS: frozenset[str] = frozenset({"agents", "skills", "rules"})
 
@@ -166,7 +166,7 @@ def parse_team_hub_yaml(path: Path) -> TeamHubManifest:
     if len(raw.encode("utf-8")) > _MAX_MANIFEST_BYTES:
         raise TeamHubManifestError(
             path,
-            f"manifest exceeds {_MAX_MANIFEST_BYTES} bytes — refusing to parse",
+            f"manifest exceeds {_MAX_MANIFEST_BYTES} bytes - refusing to parse",
         )
 
     try:

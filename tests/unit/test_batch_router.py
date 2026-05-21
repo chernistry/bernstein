@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.batch_router — batch API routing for non-urgent tasks."""
+"""Tests for bernstein.core.batch_router - batch API routing for non-urgent tasks."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ class TestBatchDiscountFactor:
 
 
 # ---------------------------------------------------------------------------
-# classify_batch_mode — hard REALTIME gates
+# classify_batch_mode - hard REALTIME gates
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ class TestClassifyBatchModeRealtimeGates:
 
 
 # ---------------------------------------------------------------------------
-# classify_batch_mode — BATCH paths
+# classify_batch_mode - BATCH paths
 # ---------------------------------------------------------------------------
 
 
@@ -122,7 +122,7 @@ class TestClassifyBatchModeBatchPaths:
         assert "explicit" in result.reason.lower()
 
     def test_low_complexity_auto_routes_to_batch(self) -> None:
-        # batch_eligible=None means "auto-detect" — LOW complexity should qualify
+        # batch_eligible=None means "auto-detect" - LOW complexity should qualify
         task = _task(complexity=Complexity.LOW)  # uses default batch_eligible=None
         result = classify_batch_mode(task)
         assert result.mode == BatchMode.BATCH
@@ -165,7 +165,7 @@ class TestClassifyBatchModeBatchPaths:
 
 
 # ---------------------------------------------------------------------------
-# classify_batch_mode — default REALTIME
+# classify_batch_mode - default REALTIME
 # ---------------------------------------------------------------------------
 
 

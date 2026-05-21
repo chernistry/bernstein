@@ -150,7 +150,7 @@ def agents_md_write(workdir: Path, target: str, repo_name: str | None, dry_run: 
 
 
 # ---------------------------------------------------------------------------
-# sync — the killer-feature command
+# sync - the killer-feature command
 # ---------------------------------------------------------------------------
 
 
@@ -196,7 +196,7 @@ def agents_md_sync(workdir: Path, repo_name: str | None, dry_run: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# verify — CI-friendly drift detector
+# verify - CI-friendly drift detector
 # ---------------------------------------------------------------------------
 
 
@@ -279,7 +279,7 @@ def agents_md_verify(workdir: Path, target: str, repo_name: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
-# diff — informational, no exit-code drama
+# diff - informational, no exit-code drama
 # ---------------------------------------------------------------------------
 
 
@@ -386,7 +386,7 @@ def _read_pyproject_name(pyproj: Path) -> str | None:
         return None
     try:
         import tomllib  # py311+
-    except ImportError:  # pragma: no cover — handled at runtime
+    except ImportError:  # pragma: no cover - handled at runtime
         return None
     try:
         data: dict[str, object] = tomllib.loads(pyproj.read_text(encoding="utf-8"))
@@ -417,7 +417,7 @@ def _coerce_name_field(mapping: dict[object, object]) -> str | None:
     """Pull ``mapping["name"]`` and return it only when it's a usable string.
 
     Centralised so both manifest readers stay simple and pyright doesn't
-    have to chase ``Unknown`` types through nested narrowing — the
+    have to chase ``Unknown`` types through nested narrowing - the
     ``# type: ignore`` at the call sites is the trade-off for keeping JSON
     parsing typed-as-``object`` until the runtime check narrows it.
     """

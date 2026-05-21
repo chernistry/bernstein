@@ -1,4 +1,4 @@
-"""Parallel test execution runner — bucketed file-level isolation with history-aware balancing.
+"""Parallel test execution runner - bucketed file-level isolation with history-aware balancing.
 
 Distributes test files across worker buckets for parallel execution while
 maintaining per-file isolation (each file runs in its own subprocess) to

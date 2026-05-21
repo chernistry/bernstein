@@ -103,7 +103,7 @@ class HealthCheck:
 class GitOpsClient:
     """Builds API payloads for ArgoCD and Flux providers.
 
-    Does **not** call external APIs — it constructs the payloads and URL
+    Does **not** call external APIs - it constructs the payloads and URL
     metadata that a caller would send to the real provider.
     """
 
@@ -230,7 +230,7 @@ class GitOpsClient:
     def get_headers(self, config: dict[str, Any]) -> dict[str, str]:
         """Build auth headers for a provider request.
 
-        The token is referenced by environment-variable name — it is the
+        The token is referenced by environment-variable name - it is the
         caller's responsibility to resolve the env var before sending.
 
         Args:

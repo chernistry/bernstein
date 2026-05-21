@@ -43,7 +43,7 @@ _COMPLEXITY_MULTIPLIER: dict[str, float] = {
     "high": 2.0,
 }
 
-# Blended cost per 1k tokens — used to convert token estimates into USD.
+# Blended cost per 1k tokens - used to convert token estimates into USD.
 _BLENDED_COST_PER_1K: dict[str, float] = {
     "haiku": 0.003,
     "sonnet": 0.009,
@@ -85,8 +85,8 @@ class TaskFeatures:
 
     Attributes:
         role: Task role (backend, frontend, qa, etc.).
-        scope: Task scope — small, medium, or large.
-        complexity: Task complexity — low, medium, or high.
+        scope: Task scope - small, medium, or large.
+        complexity: Task complexity - low, medium, or high.
         model: Model name used for the task.
         file_count: Number of files in scope (0 if unknown).
         code_complexity: Normalised complexity score between 0.0 and 1.0.

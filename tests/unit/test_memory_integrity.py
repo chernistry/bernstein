@@ -459,7 +459,7 @@ class TestDetectMemoryPoisoning:
         assert result.is_suspicious
 
     def test_pinned_confidence_contributes_to_score(self) -> None:
-        # Confidence of 1.0 alone scores 1 — below threshold, so not suspicious,
+        # Confidence of 1.0 alone scores 1 - below threshold, so not suspicious,
         # but it IS recorded in matched_rules so it can amplify other signals.
         result = detect_memory_poisoning("Normal lesson.", ["general"], confidence=1.0)
         assert result.score == 1

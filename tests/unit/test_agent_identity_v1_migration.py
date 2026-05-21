@@ -105,7 +105,7 @@ class TestV1Fields:
 
 
 # ---------------------------------------------------------------------------
-# to_legacy_dict — back-compat shim
+# to_legacy_dict - back-compat shim
 # ---------------------------------------------------------------------------
 
 
@@ -139,7 +139,7 @@ class TestLegacyDict:
 
 
 # ---------------------------------------------------------------------------
-# card_hash — feature-flagged migration
+# card_hash - feature-flagged migration
 # ---------------------------------------------------------------------------
 
 
@@ -165,7 +165,7 @@ class TestCardHashMigration:
     def test_legacy_card_hash_stable_across_v1_field_addition(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A card that pre-dates the v1.0 fields must still hash the same.
 
-        This is the migration safety guarantee — adding empty v1.0 fields
+        This is the migration safety guarantee - adding empty v1.0 fields
         to a previously-created card must not change ``card_hash`` while
         the flag is off.
         """
@@ -194,7 +194,7 @@ class TestCardHashMigration:
         """Adding v1.0 fields to a card must not flip the legacy hash.
 
         Two cards that differ only in v1.0 fields must hash identically
-        when the flag is off — that's how operators safely populate the
+        when the flag is off - that's how operators safely populate the
         new fields ahead of flipping the migration switch.
         """
         monkeypatch.delenv(AGENT_CARD_V1_0_HASH_ENV, raising=False)

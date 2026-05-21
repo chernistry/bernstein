@@ -1,4 +1,4 @@
-"""Tests for MCP client — remote tool consumption."""
+"""Tests for MCP client - remote tool consumption."""
 
 from __future__ import annotations
 
@@ -149,7 +149,7 @@ class TestDataclasses:
 
 
 # ---------------------------------------------------------------------------
-# MCPClientSession — auth headers
+# MCPClientSession - auth headers
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +172,7 @@ class TestAuthHeaders:
 
 
 # ---------------------------------------------------------------------------
-# MCPClientSession — connect / list_tools / call_tool
+# MCPClientSession - connect / list_tools / call_tool
 # ---------------------------------------------------------------------------
 
 
@@ -333,7 +333,7 @@ class TestMCPClientSession:
 
 
 # ---------------------------------------------------------------------------
-# MCPClientSession — error handling
+# MCPClientSession - error handling
 # ---------------------------------------------------------------------------
 
 

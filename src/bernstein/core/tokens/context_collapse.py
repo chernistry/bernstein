@@ -9,7 +9,7 @@ Stages (ordered, applied sequentially until budget fits):
     2. **Drop sections:** Remove lowest-priority sections entirely.
     3. **Strip metadata:** Remove lesson context and recommendation blocks.
 
-Critical sections (priority >= 10 — role, task, instructions, signal) are
+Critical sections (priority >= 10 - role, task, instructions, signal) are
 never dropped or truncated.
 """
 
@@ -68,7 +68,7 @@ _DROPPABLE_SECTION_KEYWORDS: tuple[str, ...] = (
     "predecessor",
 )
 
-# Section priority table — must align with context_compression._SECTION_PRIORITIES.
+# Section priority table - must align with context_compression._SECTION_PRIORITIES.
 _SECTION_PRIORITIES: dict[str, int] = {
     "role": 10,
     "task": 10,
@@ -186,7 +186,7 @@ def _truncate_sections(
 
     For each section matching ``_TRUNCATABLE_SECTION_KEYWORDS``, compute how
     much to trim so that the total fits within *budget*.  Truncation is
-    proportional to the section's size — larger sections shrink more.
+    proportional to the section's size - larger sections shrink more.
 
     Sections with priority >= 10 are never truncated.
 

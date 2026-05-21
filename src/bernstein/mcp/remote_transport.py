@@ -166,7 +166,7 @@ def _jsonrpc_result(
 _TOOL_DEFS: list[dict[str, Any]] = [
     {
         "name": "bernstein_health",
-        "description": "Liveness check — always succeeds if the MCP server is running.",
+        "description": "Liveness check - always succeeds if the MCP server is running.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -396,7 +396,7 @@ class StreamableHTTPTransport:
 
         result = await self._handle_jsonrpc(session, message)
         if result is None:
-            # Notification — no response.
+            # Notification - no response.
             return (204, resp_headers, b"")
         return (200, resp_headers, json.dumps(result).encode())
 
@@ -466,7 +466,7 @@ class StreamableHTTPTransport:
         req_id = message.get("id")
         params = message.get("params", {})
 
-        # Notifications have no id — fire and forget.
+        # Notifications have no id - fire and forget.
         is_notification = req_id is None and "id" not in message
 
         handler = self._get_method_handler(method)
@@ -535,7 +535,7 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'tools/list' — return available tools."""
+        """Handle 'tools/list' - return available tools."""
         session.tools_listed = True
         return {"tools": _TOOL_DEFS}
 
@@ -696,7 +696,7 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'ping' — return empty result."""
+        """Handle 'ping' - return empty result."""
         return {}
 
     async def _method_noop(
@@ -900,7 +900,7 @@ class StreamableHTTPTransport:
             token = auth_header[7:]
             return _constant_time_eq(token, expected)
 
-        # Unknown auth type — deny.
+        # Unknown auth type - deny.
         return False
 
     # -- Session management --------------------------------------------------

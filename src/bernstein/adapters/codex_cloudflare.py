@@ -232,7 +232,7 @@ class CodexCloudflareAdapter:
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
-        # Timed out — cancel and return timeout result
+        # Timed out - cancel and return timeout result
         await self._cleanup_sandbox(sandbox_id)
         return CodexSandboxResult(
             sandbox_id=sandbox_id,

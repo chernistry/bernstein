@@ -5,9 +5,9 @@ environment is broken, the cost-per-line has crossed the budget ceiling,
 or the work is otherwise dishonest to finish, the only clean exit is to
 abandon. This module defines:
 
-* :class:`AbandonReason` — closed taxonomy of structured exit reasons.
-* :class:`Abandonment` — append-only ledger row.
-* :class:`AbandonmentLedger` — persistent JSONL ledger at
+* :class:`AbandonReason` - closed taxonomy of structured exit reasons.
+* :class:`Abandonment` - append-only ledger row.
+* :class:`AbandonmentLedger` - persistent JSONL ledger at
   ``.sdd/runtime/abandonments.jsonl`` with atomic appends and rate
   aggregations by role / adapter.
 
@@ -24,7 +24,7 @@ Design notes
   ledgers rely on.
 * :func:`Abandonment.to_dict` returns a JSON-safe dict; the inverse
   :meth:`Abandonment.from_dict` accepts malformed rows and either
-  populates safe defaults or — for unrecognised reasons — raises so the
+  populates safe defaults or - for unrecognised reasons - raises so the
   caller can decide whether to skip or surface the error.
 """
 
@@ -251,7 +251,7 @@ class AbandonmentLedger:
         PIPE_BUF (rows are far smaller than that ceiling).
 
         Raises:
-            OSError: Propagated when the underlying write fails — the
+            OSError: Propagated when the underlying write fails - the
                 caller decides whether to retry or surface the error.
         """
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -363,10 +363,10 @@ class AbandonmentLedger:
         """Return aggregate stats over the entire ledger.
 
         Keys:
-            * ``total`` — total row count.
-            * ``by_reason`` — reason value → row count.
-            * ``by_role`` — role → row count.
-            * ``by_adapter`` — adapter → row count.
+            * ``total`` - total row count.
+            * ``by_reason`` - reason value → row count.
+            * ``by_role`` - role → row count.
+            * ``by_adapter`` - adapter → row count.
         """
         by_reason: Counter[str] = Counter()
         by_role: Counter[str] = Counter()

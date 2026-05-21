@@ -303,7 +303,7 @@ class PermissionDelegator:
         for token_id in to_revoke:
             del self._tokens[token_id]
 
-        # Counts and worker_id only — not credentials.
+        # Counts and worker_id only - not credentials.
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Revoked %d tokens for worker %s",

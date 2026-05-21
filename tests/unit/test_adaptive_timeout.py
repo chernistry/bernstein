@@ -51,7 +51,7 @@ def _write_archive(path: Path, records: list[dict[str, object]]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# TimeoutFactors / TimeoutEstimate — frozen dataclass basics
+# TimeoutFactors / TimeoutEstimate - frozen dataclass basics
 # ---------------------------------------------------------------------------
 
 
@@ -340,7 +340,7 @@ class TestEdgeCases:
         """Haiku + small + low complexity gives 900*0.7*0.5=315 > 300, within bounds."""
         task = _make_task(scope=Scope.SMALL, complexity=Complexity.LOW)
         est = estimate_timeout(task, model="haiku")
-        # 900 * 0.7 * 0.5 = 315 — above 300, so not clamped
+        # 900 * 0.7 * 0.5 = 315 - above 300, so not clamped
         assert est.timeout_s == pytest.approx(315.0)
 
     def test_maximum_cap_enforced(self) -> None:

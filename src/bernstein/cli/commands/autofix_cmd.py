@@ -1,12 +1,12 @@
 """``bernstein autofix`` CLI group.
 
-Operator-facing entry points for the autofix daemon — start, stop,
+Operator-facing entry points for the autofix daemon - start, stop,
 status, attach.  All real logic lives in
 :mod:`bernstein.core.autofix.daemon`; this module is a thin click
 wrapper that handles argument parsing and stdout formatting.
 
 The CLI deliberately exposes :func:`start` *without* forking by
-default — operators are expected to launch the daemon under
+default - operators are expected to launch the daemon under
 ``bernstein daemon install`` (systemd / launchd) so the OS owns
 restart logic.  The ``--foreground`` / ``--once`` flags exist
 for tests and on-demand runs.
@@ -84,8 +84,8 @@ def _placeholder_failing_source(
 ) -> list[object]:
     """Default ``FailingPRSource`` used by ``start`` when none is wired.
 
-    The CLI does not yet ship a network-backed source — that lands in
-    a follow-up — so the placeholder returns no candidates and lets
+    The CLI does not yet ship a network-backed source - that lands in
+    a follow-up - so the placeholder returns no candidates and lets
     the daemon idle politely.  Tests inject their own callable via
     :func:`bernstein.core.autofix.daemon.tick_once` directly.
     """
@@ -291,7 +291,7 @@ def _double_fork_daemon(
         time.sleep(0.1)
         return _safe_pid(dispatcher_workdir)
 
-    # Intermediate child — fork again and exit.
+    # Intermediate child - fork again and exit.
     if os.fork() != 0:
         os._exit(0)
 
@@ -308,7 +308,7 @@ def _double_fork_daemon(
         for name in sorted(repos):
             args.extend(["--repo", name])
     os.execvp(args[0], args)
-    return 0  # pragma: no cover — execvp does not return on success
+    return 0  # pragma: no cover - execvp does not return on success
 
 
 def _safe_pid(workdir: Path) -> int:
@@ -395,7 +395,7 @@ def status_cmd(watch: bool, as_json: bool, limit: int) -> None:
         return
 
     # Naive tail: poll the JSONL file once per second and print new
-    # entries.  The implementation is deliberately simple — this is
+    # entries.  The implementation is deliberately simple - this is
     # an operator console, not a high-throughput sink.
     seen = {str(a.get("attempt_id")) for a in attempts}
     try:
@@ -453,7 +453,7 @@ def attach_cmd(limit: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# review — poll a PR for review-comment routing
+# review - poll a PR for review-comment routing
 # ---------------------------------------------------------------------------
 
 
@@ -512,14 +512,14 @@ def review_cmd(
     Tasks are appended as JSONL to ``.sdd/runtime/autofix-review-tasks.jsonl``
     relative to the current workspace (override with ``--task-log``).
     Each task carries the file, line range, comment body, reviewer login,
-    diff hunk and permalink — enough for the spawning agent to address
+    diff hunk and permalink - enough for the spawning agent to address
     the comment without re-fetching from GitHub.
     """
     workdir = _resolve_workdir()
     resolved_pr = resolve_pr_number(explicit=pr_number, workdir=workdir)
     if resolved_pr is None:
         raise click.ClickException(
-            "no PR specified — pass --pr, set BERNSTEIN_REVIEW_PR_NUMBER, or set ``git config bernstein.spawn-pr``."
+            "no PR specified - pass --pr, set BERNSTEIN_REVIEW_PR_NUMBER, or set ``git config bernstein.spawn-pr``."
         )
 
     log_path = task_log_path or (workdir / _REVIEW_TASK_LOG)
@@ -561,7 +561,7 @@ def review_cmd(
 
 
 # ---------------------------------------------------------------------------
-# review-register / review-resolve — operator-facing worktree registry
+# review-register / review-resolve - operator-facing worktree registry
 # ---------------------------------------------------------------------------
 
 
@@ -661,7 +661,7 @@ def review_resolve_cmd(pr_number: int, as_json: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ladder — RFC #1415 escalation ladder, dry-run only in MVP
+# ladder - RFC #1415 escalation ladder, dry-run only in MVP
 # ---------------------------------------------------------------------------
 
 

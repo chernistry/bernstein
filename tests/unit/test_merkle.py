@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.merkle — Merkle-tree audit seal."""
+"""Tests for bernstein.core.merkle - Merkle-tree audit seal."""
 
 from __future__ import annotations
 
@@ -225,7 +225,7 @@ class TestSealPersistence:
 
 
 # ---------------------------------------------------------------------------
-# verify_merkle — the core security property
+# verify_merkle - the core security property
 # ---------------------------------------------------------------------------
 
 

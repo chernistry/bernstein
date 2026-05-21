@@ -190,7 +190,7 @@ class TestIdempotencyStore:
             actor="test",
         )
         store = IdempotencyStore(sdd_dir)
-        # Must not raise — OSError is caught and logged.
+        # Must not raise - OSError is caught and logged.
         store.mark_executed(entry)
         # In-memory state should reflect that the durable write failed.
         assert store.is_executed(entry) is False
@@ -224,7 +224,7 @@ class TestIdempotencyStore:
 
 
 # ---------------------------------------------------------------------------
-# WALReplayEngine — scanning
+# WALReplayEngine - scanning
 # ---------------------------------------------------------------------------
 
 
@@ -258,7 +258,7 @@ class TestWALReplayScanning:
 
 
 # ---------------------------------------------------------------------------
-# WALReplayEngine — idempotency
+# WALReplayEngine - idempotency
 # ---------------------------------------------------------------------------
 
 
@@ -271,7 +271,7 @@ class TestWALReplayIdempotency:
         # First replay
         summary1 = engine.scan_and_replay()
         assert summary1.replayed == 2
-        # Second replay — same entries should be skipped
+        # Second replay - same entries should be skipped
         engine2 = WALReplayEngine(sdd_dir, current_run_id="current")
         summary2 = engine2.scan_and_replay()
         assert summary2.skipped_idempotent == 2
@@ -279,7 +279,7 @@ class TestWALReplayIdempotency:
 
 
 # ---------------------------------------------------------------------------
-# WALReplayEngine — staleness
+# WALReplayEngine - staleness
 # ---------------------------------------------------------------------------
 
 
@@ -313,7 +313,7 @@ class TestWALReplayStaleness:
 
 
 # ---------------------------------------------------------------------------
-# WALReplayEngine — replay handler
+# WALReplayEngine - replay handler
 # ---------------------------------------------------------------------------
 
 
@@ -356,7 +356,7 @@ class TestReplayHandler:
 
 
 # ---------------------------------------------------------------------------
-# WALReplayEngine — informational entries
+# WALReplayEngine - informational entries
 # ---------------------------------------------------------------------------
 
 

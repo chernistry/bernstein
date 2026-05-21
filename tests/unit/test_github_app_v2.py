@@ -228,7 +228,7 @@ class TestPRCommentHandler:
         )
         # /bernstein unknownaction is recognised as a slash command attempt
         # but returns None from slash_command_to_task, and the text doesn't
-        # contain actionable review language — so result is empty
+        # contain actionable review language - so result is empty
         tasks = PRCommentHandler().handle(event)
         assert tasks == []
 

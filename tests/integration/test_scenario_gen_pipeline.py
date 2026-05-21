@@ -7,7 +7,7 @@ were hand-authored. The integration boundary is interesting because the
 incident-eval harness reads YAML files we emit, and any schema drift
 between the generator and the harness would surface here.
 
-These are integration-marked tests but stay offline — no network, no
+These are integration-marked tests but stay offline - no network, no
 real LLM calls. The Click ``CliRunner`` exercises the public CLI
 surface so a future packaging refactor that breaks command registration
 is caught here.
@@ -211,8 +211,8 @@ def test_cli_disable_switch_short_circuits(tmp_path: Path, monkeypatch: pytest.M
 def test_emitted_cases_match_incident_eval_case_schema(tmp_path: Path) -> None:
     """The synthetic case YAML carries every key the incident harness reads.
 
-    The incident harness scans the directory for ``inc-*.yaml`` files —
-    we deliberately use a ``syn-*.yaml`` prefix to avoid collisions —
+    The incident harness scans the directory for ``inc-*.yaml`` files -
+    we deliberately use a ``syn-*.yaml`` prefix to avoid collisions -
     but the wire format (id / severity / prompt / expected_outcome /
     source) must remain compatible so a future shared loader can ingest
     both.
@@ -259,7 +259,7 @@ def test_mixed_trace_record_shapes_detected(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Cap from-traces N — only the most recent files are considered
+# 7. Cap from-traces N - only the most recent files are considered
 # ---------------------------------------------------------------------------
 
 
@@ -305,7 +305,7 @@ def test_deterministic_file_set_across_runs(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 9. CLI run does not require network — no live LLM is touched.
+# 9. CLI run does not require network - no live LLM is touched.
 # ---------------------------------------------------------------------------
 
 

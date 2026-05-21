@@ -1,4 +1,4 @@
-"""PR Size Governor — auto-split large agent PRs into reviewable chunks.
+"""PR Size Governor - auto-split large agent PRs into reviewable chunks.
 
 Addresses the 'bottleneck is verification' problem (Addy Osmani) by enforcing
 a maximum PR size of 400 changed lines and creating chained PRs with correct
@@ -16,7 +16,7 @@ Usage::
         head_ref="HEAD",
     )
     if result is None:
-        # PR is small enough — create a normal single PR
+        # PR is small enough - create a normal single PR
         create_github_pr(cwd, ...)
     else:
         # Split PRs were created
@@ -438,7 +438,7 @@ def execute_split(
         if result is None:
             continue  # Empty diff, skipped
         if isinstance(result, SplitResult):
-            # Fatal error — merge partial pr_urls and return
+            # Fatal error - merge partial pr_urls and return
             _restore(cwd, original_branch)
             return SplitResult(
                 pr_urls=pr_urls + result.pr_urls,
@@ -446,7 +446,7 @@ def execute_split(
                 success=False,
                 error=result.error,
             )
-        # Success — result is a PR URL or empty string
+        # Success - result is a PR URL or empty string
         if result:
             pr_urls.append(result)
 
@@ -534,7 +534,7 @@ def _execute_chunk(
         file_summary += f" (+{len(chunk.files) - 3} more)"
     commit_msg = (
         f"{pr_title_prefix}: {file_summary} {part_label}\n\n"
-        f"Part {chunk.part_number} of {total} — {chunk.line_count} lines changed\n\n"
+        f"Part {chunk.part_number} of {total} - {chunk.line_count} lines changed\n\n"
         f"Files:\n"
         + "\n".join(f"  {f}" for f in chunk.files)
         + "\n\nCo-Authored-By: bernstein[bot] <noreply@bernstein.dev>"
@@ -582,7 +582,7 @@ def _build_pr_body(chunk: PRChunk, plan: SplitPlan, prefix: str) -> str:
         parts.append(prefix)
 
     parts.append(
-        f"**Part {chunk.part_number} of {total}** — {chunk.line_count} lines changed\n\n"
+        f"**Part {chunk.part_number} of {total}** - {chunk.line_count} lines changed\n\n"
         f"Files in this PR:\n" + "\n".join(f"- `{f}`" for f in chunk.files)
     )
 

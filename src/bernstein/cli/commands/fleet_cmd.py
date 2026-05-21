@@ -1,4 +1,4 @@
-"""``bernstein fleet`` — supervisory dashboard across multiple projects.
+"""``bernstein fleet`` - supervisory dashboard across multiple projects.
 
 This is the CLI entry point. The actual aggregator and rendering live in
 :mod:`bernstein.core.fleet`; this module only wires Click subcommands to
@@ -190,7 +190,7 @@ def _bulk_target(
     """Resolve a target list using the *static* config snapshot.
 
     Unlike the TUI, the CLI bulk path doesn't need the live aggregator
-    — projects are filtered by their on-disk cost history when a filter
+    - projects are filtered by their on-disk cost history when a filter
     references ``cost``.
     """
     from bernstein.core.fleet.aggregator import ProjectSnapshot, ProjectState
@@ -291,7 +291,7 @@ def bulk_cost_report_cmd(
 def ls_cmd(ctx: click.Context) -> None:
     """List configured projects without launching the dashboard."""
     config = _resolve_config(ctx.obj.get("config_path"))
-    table = Table(title="Bernstein fleet — configured projects")
+    table = Table(title="Bernstein fleet - configured projects")
     table.add_column("Name")
     table.add_column("Path")
     table.add_column("Task server")

@@ -1,4 +1,4 @@
-"""File-watch trigger source — uses watchdog to observe filesystem changes.
+"""File-watch trigger source - uses watchdog to observe filesystem changes.
 
 The FileWatchSource runs a watchdog observer in a daemon thread within
 the orchestrator process. Events are buffered and debounced per trigger
@@ -47,7 +47,7 @@ class FileWatchSource:
             from watchdog.events import FileSystemEvent, FileSystemEventHandler
             from watchdog.observers import Observer
         except ImportError:
-            logger.warning("watchdog not installed — file-watch triggers disabled")
+            logger.warning("watchdog not installed - file-watch triggers disabled")
             return False
 
         class _Handler(FileSystemEventHandler):
@@ -81,7 +81,7 @@ class FileWatchSource:
             self._running = False
 
     def _on_fs_event(self, path: str, event_type: str) -> None:
-        """Handle a raw filesystem event — add to debounce buffer."""
+        """Handle a raw filesystem event - add to debounce buffer."""
         # Create a TriggerEvent directly (debounce is handled by TriggerManager conditions)
         event = TriggerEvent(
             source="file_watch",

@@ -4,19 +4,19 @@ Adoption of Anthropic's Opus 4.7 ``task-budgets-2026-03-13`` beta header
 relies on the model seeing a running countdown of remaining tokens,
 dollars, and steps every turn. This module owns:
 
-- :func:`format_countdown` — deterministic banner string used by every
+- :func:`format_countdown` - deterministic banner string used by every
   adapter so the model sees the same single line regardless of provider.
-- :func:`should_finish_gracefully` — predicate the orchestrator consults
+- :func:`should_finish_gracefully` - predicate the orchestrator consults
   to decide between ``graceful-finish-on-low`` and ``hard-stop-on-zero``
   semantics declared on the agent identity card.
-- :func:`task_budgets_beta_headers` — header dict (and matching
+- :func:`task_budgets_beta_headers` - header dict (and matching
   ``ANTHROPIC_BETA`` env var) emitted on Anthropic-flavoured calls when
   the agent identity card opts in via its ``extensions`` map and the
   process has set ``BERNSTEIN_ANTHROPIC_TASK_BUDGETS=true``.
 
 The banner is intentionally tiny (one line) and free of ANSI escapes so
-it survives every transport — JSONL stdout, MCP messages, system-prompt
-prefixes — and stays cheap enough to inject every turn without growing
+it survives every transport - JSONL stdout, MCP messages, system-prompt
+prefixes - and stays cheap enough to inject every turn without growing
 the cached prefix.
 
 This module is pure: no IO, no global state. It is safe to call from
@@ -116,7 +116,7 @@ def format_countdown(
             [budget] tokens left: 18,420 of 64,000 (28%) | $0.42 of $1.50 |
                     steps: 7 of 30 | mode: graceful-finish-on-low
 
-        Newlines in the docstring example are for readability — the real
+        Newlines in the docstring example are for readability - the real
         return value is a single line.
     """
     tokens_left = turn_state.remaining(card)
@@ -172,7 +172,7 @@ def is_task_budgets_opt_in() -> bool:
 
     Reads :data:`TASK_BUDGETS_OPT_IN_ENV`. The flag is intentionally
     process-scoped (not card-scoped) because the underlying Anthropic
-    header has to be emitted on every API call from the spawned process —
+    header has to be emitted on every API call from the spawned process -
     a card-only opt-in could not propagate without the orchestrator
     cooperating.
     """

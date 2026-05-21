@@ -1,4 +1,4 @@
-"""Tests for datadog_export — DogStatsD metrics exporter."""
+"""Tests for datadog_export - DogStatsD metrics exporter."""
 
 from __future__ import annotations
 

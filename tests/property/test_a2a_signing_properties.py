@@ -87,7 +87,7 @@ def test_signature_rejects_modified_card(card: AgentIdentityCard) -> None:
 def test_signature_rejects_swapped_payload(card: AgentIdentityCard) -> None:
     """A non-detached JWS (filled payload segment) must be refused.
 
-    Detached JWS is a *security* property here — verifiers must not be
+    Detached JWS is a *security* property here - verifiers must not be
     tricked into treating an inline-payload JWS with the same signature
     bytes as equivalent. The spec guards this; the property locks it
     in.

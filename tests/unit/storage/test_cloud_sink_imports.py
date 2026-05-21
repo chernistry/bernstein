@@ -1,6 +1,6 @@
 """Smoke tests: cloud sink modules must import without optional SDKs.
 
-The ticket mandates that missing SDKs never break ``import`` — only
+The ticket mandates that missing SDKs never break ``import`` - only
 instantiation against missing deps should fail. These tests exercise
 the guarantee by making sure each sink module is importable even when
 the extra-specific SDK is absent.

@@ -50,7 +50,7 @@ class ApprovalResult:
 
 
 # ---------------------------------------------------------------------------
-# Command normalization — defeat evasion techniques
+# Command normalization - defeat evasion techniques
 # ---------------------------------------------------------------------------
 
 # Unicode homoglyph map: visually similar characters → ASCII equivalents.
@@ -216,12 +216,12 @@ def normalize_command(cmd: str) -> str:
 # Pattern lists
 # ---------------------------------------------------------------------------
 
-# Allow patterns — safe, read-only or low-risk operations.
+# Allow patterns - safe, read-only or low-risk operations.
 # Each entry is a raw regex string matched against the stripped sub-command.
 #
 # IMPORTANT: Do NOT add bare `^<tool>\s` patterns for tools that can take
 # arbitrary paths or arguments (python, cat, cp, mv, mkdir, touch, rm).
-# Any such allowance effectively defeats the deny list — e.g. bare
+# Any such allowance effectively defeats the deny list - e.g. bare
 # `^python\s` lets an agent run `python /tmp/evil.py`, and bare `^cat\s`
 # lets it read `/etc/shadow`.  If an invocation is genuinely safe, encode
 # that safety into the regex (fixed sub-command, no caller-controlled
@@ -229,7 +229,7 @@ def normalize_command(cmd: str) -> str:
 # escape hatch.
 _ALLOW_PATTERNS: Final[list[str]] = [
     # Filesystem read-only (bare `cat`/`head`/`tail` intentionally NOT
-    # allowed here — see credential-read deny patterns below; operators
+    # allowed here - see credential-read deny patterns below; operators
     # can opt in via BERNSTEIN_AUTO_APPROVE_EXTRA if needed)
     r"^ls(\s|$)",
     r"^head\s",
@@ -270,7 +270,7 @@ _ALLOW_PATTERNS: Final[list[str]] = [
     r"^command\s",
     r"^ps\s",
     r"^top\s",
-    # Python / uv — restricted: only `-m <allowed_tool>` or version probe.
+    # Python / uv - restricted: only `-m <allowed_tool>` or version probe.
     # Bare `python <script>` is NOT auto-approved because the script path
     # is caller-controlled (agent could run python /tmp/evil.py).
     r"^python(\d(\.\d+)?)?\s+--version$",
@@ -309,7 +309,7 @@ _ALLOW_PATTERNS: Final[list[str]] = [
     r"^cd$",
 ]
 
-# Deny patterns — destructive or high-risk operations.
+# Deny patterns - destructive or high-risk operations.
 _DENY_PATTERNS: Final[list[str]] = [
     # Destructive filesystem
     r"\brm\s+.*(-[a-zA-Z]*r[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*)\s",
@@ -350,7 +350,7 @@ _DENY_PATTERNS: Final[list[str]] = [
     r"\bwget\b.*\|\s*(ba)?sh\b",
     r"\bcurl\b.*\|\s*python\b",
     r"\bwget\b.*\|\s*python\b",
-    # Process termination — aggressive
+    # Process termination - aggressive
     r"\bkill\s+.*-9\b",
     r"\bkill\s+.*-SIGKILL\b",
     r"\bpkill\s",
@@ -367,7 +367,7 @@ _DENY_PATTERNS: Final[list[str]] = [
     r">\s*~/\.ssh/",
     r">\s*/root/",
     # Writing to Bernstein control-plane state (no agent should mutate these
-    # via raw shell — they are the orchestrator's source of truth)
+    # via raw shell - they are the orchestrator's source of truth)
     r">\s*\.bernstein/",
     r">\s*\.sdd/",
     r">>\s*\.bernstein/",
@@ -402,7 +402,7 @@ _DENY_PATTERNS: Final[list[str]] = [
     r"\broute\s+(add|del|flush)\b",
     r"\bnetcat\b\s+.*-[eE]\b",  # reverse shell pattern
     r"\bnc\b\s+.*-[eE]\b",
-    # Package installs (no --global-as-global needed — any install is review-worthy)
+    # Package installs (no --global-as-global needed - any install is review-worthy)
     r"\bnpm\s+(install|i|add|uninstall|remove|ci)\b",
     r"\byarn\s+(add|remove|install)\b",
     r"\bpnpm\s+(add|remove|install)\b",
@@ -411,7 +411,7 @@ _DENY_PATTERNS: Final[list[str]] = [
     r"\bcargo\s+(install|uninstall)\b",
     r"\bgo\s+install\b",
     r"\bgem\s+(install|uninstall)\b",
-    # Git push without explicit branch/remote pattern — must be reviewed.
+    # Git push without explicit branch/remote pattern - must be reviewed.
     # We keep a narrow allow for `git push origin main`/`HEAD` via the
     # deny-not-matching fall-through; any other `git push` falls into ASK.
     r"\bgit\s+push\s+.*--mirror\b",
@@ -435,7 +435,7 @@ _DENY_PATTERNS: Final[list[str]] = [
 #
 #        BERNSTEIN_AUTO_APPROVE_EXTRA='^make\s+test$::^docker\s+ps$'
 #
-# 2. :func:`set_extra_allow_patterns` — programmatic override, useful for
+# 2. :func:`set_extra_allow_patterns` - programmatic override, useful for
 #    tests and for operators loading config from a file.
 #
 # Deny patterns always take precedence over extra allow patterns: the
@@ -470,7 +470,7 @@ def _parse_extra_patterns(raw: str | None) -> list[re.Pattern[str]]:
         try:
             out.append(re.compile(pattern))
         except re.error:
-            # Malformed regex — never widen the allow list on bad input
+            # Malformed regex - never widen the allow list on bad input
             continue
     return out
 
@@ -574,7 +574,7 @@ def decompose_command(cmd: str) -> list[str]:
     Handles:
     - ``&&`` and ``||`` (short-circuit operators)
     - ``;`` (sequential execution)
-    - ``|`` (pipes — each segment is a separate command)
+    - ``|`` (pipes - each segment is a separate command)
     - Quoted strings (single and double) are not split inside quotes.
 
     Args:

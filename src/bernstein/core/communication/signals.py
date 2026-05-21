@@ -27,7 +27,7 @@ class PivotSignal:
         agent_id: ID of the agent that filed the signal.
         task_id: ID of the task during which the pivot was discovered.
         signal_type: Type of signal (currently only ``strategic_pivot``).
-        severity: Impact level — low/medium pivots are handled inline,
+        severity: Impact level - low/medium pivots are handled inline,
             high pivots route to VP.
         summary: Human-readable description of what was discovered.
         affected_tickets: Task IDs whose assumptions are invalidated.
@@ -207,7 +207,7 @@ def record_vp_decision(decision: VPDecision, workdir: Path) -> None:
     with path.open("a") as f:
         f.write(line + "\n")
     logger.info(
-        "VP decision for pivot %s: %s — %s",
+        "VP decision for pivot %s: %s - %s",
         decision.pivot_task_id,
         decision.decision,
         decision.rationale[:80],

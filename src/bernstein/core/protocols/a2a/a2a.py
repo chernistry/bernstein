@@ -21,21 +21,21 @@ Implements Google's A2A protocol for agent interoperability. Provides:
 #    Federation: an external Bernstein instance (or a third-party A2A-
 #    compatible orchestrator) sends tasks into this instance via
 #    POST /a2a/tasks/send. This lets two orchestrators delegate work to
-#    each other — e.g. a "backend" Bernstein farms out a design task to
+#    each other - e.g. a "backend" Bernstein farms out a design task to
 #    a "frontend" Bernstein running elsewhere.
 #    Another use case: a VS Code extension or external dashboard that
 #    speaks A2A instead of the native Bernstein API.
 #
 # 3. Is the HTTP overhead justified vs file-based coordination?
-#    For cross-machine federation, yes — HTTP is the only option. For
-#    same-machine agents, no — Bernstein already coordinates through the
+#    For cross-machine federation, yes - HTTP is the only option. For
+#    same-machine agents, no - Bernstein already coordinates through the
 #    task server API + .sdd/ files, and A2A adds a redundant translation
 #    layer. The in-memory A2AHandler is also not persisted, so A2A tasks
 #    are lost on server restart.
 #
 # 4. Recommendation: KEEP but mark as experimental / opt-in.
 #    The code is clean, well-tested, and low-maintenance. Removing it
-#    saves nothing. But it should not be on the critical path — the
+#    saves nothing. But it should not be on the critical path - the
 #    routes should stay registered (free discovery via /.well-known/
 #    agent.json) but documented as experimental until there is a real
 #    external consumer. No further investment until federation is needed.
@@ -120,7 +120,7 @@ _BERNSTEIN_TO_A2A: dict[str, A2ATaskStatus] = {
 
 @dataclass(frozen=True)
 class AgentCard:
-    """A2A Agent Card — discovery metadata for an agent.
+    """A2A Agent Card - discovery metadata for an agent.
 
     Published at ``/.well-known/agent.json`` for the orchestrator, or at
     per-agent endpoints for individual agents.

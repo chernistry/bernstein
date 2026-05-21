@@ -35,7 +35,7 @@ def test_completions_default_is_bash() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["completions"])
     assert result.exit_code == 0
-    # Default shell is bash — should contain bash-specific function
+    # Default shell is bash - should contain bash-specific function
     assert "_bernstein_completion" in result.output
 
 

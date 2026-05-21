@@ -5,8 +5,8 @@ and spawning agents. It imports lower-level startup logic from server_launch.py
 and preflight checks from preflight.py.
 
 Entry points:
-- bootstrap_from_seed() — read bernstein.yaml and launch
-- bootstrap_from_goal() — quick launch from inline goal string
+- bootstrap_from_seed() - read bernstein.yaml and launch
+- bootstrap_from_goal() - quick launch from inline goal string
 """
 
 from __future__ import annotations
@@ -165,11 +165,11 @@ def _register_mcp_discovery(workdir: Path) -> None:
 
 
 # Install PII redaction on the root logger so all handlers receive sanitised
-# messages — no email, phone, SSN, or credit-card number reaches disk/stdout.
+# messages - no email, phone, SSN, or credit-card number reaches disk/stdout.
 install_pii_filter()
 console = Console()
 
-# Constants — re-export for backward compat
+# Constants - re-export for backward compat
 SDD_DIRS = (
     ".sdd",
     ".sdd/backlog",
@@ -204,7 +204,7 @@ __all__ = [
 def _send_webhook(config: NotifyConfig, payload: dict[str, Any]) -> None:
     """POST a JSON payload to the configured webhook URL.
 
-    Errors are logged but never propagate — this must never crash the run.
+    Errors are logged but never propagate - this must never crash the run.
 
     Args:
         config: Notification configuration containing the webhook URL.
@@ -217,7 +217,7 @@ def _send_webhook(config: NotifyConfig, payload: dict[str, Any]) -> None:
         logger.info("Webhook POST %s -> %d", config.webhook_url, resp.status_code)
     except httpx.RequestError as exc:
         logger.error(
-            "Webhook POST to %s failed (%s: %s) — continuing without notification",
+            "Webhook POST to %s failed (%s: %s) - continuing without notification",
             config.webhook_url,
             type(exc).__name__,
             exc,
@@ -231,10 +231,10 @@ def _run_git_hygiene(workdir: Path) -> None:
 
         run_hygiene(workdir, full=True)
     except ImportError as exc:
-        logger.warning("Git hygiene module unavailable — skipping: %s", exc)
+        logger.warning("Git hygiene module unavailable - skipping: %s", exc)
     except (OSError, subprocess.SubprocessError) as exc:
         logger.warning(
-            "Pre-startup git hygiene failed (%s: %s) — continuing",
+            "Pre-startup git hygiene failed (%s: %s) - continuing",
             type(exc).__name__,
             exc,
         )
@@ -259,10 +259,10 @@ def _check_safety_invariants(workdir: Path) -> None:
             console.print(f"[bold red]⚠ {len(violations)} locked file(s) modified[/bold red]")
         write_lockfile(workdir)
     except ImportError as exc:
-        logger.warning("Invariants module unavailable — skipping check: %s", exc)
+        logger.warning("Invariants module unavailable - skipping check: %s", exc)
     except OSError as exc:
         logger.warning(
-            "Invariant check failed (%s: %s) — continuing",
+            "Invariant check failed (%s: %s) - continuing",
             type(exc).__name__,
             exc,
         )
@@ -303,7 +303,7 @@ def _register_ci_parsers() -> None:
 
         register_built_in_ci_parsers()
     except ImportError as exc:
-        logger.warning("CI adapters unavailable — skipping parser registration: %s", exc)
+        logger.warning("CI adapters unavailable - skipping parser registration: %s", exc)
 
 
 def _load_secrets_provider(seed: Any) -> None:
@@ -453,7 +453,7 @@ def bootstrap_from_seed(
 
     # ── Compact bootstrap: all steps on one screen ──
 
-    # 0. Pre-startup git hygiene — clean stale worktrees/branches from prior runs
+    # 0. Pre-startup git hygiene - clean stale worktrees/branches from prior runs
     _run_git_hygiene(workdir)
 
     # 1. Parse seed
@@ -466,7 +466,7 @@ def bootstrap_from_seed(
     check_config_paths(seed, workdir)
     effective_cells = cells if cells is not None else seed.cells
 
-    # 2. Workspace + catalog + index (silent — errors logged, not printed)
+    # 2. Workspace + catalog + index (silent - errors logged, not printed)
     ensure_sdd(workdir)
     _clean_stale_runtime(workdir)
     _discover_catalog(workdir)
@@ -489,7 +489,7 @@ def bootstrap_from_seed(
     # 3. Load secrets provider if configured
     _load_secrets_provider(seed)
 
-    # 4. Start server (compact output — single line)
+    # 4. Start server (compact output - single line)
     server_pid = supervised_server(
         workdir,
         port,
@@ -629,7 +629,7 @@ def _watchdog_check_process(
             return now, restarts, give_up_logged
         if restarts > 0 and (now - alive_since) >= reset_after_s:
             logger.info(
-                "%s has been healthy for %.0fs — resetting restart counter",
+                "%s has been healthy for %.0fs - resetting restart counter",
                 name,
                 now - alive_since,
             )
@@ -657,7 +657,7 @@ def _watchdog_check_process(
             post_restart_fn()
     except (OSError, subprocess.SubprocessError) as exc:
         logger.error(
-            "Failed to restart %s (%s: %s) — will retry next cycle",
+            "Failed to restart %s (%s: %s) - will retry next cycle",
             name,
             type(exc).__name__,
             exc,
@@ -750,7 +750,7 @@ def bootstrap_from_goal(
 
     Creates a minimal SeedConfig from the goal and delegates to the
     standard bootstrap flow.  When ``cli="auto"`` (the default), the best
-    available CLI agent is detected automatically — no configuration required.
+    available CLI agent is detected automatically - no configuration required.
 
     Args:
         goal: Plain-text project goal.
@@ -841,7 +841,7 @@ def _goal_sync_and_plan(
         completed_count = len(prior_session.completed_task_ids)
         console.print(
             f"[bold cyan]Resuming from previous session[/bold cyan] "
-            f"({completed_count} task(s) already completed — skipping re-planning)"
+            f"({completed_count} task(s) already completed - skipping re-planning)"
         )
     elif tasks:
         _post_plan_tasks(tasks, server_url, icons)
@@ -904,7 +904,7 @@ def _bootstrap_from_goal_impl(
 
     Creates a minimal SeedConfig from the goal and delegates to the
     standard bootstrap flow.  When ``cli="auto"`` (the default), the best
-    available CLI agent is detected automatically — no configuration required.
+    available CLI agent is detected automatically - no configuration required.
 
     Args:
         goal: Plain-text project goal.
@@ -938,9 +938,9 @@ def _bootstrap_from_goal_impl(
         if agent_names:
             agents_note = f"  agents: [green]{', '.join(agent_names)}[/green]"
         else:
-            agents_note = "  [yellow]No agents found — install claude, codex, or gemini[/yellow]"
+            agents_note = "  [yellow]No agents found - install claude, codex, or gemini[/yellow]"
 
-        console.print(f"[bold]First run detected[/bold] — auto-configuring for {type_note}")
+        console.print(f"[bold]First run detected[/bold] - auto-configuring for {type_note}")
         console.print(agents_note)
 
     _icons = get_icons()
@@ -1036,7 +1036,7 @@ def _bootstrap_from_goal_impl(
         icons=_icons,
     )
 
-    # Cost estimation — show before spawning agents
+    # Cost estimation - show before spawning agents
     from bernstein.core.cost import estimate_run_cost
 
     est_task_count = backlog_count if backlog_count > 0 else 5  # default estimate for manager-planned
@@ -1127,7 +1127,7 @@ async def with_init_timeout[T](
             return await coro
     except TimeoutError:
         logger.error(
-            "Initialization timeout after %.0fs during '%s' — possible deadlock",
+            "Initialization timeout after %.0fs during '%s' - possible deadlock",
             timeout,
             context,
         )

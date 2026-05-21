@@ -53,7 +53,7 @@ def _build_sso(tmp_path: Path) -> tuple[AuthService, str, str]:
         ``sub=test-user``; tests further customise extra claims (notably
         ``resource``) via ``create_jwt`` calls of their own.
     """
-    config = SSOConfig(jwt_secret="resource-test-secret", enabled=True)  # NOSONAR — test fixture
+    config = SSOConfig(jwt_secret="resource-test-secret", enabled=True)  # NOSONAR - test fixture
     store = AuthStore(tmp_path)
     user = AuthUser(id="test-user", email="ru@example.com", display_name="Resource Test")
     store.save_user(user)
@@ -122,7 +122,7 @@ class TestExpectedResourceParsing:
 
 
 # ---------------------------------------------------------------------------
-# Default-off — empty config skips the check
+# Default-off - empty config skips the check
 # ---------------------------------------------------------------------------
 
 
@@ -238,7 +238,7 @@ class TestResourceMatchAndMismatch:
         assert "malformed resource indicator" in resp.headers.get("www-authenticate", "")
 
     def test_resource_claim_array_any_match_passes(self, tmp_path: Path) -> None:
-        """RFC 8707 §2 lets the token carry an array of resources — any-match."""
+        """RFC 8707 §2 lets the token carry an array of resources - any-match."""
         service, secret, _ = _build_sso(tmp_path)
         token = create_jwt(
             {
@@ -269,7 +269,7 @@ class TestResourceMatchAndMismatch:
             secret,
             expiry_seconds=600,
         )
-        # No expected_resource arg — env var supplies it.
+        # No expected_resource arg - env var supplies it.
         client = _build_app(auth_service=service)
         resp = client.get("/status", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401

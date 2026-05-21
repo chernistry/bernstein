@@ -7,21 +7,21 @@ Bernstein without weakening their commit hygiene requirements.
 
 Implementation strategy:
 
-1. **Provenance trailers** — Bernstein metadata is always written to the commit
+1. **Provenance trailers** - Bernstein metadata is always written to the commit
    message as ``Bernstein-*`` trailers (RFC-822 style), regardless of whether
    cryptographic signing is enabled.  This allows ``git log`` to show which
    agent produced the commit even without GPG/SSH key infrastructure.
 
-2. **SSH signing** — When ``signing_key`` is provided and points to an SSH
+2. **SSH signing** - When ``signing_key`` is provided and points to an SSH
    private-key file (or an SSH agent socket is available), the commit is signed
    with ``git commit -S`` after configuring ``gpg.format=ssh`` and
    ``user.signingKey`` in the worktree-local git config.  Produces
    ``git verify-commit`` verifiable signatures.
 
-3. **GPG signing** — When ``signing_key`` is a GPG key fingerprint / e-mail,
+3. **GPG signing** - When ``signing_key`` is a GPG key fingerprint / e-mail,
    the commit is signed via ``git commit --gpg-sign=<key>``.
 
-4. **No-key fallback** — When no signing key is configured the commit is created
+4. **No-key fallback** - When no signing key is configured the commit is created
    normally with only the provenance trailers embedded.  The ``signed=False``
    flag on the returned :class:`SignedCommitResult` signals this path.
 
@@ -93,7 +93,7 @@ class CommitProvenance:
     """Identity metadata for a Bernstein agent commit.
 
     These fields are embedded as RFC-822-style trailers in the commit message
-    so that ``git log`` always shows provenance — regardless of whether a
+    so that ``git log`` always shows provenance - regardless of whether a
     cryptographic signature is present.
 
     Attributes:
@@ -118,7 +118,7 @@ class SigningConfig:
     """Configuration for commit signing.
 
     Attributes:
-        mode: Signing backend — ``"ssh"``, ``"gpg"``, or ``"none"``.
+        mode: Signing backend - ``"ssh"``, ``"gpg"``, or ``"none"``.
         signing_key: Path to SSH private key file, or GPG key fingerprint /
             e-mail address.  Required when mode is ``"ssh"`` or ``"gpg"``.
         gpg_program: Path to GPG binary.  Uses git's default when empty.

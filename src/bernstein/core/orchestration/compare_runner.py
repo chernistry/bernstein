@@ -12,7 +12,7 @@ module covers adapter-vs-adapter on the same workspace.
 
 Design notes:
     * Identical seeds, identical role prompt, identical workspace
-      snapshot for all adapters — the snapshot is materialised once and
+      snapshot for all adapters - the snapshot is materialised once and
       ``shutil.copytree``'d into each adapter's worktree before spawn.
     * Adapter count is hard-capped at ``MAX_ADAPTERS`` (4).
     * Worktree cleanup happens unconditionally unless
@@ -154,10 +154,10 @@ def run_compare(
     """Run ``task`` against each adapter and produce a CompareRun.
 
     Args:
-        task: Frozen task spec — identical for every adapter.
+        task: Frozen task spec - identical for every adapter.
         adapters: Adapter registry names. Must be non-empty and
             ``len(adapters) <= MAX_ADAPTERS`` (cap 4). Duplicates rejected.
-        workspace_snapshot: Directory used as the baseline workspace —
+        workspace_snapshot: Directory used as the baseline workspace -
             copied into each adapter's worktree before spawn. Must exist.
         executor: Callable that runs one adapter against a worktree.
         worktree_root: Parent dir under which per-adapter worktrees are

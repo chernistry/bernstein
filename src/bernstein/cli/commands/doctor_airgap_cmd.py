@@ -12,7 +12,7 @@ Standalone semantics (bughunt 2026-05-13/2026-05-15)
 operator runs *before* invoking ``bernstein run --profile airgap``.
 In that pre-flight scenario the BERNSTEIN_PROFILE_MODE and
 BERNSTEIN_NETWORK_POLICY env vars are not yet set in the operator's
-shell — the run-bootstrap is what normally installs them. Without a
+shell - the run-bootstrap is what normally installs them. Without a
 fix, three of the pure-function checks (profile-active, deny-all,
 socket-guard) hard-FAIL even though nothing is actually wrong.
 
@@ -66,7 +66,7 @@ def _simulated_airgap_env() -> Iterator[bool]:
 
     Mirrors the env-var slice of ``_install_network_policy`` /
     ``install_policy`` (see ``cli/run_bootstrap.py``) but without
-    side-effects on the live socket guard — the existing per-check
+    side-effects on the live socket guard - the existing per-check
     option-(A) path in ``check_runtime_socket_guard_active`` handles
     installing/uninstalling the guard, and that path triggers
     automatically once ``BERNSTEIN_PROFILE_MODE`` is set.
@@ -74,7 +74,7 @@ def _simulated_airgap_env() -> Iterator[bool]:
     Yields True when the doctor simulated the activation (i.e. the
     operator was outside a live ``bernstein run`` and we provided
     the airgap defaults). Yields False when the operator was already
-    inside a live profile — the doctor must not clobber that.
+    inside a live profile - the doctor must not clobber that.
 
     Both env vars are restored to their original state (including
     absence) in the ``finally`` block. This is idempotent and has no
@@ -86,8 +86,8 @@ def _simulated_airgap_env() -> Iterator[bool]:
     prior_policy = os.environ.get(ENV_NETWORK_POLICY)
     activated = False
     # Only simulate when the operator has NOT already activated airgap.
-    # If they have, we leave their values intact — even if they chose
-    # a non-default allow-list — so the doctor reports what their
+    # If they have, we leave their values intact - even if they chose
+    # a non-default allow-list - so the doctor reports what their
     # actual run would see.
     if (prior_profile or "").strip().lower() != PROFILE_AIRGAP:
         os.environ[ENV_PROFILE_MODE] = PROFILE_AIRGAP

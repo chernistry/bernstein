@@ -120,11 +120,11 @@ class TestEuResidencyFlag:
             "https://generativelanguage.googleapis.com",
             "https://api.together.xyz",
             "https://api.groq.com",
-            # Public IP outside RFC-1918 — fail closed.
+            # Public IP outside RFC-1918 - fail closed.
             "http://8.8.8.8:8000",
             "http://172.32.5.5:8000",  # 172.16/12 boundary check
             "http://172.15.0.1:8000",  # below 16, also out of range
-            # Unrecognised public hostname — fail closed.
+            # Unrecognised public hostname - fail closed.
             "https://random-public-host.example.com",
             # Empty / malformed.
             "",
@@ -218,7 +218,7 @@ class TestPricingLookup:
         assert _model_cost("deepseek-v4-pro") == _MODEL_COST_USD_PER_1K["deepseek-v4-pro"]
 
     def test_flash_cheaper_than_pro(self) -> None:
-        """V4-Flash must come in cheaper than V4-Pro — that's the entire pitch."""
+        """V4-Flash must come in cheaper than V4-Pro - that's the entire pitch."""
         assert _MODEL_COST_USD_PER_1K["deepseek-v4-flash"] < _MODEL_COST_USD_PER_1K["deepseek-v4-pro"]
         assert (
             MODEL_COSTS_PER_1M_TOKENS["deepseek-v4-flash"]["input"]

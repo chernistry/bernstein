@@ -10,16 +10,16 @@ Why DSSE / in-toto:
 
 * DSSE is the open standard for tamper-evident envelopes (used by Sigstore,
   in-toto, SLSA). The wire format is ``{"payload", "payloadType",
-  "signatures"}`` plus the PAE (pre-authentication encoding) signing input —
+  "signatures"}`` plus the PAE (pre-authentication encoding) signing input -
   every implementation interoperates without bespoke parsing.
 * in-toto v1 ``Statement`` lets a third-party verifier read what the artefact
   *is* (the ``subject`` digest) before deciding whether to trust the
-  ``predicate`` body — important for an auditor who only wants to confirm
+  ``predicate`` body - important for an auditor who only wants to confirm
   bundle integrity without parsing bernstein-specific JSON.
 * EU AI Act Art. 12(2)(c) and DORA Art. 9(3) want third-party-verifiable
   monitoring. HMAC alone is single-key and operator-trusted; an Ed25519
   signature over a DSSE envelope is verifiable by anyone holding the public
-  key — the new ``tools/verify_audit_dsse.py`` does exactly that without
+  key - the new ``tools/verify_audit_dsse.py`` does exactly that without
   importing any bernstein code.
 
 Determinism contract:
@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants — wire-format identifiers
+# Constants - wire-format identifiers
 # ---------------------------------------------------------------------------
 
 #: DSSE payload type for the in-toto statement.
@@ -142,7 +142,7 @@ class Statement:
     Attributes:
         subjects: Artefacts being attested.
         predicate_type: URL identifying the predicate schema.
-        predicate: Body — schema-defined fields below the predicate type.
+        predicate: Body - schema-defined fields below the predicate type.
     """
 
     subjects: list[Subject]
@@ -201,7 +201,7 @@ class Envelope:
         }
 
     def to_json(self) -> bytes:
-        """Return canonical JSON bytes — sorted keys, comma+colon separators."""
+        """Return canonical JSON bytes - sorted keys, comma+colon separators."""
         return _canonical_json(self.to_dict())
 
     @property
@@ -409,7 +409,7 @@ def wrap_bundle(
         default_name = (
             bundle.archive_path.name if bundle.archive_path is not None else f"article12_{bundle.bundle_id}.zip"
         )
-    else:  # pragma: no cover — guarded for future bundle kinds
+    else:  # pragma: no cover - guarded for future bundle kinds
         msg = f"Unsupported bundle type: {type(bundle).__name__}"
         raise DSSEError(msg)
 
@@ -451,7 +451,7 @@ def _resolve_article12_bytes(
         return explicit_bytes
     if bundle.archive_path is None:
         msg = (
-            "Article12Bundle has no archive_path and no explicit bundle_bytes — "
+            "Article12Bundle has no archive_path and no explicit bundle_bytes - "
             "build with write=True or pass bundle_bytes to wrap_bundle()"
         )
         raise DSSEError(msg)
@@ -500,7 +500,7 @@ def verify_envelope(
     * Embedded ``predicateType`` matches ``expected_predicate_type``.
 
     HMAC chain verification is delegated to whoever holds the chain key
-    (e.g. the audit log owner) — the standalone verifier composes both.
+    (e.g. the audit log owner) - the standalone verifier composes both.
 
     Args:
         envelope: Parsed envelope (typically from :func:`load_envelope`).

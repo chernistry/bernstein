@@ -1,6 +1,6 @@
 """OAuth 2.0 Authorization Code + PKCE flow for Bernstein web dashboard.
 
-Implements RFC 7636 — Proof Key for Code Exchange — to protect the
+Implements RFC 7636 - Proof Key for Code Exchange - to protect the
 authorization code grant against interception attacks.
 
 Quickstart (automatic browser mode)::

@@ -1,4 +1,4 @@
-"""Linear adapter — convert Linear issues to Bernstein tasks and sync back.
+"""Linear adapter - convert Linear issues to Bernstein tasks and sync back.
 
 Linear uses a GraphQL API.  This adapter provides a thin wrapper that keeps
 the SDK dependency-free for basic use: webhook payload parsing and state

@@ -4,12 +4,12 @@ The token is a 16-character lowercase base32 string (80 bits) computed as::
 
     base32( hmac_sha256(seed, nonce || version_major)[:10] )
 
-* ``seed`` — 32-byte operator secret read from ``BERNSTEIN_IDENTITY_SEED``
+* ``seed`` - 32-byte operator secret read from ``BERNSTEIN_IDENTITY_SEED``
   (hex-encoded). Never committed.
-* ``nonce`` — 10 random bytes (80 bits) minted on first run and persisted
+* ``nonce`` - 10 random bytes (80 bits) minted on first run and persisted
   to ``~/.bernstein/install_nonce`` so the same install always emits the
   same token across runs (stable identity).
-* ``version_major`` — single byte capturing the package's major version
+* ``version_major`` - single byte capturing the package's major version
   cohort (``0x01`` for ``1.x``, ``0x02`` for ``2.x``, …). Lets the
   operator partition tokens by major-version cohort without leaking the
   exact version.
@@ -61,7 +61,7 @@ TOKEN_LEN: Final[int] = 16
 DISABLED_SENTINEL: Final[str] = "0" * TOKEN_LEN
 
 #: Environment variable name for the operator's 256-bit seed (hex-
-#: encoded).  Read at verify-time only — never required at emit-time on
+#: encoded).  Read at verify-time only - never required at emit-time on
 #: user machines.  Users who emit tokens do *not* need this var.
 ENV_SEED: Final[str] = "BERNSTEIN_IDENTITY_SEED"
 
@@ -93,7 +93,7 @@ _DEFAULT_VERSION_MAJOR: Final[int] = 1
 class SeedNotConfiguredError(RuntimeError):
     """Raised by :func:`verify_token` when ``BERNSTEIN_IDENTITY_SEED`` is unset.
 
-    Verification is operator-only — there is no fall-back; the seed is
+    Verification is operator-only - there is no fall-back; the seed is
     the entire trust anchor.
     """
 
@@ -139,7 +139,7 @@ def _load_or_mint_nonce() -> bytes:
         data = path.read_bytes()
         if len(data) == NONCE_BYTES:
             return data
-        # Corrupted / wrong length — re-mint rather than fail loud.  The
+        # Corrupted / wrong length - re-mint rather than fail loud.  The
         # token is non-critical; degraded recovery beats blocking startup.
     nonce = secrets.token_bytes(NONCE_BYTES)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,7 +186,7 @@ def _seed_bytes() -> bytes | None:
     The seed lives only in ``BERNSTEIN_IDENTITY_SEED`` as a hex string.
     Two failure modes are quietly tolerated and reported as ``None`` so
     that emit-time callers (which never have the seed in production)
-    don't pay an exception cost on every render — they fall through to
+    don't pay an exception cost on every render - they fall through to
     the disabled sentinel.  :func:`verify_token` raises explicitly.
     """
     raw = os.environ.get(ENV_SEED)
@@ -207,7 +207,7 @@ def _seed_bytes() -> bytes | None:
 def _compute_token(seed: bytes, nonce: bytes, version_major: int) -> str:
     """Compute the 16-char base32 token from raw inputs.
 
-    Pure function — used both by :func:`get_install_rev` (with the live
+    Pure function - used both by :func:`get_install_rev` (with the live
     nonce) and by :func:`verify_token` (the operator's verification
     path).  Truncation matches RFC 2104 §5: we keep the leftmost
     :data:`TAG_BYTES` bytes of the HMAC output, which is the standard
@@ -227,7 +227,7 @@ def _compute_token(seed: bytes, nonce: bytes, version_major: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Cache — token is install-stable, recompute is cheap but pointless
+# Cache - token is install-stable, recompute is cheap but pointless
 # ---------------------------------------------------------------------------
 
 _CACHED_TOKEN: str | None = None
@@ -236,7 +236,7 @@ _CACHED_TOKEN: str | None = None
 def _reset_cache_for_tests() -> None:
     """Clear the in-process token cache.  Test-only helper.
 
-    Production callers must never invoke this — the cache is part of the
+    Production callers must never invoke this - the cache is part of the
     correctness contract (multiple emitters in the same run see one
     consistent token).
     """
@@ -257,7 +257,7 @@ def get_install_rev() -> str:
     * ``BERNSTEIN_DISABLE_IDENTITY=1`` is set (user kill switch)
     * :data:`IDENTITY_EMISSION_ENABLED` is ``False`` (operator gate)
     * ``BERNSTEIN_IDENTITY_SEED`` is unset or malformed (no operator
-      key on this host — emit a placeholder so the embedded text is
+      key on this host - emit a placeholder so the embedded text is
       stable in shape but unverifiable)
 
     Otherwise computes ``base32(hmac_sha256(seed, nonce || version)[:10])``.
@@ -281,7 +281,7 @@ def get_install_rev() -> str:
 
     seed = _seed_bytes()
     if seed is None:
-        # No seed on this host.  Emit the sentinel — landing pages and
+        # No seed on this host.  Emit the sentinel - landing pages and
         # docs that show example output stay stable, but the operator's
         # gh search query cleanly excludes sentinel matches.
         _CACHED_TOKEN = DISABLED_SENTINEL
@@ -294,7 +294,7 @@ def get_install_rev() -> str:
 
 
 def render_yaml_comment() -> str:
-    """Render the primary embedding slot — a YAML config comment.
+    """Render the primary embedding slot - a YAML config comment.
 
     Returns the line ``"# bernstein-rev: <token>"`` (no trailing
     newline; callers concatenate with ``"\\n"`` as needed).  Callers
@@ -307,7 +307,7 @@ def render_yaml_comment() -> str:
 
 
 def render_trace_header() -> dict[str, str]:
-    """Render the trace-JSONL backup slot — a header dict.
+    """Render the trace-JSONL backup slot - a header dict.
 
     The dict is intended to be the first JSONL line of every new trace
     file::
@@ -323,7 +323,7 @@ def render_trace_header() -> dict[str, str]:
 
 
 def render_md_footer() -> str:
-    """Render the role-prompt md-footer backup slot — an HTML comment.
+    """Render the role-prompt md-footer backup slot - an HTML comment.
 
     Markdown comments survive copy-paste into GitHub issues, dev.to
     crossposts, Slack messages, and pandoc/mkdocs renders.  The format::
@@ -339,7 +339,7 @@ def verify_token(token: str) -> bool:
     """Operator-side: confirm a candidate token came from a real install.
 
     Recomputes the HMAC over the operator's seed for every plausible
-    nonce.  In production we don't have the user's nonce — but the
+    nonce.  In production we don't have the user's nonce - but the
     *user's emitted token* IS the truncated HMAC, so verification is
     structural: shape-check the encoding, then trust it (the HMAC
     truncation is what binds the token to the seed; an attacker without
@@ -376,7 +376,7 @@ def verify_token(token: str) -> bool:
 
 
 def verify_with_nonce(token: str, nonce: bytes, version_major: int | None = None) -> bool:
-    """Full cryptographic verification — token + known nonce + seed.
+    """Full cryptographic verification - token + known nonce + seed.
 
     Used when the operator has the user's nonce (e.g. via a debug
     bundle) and wants to confirm the token at HMAC strength.  This is
@@ -410,7 +410,7 @@ def verify_with_nonce(token: str, nonce: bytes, version_major: int | None = None
         msg = f"nonce length {len(nonce)} != {NONCE_BYTES}"
         raise ValueError(msg)
     expected = _compute_token(seed, nonce, version_major or _version_byte())
-    # Constant-time compare — defends against timing oracles even though
+    # Constant-time compare - defends against timing oracles even though
     # the operator-only verify path is the unlikely target.
     return hmac.compare_digest(expected, token)
 

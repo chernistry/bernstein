@@ -116,13 +116,13 @@ def test_load_history_keeps_only_last_n(metrics_dir: Path) -> None:
 
     samples = load_history(history, role="backend", adapter="claude", limit=50)
     assert len(samples) == 50
-    # Newest records win — the last 50 should be 70..119.
+    # Newest records win - the last 50 should be 70..119.
     assert samples[0] == 70.0
     assert samples[-1] == 119.0
 
 
 # ---------------------------------------------------------------------------
-# compute_band — cold-start
+# compute_band - cold-start
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +159,7 @@ def test_compute_band_cold_start_label_in_format(metrics_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_band — mature pair
+# compute_band - mature pair
 # ---------------------------------------------------------------------------
 
 
@@ -232,7 +232,7 @@ def test_compute_band_rounds_to_two_decimals(metrics_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_band — mixed pair
+# compute_band - mixed pair
 # ---------------------------------------------------------------------------
 
 
@@ -240,7 +240,7 @@ def test_compute_band_mixed_pair_ignores_other_pairs(metrics_dir: Path) -> None:
     """A file that mixes pairs only consumes records matching the query."""
     history = metrics_dir / "cost.jsonl"
     records: list[dict[str, object]] = [{"role": "qa", "adapter": "codex", "cost_usd": 99.0} for _ in range(60)]
-    # Only three matching records — small history, but still > 0 samples.
+    # Only three matching records - small history, but still > 0 samples.
     records.extend(
         [
             {"role": "backend", "adapter": "claude", "cost_usd": 0.10},

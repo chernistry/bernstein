@@ -2,7 +2,7 @@
 
 A sandbox session lets a prospect paste a public GitHub URL, pick a
 solution pack, and watch up to 3 agents work within a $2 budget.
-Sessions are ephemeral — cleaned up after completion or timeout.
+Sessions are ephemeral - cleaned up after completion or timeout.
 """
 
 from __future__ import annotations
@@ -210,7 +210,7 @@ class SandboxManager:
             raise ValueError(f"Unknown solution pack. Valid packs: {valid}") from None
 
         if self.active_count >= MAX_CONCURRENT_SESSIONS:
-            raise RuntimeError("Too many active sessions — please try again later")
+            raise RuntimeError("Too many active sessions - please try again later")
 
         ip_hash = _ip_hash(client_ip) if client_ip else ""
         if ip_hash:
@@ -249,7 +249,7 @@ class SandboxManager:
             "budget": f"${MAX_BUDGET_USD}",
             "max_agents": min(pack_cfg["max_agents"], MAX_AGENTS),
             "constraints": [
-                "Public repo only — do not push, create PRs, or modify remote",
+                "Public repo only - do not push, create PRs, or modify remote",
                 "Read-only access to external services",
                 f"Hard budget cap: ${MAX_BUDGET_USD}",
             ],

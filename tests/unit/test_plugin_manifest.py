@@ -1,4 +1,4 @@
-"""Tests for T776 — plugin manifest validation."""
+"""Tests for T776 - plugin manifest validation."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from bernstein.core.plugin_manifest import (
 )
 
 # ---------------------------------------------------------------------------
-# validate_manifest — happy path
+# validate_manifest - happy path
 # ---------------------------------------------------------------------------
 
 
@@ -50,7 +50,7 @@ class TestValidateManifestValid:
 
 
 # ---------------------------------------------------------------------------
-# validate_manifest — required fields
+# validate_manifest - required fields
 # ---------------------------------------------------------------------------
 
 
@@ -73,7 +73,7 @@ class TestValidateManifestRequiredFields:
 
 
 # ---------------------------------------------------------------------------
-# Plugin name validation — anti-impersonation
+# Plugin name validation - anti-impersonation
 # ---------------------------------------------------------------------------
 
 

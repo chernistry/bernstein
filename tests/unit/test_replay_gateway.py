@@ -1,4 +1,4 @@
-"""Unit tests for ``bernstein.core.replay`` — gateway + diff.
+"""Unit tests for ``bernstein.core.replay`` - gateway + diff.
 
 Covers the MVP slice of issue #1319:
 
@@ -92,7 +92,7 @@ def test_off_mode_is_passthrough(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 # ---------------------------------------------------------------------------
-# Record/replay round-trip — mock adapter shape
+# Record/replay round-trip - mock adapter shape
 # ---------------------------------------------------------------------------
 
 

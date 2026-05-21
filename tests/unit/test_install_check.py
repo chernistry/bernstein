@@ -1,4 +1,4 @@
-"""Tests for install_check — installation mismatch detection."""
+"""Tests for install_check - installation mismatch detection."""
 
 from __future__ import annotations
 

@@ -87,7 +87,7 @@ class TestLoadOffline:
 
 
 # ---------------------------------------------------------------------------
-# _render_burndown (smoke tests — no exceptions)
+# _render_burndown (smoke tests - no exceptions)
 # ---------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ class TestRenderBurndown:
                 budget_fraction=0.0,
                 budget_consumed_pct=100.0,
                 days_to_breach=None,
-                breach_projection="Error budget exhausted — SLO breached now",
+                breach_projection="Error budget exhausted - SLO breached now",
             )
         )
 
@@ -150,7 +150,7 @@ class TestSloCmd:
             "budget_fraction": 0.8,
             "budget_consumed_pct": 20.0,
             "days_to_breach": None,
-            "breach_projection": "On track — error budget not at risk",
+            "breach_projection": "On track - error budget not at risk",
             "status": "green",
             "total_tasks": 20,
             "failed_tasks": 1,

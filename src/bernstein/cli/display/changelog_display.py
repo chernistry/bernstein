@@ -1,4 +1,4 @@
-"""Changelog display — parse, filter, and format CHANGELOG.md content.
+"""Changelog display - parse, filter, and format CHANGELOG.md content.
 
 Provides structured parsing of CHANGELOG.md into ``ChangelogEntry`` objects
 and Rich-formatted output for the upgrade command.

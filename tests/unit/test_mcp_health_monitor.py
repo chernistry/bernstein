@@ -65,7 +65,7 @@ class TestHealthProbeResult:
 
 
 # ---------------------------------------------------------------------------
-# McpHealthMonitor — probe_once
+# McpHealthMonitor - probe_once
 # ---------------------------------------------------------------------------
 
 

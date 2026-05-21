@@ -65,7 +65,7 @@ def is_sandboxed() -> bool:
     if os.environ.get("BERNSTEIN_SANDBOX") == "1":
         return True
 
-    # /.dockerenv — Docker/Podman marker
+    # /.dockerenv - Docker/Podman marker
     if Path("/.dockerenv").exists():
         return True
 
@@ -129,7 +129,7 @@ def relax_sandboxed(decisions: list[PermissionDecision], check_name: str = "") -
                 d.reason[:80],
             )
             continue
-        # Unknown decision type — preserve as-is for safety
+        # Unknown decision type - preserve as-is for safety
         relaxed.append(d)
 
     return relaxed
@@ -227,7 +227,7 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("heroku_api_key", re.compile(r"(?i)heroku[_\s]*api[_\s]*key\s*[=:]\s*['\"]?[a-f0-9-]{36}")),
     # Mailgun
     ("mailgun_api_key", re.compile(r"key-[a-f0-9]{32}")),
-    # Generic patterns (lowest priority — more prone to false positives)
+    # Generic patterns (lowest priority - more prone to false positives)
     (
         "generic_secret",
         re.compile(r"(?i)(?:password|passwd|secret|token|api_key)\s*=\s*['\"][^'\"]{8,}['\"]"),
@@ -336,7 +336,7 @@ def _is_file_deleted(diff: str, filepath: str) -> bool:
         elif in_file and line.startswith("deleted file mode"):
             return True
         elif in_file and line.startswith("@@"):
-            # Past the extended header — no deletion marker
+            # Past the extended header - no deletion marker
             break
     return False
 
@@ -846,7 +846,7 @@ def run_guardrails(
         bypass_enabled: Whether non-immune checks can be bypassed.
         always_allow_engine: Loaded always-allow rules (see
             :func:`bernstein.core.security.always_allow.load_always_allow_rules`
-            — primary source is orchestrator-only
+            - primary source is orchestrator-only
             ``.sdd/config/always_allow.yaml``; legacy agent-writable paths
             must be pinned by a manifest in ``.sdd/config/``).  When a
             modified file matches an always-allow rule, scope and permission

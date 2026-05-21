@@ -34,7 +34,7 @@ def _inner_cmd(full_cmd: list[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# CodexAdapter.spawn() — command construction
+# CodexAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -178,7 +178,7 @@ class TestCodexAdapterSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -313,7 +313,7 @@ class TestCodexWarningsAndFastExit:
                 model_config=ModelConfig(model="o3", effort="high"),
                 session_id="warn-missing-key",
             )
-        assert "OPENAI_API_KEY is not set — spawn will fail" in caplog.text
+        assert "OPENAI_API_KEY is not set - spawn will fail" in caplog.text
 
     def test_fast_exit_rate_limit_raises(self, tmp_path: Path) -> None:
         adapter = CodexAdapter()
@@ -333,7 +333,7 @@ class TestCodexWarningsAndFastExit:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

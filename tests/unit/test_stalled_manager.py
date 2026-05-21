@@ -118,7 +118,7 @@ def test_detect_fires_when_manager_alive_with_no_children(tmp_path: Path) -> Non
     assert diag.manager_task_id == "manager-task-1"
     assert diag.runtime_s == 120.0
     assert diag.hook_event_count == 3
-    # Last 5 Bash commands — there are only 2 here.
+    # Last 5 Bash commands - there are only 2 here.
     assert diag.last_bash_commands == [
         "find .sdd -type f",
         "curl http://127.0.0.1:8052/tasks",

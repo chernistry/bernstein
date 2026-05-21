@@ -110,6 +110,6 @@ def test_start_server_refuses_multi_worker_env(tmp_path: Path, monkeypatch: pyte
     ):
         _start_server(tmp_path, 8052)
 
-    # Popen must not have been invoked — we bailed out before spawning.
+    # Popen must not have been invoked - we bailed out before spawning.
     mock_popen.assert_not_called()
     assert "workers=3" in str(exc.value)

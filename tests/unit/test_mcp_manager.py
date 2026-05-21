@@ -291,7 +291,7 @@ class TestMCPManagerLifecycle:
 
         cfg = MCPServerConfig(name="missing", command=["npx", "-y", "pkg"])
         mgr = MCPManager([cfg])
-        # Should not raise — failure is logged as warning
+        # Should not raise - failure is logged as warning
         mgr.start_all()
         assert mgr.is_alive("missing") is False
 
@@ -660,7 +660,7 @@ class TestSpawnerMCPManagerIntegration:
 
 
 # ---------------------------------------------------------------------------
-# Signing-mode integration (Gap 3 — Ed25519 verifier wired into start_all)
+# Signing-mode integration (Gap 3 - Ed25519 verifier wired into start_all)
 # ---------------------------------------------------------------------------
 
 
@@ -781,7 +781,7 @@ class TestMCPManagerSigningMode:
         ]
         # Use 'off' for the second server isn't allowed (one knob across
         # the manager); instead we exercise 'warn' to keep both servers
-        # loadable while one is also blocked at strict — same behaviour
+        # loadable while one is also blocked at strict - same behaviour
         # the ``except Exception`` branch must preserve in real use.
         mgr = MCPManager(configs, signing_mode="warn")
         mgr.start_all()

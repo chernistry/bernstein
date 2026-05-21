@@ -5,9 +5,9 @@ structured markdown report covering task breakdown, quality gates,
 cost analysis, and an ASCII timeline.
 
 Data sources (read-only):
-- ``.sdd/metrics/`` — per-task and per-agent metrics (via MetricsCollector)
-- ``.sdd/runtime/costs/{run_id}.json`` — token-level cost data (via CostTracker)
-- ``.sdd/runs/{run_id}/summary.json`` — high-level run summary
+- ``.sdd/metrics/`` - per-task and per-agent metrics (via MetricsCollector)
+- ``.sdd/runtime/costs/{run_id}.json`` - token-level cost data (via CostTracker)
+- ``.sdd/runs/{run_id}/summary.json`` - high-level run summary
 """
 
 from __future__ import annotations

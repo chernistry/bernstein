@@ -3,8 +3,8 @@ byte-identical audit chain entries.
 
 The HMAC chain is sensitive to the exact JSON payload that goes through
 ``AuditLog.log``; this test runs the same logical operation (open a
-task, change mode, cancel) twice — once through the ACP handler layer
-and once with a direct call mimicking the CLI path — and asserts the
+task, change mode, cancel) twice - once through the ACP handler layer
+and once with a direct call mimicking the CLI path - and asserts the
 ``details`` payloads match.
 """
 
@@ -73,7 +73,7 @@ def test_acp_and_cli_emit_identical_audit_payloads() -> None:
     """Same operation through either surface produces matching audit details."""
     with tempfile.TemporaryDirectory() as acp_dir, tempfile.TemporaryDirectory() as cli_dir:
         # NB: audit keys must NOT be shared across temp dirs because the
-        # default key path is at $HOME — we pin them per-run via key_path
+        # default key path is at $HOME - we pin them per-run via key_path
         # so the two AuditLog instances do not collide.
         acp_audit = AuditLog(audit_dir=Path(acp_dir), key=b"k" * 32)
         cli_audit = AuditLog(audit_dir=Path(cli_dir), key=b"k" * 32)
@@ -134,9 +134,9 @@ def test_acp_and_cli_emit_identical_audit_payloads() -> None:
             ]
 
         # The ACP chain emits 'acp.prompt', 'acp.set_mode', 'acp.cancel' in
-        # that order — exactly matching the CLI fixture.
+        # that order - exactly matching the CLI fixture.
         assert _strip(acp_rows) == _strip(cli_rows)
 
-        # And the chain remains valid for both — no torn rows.
+        # And the chain remains valid for both - no torn rows.
         assert acp_audit.verify()[0]
         assert cli_audit.verify()[0]

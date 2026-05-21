@@ -1,14 +1,14 @@
-"""Slack adapter — send Bernstein task notifications to Slack channels.
+"""Slack adapter - send Bernstein task notifications to Slack channels.
 
 Sends Block Kit messages to Slack via Incoming Webhooks or the Web API.
 
 Setup
 -----
-Option A — Incoming Webhook (simplest)::
+Option A - Incoming Webhook (simplest)::
 
     export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../...
 
-Option B — Bot token (supports specifying channels dynamically)::
+Option B - Bot token (supports specifying channels dynamically)::
 
     export SLACK_BOT_TOKEN=xoxb-...
 
@@ -187,7 +187,7 @@ class SlackAdapter:
 def _task_completed_blocks(
     task_id: str, title: str, role: str, summary: str
 ) -> list[dict[str, Any]]:
-    text = f":white_check_mark: *Task completed* — `{task_id}`"
+    text = f":white_check_mark: *Task completed* - `{task_id}`"
     fields = [
         {"type": "mrkdwn", "text": f"*Title:*\n{title}"},
         {"type": "mrkdwn", "text": f"*Role:*\n`{role}`"},
@@ -203,7 +203,7 @@ def _task_completed_blocks(
 def _task_failed_blocks(
     task_id: str, title: str, role: str, error: str, mention: str
 ) -> list[dict[str, Any]]:
-    header = f":x: *Task failed* — `{task_id}`"
+    header = f":x: *Task failed* - `{task_id}`"
     if mention:
         header = f"{mention} {header}"
     fields = [
@@ -237,7 +237,7 @@ def _task_created_blocks(
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"{priority_emoji} *New task* — `{task_id}`",
+                "text": f"{priority_emoji} *New task* - `{task_id}`",
             },
             "fields": [
                 {"type": "mrkdwn", "text": f"*Title:*\n{title}"},

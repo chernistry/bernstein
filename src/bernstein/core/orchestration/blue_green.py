@@ -199,7 +199,7 @@ class BlueGreenDeployment:
         if self._sdd.is_symlink():
             self._sdd.unlink()
         elif self._sdd.is_dir():
-            # .sdd is a real directory — shouldn't happen after _ensure_blue,
+            # .sdd is a real directory - shouldn't happen after _ensure_blue,
             # but handle gracefully.
             self._sdd.rename(self._base_dir / ".sdd-backup")
         self._sdd.symlink_to(target)

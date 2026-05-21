@@ -1,4 +1,4 @@
-"""Unit tests for scripts/test_impact.py — incremental test impact analysis."""
+"""Unit tests for scripts/test_impact.py - incremental test impact analysis."""
 
 from __future__ import annotations
 

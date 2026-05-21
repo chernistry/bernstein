@@ -2,12 +2,12 @@
 
 Install with ``pip install bernstein[azure]`` to pull in
 ``azure-storage-blob``. When the SDK is not installed the module
-still imports cleanly — instantiation is where the error surfaces.
+still imports cleanly - instantiation is where the error surfaces.
 
 Credential handling:
 
-- ``AZURE_STORAGE_CONNECTION_STRING`` — preferred; full connection string.
-- ``AZURE_STORAGE_ACCOUNT_NAME`` + ``AZURE_STORAGE_ACCOUNT_KEY`` — classic
+- ``AZURE_STORAGE_CONNECTION_STRING`` - preferred; full connection string.
+- ``AZURE_STORAGE_ACCOUNT_NAME`` + ``AZURE_STORAGE_ACCOUNT_KEY`` - classic
   account key auth.
 - Constructor overrides take priority over environment variables.
 

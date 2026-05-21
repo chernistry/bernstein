@@ -1,6 +1,6 @@
 """Unit tests for ``bernstein.evals.driver``.
 
-Covers the JSON-output shape — the contract consumed by the (deferred)
+Covers the JSON-output shape - the contract consumed by the (deferred)
 ``/eval/leaderboard`` route, the public ``bernstein-eval`` repo, and the
 Stanford Terminal-Bench 2.0 submission script. Keeping the shape stable is
 load-bearing; bumping ``schema_version`` is a deliberate breaking change.
@@ -111,7 +111,7 @@ def test_fingerprint_is_stable_and_pair_dependent(entry: LeaderboardEntry) -> No
     )
     assert entry.fingerprint() == same_pair_other_outcome.fingerprint()
     assert entry.fingerprint() != different_model.fingerprint()
-    # Hex digest of fixed length, lowercase — required by the dedup contract.
+    # Hex digest of fixed length, lowercase - required by the dedup contract.
     fp = entry.fingerprint()
     assert len(fp) == 64
     assert fp == fp.lower()

@@ -3,9 +3,9 @@
 Bernstein chooses a model via the bandit/cascade routers based purely on
 cost/quality signals. Once a model is selected, the *mode profile* layered
 on top tailors the agent's interaction style to that model's personality:
-- ``smart`` — Claude-family models, rapid feedback, broad tool surface.
-- ``deep`` — GPT-5.2-class models, long autonomous research, narrow tools.
-- ``fast`` — small/fast models, terse output, minimal tool surface.
+- ``smart`` - Claude-family models, rapid feedback, broad tool surface.
+- ``deep`` - GPT-5.2-class models, long autonomous research, narrow tools.
+- ``fast`` - small/fast models, terse output, minimal tool surface.
 
 Profiles are loaded from ``templates/mode_profiles/<name>.yaml`` at startup
 when present and fall back to the in-code defaults below otherwise. The

@@ -98,7 +98,7 @@ def test_listener_to_audit_pipeline(tmp_path: Path) -> None:
     listener = WebhookListener(secret=secret, on_comment=_on_payload)
     client = TestClient(listener.app)
 
-    # Two webhooks for two distinct comments — the second is a replay of the first.
+    # Two webhooks for two distinct comments - the second is a replay of the first.
     body1 = json.dumps(_envelope(1)).encode()
     body2 = json.dumps(_envelope(2, updated_at="2026-04-25T10:01:00Z")).encode()
     body3 = json.dumps(_envelope(1)).encode()  # exact replay
@@ -155,7 +155,7 @@ def test_replay_after_restart_is_no_op(tmp_path: Path) -> None:
     body = json.dumps(env).encode()
     assert _signed_post(client, secret, body) == 202
 
-    # Simulate daemon restart — fresh queue reads the same on-disk state.
+    # Simulate daemon restart - fresh queue reads the same on-disk state.
     q2 = DedupQueue(state_path=state)
     bundler2 = RoundBundler(config=cfg)
     seen: list[int] = []

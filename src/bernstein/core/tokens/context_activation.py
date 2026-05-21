@@ -1,6 +1,6 @@
 """Context activation based on task file scope.
 
-Defines ``ContextRule`` — a rule that maps .gitignore-style file path patterns to
+Defines ``ContextRule`` - a rule that maps .gitignore-style file path patterns to
 a context string.  When a task is claimed, ``activate_context_for_task()`` matches
 the task's ``owned_files`` against a list of rules and returns all matching context
 blocks concatenated together.
@@ -88,7 +88,7 @@ BUILTIN_CONTEXT_RULES: list[ContextRule] = [
         context=(
             "This task modifies test files. "
             "Run `uv run python scripts/run_tests.py -x` to verify. "
-            "Never run `uv run pytest tests/ -x -q` — it leaks memory across all tests."
+            "Never run `uv run pytest tests/ -x -q` - it leaks memory across all tests."
         ),
         description="test context",
     ),
@@ -122,7 +122,7 @@ BUILTIN_CONTEXT_RULES: list[ContextRule] = [
         context=(
             "This task modifies infrastructure or CI/CD configuration. "
             "Test pipeline changes in a branch before merging. "
-            "Never expose secrets — use environment variable references."
+            "Never expose secrets - use environment variable references."
         ),
         description="infra/CI context",
     ),

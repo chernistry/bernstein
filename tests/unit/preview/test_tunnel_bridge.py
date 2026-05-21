@@ -95,7 +95,7 @@ def test_open_falls_back_to_cloudflared_when_auto_fails(
     # Patch the auto-pick to fail by removing PATH lookup, but keep the
     # explicit "cloudflared" path open by stubbing the provider's start.
     # Simpler: the registry's auto-pick fails when shutil.which returns
-    # None, and explicit provider lookup ignores PATH — so we just call
+    # None, and explicit provider lookup ignores PATH - so we just call
     # bridge.open with provider="auto" and rely on the fallback.
     handle = bridge.open(port=4321, provider="auto", name="fallback")
     assert handle.provider == "cloudflared"

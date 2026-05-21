@@ -47,7 +47,7 @@ class CompactionResult:
 
 
 # ---------------------------------------------------------------------------
-# Individual compaction strategies — sourced from bernstein.core.defaults.TOKEN
+# Individual compaction strategies - sourced from bernstein.core.defaults.TOKEN
 # ---------------------------------------------------------------------------
 
 #: Maximum lines in a fenced code block before it is truncated.

@@ -1,4 +1,4 @@
-"""Capacity wake signal — merged abort + capacity-free events for the worker poll loop.
+"""Capacity wake signal - merged abort + capacity-free events for the worker poll loop.
 
 Mirrors the pattern from Claude Code's ``bridge/capacityWake.ts``:
 - An outer ``AbortSignal`` (SIGINT/SIGTERM) gates the loop
@@ -97,7 +97,7 @@ class CapacityWake:
         """Block until *timeout_s* elapses, a slot frees, or abort fires.
 
         Resets the capacity flag before returning so the next call starts
-        clean.  The abort flag is intentionally *not* reset — once a shutdown
+        clean.  The abort flag is intentionally *not* reset - once a shutdown
         is requested every subsequent call should return
         :attr:`WakeReason.ABORT` immediately.
 

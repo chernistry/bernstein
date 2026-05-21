@@ -7,7 +7,7 @@ feeding the **specific validation error** back into the next prompt.
 Errors accumulate across steps so the agent can see "you keep mis-typing
 field X".
 
-The retry loop itself is the repair mechanism — there is no LLM-based
+The retry loop itself is the repair mechanism - there is no LLM-based
 schema repair here.  The pattern is documented as Self-Refine
 (ICLR 2024) and is reported to improve structured-output quality by
 15-45%.
@@ -171,7 +171,7 @@ def validate_with_retry[T](
         initial_response: Raw text from the first agent call.
         validate: Callable that parses the response or raises ``ValueError``.
         ctx: Context that accumulates errors across calls.
-        ask_again: Pluggable spawner — receives a prompt, returns raw text.
+        ask_again: Pluggable spawner - receives a prompt, returns raw text.
         max_attempts: Override the configured default.
         step_id: Override ``ctx.step_id`` for attempts recorded by this call.
         base_prompt: Optional prompt body appended after the error preamble.
@@ -228,7 +228,7 @@ def _record_metric(outcome: str) -> None:
 
     The counter is created lazily so the module stays importable even
     when ``prometheus_client`` is not installed (Windows / minimal
-    installs).  Failures are swallowed — metrics must never break the
+    installs).  Failures are swallowed - metrics must never break the
     retry loop.
     """
     counter: Any = _get_counter()

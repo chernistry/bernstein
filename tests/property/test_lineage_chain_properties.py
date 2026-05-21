@@ -3,26 +3,26 @@
 Four invariants the writer + verifier must preserve under arbitrary
 inputs:
 
-1. **Sign → verify roundtrip** — when a writer carries a signer, every
+1. **Sign → verify roundtrip** - when a writer carries a signer, every
    emitted record's ``customer_signature`` must validate against the
    paired :class:`Ed25519PublicKeyVerifier` over the canonicalised
    payload bytes. No matter what (path, sha, agent, prompt) Hypothesis
    throws at us, the chain comes back ``ok=True``.
 
-2. **Byte-flip tamper detection** — flipping a byte inside any persisted
+2. **Byte-flip tamper detection** - flipping a byte inside any persisted
    WAL line that holds a lineage record must surface a verification
    error. Either the WAL hash chain trips, or the customer-signature
-   verifier rejects the canonicalised payload — either path is
+   verifier rejects the canonicalised payload - either path is
    acceptable, but at least one MUST fire.
 
-3. **Cross-record link integrity** — after appending a sequence of
+3. **Cross-record link integrity** - after appending a sequence of
    lineage records, ``LineageReader.iter_records`` must yield every
    one of them in chronological order with payload fields preserved
    through the WAL serialise/deserialise round-trip. This catches
    regressions in the legacy v1↔v2 reader path that have leaked
    producer/prompt drift before.
 
-4. **Retention class normalisation** — empty-string ``regulatory_class``
+4. **Retention class normalisation** - empty-string ``regulatory_class``
    read back from disk must normalise to ``None`` so compliance
    filters that test ``record.regulatory_class is not None`` do not
    misclassify "untagged" records as classified ones. Same for
@@ -78,7 +78,7 @@ _ALPHABET = st.characters(
 _TEXT = st.text(_ALPHABET, min_size=1, max_size=24)
 # SHA-256 hex digests are ASCII hex; restrict the strategy accordingly so
 # the property tests cover realistic inputs. Wide-unicode SHA strings
-# are not a real production scenario — the `LineageRecord.sha256` field
+# are not a real production scenario - the `LineageRecord.sha256` field
 # is populated by `hashlib.sha256(...).hexdigest()`.
 _SHA = st.text(
     st.sampled_from("0123456789abcdef"),
@@ -162,7 +162,7 @@ def _make_signed_writer(
 
 
 # ---------------------------------------------------------------------------
-# Property 1 — sign → verify roundtrip
+# Property 1 - sign → verify roundtrip
 # ---------------------------------------------------------------------------
 
 
@@ -188,11 +188,11 @@ def test_signed_records_roundtrip_through_verifier(
 
 
 # ---------------------------------------------------------------------------
-# Property 2 — byte-flip tamper detection
+# Property 2 - byte-flip tamper detection
 # ---------------------------------------------------------------------------
 
 
-@settings(max_examples=30)  # IO-heavy — tighter than smoke default.
+@settings(max_examples=30)  # IO-heavy - tighter than smoke default.
 @given(
     records=st.lists(_record_strategy(), min_size=2, max_size=6),
     flip_offset=st.integers(min_value=0, max_value=50_000),
@@ -205,7 +205,7 @@ def test_byte_flip_breaks_chain_or_signature(
 
     Either the WAL hash chain reports an error, or the
     customer-signature verifier rejects the canonicalised payload.
-    Both are acceptable paths — what matters is that *something* in
+    Both are acceptable paths - what matters is that *something* in
     :func:`verify_run_chain` surfaces an error.
     """
     writer, verifier, sdd = _make_signed_writer("prop-flip")
@@ -230,7 +230,7 @@ def test_byte_flip_breaks_chain_or_signature(
 
 
 # ---------------------------------------------------------------------------
-# Property 3 — cross-record link integrity
+# Property 3 - cross-record link integrity
 # ---------------------------------------------------------------------------
 
 
@@ -266,7 +266,7 @@ def test_records_iter_preserves_order_and_fields(
 
 
 # ---------------------------------------------------------------------------
-# Property 4 — retention class arithmetic / signature canonicalisation
+# Property 4 - retention class arithmetic / signature canonicalisation
 # ---------------------------------------------------------------------------
 
 
@@ -347,12 +347,12 @@ def test_canonical_bytes_diverge_when_payload_changes(
         )
 
     assert canonical_record_bytes(mutated) != baseline, (
-        f"canonical bytes unchanged after mutating {perturb_field!r} — signer would not detect this tamper"
+        f"canonical bytes unchanged after mutating {perturb_field!r} - signer would not detect this tamper"
     )
 
 
 # ---------------------------------------------------------------------------
-# Property 5 — empty-sentinel normalisation (regression)
+# Property 5 - empty-sentinel normalisation (regression)
 # ---------------------------------------------------------------------------
 
 
@@ -361,7 +361,7 @@ def test_signature_decodes_to_64_bytes(record: LineageRecord) -> None:
     """Every persisted signature must decode to exactly 64 bytes (Ed25519).
 
     A length-mismatched signature blob means the writer (or the base64
-    encoder) is corrupting the wire format — the verifier would
+    encoder) is corrupting the wire format - the verifier would
     silently reject every record. This property catches any future
     encoder that smuggles whitespace/padding into the field.
     """

@@ -1,4 +1,4 @@
-"""Tests for config provenance features — T519, T557, T558, T559.
+"""Tests for config provenance features - T519, T557, T558, T559.
 
 Covers:
 - Allowed setting source policy enforcement (T519)
@@ -23,7 +23,7 @@ from bernstein.core.home import (
 from bernstein.core.session import latch_session_flags, load_latched_flags
 
 # ---------------------------------------------------------------------------
-# T519 — Allowed setting source policy enforcement
+# T519 - Allowed setting source policy enforcement
 # ---------------------------------------------------------------------------
 
 
@@ -91,7 +91,7 @@ class TestEnforceSourcePolicy:
 
 
 # ---------------------------------------------------------------------------
-# T559 — Setting conflict explainer
+# T559 - Setting conflict explainer
 # ---------------------------------------------------------------------------
 
 
@@ -130,7 +130,7 @@ class TestExplainConflicts:
 
 
 # ---------------------------------------------------------------------------
-# T557 — Settings snapshot capture
+# T557 - Settings snapshot capture
 # ---------------------------------------------------------------------------
 
 
@@ -169,7 +169,7 @@ class TestCaptureSettingsSnapshot:
 
 
 # ---------------------------------------------------------------------------
-# T558 — Session-stable flag latching registry
+# T558 - Session-stable flag latching registry
 # ---------------------------------------------------------------------------
 
 

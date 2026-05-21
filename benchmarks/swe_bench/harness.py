@@ -7,7 +7,7 @@ Prerequisites
 - HuggingFace datasets access (SWE-Bench Lite is public)
 - ``claude`` CLI on PATH with a valid API key
 
-Usage (low-level — prefer run.py for the CLI):
+Usage (low-level - prefer run.py for the CLI):
     from benchmarks.swe_bench.harness import Harness, HarnessConfig
     from benchmarks.swe_bench.scenarios import BERNSTEIN_SONNET
 
@@ -89,7 +89,7 @@ Your job:
 3. Write a concise implementation plan (bullet points, ≤200 words) that an
    implementer can follow to fix the issue.
 
-Output ONLY the plan — no code, no diff.
+Output ONLY the plan - no code, no diff.
 """
 
 _IMPLEMENTER_PROMPT = """\
@@ -149,8 +149,8 @@ Proposed diff:
 {patch}
 
 Respond with one of:
-  APPROVED  — the diff looks correct and sufficient
-  REJECTED: <brief reason>  — the diff is wrong or incomplete
+  APPROVED  - the diff looks correct and sufficient
+  REJECTED: <brief reason>  - the diff is wrong or incomplete
 
 One line only.
 """
@@ -168,7 +168,7 @@ class HarnessConfig:
     results_dir: Path
     dataset: str = "princeton-nlp/SWE-bench_Lite"
     split: str = "test"
-    # Parallelism — keep at 1 for SWE-Bench (Docker is the bottleneck)
+    # Parallelism - keep at 1 for SWE-Bench (Docker is the bottleneck)
     workers: int = 1
     # Timeout per agent call in seconds
     agent_timeout_s: int = 300
@@ -562,7 +562,7 @@ def _run_bernstein_instance(
     traces.append(impl_trace)
     patch = _extract_patch(impl_text)
 
-    # Stage 3: QA review (advisory — doesn't block patch application)
+    # Stage 3: QA review (advisory - doesn't block patch application)
     qa_role = roles_by_name.get("qa")
     if qa_role and patch:
         qa_prompt = _QA_PROMPT.format(
@@ -624,7 +624,7 @@ class Harness:
                 logger.debug("Skipping already-evaluated %s", iid)
                 continue
 
-            logger.info("[%d/%d] %s — %s", idx, len(instances), scenario.name, iid)
+            logger.info("[%d/%d] %s - %s", idx, len(instances), scenario.name, iid)
             result = self._evaluate_instance(instance, scenario)
             results.append(result)
             self.store.append(result)
@@ -857,7 +857,7 @@ class Harness:
                 instance["_dataset"] = self.cfg.dataset
                 resolved = _run_tests_via_swebench(instance, workdir)
             except ImportError as exc:
-                # swebench not installed — record patch but skip test evaluation
+                # swebench not installed - record patch but skip test evaluation
                 logger.warning("swebench not available, skipping test eval: %s", exc)
                 resolved = False
                 wall = time.monotonic() - t0

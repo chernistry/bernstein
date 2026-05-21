@@ -1,4 +1,4 @@
-"""Tests for T681 — 22 new hook lifecycle events (hookspecs + fire methods)."""
+"""Tests for T681 - 22 new hook lifecycle events (hookspecs + fire methods)."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ class TestFirstResultHooks:
 
 
 # ---------------------------------------------------------------------------
-# Fire method tests — verify PluginManager has fire_* for each new hook
+# Fire method tests - verify PluginManager has fire_* for each new hook
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +123,7 @@ class TestFireMethodsExist:
 
 
 # ---------------------------------------------------------------------------
-# Fire method dispatch tests — no crash, no errors
+# Fire method dispatch tests - no crash, no errors
 # ---------------------------------------------------------------------------
 
 

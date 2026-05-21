@@ -6,12 +6,12 @@ test files while still writing the remaining five, reducing wall-clock time.
 
 Public API
 ----------
-- :func:`incremental_merge_files` — merge specific committed files from an
+- :func:`incremental_merge_files` - merge specific committed files from an
   agent's branch into the current branch of the main repo.
-- :func:`get_incremental_merge_state` — read which files have already been
+- :func:`get_incremental_merge_state` - read which files have already been
   merged for a given session.
-- :class:`IncrementalMergeResult` — result of a single partial merge.
-- :class:`IncrementalMergeState` — cumulative state across all partial merges
+- :class:`IncrementalMergeResult` - result of a single partial merge.
+- :class:`IncrementalMergeState` - cumulative state across all partial merges
   for one agent session.
 
 Design notes
@@ -22,7 +22,7 @@ from the agent's branch without triggering a full merge commit.  A follow-up
 ``git commit`` records the snapshot with a descriptive message.
 
 Files that have not been committed to the agent's branch yet are returned as
-``uncommitted_files`` and skipped — the agent must commit them in its worktree
+``uncommitted_files`` and skipped - the agent must commit them in its worktree
 first.  Already-merged files (recorded in the state file) are also skipped to
 prevent double-merging.
 
@@ -74,7 +74,7 @@ class IncrementalMergeResult:
         skipped_already_merged: Files that were already merged in a prior
             partial-merge call (skipped to avoid double-applying).
         uncommitted_files: Files the agent has not yet committed to its branch
-            (skipped — caller must commit them in the worktree first).
+            (skipped - caller must commit them in the worktree first).
         conflicting_files: Files whose content conflicted during checkout.
         dirty_files: Files the operator has modified in the main workdir
             (staged or unstaged) and that would be clobbered by the merge.
@@ -286,7 +286,7 @@ def _dirty_target_files(workdir: Path, files: list[str]) -> list[str]:
             continue
         xy = line[:2]
         path = line[3:].strip()
-        # Strip renames: "XY old -> new" — we care about the destination path.
+        # Strip renames: "XY old -> new" - we care about the destination path.
         if " -> " in path:
             path = path.split(" -> ", 1)[1].strip()
         # Remove surrounding quotes that git adds for paths with special chars.
@@ -329,7 +329,7 @@ def incremental_merge_files(
 
     This is designed to be called from the task-server route while the agent
     is still running.  The final full merge at agent-completion time will still
-    happen — but because the incremental-merge state is recorded, you can
+    happen - but because the incremental-merge state is recorded, you can
     choose to exclude already-merged files from the final merge diff (the
     responsibility lies with the orchestrator's merge logic).
 

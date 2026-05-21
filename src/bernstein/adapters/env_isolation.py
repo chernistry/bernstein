@@ -111,20 +111,20 @@ _BASE_ALLOWLIST: frozenset[str] = frozenset(
         # --- Bernstein hook auth ---
         # Spawned agents post tool events to ``/hooks/{session_id}`` signed
         # with HMAC-SHA256 keyed by BERNSTEIN_HOOK_SECRET (falling back to
-        # BERNSTEIN_AUTH_TOKEN — see adapters/claude.py:568 and
+        # BERNSTEIN_AUTH_TOKEN - see adapters/claude.py:568 and
         # core/routes/hooks.py:60). Without these in the allowlist the
         # agent's env has an empty secret, openssl HMACs over "", the server
         # rejects every hook POST with 401, and the orchestrator can't see
         # heartbeats/completion markers until the watchdog fires (up to
         # 120s after work actually finished).  These are NOT provider
-        # credentials — they're the agent's own return channel, so passing
+        # credentials - they're the agent's own return channel, so passing
         # them through the allowlist is safe.
         "BERNSTEIN_AUTH_TOKEN",
         "BERNSTEIN_HOOK_SECRET",
         # ``BERNSTEIN_AUTH_DISABLED`` must propagate so the agent's hook
         # runner skips signing in dev mode (server likewise skips HMAC
         # verification).  Without it the agent signs while the server
-        # bypasses verification — not a failure, but keeps behaviour
+        # bypasses verification - not a failure, but keeps behaviour
         # symmetric.
         "BERNSTEIN_AUTH_DISABLED",
     }

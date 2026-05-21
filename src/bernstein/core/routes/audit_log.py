@@ -171,7 +171,7 @@ async def query_audit_log(
 
 
 # ---------------------------------------------------------------------------
-# GET /audit/verify — chain integrity status (web GUI banner)
+# GET /audit/verify - chain integrity status (web GUI banner)
 # ---------------------------------------------------------------------------
 
 
@@ -199,7 +199,7 @@ def _build_verify_payload(audit_dir: Path, events: list[dict[str, Any]]) -> dict
     """Build the verify-chain response payload.
 
     Always returns *every* field the GUI banner expects so the chain-status
-    cards never render ``—`` on a freshly-initialized run. Fields default
+    cards never render ``-`` on a freshly-initialized run. Fields default
     to safe, non-null values when an audit dir is empty or missing.
     """
     now_iso = datetime.now(UTC).isoformat()
@@ -288,7 +288,7 @@ def audit_reverify(
     """Re-walk the audit chain.
 
     Behaviourally identical to ``GET /audit/verify`` for the lightweight
-    probe — the operator-visible "Re-verify" button in the GUI just wants
+    probe - the operator-visible "Re-verify" button in the GUI just wants
     a fresh walk and an up-to-date payload. Accepts ``{from_chunk}`` so
     future implementations can scope the walk; today the field is read
     and echoed but not used to slice the chain.
@@ -302,7 +302,7 @@ def audit_reverify(
 
 
 # ---------------------------------------------------------------------------
-# POST /audit/export — CSV / JSONL download for the web GUI Export menu.
+# POST /audit/export - CSV / JSONL download for the web GUI Export menu.
 # ---------------------------------------------------------------------------
 
 
@@ -334,7 +334,7 @@ def audit_export(
 
     Same filter semantics as ``GET /audit`` (``event_type``, ``search``,
     ``from``, ``to``); returns the entire matching set in one body, no
-    pagination — operators expect to download the whole filtered slice.
+    pagination - operators expect to download the whole filtered slice.
     Used by the web GUI Export menu (CSV / JSONL buttons).
     """
     from_ts = request.query_params.get("from")

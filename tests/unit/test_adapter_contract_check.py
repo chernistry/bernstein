@@ -71,7 +71,7 @@ def _write_contract(contracts_dir: Path, payload: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ContractSpec.load — schema parsing
+# ContractSpec.load - schema parsing
 # ---------------------------------------------------------------------------
 
 
@@ -291,7 +291,7 @@ def test_ansi_stripped_before_match() -> None:
 
 
 # ---------------------------------------------------------------------------
-# check_contract — full pass/fail paths
+# check_contract - full pass/fail paths
 # ---------------------------------------------------------------------------
 
 
@@ -622,7 +622,7 @@ def test_check_contract_help_requires_auth_and_secret_missing(
 
 
 # ---------------------------------------------------------------------------
-# list_contracts — repo-shipped contracts
+# list_contracts - repo-shipped contracts
 # ---------------------------------------------------------------------------
 
 

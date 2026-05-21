@@ -109,7 +109,7 @@ async def update_config(request: Request) -> JSONResponse:
     ``bernstein.yaml`` so the orchestrator's hot-reload picks it up on
     the next tick (~30s).  Returns the new effective value.
 
-    Agent identity JWTs (per-agent, task-scoped) are rejected with 403 —
+    Agent identity JWTs (per-agent, task-scoped) are rejected with 403 -
     mutating process-wide config is an operator action.  SSO admin users
     and legacy operator tokens may proceed.  Bearer-level permission
     enforcement is handled by :class:`SSOAuthMiddleware` via the
@@ -143,7 +143,7 @@ async def update_config(request: Request) -> JSONResponse:
         return JSONResponse(status_code=400, content={"error": "missing max_agents"})
     new_max = max(1, min(int(new_max), 50))  # clamp to sane range
 
-    # Update bernstein.yaml — the orchestrator watches mtime and hot-reloads
+    # Update bernstein.yaml - the orchestrator watches mtime and hot-reloads
     yaml_path = Path.cwd() / "bernstein.yaml"
     if not yaml_path.exists():
         return JSONResponse(status_code=404, content={"error": "bernstein.yaml not found"})

@@ -80,7 +80,7 @@ class TestFindOrphanedToolUses:
             _assistant_tool_use("tu_01"),
             _user_tool_result("tu_01"),
             _assistant_tool_use("tu_02"),
-            # Crash happens here — no tool_result for tu_02
+            # Crash happens here - no tool_result for tu_02
         ]
         orphans = find_orphaned_tool_uses(msgs)
         assert len(orphans) == 1
@@ -254,7 +254,7 @@ class TestRepairTranscript:
             _user_tool_result("tu_01"),
             _text_msg("assistant", "thinking..."),
             _assistant_tool_use("tu_02"),
-            # Crash here — no result for tu_02
+            # Crash here - no result for tu_02
         ]
         result = repair_transcript(msgs)
         assert result.orphan_count == 1

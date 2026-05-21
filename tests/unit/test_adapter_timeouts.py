@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 # Helpers
 # ---------------------------------------------------------------------------
 
-_SHORT_TIMEOUT = 0.05  # seconds — fire almost immediately
+_SHORT_TIMEOUT = 0.05  # seconds - fire almost immediately
 
 
 def _make_popen_mock(pid: int) -> MagicMock:
@@ -53,7 +53,7 @@ def _make_llm_settings_mock() -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# Core watchdog logic — tested via CodexAdapter as representative
+# Core watchdog logic - tested via CodexAdapter as representative
 # ---------------------------------------------------------------------------
 
 
@@ -247,7 +247,7 @@ class TestAllAdaptersHaveTimeout:
 
 class TestDefaultTimeout:
     def test_default_timeout_1800(self, tmp_path: Path) -> None:
-        """Watchdog fires after default 1800 s — verified by checking timer interval."""
+        """Watchdog fires after default 1800 s - verified by checking timer interval."""
         import threading
 
         adapter = CodexAdapter()

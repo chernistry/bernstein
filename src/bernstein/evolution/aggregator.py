@@ -850,7 +850,7 @@ class MetricsAggregator:
         success_rate = metrics.get("success_rate", 0.0)
         history = self._metric_history.get("success_rate", [])
         if success_rate >= 1.0 and len(history) >= 5 and all(v >= 1.0 for v in history[-5:]):
-            flags.append("success_rate has been 100% for 5+ consecutive windows — possible test gaming")
+            flags.append("success_rate has been 100% for 5+ consecutive windows - possible test gaming")
         return flags
 
     def _update_metric_history(self, metrics: dict[str, float]) -> None:

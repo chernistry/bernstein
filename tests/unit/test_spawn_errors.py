@@ -1,4 +1,4 @@
-"""Tests for AGENT-001 — categorized spawn failure errors."""
+"""Tests for AGENT-001 - categorized spawn failure errors."""
 
 from __future__ import annotations
 

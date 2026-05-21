@@ -1,4 +1,4 @@
-"""``PreviewManager`` — orchestrates a single ``bernstein preview`` lifecycle.
+"""``PreviewManager`` - orchestrates a single ``bernstein preview`` lifecycle.
 
 Responsibilities:
 
@@ -140,7 +140,7 @@ class PreviewState:
         sandbox_backend: Backend name (``"worktree"``, ``"docker"``, …).
         sandbox_session_id: Backend-supplied session identifier.
         tunnel_provider: Provider name (``"cloudflared"``, ``"ngrok"`` …).
-        tunnel_name: Tunnel name registered with the registry — used to
+        tunnel_name: Tunnel name registered with the registry - used to
             stop the tunnel on shutdown.
         public_url: Bare tunnel URL (no auth credentials).
         share_url: URL with auth credentials baked in (token query or
@@ -371,7 +371,7 @@ class PreviewManager:
                 stays decoupled from the concrete backend selection.
             command: Optional explicit command override. ``None`` means
                 "auto-discover".
-            provider: Tunnel provider — defaults to ``"auto"`` per the
+            provider: Tunnel provider - defaults to ``"auto"`` per the
                 ticket.
             auth_mode: ``"basic"``, ``"token"`` or ``"none"``.
             expire_seconds: ``--expire`` value. Accepts strings like
@@ -446,7 +446,7 @@ class PreviewManager:
         )
         self._store.upsert(state)
 
-        # Audit + metrics — issued before returning so observers see the
+        # Audit + metrics - issued before returning so observers see the
         # preview the moment ``start`` returns.
         self._record_audit(
             "preview.start",
@@ -555,7 +555,7 @@ class PreviewManager:
     ) -> None:
         """Emit an audit entry; demote audit failures to warnings.
 
-        We intentionally never raise here — losing observability is
+        We intentionally never raise here - losing observability is
         bad, but losing the preview because the audit log is wedged
         is worse.
         """
@@ -593,7 +593,7 @@ class PreviewManager:
 class SandboxLike:
     """Structural protocol describing the bits we read off a sandbox session.
 
-    We deliberately accept *anything* with the two attributes — it lets
+    We deliberately accept *anything* with the two attributes - it lets
     callers pass either a real :class:`SandboxSession` or a lightweight
     test stub.
     """
@@ -661,7 +661,7 @@ class SubprocessDevServerRunner(DevServerRunner):
         if not command:
             raise PreviewError("Cannot spawn an empty command")
         # The dev server may be a free-form shell pipeline (``npm run
-        # dev`` is fine, ``cd foo && npm run dev`` is not — we forbid
+        # dev`` is fine, ``cd foo && npm run dev`` is not - we forbid
         # ``;`` and ``&&`` chaining to keep the audit trail honest).
         if any(token in command for token in (";", "&&", "||")):
             raise PreviewError("Pipeline / chained commands are not allowed")
@@ -714,7 +714,7 @@ def _await_port(handle: DevServerHandle, *, timeout_seconds: float) -> int:
     Args:
         handle: Result of :meth:`DevServerRunner.spawn`.
         timeout_seconds: Wall-clock budget. Passed transparently to
-            consumers — the caller is expected to enforce a hard upper
+            consumers - the caller is expected to enforce a hard upper
             bound on the iterable.
 
     Returns:
@@ -746,7 +746,7 @@ def _await_port(handle: DevServerHandle, *, timeout_seconds: float) -> int:
 
 
 def _resolve_command(cwd: Path, command: str | None) -> DiscoveredCommand:
-    """Resolve a command — explicit override beats auto-discovery."""
+    """Resolve a command - explicit override beats auto-discovery."""
     if command and command.strip():
         return DiscoveredCommand(source="--command", command=command.strip())
     discovered = discover_commands(cwd)

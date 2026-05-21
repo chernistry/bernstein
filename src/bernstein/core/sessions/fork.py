@@ -8,7 +8,7 @@ the fork worktree's session directory.
 
 This is the snapshot-based slice of GH-1222.  It does **not** attempt to
 pause-and-fork a live agent process, replicate streaming conversation
-state, or auto-merge fork results — those are deferred follow-ups.
+state, or auto-merge fork results - those are deferred follow-ups.
 
 Usage::
 
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Worktree base directory (mirrors ``WorktreeManager._WORKTREE_BASE``).
 _WORKTREE_BASE_REL = Path(".sdd/worktrees")
 
-# Slugify pattern for the optional fork label — keep it tight so the
+# Slugify pattern for the optional fork label - keep it tight so the
 # resulting branch and directory names stay shell- and git-safe.
 _LABEL_SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 _LABEL_MAX_LEN = 32
@@ -69,7 +69,7 @@ class SessionFork:
     Attributes:
         parent_session_id: Source session identifier.
         fork_session_id: Newly-allocated session identifier for the fork.
-        parent_branch: Git branch of the parent session (best-effort —
+        parent_branch: Git branch of the parent session (best-effort -
             may be empty when the parent was checked out in detached
             HEAD or when ``git symbolic-ref`` fails).
         fork_branch: Git branch created for the fork.
@@ -240,7 +240,7 @@ def _clone_session_snapshot(
     The snapshot keeps the *exact* task list (including ``status`` so
     in-progress tasks remain in-progress in the fork) and stamps fork
     lineage metadata under ``fork``.  We deliberately do **not** mutate
-    ``run_seed`` or ``goal`` — operators want the fork to start from
+    ``run_seed`` or ``goal`` - operators want the fork to start from
     the same planning context.
 
     Args:

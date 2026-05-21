@@ -1,4 +1,4 @@
-"""Container-based agent isolation — kernel-level sandboxing for spawned agents.
+"""Container-based agent isolation - kernel-level sandboxing for spawned agents.
 
 Provides configurable container runtimes (Docker, Podman, gVisor, Firecracker)
 that wrap the existing CLI adapter pattern.  Each agent session runs inside an
@@ -334,7 +334,7 @@ def _build_create_args(
     for host_entry in config.extra_hosts:
         args.extend(["--add-host", host_entry])
 
-    # Workspace mount — always bind the workspace directory
+    # Workspace mount - always bind the workspace directory
     args.extend(
         [
             "--volume",
@@ -342,7 +342,7 @@ def _build_create_args(
         ]
     )
 
-    # .sdd state mount — share state directory for task server communication
+    # .sdd state mount - share state directory for task server communication
     sdd_path = workspace_path / ".sdd"
     if sdd_path.exists():
         args.extend(
@@ -431,7 +431,7 @@ class ContainerManager:
     ) -> ContainerHandle:
         """Create a container for an agent session.
 
-        Does NOT start the container — call :meth:`exec` to run commands.
+        Does NOT start the container - call :meth:`exec` to run commands.
 
         Args:
             session_id: Unique agent session identifier.
@@ -908,7 +908,7 @@ class ContainerManager:
         shell_script = " && ".join(setup_cmds)
         run_args: list[str] = [self._runtime_cmd, "run", "--rm", "--name", container_name]
 
-        # Resource limits (reuse from config, relaxed — only cpu/memory)
+        # Resource limits (reuse from config, relaxed - only cpu/memory)
         limits = self._config.resource_limits
         if limits.cpu_cores is not None:
             run_args.extend(["--cpus", str(limits.cpu_cores)])
@@ -918,7 +918,7 @@ class ContainerManager:
         # Security profile (reuse shared helper)
         _append_security_args(run_args, self._config.security)
 
-        # Network — Phase 1 needs internet access
+        # Network - Phase 1 needs internet access
         run_args.extend(["--network", phase1_network.value])
 
         # Workspace mount

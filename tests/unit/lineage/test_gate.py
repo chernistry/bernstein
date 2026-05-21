@@ -276,7 +276,7 @@ def test_gate_rejects_worker_writing_merge_entry(tmp_path: Path) -> None:
     g = _entry_for(worker, "x.py", _h("1"), [], ts_ns=1)
     f1 = _entry_for(worker, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
     f2 = _entry_for(worker, "x.py", _h("3"), [entry_hash(g)], ts_ns=3)
-    # Worker tries to write a merge entry — must be rejected if allow-list set.
+    # Worker tries to write a merge entry - must be rejected if allow-list set.
     m = _entry_for(worker, "x.py", _h("4"), [entry_hash(f1), entry_hash(f2)], ts_ns=4)
     _write_log_and_sigs(log, [(g, None), (f1, None), (f2, None), (m, None)], {worker.agent_id: worker})
     result = check(
@@ -479,7 +479,7 @@ def test_gate_failure_count_appears_in_failure_message(tmp_path: Path) -> None:
     )
     result = check(log_path=log, agent_cards_dir=cards)
     assert result.ok is False
-    # Match exact count "3 unresolved" — kills the zero-count mutation.
+    # Match exact count "3 unresolved" - kills the zero-count mutation.
     tip_msgs = [f for f in result.failures if "unresolved" in f and "tips" in f]
     assert tip_msgs, result.failures
     assert "3" in tip_msgs[0]
@@ -491,7 +491,7 @@ def test_gate_fork_resolved_flag_initial_false_not_true(tmp_path: Path) -> None:
     `False -> True` flip on the resolved sentinel.
 
     We construct a scenario where the open-tip count is OK (1) but a
-    historical fork is still unresolved — that forces the gate to rely on
+    historical fork is still unresolved - that forces the gate to rely on
     the resolved=False initial value.
 
     Concretely: after a merge, write another genesis-style child of the
@@ -510,7 +510,7 @@ def test_gate_fork_resolved_flag_initial_false_not_true(tmp_path: Path) -> None:
     _write_log_and_sigs(log, [(g, None), (f1, None), (f2, None)], {a.agent_id: a})
     result = check(log_path=log, agent_cards_dir=cards)
     assert result.ok is False
-    # The gate must produce a fork-level message too — both classes of
+    # The gate must produce a fork-level message too - both classes of
     # message must appear if the initial `resolved = False` is intact.
     fork_msgs = [f for f in result.failures if "unresolved fork" in f]
     assert fork_msgs, f"no fork-level message: {result.failures}"

@@ -1,4 +1,4 @@
-"""Bernstein Playground — local sandbox for safe experimentation.
+"""Bernstein Playground - local sandbox for safe experimentation.
 
 Provides helpers to create isolated sandbox copies of a project directory
 using ``git worktree`` (preferred) or a shallow ``git clone`` fallback.

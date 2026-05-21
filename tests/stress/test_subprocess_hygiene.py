@@ -7,7 +7,7 @@ Tests assert:
 * SIGKILL fallback kicks in when a child ignores SIGTERM
 
 The "orchestrator" here is just a Python parent that holds ``Popen``
-handles — we exercise the generic OS contract our real orchestrator
+handles - we exercise the generic OS contract our real orchestrator
 depends on, so a regression in the platform layer (e.g. someone
 swaps ``waitpid`` for a fire-and-forget call) trips this gate.
 
@@ -143,13 +143,13 @@ def test_sigkill_fallback_after_sigterm_ignored() -> None:
         # Give the child time to install the SIG_IGN handler.
         time.sleep(0.1)
         child.terminate()
-        # Confirm SIGTERM was indeed ignored — the child should still be
+        # Confirm SIGTERM was indeed ignored - the child should still be
         # alive after a short pause.
         with suppress(subprocess.TimeoutExpired):
             child.wait(timeout=0.5)
             pytest.fail("child unexpectedly exited from SIGTERM (test invalid)")
 
-        # SIGKILL fallback — must reap within 1 s.
+        # SIGKILL fallback - must reap within 1 s.
         start = time.monotonic()
         child.kill()
         rc = child.wait(timeout=2.0)

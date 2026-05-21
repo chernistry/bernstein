@@ -2,14 +2,14 @@
 
 The service exposes the operations the CLI surfaces:
 
-* :meth:`browse` — list catalog entries.
-* :meth:`search` — substring/keyword search across catalog entries.
-* :meth:`info` — full info for one entry.
-* :meth:`install` — sandboxed dry-run + write to user config.
-* :meth:`list_installed` — read installed entries from user config.
-* :meth:`upgrade` / :meth:`upgrade_all` — re-fetch + version comparison.
-* :meth:`status` — last fetch / next-due timestamps for the cadence.
-* :meth:`background_check_due` — gating helper for ``mcp serve`` startup.
+* :meth:`browse` - list catalog entries.
+* :meth:`search` - substring/keyword search across catalog entries.
+* :meth:`info` - full info for one entry.
+* :meth:`install` - sandboxed dry-run + write to user config.
+* :meth:`list_installed` - read installed entries from user config.
+* :meth:`upgrade` / :meth:`upgrade_all` - re-fetch + version comparison.
+* :meth:`status` - last fetch / next-due timestamps for the cadence.
+* :meth:`background_check_due` - gating helper for ``mcp serve`` startup.
 """
 
 from __future__ import annotations

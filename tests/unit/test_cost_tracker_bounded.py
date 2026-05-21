@@ -46,7 +46,7 @@ class TestUsageBufferBounded:
             )
 
         assert len(tracker.usages) == buffer_size
-        # deque exposes its maxlen — verifies the ring buffer, not a list trim
+        # deque exposes its maxlen - verifies the ring buffer, not a list trim
         assert tracker._usages.maxlen == buffer_size  # pyright: ignore[reportPrivateUsage]
         # total ever appended is tracked independently of the in-memory cap
         assert tracker.total_usages_recorded == total

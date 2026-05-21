@@ -1,4 +1,4 @@
-"""``bernstein abandonments`` — inspect the agent abandonment ledger (#1350).
+"""``bernstein abandonments`` - inspect the agent abandonment ledger (#1350).
 
 The ledger lives at ``<workdir>/.sdd/runtime/abandonments.jsonl`` and is
 written every time an adapter calls ``ctx.abandon(reason, detail)`` or

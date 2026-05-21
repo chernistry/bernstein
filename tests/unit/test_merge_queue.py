@@ -259,7 +259,7 @@ class TestParseMergeTreeConflicts:
         assert "src/models.py" not in result
 
     def test_no_duplicate_paths(self) -> None:
-        # base/our/their lines all reference the same path — must dedupe
+        # base/our/their lines all reference the same path - must dedupe
         result = _parse_merge_tree_conflicts(_ONE_CONFLICT)
         assert result.count("src/auth.py") == 1
 
@@ -542,7 +542,7 @@ class TestMergeQueueSubmit:
         tb = threading.Thread(target=worker_b)
         ta.start()
         # Ensure A has reached the head of the queue and acquired merge_lock
-        # before B enqueues — this is what pins down "FIFO by enqueue order".
+        # before B enqueues - this is what pins down "FIFO by enqueue order".
         assert inside_events["a_inside"].wait(timeout=2.0)
         tb.start()
         inside_events["a_can_exit"].set()
@@ -550,7 +550,7 @@ class TestMergeQueueSubmit:
         tb.join(timeout=5.0)
         assert not ta.is_alive()
         assert not tb.is_alive()
-        # A started and finished before B started — serialized.
+        # A started and finished before B started - serialized.
         assert order == ["a-start", "a-end", "b-start", "b-end"]
 
     def test_submit_fifo_preserved_with_many_waiters(self) -> None:

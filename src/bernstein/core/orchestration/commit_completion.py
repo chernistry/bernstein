@@ -3,7 +3,7 @@
 A common failure mode of CLI coding agents is exiting with success while
 leaving the workspace untouched: the assistant claims it finished, but no
 new commit landed. The agent's self-report cannot be trusted as a
-completion signal — the workspace is the ground truth.
+completion signal - the workspace is the ground truth.
 
 This module snapshots the workspace HEAD before launching an adapter and
 compares it after the process exits. If the agent declared success
@@ -126,7 +126,7 @@ class _ContinuationCapableAdapter(Protocol):
     launch (typically something like ``["--resume", session_id]`` or
     ``["--continue"]``).
 
-    The protocol is internal documentation only — the orchestrator
+    The protocol is internal documentation only - the orchestrator
     consumes :class:`bernstein.adapters.base.CLIAdapter` directly.
     """
 

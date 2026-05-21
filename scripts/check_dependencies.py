@@ -233,7 +233,7 @@ def main(fix: bool, output: str) -> None:
         table.add_column("CVE ID")
         table.add_column("Fix Available")
         for cve in cves:
-            table.add_row(cve.package, cve.version, cve.cve_id, " / ".join(cve.fix_versions) or "—")
+            table.add_row(cve.package, cve.version, cve.cve_id, " / ".join(cve.fix_versions) or "-")
         console.print(table)
 
     if tested_resolutions:

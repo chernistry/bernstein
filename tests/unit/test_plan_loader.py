@@ -20,7 +20,7 @@ def _write_plan(tmp_path: Path, data: object) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# load_plan_from_yaml — basic loading
+# load_plan_from_yaml - basic loading
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +172,7 @@ def test_step_title_takes_precedence_over_goal(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# load_plan — PlanConfig extraction
+# load_plan - PlanConfig extraction
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +310,7 @@ def test_step_cli_override(tmp_path: Path) -> None:
 
 
 def test_step_cli_empty_string_treated_as_none(tmp_path: Path) -> None:
-    """An empty `cli:` is silently dropped — same convention as model/effort."""
+    """An empty `cli:` is silently dropped - same convention as model/effort."""
     plan_file = _write_plan(
         tmp_path,
         {"stages": [{"name": "S", "steps": [{"title": "T", "cli": ""}]}]},

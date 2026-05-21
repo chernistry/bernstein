@@ -1,4 +1,4 @@
-"""Regression tests for the Orchestrator — task lifecycle, routing, cleanup, cost tracking.
+"""Regression tests for the Orchestrator - task lifecycle, routing, cleanup, cost tracking.
 
 Covers the core orchestration loop end-to-end: dependency filtering, retry
 with model/effort escalation, crash recovery strategies, provider health and
@@ -988,7 +988,7 @@ class TestServerCommunicationFailure:
             ),
         )
 
-        # Should not raise — claim failures are handled gracefully
+        # Should not raise - claim failures are handled gracefully
         result = orch.tick()
         assert isinstance(result, TickResult)
 

@@ -268,7 +268,7 @@ class TestRecursiveParentCompletion:
         await store.claim_by_id(s1.id, expected_version=s1.version)
         await store.claim_by_id(s2.id, expected_version=s2.version)
 
-        # Complete both leaves — the second completion should bubble all the way up.
+        # Complete both leaves - the second completion should bubble all the way up.
         await store.complete(s1.id, result_summary="s1 done")
         parent_after_s1 = store.get_task(parent.id)
         grandparent_after_s1 = store.get_task(grandparent.id)
@@ -333,7 +333,7 @@ class TestRecursiveParentCompletion:
         assert task_a is not None
         task_a.parent_task_id = b.id
 
-        # Call directly — this is the private helper but we're testing the guard.
+        # Call directly - this is the private helper but we're testing the guard.
         await store._complete_parent_if_ready(b.id)
 
         # Both should remain WAITING (no subtasks DONE).
@@ -485,7 +485,7 @@ class TestCompletionDataGuard:
         with pytest.raises(EmptyCompletionError):
             await store.complete(task.id, "")
 
-        # Should not deadlock — if the lock leaked we would hang here.
+        # Should not deadlock - if the lock leaked we would hang here.
         followup = await store.create(_task_request(title="followup"))
         assert followup.status == TaskStatus.OPEN
 

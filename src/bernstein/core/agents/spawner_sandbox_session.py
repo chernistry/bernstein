@@ -4,7 +4,7 @@ Phase 2 of ``oai-002`` (ticket ``oai-002b``). Phase 1 shipped the
 :class:`~bernstein.core.sandbox.backend.SandboxBackend` protocol and
 the optional ``sandbox_session`` parameter on :class:`AgentSpawner`,
 but adapter subprocess launches still went straight to the host
-worktree. This module owns the *routing seam* — the bit that, when a
+worktree. This module owns the *routing seam* - the bit that, when a
 session is attached, performs:
 
 1. Prompt injection via :meth:`SandboxSession.write` so the agent
@@ -17,7 +17,7 @@ session is attached, performs:
    :meth:`AgentSpawner.kill` keep working without subprocess PIDs.
 
 The worktree-direct path is preserved unchanged when no session is
-attached — existing users see byte-identical behaviour. The 35 adapters
+attached - existing users see byte-identical behaviour. The 35 adapters
 themselves are not refactored in this phase; they continue to expose
 :meth:`CLIAdapter.spawn`, which we still call as a fallback when the
 selected sandbox is the local-worktree backend (``backend_name ==
@@ -88,7 +88,7 @@ def _run_session_loop(
     """Run the per-handle event loop on its dedicated thread.
 
     The spawner is synchronous; :meth:`SandboxSession.exec` is async.
-    Spinning up one tiny event loop per session keeps the seam local —
+    Spinning up one tiny event loop per session keeps the seam local -
     we don't need a global ``asyncio.run`` in the hot spawn path, and
     cancellation stays scoped to the agent that asked for it.
 
@@ -118,7 +118,7 @@ def _run_session_loop(
     finally:
         try:
             loop.close()
-        except Exception:  # pragma: no cover — defensive
+        except Exception:  # pragma: no cover - defensive
             logger.debug("loop close raised", exc_info=True)
 
 
@@ -142,12 +142,12 @@ def submit_session_exec(
         session: The :class:`SandboxSession` produced by
             :meth:`SandboxBackend.create`.
         cmd: Argv list. Must be non-empty. Backends do not pipe through
-            a shell — wrap commands manually when shell semantics are
+            a shell - wrap commands manually when shell semantics are
             needed.
         session_id: Owning agent session ID used for log/error context.
         log_path: Path the spawner has reserved for this agent's log.
             Mirrored stdout/stderr is written here once the command
-            completes (best effort — failures are logged at debug
+            completes (best effort - failures are logged at debug
             level).
         cwd: Optional working directory inside the sandbox. ``None``
             uses :attr:`SandboxSession.workdir`.
@@ -197,7 +197,7 @@ def submit_session_exec(
                 if result.stderr:
                     fh.write(b"\n--- stderr ---\n")
                     fh.write(result.stderr)
-        except OSError as exc:  # pragma: no cover — best effort
+        except OSError as exc:  # pragma: no cover - best effort
             logger.debug("Could not mirror sandbox exec log to %s: %s", log_path, exc)
 
     fut.add_done_callback(_persist_log)
@@ -208,7 +208,7 @@ def cancel_session_exec(handle: SandboxExecHandle) -> None:
     """Best-effort cancellation of a running sandbox exec.
 
     Schedules cancellation of the underlying asyncio task on the
-    handle's owning loop. Idempotent — safe to call after the future
+    handle's owning loop. Idempotent - safe to call after the future
     already resolved.
 
     Args:

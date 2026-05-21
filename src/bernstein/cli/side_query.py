@@ -2,7 +2,7 @@
 
 Agents can post side questions without interrupting their main task flow.
 Side queries use efficient cache-aligned parameters and are answered
-through the manager LLM or from a knowledge base — never blocking the
+through the manager LLM or from a knowledge base - never blocking the
 orchestrator tick pipeline.
 
 Intended use:
@@ -179,7 +179,7 @@ def answer_side_query(store_dir: Path, query_id: str, answer: str) -> bool:
     """Answer a side query.
 
     Appends a new line with the updated status to the JSONL store
-    (JSONL append model — updates are new lines, not in-place).
+    (JSONL append model - updates are new lines, not in-place).
 
     Args:
         store_dir: Store directory.

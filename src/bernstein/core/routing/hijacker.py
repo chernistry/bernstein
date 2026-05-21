@@ -1,4 +1,4 @@
-"""Automatic tier hijacking — detects and routes to free tier opportunities."""
+"""Automatic tier hijacking - detects and routes to free tier opportunities."""
 
 from __future__ import annotations
 

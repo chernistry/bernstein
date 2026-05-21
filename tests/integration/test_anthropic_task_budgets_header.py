@@ -2,7 +2,7 @@
 
 The Anthropic Opus 4.7 ``task-budgets-2026-03-13`` header is gated
 behind ``BERNSTEIN_ANTHROPIC_TASK_BUDGETS``. Bernstein cannot patch the
-HTTP request because the Claude Code CLI shells out internally — the
+HTTP request because the Claude Code CLI shells out internally - the
 documented channel is the ``ANTHROPIC_BETA`` env var which the upstream
 SDK forwards onto every API call. These tests assert the env var is
 propagated correctly when (and only when) the operator opts in.

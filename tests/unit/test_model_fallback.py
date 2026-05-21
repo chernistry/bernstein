@@ -1,4 +1,4 @@
-"""Tests for T444/AGENT-004 — model fallback on multi-error-type strikes."""
+"""Tests for T444/AGENT-004 - model fallback on multi-error-type strikes."""
 
 from __future__ import annotations
 

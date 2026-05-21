@@ -1,4 +1,4 @@
-# Vulture whitelist — false positives that are actually used
+# Vulture whitelist - false positives that are actually used
 # These are parameters required by framework signatures (Click, signal handlers, etc.)
 
 # Signal handler signature requires 'frame' parameter
@@ -24,7 +24,7 @@ _print_static  # noqa
 _agents_from_dicts  # noqa
 # Parameter kept for API consistency (callers may pass it in future)
 qualified_prefix  # noqa
-# Claude Code Routine adapter — public API not yet wired into orchestrator
+# Claude Code Routine adapter - public API not yet wired into orchestrator
 RoutineCostTracker  # noqa
 build_fire_payload  # noqa
 build_fire_headers  # noqa
@@ -45,7 +45,7 @@ record_fire  # noqa
 extract_github_context  # noqa
 list_scenarios  # noqa
 get_scenario_detail  # noqa
-# Agent identity card — public API
+# Agent identity card - public API
 AgentIdentityCard  # noqa
 issue_identity_card  # noqa
 save_identity_card  # noqa
@@ -53,11 +53,11 @@ load_identity_card  # noqa
 check_capability  # noqa
 DEFAULT_CAPABILITIES  # noqa
 DEFAULT_DENIED  # noqa
-# Agent identity card — dataclass fields and methods consumed by middleware
+# Agent identity card - dataclass fields and methods consumed by middleware
 card_hash  # noqa
 has_capability  # noqa
 in_scope  # noqa
-# Canary deployment API — exported for future orchestrator integration (#810)
+# Canary deployment API - exported for future orchestrator integration (#810)
 PromptVersion  # noqa
 CanaryState  # noqa
 hash_prompt  # noqa
@@ -82,7 +82,7 @@ auto_rollback_diff_pct  # noqa
 prompt_hash  # noqa
 created_at  # noqa
 notes  # noqa
-# Eval framework — public API, consumed by bandit router and benchmark mode
+# Eval framework - public API, consumed by bandit router and benchmark mode
 append_eval_record  # noqa
 load_eval_records  # noqa
 per_model_accuracy  # noqa
@@ -101,7 +101,7 @@ complexity  # noqa
 timestamp  # noqa
 avg_duration_s  # noqa
 avg_cost_usd  # noqa
-# Agent checkpoint (WAL crash recovery) — public API used across orchestrator
+# Agent checkpoint (WAL crash recovery) - public API used across orchestrator
 crash_recoverable  # noqa
 checkpointed_at  # noqa
 build_resume_prompt  # noqa
@@ -109,7 +109,7 @@ scan_orphaned_checkpoints  # noqa
 is_checkpoint_recoverable  # noqa
 load_checkpoint  # noqa
 save_checkpoint  # noqa
-# Plan-and-Execute architecture — public API wired via plan runner / review gate
+# Plan-and-Execute architecture - public API wired via plan runner / review gate
 PLANNING_MODELS  # noqa
 EXECUTION_MODELS  # noqa
 select_planning_model  # noqa
@@ -131,7 +131,7 @@ priority  # noqa
 scope  # noqa
 depends_on  # noqa
 
-# Protocol method parameter — bound by call site, not used in body
+# Protocol method parameter - bound by call site, not used in body
 capture_output  # noqa
 
 # TYPE_CHECKING-only import used inside cast("...") string literal,

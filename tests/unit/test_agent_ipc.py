@@ -103,7 +103,7 @@ def test_logging_path_uses_sanitized_session_id(caplog) -> None:  # type: ignore
         unregister_stdin_pipe(session)
     joined = "\n".join(rec.getMessage() for rec in caplog.records)
     assert "INJECTED" in joined  # content kept (sanitized but visible)
-    # No record contains a raw newline — every one is single-line.
+    # No record contains a raw newline - every one is single-line.
     assert all("\n" not in rec.getMessage() for rec in caplog.records)
 
 

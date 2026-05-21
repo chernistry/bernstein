@@ -1,4 +1,4 @@
-"""SandboxBackend registry — first-party backends + pluggy entry points.
+"""SandboxBackend registry - first-party backends + pluggy entry points.
 
 The registry is the single lookup surface for sandbox backends. It
 loads first-party backends eagerly (``worktree``, ``docker``) and
@@ -11,7 +11,7 @@ entry point in their ``pyproject.toml``::
 
 Optional backends (``e2b``, ``modal``) import their provider SDK lazily
 inside the backend module, so importing the registry never crashes even
-when the SDK is missing — instantiation of the corresponding backend
+when the SDK is missing - instantiation of the corresponding backend
 will raise a clear error instead.
 """
 
@@ -229,7 +229,7 @@ def list_backend_names() -> list[str]:
 
 
 def _reset_for_tests() -> None:
-    """Drop cached state. Tests only — not part of the public API.
+    """Drop cached state. Tests only - not part of the public API.
 
     Intentionally referenced by the test fixture in
     ``tests/unit/sandbox/test_registry.py``. Pyright would flag it

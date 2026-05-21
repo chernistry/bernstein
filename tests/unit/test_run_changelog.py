@@ -1,4 +1,4 @@
-"""Tests for run_changelog — agent-produced diff changelog generation."""
+"""Tests for run_changelog - agent-produced diff changelog generation."""
 
 from __future__ import annotations
 

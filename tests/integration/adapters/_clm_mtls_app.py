@@ -4,7 +4,7 @@ Spawned as a uvicorn subprocess (see
 ``test_adapter_clm_with_fake_nim.py``); kept tiny on purpose so the
 subprocess starts in <1s on CI runners. The bearer-token check stays
 in lockstep with the in-thread fake NIM so the two share a wire-format
-contract — only the transport layer differs.
+contract - only the transport layer differs.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ app = FastAPI()
 async def chat(authorization: str = Header(default="")) -> dict[str, object]:
     if authorization != f"Bearer {_FAKE_NIM_TOKEN}":
         raise HTTPException(status_code=401, detail="bad token")
-    # A non-streaming completion is enough — we're testing the TLS layer,
+    # A non-streaming completion is enough - we're testing the TLS layer,
     # not SSE assembly (that's already covered by the plaintext test).
     return {
         "id": "chatcmpl-mtls-fake",

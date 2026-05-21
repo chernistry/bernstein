@@ -1,4 +1,4 @@
-"""Tests for ``bernstein compare`` — side-by-side adapter comparison.
+"""Tests for ``bernstein compare`` - side-by-side adapter comparison.
 
 These tests use a synthetic in-process executor and a temp workspace.
 No real adapter is spawned, no network is touched.
@@ -90,12 +90,12 @@ def test_parse_adapters_flag_accepts_iterable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# run_compare — happy paths and edge cases
+# run_compare - happy paths and edge cases
 # ---------------------------------------------------------------------------
 
 
 def test_run_compare_single_adapter_degenerate(workspace: Path) -> None:
-    """1-adapter compare still works — same flow, no comparison."""
+    """1-adapter compare still works - same flow, no comparison."""
     task = CompareTaskSpec(task_id="t1", prompt="do stuff")
     run = run_compare(task, ["claude"], workspace, executor=_make_executor())
 

@@ -204,7 +204,7 @@ def test_always_allow_gate_allows_when_rule_matches(
 
 
 def test_always_allow_gate_denies_without_rule(sample_comment: ReviewComment) -> None:
-    """Without a matching rule the gate denies — caller must opt-in explicitly."""
+    """Without a matching rule the gate denies - caller must opt-in explicitly."""
     gate = build_always_allow_gate(AlwaysAllowEngine(rules=[]))
     advice = gate(make_round(sample_comment), RunnerOutcome("x", 0.0, "ok"))
     assert advice.allowed is False

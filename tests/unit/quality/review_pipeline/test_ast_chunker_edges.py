@@ -79,7 +79,7 @@ def test_crlf_line_endings_are_normalized(tmp_path: Path) -> None:
     chunks = chunk_for_review(fp)
     assert len(chunks) == 1
     assert chunks[0].symbols == ("foo", "bar")
-    # Output text uses LF only — no stray CR bytes leak through.
+    # Output text uses LF only - no stray CR bytes leak through.
     assert "\r" not in chunks[0].text
 
 
@@ -129,7 +129,7 @@ def test_top_level_statements_only(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Symbol detection — async defs, decorators, nested classes
+# Symbol detection - async defs, decorators, nested classes
 # ---------------------------------------------------------------------------
 
 
@@ -141,7 +141,7 @@ def test_async_def_is_recognised_as_symbol(tmp_path: Path) -> None:
 
 
 def test_decorator_stack_is_kept_with_function(tmp_path: Path) -> None:
-    """Decorators belong to the function — chunk text must include them all."""
+    """Decorators belong to the function - chunk text must include them all."""
     fp = tmp_path / "deco.py"
     fp.write_text(
         "@staticmethod\n@property\ndef foo():\n    return 1\n",
@@ -157,7 +157,7 @@ def test_decorator_stack_is_kept_with_function(tmp_path: Path) -> None:
 
 
 def test_nested_classes_belong_to_outer_class_chunk(tmp_path: Path) -> None:
-    """Inner classes are part of the outer class's AST node — not separate symbols."""
+    """Inner classes are part of the outer class's AST node - not separate symbols."""
     fp = tmp_path / "nest.py"
     fp.write_text(
         "class Outer:\n    class Inner:\n        def m(self): return 1\n",
@@ -306,7 +306,7 @@ def test_line_based_fallback_covers_all_lines_in_order(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Malformed Python — graceful degradation, not crash
+# Malformed Python - graceful degradation, not crash
 # ---------------------------------------------------------------------------
 
 
@@ -329,7 +329,7 @@ def test_malformed_python_falls_back_to_line_based(tmp_path: Path, src: str, cap
 
 
 # ---------------------------------------------------------------------------
-# Many top-level units in a single file — output ordering & coverage
+# Many top-level units in a single file - output ordering & coverage
 # ---------------------------------------------------------------------------
 
 
@@ -344,7 +344,7 @@ def test_chunks_cover_every_top_level_symbol(tmp_path: Path) -> None:
     chunks = chunk_for_review(fp, budget_tokens=300)
     seen = {sym for c in chunks for sym in c.symbols}
     assert {f"helper_{i}" for i in range(60)} <= seen
-    # Every chunk we emit must AST-parse cleanly — never a half-def.
+    # Every chunk we emit must AST-parse cleanly - never a half-def.
     for c in chunks:
         ast.parse(c.text)
 
@@ -356,7 +356,7 @@ def test_review_chunk_dataclass_is_frozen() -> None:
         end_line=2,
         symbols=("foo",),
         text="def foo(): return 1\n",
-        header="# x.py L1-2 — symbols: foo",
+        header="# x.py L1-2 - symbols: foo",
     )
     # Frozen dataclasses raise FrozenInstanceError on attribute assignment.
     with pytest.raises(dataclasses.FrozenInstanceError):

@@ -48,7 +48,7 @@ class ReworkSample:
         outcome: ``"success"`` or ``"rework"``.
         ts: Unix timestamp (seconds) of the observation.
         triggered_by: Optional free-form tag (e.g. ``"verifier"``,
-            ``"phase_gate"``, ``"manager_requeue"``) — used for slicing.
+            ``"phase_gate"``, ``"manager_requeue"``) - used for slicing.
     """
 
     model: str
@@ -96,8 +96,8 @@ class ReworkLedger:
 
     The ledger is shard-per-bucket so each ``rework_rate(...)`` query reads
     only the relevant file. Writes use a thread-level lock plus an
-    ``os.O_APPEND`` open so concurrent processes — and concurrent threads
-    within one process — cannot interleave a single record. POSIX
+    ``os.O_APPEND`` open so concurrent processes - and concurrent threads
+    within one process - cannot interleave a single record. POSIX
     guarantees atomic writes for ``write()`` calls below ``PIPE_BUF`` to a
     file opened with ``O_APPEND``; our records are well under that bound.
     """
@@ -142,7 +142,7 @@ class ReworkLedger:
             path.parent.mkdir(parents=True, exist_ok=True)
             payload = (json.dumps(asdict(sample), separators=(",", ":")) + "\n").encode("utf-8")
             # O_APPEND guarantees the seek-then-write is atomic at the
-            # kernel level for sub-PIPE_BUF writes — no interleaving.
+            # kernel level for sub-PIPE_BUF writes - no interleaving.
             # 0o600: rework telemetry contains (model, effort, phase, outcome)
             # records that the cascade router replays. Reader and writer are
             # the same operator user; world-read is unnecessary and would
@@ -239,7 +239,7 @@ class ReworkLedger:
 
 
 # ---------------------------------------------------------------------------
-# Singleton helper — every cascade-router consumer should reuse one ledger
+# Singleton helper - every cascade-router consumer should reuse one ledger
 # rooted at ``<workdir>/.sdd/runtime/rework`` so all phases share state.
 # ---------------------------------------------------------------------------
 

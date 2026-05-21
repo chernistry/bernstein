@@ -105,7 +105,7 @@ def test_chunks_cover_full_file_in_order(big_python_file: Path) -> None:
     total_lines = source.count("\n")
 
     assert chunks[0].start_line == 1
-    # Last chunk may stop one line short — we deliberately drop trailing
+    # Last chunk may stop one line short - we deliberately drop trailing
     # whitespace-only runs that have no AST node.
     assert chunks[-1].end_line >= total_lines - 1
     for prev, nxt in itertools.pairwise(chunks):

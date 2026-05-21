@@ -396,10 +396,10 @@ class VulnerabilityDisclosureManager:
 
         Computes milestones based on the SLA and deadline configuration:
 
-        1. **Triage** — within ``triage_sla_hours`` of submission.
-        2. **Vendor notified** — at submission time.
-        3. **Fix deadline** — ``fix_deadline_days`` after submission.
-        4. **Public disclosure** — ``disclosure_delay_days`` after fix deadline.
+        1. **Triage** - within ``triage_sla_hours`` of submission.
+        2. **Vendor notified** - at submission time.
+        3. **Fix deadline** - ``fix_deadline_days`` after submission.
+        4. **Public disclosure** - ``disclosure_delay_days`` after fix deadline.
 
         Args:
             report_id: Tracking ID of the report.

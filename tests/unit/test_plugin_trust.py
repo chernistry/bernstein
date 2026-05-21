@@ -1,4 +1,4 @@
-"""Tests for plugin trust checking — file-based inspection with tmp_path."""
+"""Tests for plugin trust checking - file-based inspection with tmp_path."""
 
 from __future__ import annotations
 

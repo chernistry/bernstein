@@ -1,4 +1,4 @@
-"""SKILL.md format — YAML frontmatter metadata + markdown body.
+"""SKILL.md format - YAML frontmatter metadata + markdown body.
 
 Supports Claude Code's SKILL.md convention: a Markdown file with a YAML
 frontmatter block (delimited by ``---``) containing metadata such as name,
@@ -32,7 +32,7 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Valid effort levels — used to normalise the ``effort`` field.
+# Valid effort levels - used to normalise the ``effort`` field.
 _VALID_EFFORT: frozenset[str] = frozenset({"max", "high", "normal", "low"})
 
 # Fields we extract from frontmatter.
@@ -126,7 +126,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     rest = stripped[3:]  # text after opening "---"
     end_idx = rest.find("\n---")
     if end_idx == -1:
-        # No closing fence — treat entire content as body.
+        # No closing fence - treat entire content as body.
         return {}, stripped
 
     fm_text = rest[:end_idx].strip()
@@ -225,7 +225,7 @@ def load_skill_md(path: Path, *, role_fallback: str | None = None) -> SkillMD | 
     fm, body = parse_frontmatter(text)
 
     if not fm and not body.strip().startswith("---"):
-        # No frontmatter at all — the whole file is the body.
+        # No frontmatter at all - the whole file is the body.
         name = role_fallback or ""
         if not name:
             return None

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse hook — smart auto-approve for agent tool calls.
+"""Claude Code PreToolUse hook - smart auto-approve for agent tool calls.
 
 Reads the tool-call payload from stdin (Claude Code hook JSON format),
 classifies the command, and exits with the appropriate code:
 
-    Exit 0  — approve  (tool call proceeds)
-    Exit 1  — deny     (tool call blocked; reason written to stdout)
-    Exit 2  — ask      (escalate to human; reason written to stdout)
+    Exit 0  - approve  (tool call proceeds)
+    Exit 1  - deny     (tool call blocked; reason written to stdout)
+    Exit 2  - ask      (escalate to human; reason written to stdout)
 
 Usage in ~/.claude/settings.json or .claude/settings.json:
 
@@ -47,7 +47,7 @@ Or to cover all tools:
 The hook can also be used standalone for testing:
 
     echo '{"tool_name": "Bash", "tool_input": {"command": "ls -la"}}' | python hooks/smart_approve.py
-    echo $?   # 0 — approved
+    echo $?   # 0 - approved
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def main() -> int:
     try:
         raw = sys.stdin.read()
         if not raw.strip():
-            # No input — allow (edge case in some hook configurations)
+            # No input - allow (edge case in some hook configurations)
             return 0
         payload: dict[str, object] = json.loads(raw)
     except (json.JSONDecodeError, OSError) as exc:
@@ -97,7 +97,7 @@ def main() -> int:
         print(json.dumps({"decision": "block", "reason": result.reason}))
         return 1
 
-    # ASK — escalate to human
+    # ASK - escalate to human
     print(json.dumps({"decision": "ask", "reason": result.reason}))
     return 2
 

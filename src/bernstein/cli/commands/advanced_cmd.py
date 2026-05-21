@@ -712,7 +712,7 @@ def doctor_scoping_cmd(ctx: click.Context, agent_id: str, role: str) -> None:
     parent = ctx.obj if isinstance(ctx.obj, dict) else {}
     as_json = bool(parent.get("as_json", False))
 
-    # Resolve without installing — doctor must not mutate process state.
+    # Resolve without installing - doctor must not mutate process state.
     policy = resolve_default_policy(workdir=Path.cwd(), install=False)
     inherited = [k for k in os.environ if "API" in k or "TOKEN" in k or "KEY" in k]
     snapshot = explain_policy_for_agent(
@@ -1386,13 +1386,13 @@ def _replay_list_runs(runs_dir: Path) -> None:
         event_count = sum(1 for line in replay_file.read_text().splitlines() if line.strip())
         size_kb = replay_file.stat().st_size / 1024
         metadata = read_session_replay_metadata(d)
-        started = "—"
-        branch = "—"
-        sha = "—"
+        started = "-"
+        branch = "-"
+        sha = "-"
         if metadata is not None:
             started = dt.datetime.fromtimestamp(metadata.started_at).strftime("%Y-%m-%d %H:%M")
-            branch = metadata.git_branch or "—"
-            sha = metadata.git_sha[:8] if metadata.git_sha else "—"
+            branch = metadata.git_branch or "-"
+            sha = metadata.git_sha[:8] if metadata.git_sha else "-"
         table.add_row(d.name, started, branch, sha, str(event_count), f"{size_kb:.1f} KB")
     console.print(table)
 
@@ -1475,7 +1475,7 @@ def _replay_run_impl(
     model: str | None,
     extra_context: str | None,
 ) -> None:
-    """Body of ``bernstein replay <run_id>`` — replay one run.
+    """Body of ``bernstein replay <run_id>`` - replay one run.
 
     Extracted so the new ``replay`` :class:`click.Group` can dispatch to
     it from its top-level invocation while also exposing subcommands

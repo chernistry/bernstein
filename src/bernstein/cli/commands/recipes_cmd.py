@@ -10,10 +10,10 @@ existing :class:`bernstein.core.workflows.workflow_runner.WorkflowRunner`.
 
 Surface:
 
-* ``bernstein recipes list`` — bundled recipes + one-line descriptions.
-* ``bernstein recipes show <name>`` — manifest details: params, nodes,
+* ``bernstein recipes list`` - bundled recipes + one-line descriptions.
+* ``bernstein recipes show <name>`` - manifest details: params, nodes,
   dependency order.
-* ``bernstein recipes run <name> --param key=value ...`` — execute the
+* ``bernstein recipes run <name> --param key=value ...`` - execute the
   recipe end-to-end.  ``--dry-run`` prints the resolved workflow plan
   without spawning agents.
 """
@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
-if TYPE_CHECKING:  # pragma: no cover — typing only
+if TYPE_CHECKING:  # pragma: no cover - typing only
     from rich.console import Console
 
     from bernstein.core.workflows.recipe_spec import RecipeSpec
@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover — typing only
 
 @click.group("recipes")
 def recipes_group() -> None:
-    """First-class recipe library — parameterised workflows for common tasks.
+    """First-class recipe library - parameterised workflows for common tasks.
 
     \b
     Examples:
@@ -124,7 +124,7 @@ def list_cmd(bundled_only: bool) -> None:
 @recipes_group.command("show")
 @click.argument("name")
 def show_cmd(name: str) -> None:
-    """Print the manifest for ``name`` — params, nodes, dependency layers.
+    """Print the manifest for ``name`` - params, nodes, dependency layers.
 
     \b
     Example:
@@ -352,7 +352,7 @@ def _print_dry_run(workflow: Any, console: Console) -> None:
     for index, layer in enumerate(workflow.topological_order(), start=1):
         plan.add_row(str(index), ", ".join(node.id for node in layer))
     console.print(plan)
-    console.print("[dim]Dry-run only — no agents were spawned.[/dim]")
+    console.print("[dim]Dry-run only - no agents were spawned.[/dim]")
 
 
 def _execute(
@@ -363,7 +363,7 @@ def _execute(
 ) -> None:
     """Hand ``workflow`` to the standard WorkflowRunner and print results.
 
-    The runner is constructed without a spawner — recipes are operator-
+    The runner is constructed without a spawner - recipes are operator-
     facing, so the orchestrator bootstrap path (which wires a real
     spawner from CLI flags) is the right entry point for production
     runs.  CLI-direct ``recipes run`` is best for command-only flows

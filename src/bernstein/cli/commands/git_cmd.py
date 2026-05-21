@@ -8,19 +8,19 @@ into git plumbing.
 
 Subcommands:
 
-* ``bernstein git snapshots [--task <id>]`` — list recent snapshots.
-* ``bernstein git undo <snapshot_id>`` — restore the work tree to that
+* ``bernstein git snapshots [--task <id>]`` - list recent snapshots.
+* ``bernstein git undo <snapshot_id>`` - restore the work tree to that
   snapshot's tree.
-* ``bernstein git diff <a> <b>`` — show ``git diff --stat`` between two
+* ``bernstein git diff <a> <b>`` - show ``git diff --stat`` between two
   snapshots.
-* ``bernstein git stack [--task <id>]`` — render the task's stacked
+* ``bernstein git stack [--task <id>]`` - render the task's stacked
   branch list, oldest first.
-* ``bernstein git gc [--days N]`` — prune snapshots older than ``N``
+* ``bernstein git gc [--days N]`` - prune snapshots older than ``N``
   days (default 30, matches the documented retention policy).
 
 The commands operate on the current working directory by default;
 ``--workdir`` lets the caller point at a different repo. None of them
-touch the remote — snapshots live in a local side-ref namespace.
+touch the remote - snapshots live in a local side-ref namespace.
 """
 
 from __future__ import annotations
@@ -227,7 +227,7 @@ def stack_clear_cmd(task_id: str, workdir: str) -> None:
     """Drop every stack entry for TASK_ID.
 
     Used during task archive so the ref namespace does not grow
-    unbounded. Snapshots are untouched — only the stack ordering refs
+    unbounded. Snapshots are untouched - only the stack ordering refs
     are removed.
     """
     try:

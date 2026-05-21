@@ -140,7 +140,7 @@ def _render_gate_table(rows: list[GateResult]) -> list[str]:
         return lines
     for row in rows:
         result = "pass" if row.passed else "fail"
-        detail = row.detail.replace("|", "\\|") if row.detail else "—"
+        detail = row.detail.replace("|", "\\|") if row.detail else "-"
         lines.append(f"| {row.name} | {result} | {detail} |")
     return lines
 

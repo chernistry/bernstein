@@ -1,4 +1,4 @@
-"""Tests for AGENT-007 — spawn rate limiting."""
+"""Tests for AGENT-007 - spawn rate limiting."""
 
 from __future__ import annotations
 

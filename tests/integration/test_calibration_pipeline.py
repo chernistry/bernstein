@@ -49,7 +49,7 @@ def test_pipeline_log_to_report_round_trip(tmp_path: Path) -> None:
 
 
 def test_cli_report_empty_log(tmp_path: Path) -> None:
-    """Running the CLI against an empty log returns null Brier/ECE — no crash."""
+    """Running the CLI against an empty log returns null Brier/ECE - no crash."""
     log = tmp_path / "calibration.jsonl"
     runner = CliRunner()
     result = runner.invoke(

@@ -201,7 +201,7 @@ class TestSubsystemContext:
 
 
 # ---------------------------------------------------------------------------
-# Knowledge base — build_file_index, build_architecture_md, refresh
+# Knowledge base - build_file_index, build_architecture_md, refresh
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ class TestAppendDecision:
         for i in range(20):
             append_decision(tmp_path, f"T-{i:03d}", f"Task {i}", f"Summary {i}.")
         text = (kb / "recent_decisions.md").read_text()
-        # Should have 15 entries max — the first 5 should be pruned
+        # Should have 15 entries max - the first 5 should be pruned
         assert "Task 0" not in text
         assert "Task 4" not in text
         assert "Task 5" in text

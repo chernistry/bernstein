@@ -1,4 +1,4 @@
-"""Context token accounting — analyze where context budget is spent.
+"""Context token accounting - analyze where context budget is spent.
 
 Provides ``analyze_context()`` that returns per-category token counts
 for a given prompt or context string, and ``format_context_breakdown()``

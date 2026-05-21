@@ -4,13 +4,13 @@ A backend is anything that satisfies the :class:`CredentialVault` protocol.
 The intent is to keep the contract small enough that test fakes and a
 file-encrypted fallback both fit cleanly:
 
-* :meth:`CredentialVault.put` — store / replace a secret for a provider.
-* :meth:`CredentialVault.get` — return the stored secret or raise.
-* :meth:`CredentialVault.delete` — remove the entry, idempotent.
-* :meth:`CredentialVault.list` — enumerate metadata only (never secrets).
-* :meth:`CredentialVault.touch` — update the ``last_used`` timestamp.
+* :meth:`CredentialVault.put` - store / replace a secret for a provider.
+* :meth:`CredentialVault.get` - return the stored secret or raise.
+* :meth:`CredentialVault.delete` - remove the entry, idempotent.
+* :meth:`CredentialVault.list` - enumerate metadata only (never secrets).
+* :meth:`CredentialVault.touch` - update the ``last_used`` timestamp.
 
-The protocol is deliberately synchronous — calls happen on user-facing CLI
+The protocol is deliberately synchronous - calls happen on user-facing CLI
 paths where async buys nothing and complicates testing. Provider whoami /
 revoke calls do hit the network but live one layer up in
 :mod:`bernstein.core.security.vault.providers`.

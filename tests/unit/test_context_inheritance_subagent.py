@@ -1,4 +1,4 @@
-"""Tests for context_inheritance — subagent context injection via CLAUDE.md and settings.local.json."""
+"""Tests for context_inheritance - subagent context injection via CLAUDE.md and settings.local.json."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ class TestBuildSubagentContext:
             task_ids=[],
             owned_files=["src/foo.py", "src/foo.py", "src/bar.py"],
         )
-        # Count occurrences — should only appear once each
+        # Count occurrences - should only appear once each
         assert ctx.count("`src/foo.py`") == 1
 
     def test_no_task_ids_section_when_empty(self) -> None:

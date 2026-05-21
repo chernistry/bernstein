@@ -8,7 +8,7 @@ pluggy plugin.
 Security posture:
 
   * The command is executed via :func:`asyncio.create_subprocess_exec`
-    — never shell-interpolated — so a malicious event field can't
+    - never shell-interpolated - so a malicious event field can't
     inject extra commands.
   * The environment is whitelisted (``PATH``, ``HOME``, ``USER`` and
     every ``BERNSTEIN_*`` variable) plus user-declared keys. Anything

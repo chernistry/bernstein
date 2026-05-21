@@ -4,7 +4,7 @@ Boots a tiny in-process orchestrator surface (audit emit + lineage
 writer), produces real bytes through the production HMAC chain, and
 walks them back through :func:`assemble_from_run` + :func:`verify_bundle`.
 
-No mocks for the audit or lineage writers — the chain that signs the
+No mocks for the audit or lineage writers - the chain that signs the
 events is the same chain the production orchestrator would use.
 """
 
@@ -284,7 +284,7 @@ mappings:
             event_count=5,
         )
 
-        # Window covers everything — sanity check.
+        # Window covers everything - sanity check.
         full = assemble_from_run(
             run_id=run_id,
             since=base_time - timedelta(hours=1),
@@ -298,7 +298,7 @@ mappings:
         assert full.bundle.event_count == 5
         assert full.chain_event_count == 5
 
-        # Past window — no events but chain still verifies.
+        # Past window - no events but chain still verifies.
         past = assemble_from_run(
             run_id=run_id,
             since=base_time - timedelta(days=10),

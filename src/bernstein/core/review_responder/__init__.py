@@ -1,13 +1,13 @@
-"""PR review responder — react to inline review comments on Bernstein PRs.
+"""PR review responder - react to inline review comments on Bernstein PRs.
 
 The responder ingests GitHub pull-request review-comment events through one
 of two listeners:
 
-* :class:`WebhookListener` — verifies an ``X-Hub-Signature-256`` signature
+* :class:`WebhookListener` - verifies an ``X-Hub-Signature-256`` signature
   and queues normalised events for the bundler.  The transport (e.g.
   ``cloudflared``) is supplied by the v1.8.15 tunnel wrapper and is not
   modified here.
-* :class:`PollingListener` — falls back to the GitHub REST API via
+* :class:`PollingListener` - falls back to the GitHub REST API via
   ``gh api`` when no tunnel is available.  Same normaliser, same queue.
 
 Each unresolved inline comment becomes a Bernstein task whose prompt

@@ -170,7 +170,7 @@ class ManagedKey:
 def _fingerprint(value: str) -> str:
     """Generate a short fingerprint from a secret value.
 
-    Uses SHA-256 prefix — safe to store, impossible to reverse.
+    Uses SHA-256 prefix - safe to store, impossible to reverse.
 
     Args:
         value: The secret value.

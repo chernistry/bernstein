@@ -107,7 +107,7 @@ class TestRegistryDiscovery:
 
 
 # ---------------------------------------------------------------------------
-# health_check — tolerates missing SDK
+# health_check - tolerates missing SDK
 # ---------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ class TestHealthCheck:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — command construction
+# spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -247,7 +247,7 @@ class TestSpawnCommand:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -315,7 +315,7 @@ class TestSpawnEnvIsolation:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — missing binary / PermissionError
+# spawn() - missing binary / PermissionError
 # ---------------------------------------------------------------------------
 
 
@@ -354,7 +354,7 @@ class TestSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — warnings
+# spawn() - warnings
 # ---------------------------------------------------------------------------
 
 
@@ -562,7 +562,7 @@ class TestRunnerHelpers:
         assert cfg["sandbox_provider"] == "e2b"
         assert cfg["workdir"] == "/abs"
         assert cfg["mcp_servers"] == {"bernstein": {"command": "python"}}
-        # Defensive copy — mutating the output must not mutate manifest state.
+        # Defensive copy - mutating the output must not mutate manifest state.
         cfg["mcp_servers"]["other"] = {"command": "x"}
         assert "other" not in manifest.mcp_servers
 
@@ -601,7 +601,7 @@ class TestRunnerEmitEvent:
 
 
 # ---------------------------------------------------------------------------
-# Runner.run — SDK lifecycle (mocked)
+# Runner.run - SDK lifecycle (mocked)
 # ---------------------------------------------------------------------------
 
 
@@ -670,7 +670,7 @@ class TestRunnerRun:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         # Simulate ImportError for the agents package by registering a
-        # placeholder whose attribute access raises ImportError — we must
+        # placeholder whose attribute access raises ImportError - we must
         # also ensure the import itself fails.
         with patch.dict(sys.modules, {"agents": None}):
             rc = run(self._manifest())
@@ -706,7 +706,7 @@ class TestRunnerRun:
 
 
 # ---------------------------------------------------------------------------
-# main() — manifest validation
+# main() - manifest validation
 # ---------------------------------------------------------------------------
 
 
@@ -735,7 +735,7 @@ class TestRunnerMain:
 
 
 # ---------------------------------------------------------------------------
-# Pricing — gpt-5 family is priced
+# Pricing - gpt-5 family is priced
 # ---------------------------------------------------------------------------
 
 

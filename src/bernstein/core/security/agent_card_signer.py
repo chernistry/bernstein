@@ -1,6 +1,6 @@
 """Sign and verify ``AgentIdentityCard`` instances for A2A v1.0 federation.
 
-The current ``AgentIdentityCard.card_hash`` is a SHA-256 over the JSON body —
+The current ``AgentIdentityCard.card_hash`` is a SHA-256 over the JSON body -
 useful as an internal HMAC anchor but not a *signature*. Third-party A2A
 verifiers won't accept a hash, so any Bernstein agent that wants to federate
 with another A2A-speaking system has to fall back to bespoke trust.
@@ -8,7 +8,7 @@ with another A2A-speaking system has to fall back to bespoke trust.
 This module wraps the existing card body in a detached **JSON Web Signature**
 (RFC 7515 compact form) over the JCS-canonicalized (RFC 8785) bytes, signed
 with **Ed25519** (RFC 8037 / EdDSA). The card body is left untouched, so the
-existing ``card_hash`` stays stable through the transition — verifiers that
+existing ``card_hash`` stays stable through the transition - verifiers that
 understand A2A v1.0 read the JWS, while internal code keeps using the body.
 
 Tracks `kcolbchain/switchboard#25`-style A2A spec work and bernstein
@@ -132,7 +132,7 @@ def ed25519_public_jwk(public_key_pem: bytes, *, kid: str) -> dict[str, str]:
     Args:
         public_key_pem: SPKI PEM bytes as produced by
             :func:`generate_ed25519_keypair`.
-        kid: Key identifier embedded in the JWS header — must match the
+        kid: Key identifier embedded in the JWS header - must match the
             ``kid`` from the corresponding :class:`AgentCardSignature` so
             verifiers can route by key.
 
@@ -165,7 +165,7 @@ def ed25519_public_jwk(public_key_pem: bytes, *, kid: str) -> dict[str, str]:
 class AgentCardSignature:
     """A JWS-detached signature over a card's JCS canonicalization.
 
-    The card body is NOT inlined in the signature object — third-party
+    The card body is NOT inlined in the signature object - third-party
     verifiers receive the canonical card body alongside the JWS and recompute
     the same signing input. This matches RFC 7515 §A.5 (detached content)
     and avoids drift between the body the system trusts internally and the
@@ -177,7 +177,7 @@ class AgentCardSignature:
     #: must reconstruct the canonical card bytes from the body they see.
     detached_jws: str
 
-    #: Key identifier — opaque to the protocol; a stable identifier such as
+    #: Key identifier - opaque to the protocol; a stable identifier such as
     #: ``"agent-{agent_id}"`` or a thumbprint hex.
     kid: str
 
@@ -194,7 +194,7 @@ def sign_agent_card(
     """Sign a card body with the given Ed25519 PKCS#8 PEM private key.
 
     Args:
-        card: The card to sign. Untouched by this call — the JCS bytes are
+        card: The card to sign. Untouched by this call - the JCS bytes are
             computed from a temporary dict so the caller's instance keeps
             its existing ``card_hash`` semantics.
         private_key_pem: PEM-encoded PKCS#8 Ed25519 private key, as produced
@@ -221,7 +221,7 @@ def sign_agent_card(
     signature = private_key.sign(signing_input)
     sig_b64 = _b64url(signature)
 
-    # RFC 7515 §A.5: detached content omits the payload — represented as the
+    # RFC 7515 §A.5: detached content omits the payload - represented as the
     # empty string between the header and signature dots.
     detached = f"{header_b64}..{sig_b64}"
     return AgentCardSignature(detached_jws=detached, kid=header["kid"])
@@ -242,7 +242,7 @@ def verify_agent_card(
         return False
 
     if payload_b64:
-        # Not a detached signature — refuse rather than silently accept.
+        # Not a detached signature - refuse rather than silently accept.
         return False
 
     try:
@@ -251,7 +251,7 @@ def verify_agent_card(
         return False
 
     # RFC 7515 §4 mandates the JOSE Header be a JSON object. Reject any
-    # other top-level shape (array, scalar, null) defensively — the header
+    # other top-level shape (array, scalar, null) defensively - the header
     # is network-controlled and ``.get()`` would raise on non-dicts,
     # surfacing as a 500 from the verifier.
     if not isinstance(header, dict):

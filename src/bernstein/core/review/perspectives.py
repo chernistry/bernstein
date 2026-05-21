@@ -97,7 +97,7 @@ class PerspectiveConfig(BaseModel):
     Attributes:
         perspectives: Ordered list of perspectives. Order matters for
             ``sequential`` chains.
-        chain: Coordination mode — ``parallel`` (default) or
+        chain: Coordination mode - ``parallel`` (default) or
             ``sequential``.
     """
 
@@ -264,7 +264,7 @@ async def run_perspectives(
 
     Raises:
         Whatever ``adapter_call`` raises. The runner does not silently
-        swallow failures — callers that need fallback behaviour wrap the
+        swallow failures - callers that need fallback behaviour wrap the
         call themselves. (Adapter-fallback-on-failure is deferred per
         issue #1223.)
     """

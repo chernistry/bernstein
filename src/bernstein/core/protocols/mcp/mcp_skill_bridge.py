@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# MCPToolInfo — lightweight descriptor for a single MCP tool
+# MCPToolInfo - lightweight descriptor for a single MCP tool
 # ---------------------------------------------------------------------------
 
 
@@ -77,7 +77,7 @@ def register_skill_builder(server_name: str, builder: Callable[[], list[MCPToolI
             :class:`MCPToolInfo` objects when invoked.
     """
     if server_name in _BUILDERS:
-        log.debug("Skill builder for %r already registered — skipping", server_name)
+        log.debug("Skill builder for %r already registered - skipping", server_name)
         return
     _BUILDERS[server_name] = builder
     log.debug("Registered skill builder for MCP server %r", server_name)
@@ -101,7 +101,7 @@ def collect_mcp_skills() -> dict[str, SkillDefinition]:
         try:
             tools = builder()
         except Exception:
-            log.exception("Skill builder for MCP server %r raised an error — skipping", server_name)
+            log.exception("Skill builder for MCP server %r raised an error - skipping", server_name)
             continue
         for tool in tools:
             skill = SkillDefinition(
@@ -115,7 +115,7 @@ def collect_mcp_skills() -> dict[str, SkillDefinition]:
 
 
 # ---------------------------------------------------------------------------
-# Convenience helper — extract tool info from a FastMCP instance
+# Convenience helper - extract tool info from a FastMCP instance
 # ---------------------------------------------------------------------------
 
 

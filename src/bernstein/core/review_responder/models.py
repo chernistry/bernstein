@@ -30,7 +30,7 @@ class RoundOutcome(str, Enum):  # noqa: UP042 - StrEnum forces str-cmp wins; we 
 class ReviewComment:
     """Normalised inline review comment from GitHub.
 
-    The shape is deliberately minimal — we only carry what the responder
+    The shape is deliberately minimal - we only carry what the responder
     actually needs (path, line range, body, reviewer, timestamps, ids).
 
     Attributes:

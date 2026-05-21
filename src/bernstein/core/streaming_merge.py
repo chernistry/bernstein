@@ -255,7 +255,7 @@ def should_stream(task: dict[str, Any]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Merge operation (sync stub — real impl would integrate with git/VCS)
+# Merge operation (sync stub - real impl would integrate with git/VCS)
 # ---------------------------------------------------------------------------
 
 
@@ -273,7 +273,7 @@ def merge_chunk(chunk: IncrementalChunk) -> bool:
         ``True`` if the merge succeeded, ``False`` otherwise.
     """
     if not chunk.quality_gate_passed:
-        logger.warning("Skipping chunk %s — quality gate failed", chunk.chunk_id)
+        logger.warning("Skipping chunk %s - quality gate failed", chunk.chunk_id)
         return False
 
     if not chunk.files:

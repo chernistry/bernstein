@@ -2,7 +2,7 @@
 
 On graceful stop, the orchestrator saves session state to
 ``.sdd/runtime/session.json``.  On the next start, bootstrap reads this file
-and — if it is fresh enough — skips the manager planning phase entirely,
+and - if it is fresh enough - skips the manager planning phase entirely,
 resuming from where the previous run left off.
 """
 
@@ -555,18 +555,18 @@ GateStartupStatus = Literal["enabled", "disabled", "cached"]
 class StartupGateCheckpoint:
     """Typed checkpoint for one quality gate captured at startup time.
 
-    Records whether the gate was enabled, disabled, or served from cache —
+    Records whether the gate was enabled, disabled, or served from cache -
     plus where the config came from.  Persisted to disk so operators can
     diff gate state between restarts and diagnose stale-cache issues.
 
     Attributes:
         captured_at: Unix timestamp when the checkpoint was taken.
         gate_name: Gate identifier (e.g. ``'lint'``, ``'type_check'``).
-        status: Gate status at startup — ``'enabled'``, ``'disabled'``,
+        status: Gate status at startup - ``'enabled'``, ``'disabled'``,
             or ``'cached'`` (result loaded from prior run cache).
         cached: Whether the gate result was loaded from cache.
         cache_age_seconds: Age of the cached result in seconds, if applicable.
-        provenance: Config source — ``'seed'`` (bernstein.yaml),
+        provenance: Config source - ``'seed'`` (bernstein.yaml),
             ``'env'`` (environment variable override), or ``'default'``.
         config_hash: Hash of the gate's resolved config, for change detection.
     """

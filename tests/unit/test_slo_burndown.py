@@ -35,7 +35,7 @@ class TestSLOTrackerBurndown:
         assert "budget_fraction" in result
         assert "breach_projection" in result
         assert "sparkline" in result
-        # No history yet — days_to_breach may be None
+        # No history yet - days_to_breach may be None
         assert result["history_size"] == 0
 
     def test_record_burn_snapshot_appends_history(self) -> None:
@@ -184,7 +184,7 @@ class TestSLOBurnDownWidget:
             "budget_fraction": 0.0,
             "budget_consumed_pct": 100.0,
             "days_to_breach": None,
-            "breach_projection": "Error budget exhausted — SLO breached now",
+            "breach_projection": "Error budget exhausted - SLO breached now",
             "status": "red",
             "total_tasks": 10,
             "failed_tasks": 10,
@@ -211,7 +211,7 @@ class TestSLOBurnDownWidget:
             "budget_fraction": 0.8,
             "budget_consumed_pct": 20.0,
             "days_to_breach": None,
-            "breach_projection": "On track — error budget not at risk",
+            "breach_projection": "On track - error budget not at risk",
             "status": "green",
             "total_tasks": 20,
             "failed_tasks": 1,

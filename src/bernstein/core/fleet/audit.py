@@ -1,9 +1,9 @@
-"""Fleet audit panel — filtering and tail-break detection.
+"""Fleet audit panel - filtering and tail-break detection.
 
 The fleet view does not own any HMAC keys. It re-uses
 :func:`bernstein.core.security.audit_integrity.verify_audit_integrity`
 when a key is available, and falls back to *prev_hmac* chain-linkage
-checks when it is not — that is enough to surface a tail break in the
+checks when it is not - that is enough to surface a tail break in the
 panel without requiring fleet-wide key distribution.
 """
 
@@ -215,7 +215,7 @@ def check_audit_tail(project: str, sdd_dir: Path, *, count: int = 100) -> AuditC
                     project=project,
                     ok=False,
                     broken_at=f"{filename}:{line_no}",
-                    message=(f"chain break — prev_hmac {str(entry_prev)[:12]}... != expected {prev_hmac[:12]}..."),
+                    message=(f"chain break - prev_hmac {str(entry_prev)[:12]}... != expected {prev_hmac[:12]}..."),
                     entries_checked=len(rows),
                     last_ts=last_ts,
                 )

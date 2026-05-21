@@ -9,11 +9,11 @@ plaintext ``.env`` file.
 
 Two backends are provided:
 
-* :class:`KeyringBackend` (default) — delegates to the OS-native keychain
+* :class:`KeyringBackend` (default) - delegates to the OS-native keychain
   via the portable ``keyring`` Python package: macOS Keychain on Darwin,
   Secret Service / libsecret on Linux, Credential Manager (DPAPI) on
   Windows.
-* :class:`FileBackend` — explicit AES-GCM-encrypted blob fallback for
+* :class:`FileBackend` - explicit AES-GCM-encrypted blob fallback for
   containers and headless CI where no Secret Service is available. The
   encryption key is derived from a passphrase stored in an environment
   variable; the backend refuses to start if the env-var is empty.

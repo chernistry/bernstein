@@ -1,4 +1,4 @@
-"""Regression tests for audit-010 — single source of truth for idle detection.
+"""Regression tests for audit-010 - single source of truth for idle detection.
 
 Before audit-010, ``_detect_idle_reason`` and the ``_IDLE_*`` thresholds
 existed in both :mod:`bernstein.core.agents.agent_lifecycle` and

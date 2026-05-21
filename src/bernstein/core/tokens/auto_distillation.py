@@ -1,4 +1,4 @@
-"""Auto-distillation pipeline — fine-tune smaller models from successful task completions.
+"""Auto-distillation pipeline - fine-tune smaller models from successful task completions.
 
 After N successful completions of a task type, this module collects the
 (prompt, completion) pairs, groups them by role and task type, and prepares
@@ -9,8 +9,8 @@ lower cost.
 
 Persistence layout under ``.sdd/distillation/``::
 
-    examples.jsonl          — append-only log of training examples
-    state.json              — mutable tracking state (batches, models, counts)
+    examples.jsonl          - append-only log of training examples
+    state.json              - mutable tracking state (batches, models, counts)
 
 Integration:
     Called from ``process_completed_tasks()`` in ``task_completion.py`` after
@@ -391,7 +391,7 @@ class AutoDistiller:
 
         if quality_score < self._config.quality_threshold:
             logger.debug(
-                "auto_distillation: skipping task %s — quality %.2f < threshold %.2f",
+                "auto_distillation: skipping task %s - quality %.2f < threshold %.2f",
                 task.id,
                 quality_score,
                 self._config.quality_threshold,
@@ -399,7 +399,7 @@ class AutoDistiller:
             return None
 
         if not task.result_summary:
-            logger.debug("auto_distillation: skipping task %s — no result_summary", task.id)
+            logger.debug("auto_distillation: skipping task %s - no result_summary", task.id)
             return None
 
         now = time.time()
@@ -658,7 +658,7 @@ class AutoDistiller:
         # Deactivate if success rate drops too low (after enough samples)
         if model.tasks_routed >= 10 and model.success_rate < 0.6:
             logger.warning(
-                "auto_distillation: deactivating model %s — success rate %.1f%% < 60%%",
+                "auto_distillation: deactivating model %s - success rate %.1f%% < 60%%",
                 model.model_name,
                 model.success_rate * 100,
             )

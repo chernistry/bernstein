@@ -786,14 +786,14 @@ def _find_optimization_opportunities(
 
     if system_pct > 30:
         opportunities.append(
-            f"System prompt is ~{system_pct}% of input — consider trimming the role template for this task type"
+            f"System prompt is ~{system_pct}% of input - consider trimming the role template for this task type"
         )
     if context_pct > 60:
         opportunities.append(
-            f"Context files/history are ~{context_pct}% of input — agent may be loading files it never used"
+            f"Context files/history are ~{context_pct}% of input - agent may be loading files it never used"
         )
     if output_pct < 5 and total >= 1000:
-        opportunities.append("Output is <5% of total tokens — agent consumed many tokens producing little output")
+        opportunities.append("Output is <5% of total tokens - agent consumed many tokens producing little output")
     return opportunities
 
 
@@ -862,7 +862,7 @@ def token_breakdown(request: Request) -> dict[str, Any]:
       prior conversation history, etc.)
     - ``output_tokens``: actual assistant output tokens
 
-    Also reports ``optimization_opportunities`` — a list of human-readable
+    Also reports ``optimization_opportunities`` - a list of human-readable
     insights when a category accounts for an unusually large share of tokens
     (e.g. "context files are 60% of input").
 

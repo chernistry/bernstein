@@ -1,6 +1,6 @@
 """Unit tests for the opt-in ``agent_restart_between_retries`` flag.
 
-Closes #1109 — when the flag is set on a task, retries must spawn a fresh
+Closes #1109 - when the flag is set on a task, retries must spawn a fresh
 agent with no accumulated state.  These tests exercise the spawner's
 helper methods, the audit-event emission, and the default-off semantics
 that protect existing tasks from any behaviour change.
@@ -70,7 +70,7 @@ def _make_retry_task(
 def spawner_stub(tmp_path: Path) -> AgentSpawner:
     """Build an :class:`AgentSpawner` stub wired to *tmp_path*.
 
-    The stub never actually spawns processes — these tests only exercise
+    The stub never actually spawns processes - these tests only exercise
     the synchronous helpers and the audit log writer, both of which only
     need ``self._workdir`` set.  Worktree creation is disabled.
     """
@@ -119,7 +119,7 @@ class TestDefaultOff:
 
 
 # ---------------------------------------------------------------------------
-# _is_fresh_restart_retry — gating logic
+# _is_fresh_restart_retry - gating logic
 # ---------------------------------------------------------------------------
 
 
@@ -137,7 +137,7 @@ class TestIsFreshRestartRetry:
         assert AgentSpawner._is_fresh_restart_retry(task) is False
 
     def test_flag_on_first_attempt(self) -> None:
-        """Flag on but ``retry_count == 0`` is never a "retry" — first spawn."""
+        """Flag on but ``retry_count == 0`` is never a "retry" - first spawn."""
         task = _make_retry_task(flag=True, retry_count=0)
         assert AgentSpawner._is_fresh_restart_retry(task) is False
 
@@ -148,7 +148,7 @@ class TestIsFreshRestartRetry:
 
 
 # ---------------------------------------------------------------------------
-# _strip_failure_context_for_fresh_retry — context wipe
+# _strip_failure_context_for_fresh_retry - context wipe
 # ---------------------------------------------------------------------------
 
 
@@ -271,7 +271,7 @@ class TestAuditEmission:
 
 
 # ---------------------------------------------------------------------------
-# Retry-budget interaction — the restart still costs one attempt
+# Retry-budget interaction - the restart still costs one attempt
 # ---------------------------------------------------------------------------
 
 

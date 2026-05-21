@@ -2,7 +2,7 @@
 
 The listener exposes a single FastAPI route, ``POST /webhook``, that
 verifies the ``X-Hub-Signature-256`` HMAC and forwards normalised
-comments to the bundler.  It does not own its public URL — the caller
+comments to the bundler.  It does not own its public URL - the caller
 is expected to launch a tunnel via the v1.8.15 :mod:`bernstein.tunnels`
 wrapper and point GitHub at the resulting public address.
 """
@@ -44,7 +44,7 @@ def verify_signature(*, secret: bytes, body: bytes, signature: str | None) -> bo
 
     Returns:
         ``True`` if the signature matches, ``False`` otherwise.  An empty
-        ``secret`` always returns ``False`` — a misconfigured listener
+        ``secret`` always returns ``False`` - a misconfigured listener
         must not silently accept unsigned traffic.
     """
     if not secret or not signature:
@@ -59,7 +59,7 @@ def verify_signature(*, secret: bytes, body: bytes, signature: str | None) -> bo
 class WebhookListener:
     """FastAPI app that ingests review-comment webhooks.
 
-    The listener intentionally does not own its event loop — callers
+    The listener intentionally does not own its event loop - callers
     embed it in their own ``uvicorn`` runner so the daemon command can
     bind/unbind the port alongside other services.
 
@@ -68,7 +68,7 @@ class WebhookListener:
             Must be non-empty; an empty secret is treated as a hard
             misconfiguration and raises :class:`ValueError`.
         on_comment: Callback invoked for every successfully verified
-            comment.  Should be cheap — heavy work belongs in the bundler.
+            comment.  Should be cheap - heavy work belongs in the bundler.
 
     Raises:
         ValueError: If ``secret`` is empty.
@@ -98,7 +98,7 @@ class WebhookListener:
         The endpoint takes the raw request via ``starlette.requests.Request``.
         FastAPI introspects parameter annotations at registration time, so we
         register the route via ``app.add_api_route`` with explicit ``methods=``
-        rather than the decorator form — this lets us pre-resolve the Request
+        rather than the decorator form - this lets us pre-resolve the Request
         annotation from the function's closure, sidestepping the
         ``from __future__ import annotations`` lazy-string issue that otherwise
         causes FastAPI to misclassify ``request`` as a query parameter.
@@ -125,7 +125,7 @@ class WebhookListener:
 
             event = request.headers.get(EVENT_HEADER, "")
             if event != TARGET_EVENT:
-                # Acknowledge but ignore — keeps GitHub from retrying.
+                # Acknowledge but ignore - keeps GitHub from retrying.
                 return JSONResponse({"status": "ignored", "event": event}, status_code=202)
 
             try:
@@ -137,7 +137,7 @@ class WebhookListener:
             try:
                 on_comment(payload)
             except Exception:  # pragma: no cover - logged, not re-raised
-                logger.exception("on_comment callback raised — comment dropped")
+                logger.exception("on_comment callback raised - comment dropped")
                 return JSONResponse({"status": "error"}, status_code=500)
             return JSONResponse({"status": "queued"}, status_code=202)
 

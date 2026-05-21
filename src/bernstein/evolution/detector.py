@@ -328,7 +328,7 @@ class OpportunityDetector:
                 continue
 
             if len(pattern.affected_models) == 1:
-                # Failures concentrated on a single model — route away from it
+                # Failures concentrated on a single model - route away from it
                 model = pattern.affected_models[0]
                 opportunities.append(
                     ImprovementOpportunity(
@@ -345,7 +345,7 @@ class OpportunityDetector:
                     )
                 )
             elif pattern.task_type and len(pattern.affected_models) != 1:
-                # Failures spread across models but tied to a role — fix the template
+                # Failures spread across models but tied to a role - fix the template
                 if len(pattern.affected_models) <= 1:
                     # Should not happen given outer condition, but defensive
                     category = UpgradeCategory.POLICY_UPDATE
@@ -367,7 +367,7 @@ class OpportunityDetector:
                     )
                 )
             else:
-                # Broad pattern — suggest policy review
+                # Broad pattern - suggest policy review
                 opportunities.append(
                     ImprovementOpportunity(
                         category=UpgradeCategory.POLICY_UPDATE,
@@ -506,7 +506,7 @@ class FeatureDiscovery:
     def _load_existing_titles(self) -> set[str]:
         """Return normalized titles from all open and closed backlog tickets."""
         titles: set[str] = set()
-        _heading = re.compile(r"^#\s+\d+\s+[—\-]\s+(.+)$", re.MULTILINE)
+        _heading = re.compile(r"^#\s+\d+\s+[-\-]\s+(.+)$", re.MULTILINE)
         for subdir in ("open", "closed"):
             d = self._backlog_dir / subdir
             if not d.is_dir():
@@ -611,7 +611,7 @@ class FeatureDiscovery:
         filename = f"{ticket.ticket_id}-{slug}.md"
         file_path = open_dir / filename
         content = (
-            f"# {ticket.ticket_id} — {ticket.title}\n\n"
+            f"# {ticket.ticket_id} - {ticket.title}\n\n"
             f"**Role:** {ticket.role}\n"
             f"**Priority:** {ticket.priority}\n"
             f"**Scope:** {ticket.scope}\n"

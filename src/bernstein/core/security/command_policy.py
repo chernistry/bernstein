@@ -69,7 +69,7 @@ class CommandPoliciesConfig:
 
     Attributes:
         version: Config format version (currently 1).
-        enabled: Master switch — when False, no enforcement happens.
+        enabled: Master switch - when False, no enforcement happens.
         global_deny: Patterns denied for ALL roles regardless of per-role config.
         roles: Per-role policy definitions.
     """
@@ -307,7 +307,7 @@ def check_command(
     # 2. Role-specific policy
     role_policy = config.roles.get(role)
     if role_policy is None:
-        # No policy for this role — allow by default
+        # No policy for this role - allow by default
         return CommandVerdict(allowed=True, command=command, role=role)
 
     # 2a. Role deny (takes priority over allow)
@@ -319,7 +319,7 @@ def check_command(
             custom_msg = role_policy.deny_messages.get(idx, "")
             reason = f"Blocked by role '{role}' deny pattern: {pattern}"
             if custom_msg:
-                reason += f" — {custom_msg}"
+                reason += f" - {custom_msg}"
             return CommandVerdict(
                 allowed=False,
                 command=command,

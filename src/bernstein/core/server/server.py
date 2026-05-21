@@ -1,17 +1,17 @@
-"""FastAPI task server — central coordination point for all agents.
+"""FastAPI task server - central coordination point for all agents.
 
 Agents pull tasks via HTTP, report completion, and send heartbeats.
 State is held in-memory and flushed periodically to JSONL for persistence.
 
 This module is a thin re-export shim.  The actual implementation lives in:
-- ``server_models.py`` — Pydantic request/response schemas
-- ``server_middleware.py`` — HTTP middleware classes
-- ``server_app.py`` — Application factory, SSE bus, helpers, notifications
+- ``server_models.py`` - Pydantic request/response schemas
+- ``server_middleware.py`` - HTTP middleware classes
+- ``server_app.py`` - Application factory, SSE bus, helpers, notifications
 """
 
 from __future__ import annotations
 
-# Lazy app instance — delegate to server_app's __getattr__
+# Lazy app instance - delegate to server_app's __getattr__
 from typing import Any as _Any
 
 from bernstein.core.server.server_app import DEFAULT_JSONL_PATH as DEFAULT_JSONL_PATH

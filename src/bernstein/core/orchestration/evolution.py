@@ -1,4 +1,4 @@
-"""Backward-compatibility shim — delegates to bernstein.evolution package.
+"""Backward-compatibility shim - delegates to bernstein.evolution package.
 
 All classes and functions have been moved to risk-stratified modules under
 bernstein/evolution/. This file re-exports them so existing imports continue

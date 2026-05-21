@@ -1,4 +1,4 @@
-"""Tests for CascadeRouter — cost-aware model cascading router.
+"""Tests for CascadeRouter - cost-aware model cascading router.
 
 Covers:
 - Initial model selection (cheapest viable, high-stakes bypass)
@@ -137,7 +137,7 @@ class TestEffortForModel:
 
 
 # ---------------------------------------------------------------------------
-# CascadeRouter.select — initial selection
+# CascadeRouter.select - initial selection
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ class TestCascadeRouterSelect:
 
 
 # ---------------------------------------------------------------------------
-# CascadeRouter.select — bandit proactive skip
+# CascadeRouter.select - bandit proactive skip
 # ---------------------------------------------------------------------------
 
 

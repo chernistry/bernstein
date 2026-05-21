@@ -135,11 +135,11 @@ def test_rebalancing_task_completion_triggers_exit(tmp_path: Path) -> None:
     }
 
     recycle_idle_agents(orch, tasks_snapshot)
-    # No SHUTDOWNs yet — all agents have active tasks
+    # No SHUTDOWNs yet - all agents have active tasks
     assert orch._signal_mgr.write_shutdown.call_count == 0
     orch._signal_mgr.reset_mock()
 
-    # After work, 2 tasks complete — agents 0 and 1 no longer have active work
+    # After work, 2 tasks complete - agents 0 and 1 no longer have active work
     tasks_snapshot["done"].extend(
         [
             _make_task(id="T-be-00", role="backend", status="done"),

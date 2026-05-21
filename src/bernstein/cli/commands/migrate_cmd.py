@@ -1,4 +1,4 @@
-"""``bernstein migrate`` — fan out a deterministic file-level migration.
+"""``bernstein migrate`` - fan out a deterministic file-level migration.
 
 Wraps :mod:`bernstein.core.tasks.swarm_migration` so an operator can
 kick off a swarm without writing Python.  Tasks are created via the

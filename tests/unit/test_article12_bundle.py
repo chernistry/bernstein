@@ -7,9 +7,9 @@ Builds a synthetic HMAC-chained audit log, generates a bundle through
 * the embedded ``events.jsonl`` HMAC chain validates against the original
   ``AuditLog`` key
 * :func:`compute_retention_pin` produces correct horizons for each risk
-  class (Article 12(3) — 6-month minimum, 10-year for high-risk)
+  class (Article 12(3) - 6-month minimum, 10-year for high-risk)
 * a second build of the same window is byte-identical (deterministic
-  export — required for spot-audit reproducibility)
+  export - required for spot-audit reproducibility)
 """
 
 from __future__ import annotations
@@ -142,7 +142,7 @@ class TestArticle12BundleE2E:
         assert result.manifest["chain_anchor"] == bundle.chain_anchor
 
         # The events.jsonl extracted from the bundle must verify under
-        # the original AuditLog key — we replay it through a fresh
+        # the original AuditLog key - we replay it through a fresh
         # AuditLog rooted at a tmp dir that holds only the slice.
         replay_dir = tmp_path / "replay"
         replay_dir.mkdir()

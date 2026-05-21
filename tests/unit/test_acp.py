@@ -1,15 +1,15 @@
 """Tests for the ACP (Agent Communication Protocol) bridge.
 
-ACP is the BeeAI Agent Communication Protocol — HTTP+SSE based,
+ACP is the BeeAI Agent Communication Protocol - HTTP+SSE based,
 makes Bernstein auto-discoverable in JetBrains (Air), Zed, Neovim, Emacs.
 
 Endpoints implemented:
-  GET  /.well-known/acp.json          — discovery document
-  GET  /acp/v0/agents                 — list agents/capabilities
-  GET  /acp/v0/agents/bernstein       — agent metadata
-  POST /acp/v0/runs                   — create a run (→ Bernstein task)
-  GET  /acp/v0/runs/{run_id}          — run status
-  DELETE /acp/v0/runs/{run_id}        — cancel a run
+  GET  /.well-known/acp.json          - discovery document
+  GET  /acp/v0/agents                 - list agents/capabilities
+  GET  /acp/v0/agents/bernstein       - agent metadata
+  POST /acp/v0/runs                   - create a run (→ Bernstein task)
+  GET  /acp/v0/runs/{run_id}          - run status
+  DELETE /acp/v0/runs/{run_id}        - cancel a run
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def handler() -> ACPHandler:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests — ACPHandler
+# Unit tests - ACPHandler
 # ---------------------------------------------------------------------------
 
 

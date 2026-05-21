@@ -29,7 +29,7 @@ from bernstein.adapters.base import CLIAdapter, SpawnResult, build_worker_cmd
 # Examples:
 #   Aider uses provider-prefixed names: "anthropic/claude-opus-4-6"
 #   Claude Code uses full model IDs:    "claude-opus-4-6"
-#   Some tools just take "opus" as-is — in that case, keep this dict empty
+#   Some tools just take "opus" as-is - in that case, keep this dict empty
 #   and pass ``model_config.model`` directly.
 _MODEL_MAP: dict[str, str] = {
     "opus": "TODO: map to your CLI's opus model ID",
@@ -82,7 +82,7 @@ class YourCLIAdapter(CLIAdapter):
         Raises:
             RuntimeError: If the CLI binary is not found or lacks execute permission.
         """
-        # 1. Set up the log file path — Bernstein reads this for `bernstein logs`
+        # 1. Set up the log file path - Bernstein reads this for `bernstein logs`
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

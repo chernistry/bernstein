@@ -2,9 +2,9 @@
 
 Two families of properties:
 
-- **Append-then-verify** — random sequences of decisions must produce
+- **Append-then-verify** - random sequences of decisions must produce
   a hash chain that ``WALReader.verify_chain()`` accepts.
-- **Tamper detection** — any single-byte mutation of an on-disk WAL
+- **Tamper detection** - any single-byte mutation of an on-disk WAL
   line must break the chain (``verify_chain`` reports at least one
   error).
 

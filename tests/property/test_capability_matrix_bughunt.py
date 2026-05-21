@@ -2,18 +2,18 @@
 
 Hunts bypasses across three subsystems:
 
-1. ``capability_matrix`` — lethal-trifecta gate. Hypothesis enumerates
+1. ``capability_matrix`` - lethal-trifecta gate. Hypothesis enumerates
    3-tool combinations from a synthetic catalogue and asserts the
    "deny iff union covers all three caps" invariant.
-2. ``guardrail_pipeline`` — fail-fast + scope checks.
-3. ``owasp_asi_detectors`` — ASI01..ASI10 detector pack.
+2. ``guardrail_pipeline`` - fail-fast + scope checks.
+3. ``owasp_asi_detectors`` - ASI01..ASI10 detector pack.
 
 Each finding is encoded as a *failing* test (xfail with a strict reason
 when no fix is shipped). Removing the xfail marker after fixing the
 underlying bug is the merge gate.
 
 Output: every test in this file either passes (existing behaviour we
-want to pin) or xfails (known bug — see the docstring's ``Bug:`` block).
+want to pin) or xfails (known bug - see the docstring's ``Bug:`` block).
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def test_lethal_trifecta_iff_union_covers_three_axes(chain: list[str]) -> None:
 
     Invariant: ``decision.allowed == (union(caps) != all_three)``.
 
-    Using a fully-declared synthetic registry — no unknown tools — so the
+    Using a fully-declared synthetic registry - no unknown tools - so the
     decision is governed entirely by the union arithmetic. This is the
     structural rule the wider system depends on.
     """
@@ -123,7 +123,7 @@ def test_unicode_zerowidth_or_whitespace_suffix_default_denies(suffix: str) -> N
 
 
 # ---------------------------------------------------------------------------
-# Section 3: known bugs — captured as xfail
+# Section 3: known bugs - captured as xfail
 # ---------------------------------------------------------------------------
 
 
@@ -262,7 +262,7 @@ def test_asi04_rejects_non_list_iterables() -> None:
     # Attacker passes the manifest as a JSON-decoded dict instead of list.
     ctx_dict = {"loaded_components": {"evil-mcp": {"signed": False}}}
     assert detect_asi04_supply_chain(ctx_dict).passed is False
-    # Or as a string accidentally — should still default-flag, not skip.
+    # Or as a string accidentally - should still default-flag, not skip.
     ctx_str = {"loaded_components": "evil-payload"}
     assert detect_asi04_supply_chain(ctx_str).passed is False
 
@@ -278,7 +278,7 @@ def test_asi06_source_check_is_case_insensitive() -> None:
     """Bug: ``write.get("source") == "untrusted"`` requires exact case.
 
     Root cause: integration partners may emit ``"Untrusted"`` /
-    ``"UNTRUSTED"`` — e.g. coming from a JSON envelope where the case
+    ``"UNTRUSTED"`` - e.g. coming from a JSON envelope where the case
     is normalised by the upstream system. Pattern fix:
     ``str(source).strip().casefold() == "untrusted"``.
     """
@@ -315,9 +315,9 @@ def test_secret_leak_catches_modern_token_formats() -> None:
     """Bug: SecretLeakGuardrail signature pack is out of date.
 
     Root cause: regex set still targets ``sk-/sk_`` (legacy OpenAI),
-    ``ghp_`` (legacy classic PAT), and ``AKIA`` only. Modern tokens —
+    ``ghp_`` (legacy classic PAT), and ``AKIA`` only. Modern tokens -
     ``sk-proj-XXXX`` (OpenAI projects), ``github_pat_XXXX`` (GitHub
-    fine-grained PAT), ``sk-ant-api03-XXXX`` (Anthropic) — sail past.
+    fine-grained PAT), ``sk-ant-api03-XXXX`` (Anthropic) - sail past.
 
     Attacker model: secret-exfiltration via agent output. Severity is
     HIGH because every successful exfil is a credential takeover.
@@ -341,7 +341,7 @@ def test_secret_leak_catches_modern_token_formats() -> None:
 def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
     """Property: a failing rule must appear in results in every ordering
     the rule is reachable. Fail-fast does NOT excuse "rule earlier in
-    chain ran first" — every rule that *could* see the input must, on
+    chain ran first" - every rule that *could* see the input must, on
     some ordering, surface the violation.
 
     Pin: this is the test that catches "I added an order-dependent rule
@@ -409,7 +409,7 @@ def test_owasp_env_var_truthy_semantics(value: str | None, expected: bool) -> No
     1. With **no env var set** the pack runs (default-on per #1153).
     2. Explicit non-truthy values for the legacy opt-in still suppress
        the pack so operators who scripted ``BERNSTEIN_ENABLE_OWASP_ASI=0``
-       keep their disable semantics — garbage strings stay conservative
+       keep their disable semantics - garbage strings stay conservative
        (treated as falsy, not silently truthy).
     """
     env: dict[str, str] = {} if value is None else {"BERNSTEIN_ENABLE_OWASP_ASI": value}
@@ -423,16 +423,16 @@ def test_owasp_env_var_truthy_semantics(value: str | None, expected: bool) -> No
 
 def test_asi07_loopback_bypass_requires_dict_envelope() -> None:
     """Pin: a non-dict ``a2a_message`` (e.g. a serialised string) must NOT
-    be treated as "OK because no jws field" — that would be a silent
+    be treated as "OK because no jws field" - that would be a silent
     bypass on misshaped envelopes.
 
     Currently: when ``a2a_message`` is not a dict, the detector returns
     OK. We pin this as the documented behaviour but flag it as a soft
-    gap — A2A envelopes should always be dicts; if not, callers should
+    gap - A2A envelopes should always be dicts; if not, callers should
     fail open at the parsing layer, not the detector.
     """
     f = detect_asi07_insecure_a2a({"a2a_message": "not-a-dict"})
-    # Pinning current behaviour — keep this in sync with any fix.
+    # Pinning current behaviour - keep this in sync with any fix.
     assert f.passed is True
 
 
@@ -472,7 +472,7 @@ def test_off_mode_unknown_reason_carries_enforcement_off_marker() -> None:
 @settings(max_examples=100, deadline=None)
 def test_duplicate_listing_does_not_change_decision(chain: list[str]) -> None:
     """Property: listing the same tool twice in a chain must not change
-    the allow/deny outcome — capabilities are union-set semantics, not
+    the allow/deny outcome - capabilities are union-set semantics, not
     multiset.
     """
     reg = _build_synthetic_registry()
@@ -507,7 +507,7 @@ def test_arbitrary_text_does_not_crash_asi01(payload: str) -> None:
     """Property: ASI01 never crashes on arbitrary text.
 
     Run the detector with random unicode prompts. We don't assert the
-    pass/fail — only that the detector handles every input without
+    pass/fail - only that the detector handles every input without
     raising (which would crash the orchestrator).
     """
     finding = detect_asi01_goal_hijack({"prompt": payload})

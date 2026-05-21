@@ -113,7 +113,7 @@ async def test_content_type_argument_accepted(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_durable_false_still_persists(tmp_path: Path) -> None:
-    """Local sink ignores durable=False — persistence is still guaranteed."""
+    """Local sink ignores durable=False - persistence is still guaranteed."""
     sink = LocalFsSink(tmp_path)
     await sink.write("d.txt", b"x", durable=False)
     assert await sink.read("d.txt") == b"x"

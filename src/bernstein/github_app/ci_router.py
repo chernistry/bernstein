@@ -1,8 +1,8 @@
 """CI failure routing: blame attribution and enriched fix-task generation.
 
 Implements the 334f pipeline:
-  1. ``blame_ci_failures`` — maps failing files to the commit that triggered CI.
-  2. ``build_ci_routing_payload`` — builds a fix-task description that includes
+  1. ``blame_ci_failures`` - maps failing files to the commit that triggered CI.
+  2. ``build_ci_routing_payload`` - builds a fix-task description that includes
      the triggering commit diff so the agent has immediate context.
 
 The module purposely contains only pure logic (git subprocess calls + data
@@ -153,7 +153,7 @@ def blame_ci_failures(
 
     Collects every ``affected_file`` from *failures* and intersects that set
     with the files changed in *head_sha*.  When there is no overlap the full
-    commit file list is used as context — this handles the common case where a
+    commit file list is used as context - this handles the common case where a
     type error in file B is caused by a change in file A.
 
     Args:
@@ -170,7 +170,7 @@ def blame_ci_failures(
 
     commit_files = get_commit_files(head_sha, cwd)
 
-    # Direct overlap first — these are the most likely culprits.
+    # Direct overlap first - these are the most likely culprits.
     responsible = [f for f in commit_files if f in failing_set]
     if not responsible and commit_files:
         # No direct match: the commit introduced a transitive breakage.
@@ -242,7 +242,7 @@ def build_ci_routing_payload(
 
     description = textwrap.dedent(f"""\
         CI workflow "{workflow_name}" failed.{retry_note}
-        Commit: {blame.head_sha[:8]} — {blame.commit_message}
+        Commit: {blame.head_sha[:8]} - {blame.commit_message}
         Failures: {failure_kinds}
         {run_link}
 

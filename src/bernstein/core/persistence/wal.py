@@ -43,7 +43,7 @@ class WALEntry:
 
     All fields are immutable. ``committed=False`` signals that the
     corresponding action had not yet been confirmed when this entry
-    was written — useful for crash-recovery inspection.
+    was written - useful for crash-recovery inspection.
     """
 
     seq: int
@@ -60,7 +60,7 @@ class WALEntry:
 def _compute_entry_hash(payload: dict[str, Any]) -> str:
     """Return SHA-256 of the canonical JSON of *payload*.
 
-    *payload* must NOT contain the ``entry_hash`` key — the hash is
+    *payload* must NOT contain the ``entry_hash`` key - the hash is
     computed over all other fields so it can be stored alongside them.
     """
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -87,7 +87,7 @@ class UncommittedIndex:
     The index is a *secondary cache*: if it is missing, truncated, or
     otherwise corrupt, callers must fall back to a full WAL scan and
     rebuild the index from the scan result. Loss of the index therefore
-    only costs one slow boot — never correctness.
+    only costs one slow boot - never correctness.
 
     All mutating operations ``fsync`` the file so a crash cannot leave
     the on-disk form diverging from the in-process state.
@@ -164,7 +164,7 @@ class UncommittedIndex:
     def add(self, run_id: str, seq: int, entry_hash: str) -> None:
         """Append ``(run_id, seq, entry_hash)`` to the index.
 
-        Duplicates are allowed on disk — :meth:`load` is tolerant of them
+        Duplicates are allowed on disk - :meth:`load` is tolerant of them
         as long as each row is individually well-formed.  Callers that
         care about uniqueness should use :meth:`remove` before re-adding.
         """
@@ -313,14 +313,14 @@ class WALWriter:
                     # the newline that *precedes* the last non-empty line.
                     stripped = buffer.rstrip(b"\r\n \t")
                     if not stripped:
-                        # Entire tail so far is whitespace — keep reading back.
+                        # Entire tail so far is whitespace - keep reading back.
                         continue
                     nl = stripped.rfind(b"\n")
                     if nl != -1:
                         candidate = stripped[nl + 1 :]
                         text = candidate.decode("utf-8", errors="replace").strip()
                         return text or None
-                    # No newline in what we've read yet — if we're already
+                    # No newline in what we've read yet - if we're already
                     # at the file start, the whole buffer is one line.
                     if pos == 0:
                         text = stripped.decode("utf-8", errors="replace").strip()
@@ -422,7 +422,7 @@ class WALWriter:
         The hash-chained WAL is append-only, so the on-disk entry itself
         cannot be mutated from ``committed=False`` to ``committed=True``
         retroactively.  This method only updates the sidecar index used
-        by :meth:`WALRecovery.scan_all_uncommitted` — it signals "a
+        by :meth:`WALRecovery.scan_all_uncommitted` - it signals "a
         follow-up committed entry has been written, stop reporting this
         seq as uncommitted on boot".
 
@@ -475,7 +475,7 @@ class WALReader:
                     continue
                 # Tampered or torn-write lines may parse as JSON but be
                 # missing required fields. Catch the lookup/cast errors
-                # and skip — verify_chain() reports a chain break via
+                # and skip - verify_chain() reports a chain break via
                 # the integrity hash anyway, so we should not crash the
                 # iterator when a downstream caller (e.g. lineage
                 # verifier) walks a corrupted WAL.
@@ -612,7 +612,7 @@ class WALRecovery:
 
         A closed marker signals that a previous recovery cycle has
         already observed and handled every uncommitted entry in the
-        corresponding WAL — future scans must skip it to prevent
+        corresponding WAL - future scans must skip it to prevent
         unbounded re-scanning of the same entries.
         """
         return WALRecovery._closed_marker_path(run_id, sdd_dir).exists()
@@ -682,7 +682,7 @@ class WALRecovery:
 
         Iterates over every ``*.wal.jsonl`` file in the WAL directory, skipping
         *exclude_run_id* (typically the current run) and any WAL whose
-        ``.closed`` sidecar marker is present ( — prevents
+        ``.closed`` sidecar marker is present ( - prevents
         unbounded re-scanning of already-recovered WALs). Returns a flat
         list of ``(run_id, WALEntry)`` pairs for every entry with
         ``committed=False``.
@@ -780,7 +780,7 @@ class ExecutionFingerprint:
     """Determinism fingerprint over an ordered sequence of orchestrator decisions.
 
     Two runs with the same fingerprint made identical decisions in identical
-    order — a verifiable proof of determinism usable as a CI gate.
+    order - a verifiable proof of determinism usable as a CI gate.
 
     The fingerprint is a SHA-256 computed iteratively over the sequence::
 

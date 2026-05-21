@@ -1,4 +1,4 @@
-"""Tests for worker badge identity — no network or filesystem needed."""
+"""Tests for worker badge identity - no network or filesystem needed."""
 
 from __future__ import annotations
 

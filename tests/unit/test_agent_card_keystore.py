@@ -1,4 +1,4 @@
-"""Tests for ``agent_card_keystore`` — persistent Ed25519 keypair + rotation."""
+"""Tests for ``agent_card_keystore`` - persistent Ed25519 keypair + rotation."""
 
 # pyright: reportPrivateUsage=false
 
@@ -33,7 +33,7 @@ class TestFirstRun:
     def test_private_file_is_owner_only_0600(self, tmp_path: Path) -> None:
         """Persistent private key must be ``0o600`` (owner-only).
 
-        Anything wider leaks the signing key to any local user — the
+        Anything wider leaks the signing key to any local user - the
         keystore explicitly enforces the permission bits both at
         generation time and on every load.
         """
@@ -47,7 +47,7 @@ class TestFirstRun:
     def test_uses_o_excl_so_two_processes_cannot_clobber(self, tmp_path: Path) -> None:
         """Concurrent first-run callers must not race over the same file.
 
-        We simulate the race by pre-creating an ``O_EXCL``-occupied file —
+        We simulate the race by pre-creating an ``O_EXCL``-occupied file -
         the keystore must refuse to clobber it and instead read the
         existing key on the next call.
         """
@@ -170,7 +170,7 @@ class TestRotation:
         ks_rotate.load_or_generate()
         ks_rotate.rotate()
 
-        # Bind a second keystore whose clock is 25h past the rotation —
+        # Bind a second keystore whose clock is 25h past the rotation -
         # outside the default 24h grace window.
         future = rotation_time + _dt.timedelta(seconds=DEFAULT_GRACE_SECONDS + 3600)
         future_clock = type("_C2", (_FrozenClock,), {"instant": future})

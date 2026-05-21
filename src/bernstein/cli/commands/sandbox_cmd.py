@@ -1,8 +1,8 @@
-"""``bernstein sandbox`` — sandbox-adjacent operator commands.
+"""``bernstein sandbox`` - sandbox-adjacent operator commands.
 
 Subcommands:
 
-* ``sandbox web-test`` — drive a Playwright self-test against a dev
+* ``sandbox web-test`` - drive a Playwright self-test against a dev
   server URL using scenarios declared in a YAML file. Artefacts land
   under ``.sdd/sandbox/<task-id>/``.
 

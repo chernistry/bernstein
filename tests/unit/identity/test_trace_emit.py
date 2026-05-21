@@ -99,7 +99,7 @@ class TestTraceEmitSuppression:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        # Emission gate ON, kill switch ON — must still suppress.
+        # Emission gate ON, kill switch ON - must still suppress.
         monkeypatch.setattr(ir, "IDENTITY_EMISSION_ENABLED", True)
         monkeypatch.setenv(ENV_DISABLE, "1")
         monkeypatch.setenv(ENV_SEED, TEST_SEED_HEX)
@@ -171,7 +171,7 @@ class TestTraceEmitLive:
         tmp_path: Path,
     ) -> None:
         # ``AgentTrace.from_dict`` discards unknown keys so the augmented
-        # payload still loads as a valid trace — no schema break.
+        # payload still loads as a valid trace - no schema break.
         nonce_path = tmp_path / "install_nonce"
         monkeypatch.setenv(ENV_NONCE_PATH, str(nonce_path))
         _enable_emission(monkeypatch, nonce_path)

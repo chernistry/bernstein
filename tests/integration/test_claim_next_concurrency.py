@@ -1,7 +1,7 @@
 """Integration tests for the atomic ``claim_next`` primitive under contention.
 
 These tests exercise the *integration* surface of the file-backed backlog
-claim primitive — multiple OS processes and multiple in-process threads
+claim primitive - multiple OS processes and multiple in-process threads
 racing for the same backlog file. They complement the unit tests in
 ``tests/unit/test_claim_next.py``, which cover happy-path filter logic
 under no contention.
@@ -18,7 +18,7 @@ conditions):
 | Role filter interleaved with race        | ``test_role_filtered_race_respects_role`` |
 | Backlog mutated mid-flight (append)      | ``test_appended_task_visible_to_next_claim`` |
 
-No ``time.sleep`` for synchronization — barriers, queues, and process
+No ``time.sleep`` for synchronization - barriers, queues, and process
 joins only.
 """
 
@@ -221,7 +221,7 @@ def _run_claimer_process(
 
 
 def test_subprocesses_never_double_claim(tmp_path: Path) -> None:
-    """5 OS processes racing for 10 tasks — each task claimed exactly once.
+    """5 OS processes racing for 10 tasks - each task claimed exactly once.
 
     Reproduces the multi-worker production layout. The file-level advisory
     lock (``flock`` / ``msvcrt``) must serialise claims across PIDs, not
@@ -311,7 +311,7 @@ def test_orphan_claim_visible_for_reclaim(tmp_path: Path) -> None:
     observable on disk so a watchdog can reset it to ``open``.
 
     This is the orphan-task contract: ``claim_next`` is *not* responsible
-    for lease expiry — the watchdog is — but the artefact ``claim_next``
+    for lease expiry - the watchdog is - but the artefact ``claim_next``
     leaves behind (claimer + claimed_at + in_progress) must be sufficient
     for a watchdog to recognise and revert. This test pins that contract.
     """
@@ -330,7 +330,7 @@ def test_orphan_claim_visible_for_reclaim(tmp_path: Path) -> None:
     assert claimed is not None
     assert claimed.id == "will-orphan"
 
-    # Phase 2: simulate crash — no further action. The row is now stranded.
+    # Phase 2: simulate crash - no further action. The row is now stranded.
     rows = _rows(backlog_path)
     assert rows[0]["status"] == "in_progress"
     assert rows[0]["claimer"] == "crashed-worker"

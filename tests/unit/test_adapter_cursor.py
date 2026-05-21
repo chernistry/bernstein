@@ -81,7 +81,7 @@ class TestCursorAdapterSpawn:
         assert cmd[1:3] == ["-m", "bernstein.core.orchestration.worker"]
 
     def test_inner_cmd_uses_cursor_agent_binary(self, tmp_path: Path) -> None:
-        """Real binary is the single token ``cursor-agent`` — not ``cursor agent``."""
+        """Real binary is the single token ``cursor-agent`` - not ``cursor agent``."""
         cmd, _, _ = _spawn(tmp_path)
         inner = _inner_cmd(cmd)
         assert inner[0] == "cursor-agent"
@@ -133,7 +133,7 @@ class TestCursorAdapterSpawn:
         assert "--force" not in inner
 
     def test_model_flag_passed(self, tmp_path: Path) -> None:
-        """Model name MUST reach the CLI — previously silently dropped."""
+        """Model name MUST reach the CLI - previously silently dropped."""
         cmd, _, _ = _spawn(tmp_path, model="claude-opus-4")
         inner = _inner_cmd(cmd)
         assert "--model" in inner
@@ -231,7 +231,7 @@ class TestCursorAdapterSpawn:
         assert env.get("CURSOR_API_KEY") == "cur_test_key_123"
 
     def test_env_excludes_unrelated_secrets(self, tmp_path: Path) -> None:
-        """Sanity check — only allowlisted vars + CURSOR_API_KEY come through."""
+        """Sanity check - only allowlisted vars + CURSOR_API_KEY come through."""
         adapter = CursorAdapter()
         proc_mock = _make_popen_mock(pid=500)
         with patch.dict(

@@ -2,7 +2,7 @@
 
 The previous ``bernstein.core.tasks.task_completion`` module was an orphan
 duplicate of ``collect_completion_data`` that lived in
-``bernstein.core.tasks.task_lifecycle``.  It was deleted in audit-018 — these
+``bernstein.core.tasks.task_lifecycle``.  It was deleted in audit-018 - these
 tests now import directly from ``task_lifecycle`` and guard against the shim
 re-appearing.
 """
@@ -233,7 +233,7 @@ def test_process_completed_tasks_routes_merge_conflicts_to_resolver(tmp_path: Pa
 
 
 # ---------------------------------------------------------------------------
-# audit-018 regression guards — prove the orphan/duplicate module is gone
+# audit-018 regression guards - prove the orphan/duplicate module is gone
 # ---------------------------------------------------------------------------
 
 

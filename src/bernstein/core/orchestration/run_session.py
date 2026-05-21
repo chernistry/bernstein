@@ -17,7 +17,7 @@ regardless of what the LLM would return today.
 
 Usage::
 
-    # Record automatically — pass session_id to bootstrap helpers
+    # Record automatically - pass session_id to bootstrap helpers
     session = RunSession.create(goal="Build X", run_seed=42)
     session.record_tasks(tasks)
     session.save(workdir / ".sdd" / "runtime" / "sessions")
@@ -153,7 +153,7 @@ class RunSession:
             if isinstance(task, dict):
                 serialised.append(cast("dict[str, Any]", task))
             else:
-                # Dataclass — convert enums to their values
+                # Dataclass - convert enums to their values
                 try:
                     raw = asdict(task)
                 except TypeError:

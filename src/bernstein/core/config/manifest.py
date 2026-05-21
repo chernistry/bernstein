@@ -1,4 +1,4 @@
-"""Agent Run Manifest — hashable, verifiable configuration record for each run.
+"""Agent Run Manifest - hashable, verifiable configuration record for each run.
 
 Every ``bernstein run`` generates a manifest that captures the complete
 configuration of that orchestration run.  The manifest is:
@@ -127,7 +127,7 @@ class RunManifest:
     def _canonical_payload(self) -> dict[str, Any]:
         """Return the dict used for canonical JSON serialization.
 
-        ``manifest_hash`` is excluded — it is *derived* from this payload.
+        ``manifest_hash`` is excluded - it is *derived* from this payload.
         """
         d = asdict(self)
         d.pop("manifest_hash", None)

@@ -101,7 +101,7 @@ class TestSchemaStructure:
 
 
 # ---------------------------------------------------------------------------
-# validate_plan — valid plans
+# validate_plan - valid plans
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ class TestValidatePlanValid:
 
 
 # ---------------------------------------------------------------------------
-# validate_plan — missing required fields
+# validate_plan - missing required fields
 # ---------------------------------------------------------------------------
 
 
@@ -224,7 +224,7 @@ class TestValidatePlanMissingFields:
 
 
 # ---------------------------------------------------------------------------
-# validate_plan — invalid enum values
+# validate_plan - invalid enum values
 # ---------------------------------------------------------------------------
 
 

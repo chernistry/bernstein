@@ -27,7 +27,7 @@ _PRE_COMMIT_TEMPLATE: Final[str] = textwrap.dedent("""\
     {marker}
     # Auto-installed by Bernstein to enforce file permission boundaries.
     # Denied path patterns: {denied_paths_repr}
-    # Do not edit manually — this hook is regenerated on agent spawn.
+    # Do not edit manually - this hook is regenerated on agent spawn.
 
     import fnmatch
     import subprocess
@@ -58,7 +58,7 @@ _PRE_COMMIT_TEMPLATE: Final[str] = textwrap.dedent("""\
         violations = [f for f in staged if path_matches_any(f, DENIED_PATTERNS)]
 
         if violations:
-            print("bernstein pre-commit: BLOCKED — files outside permitted scope:", file=sys.stderr)
+            print("bernstein pre-commit: BLOCKED - files outside permitted scope:", file=sys.stderr)
             for v in violations:
                 print(f"  - {{v}}", file=sys.stderr)
             return 1

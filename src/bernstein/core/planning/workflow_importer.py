@@ -2,7 +2,7 @@
 
 Scans for TODO.md, TASKS.md, and .plan files in the project root and
 converts unchecked checkbox items into open Bernstein tasks. This lets
-Bernstein augment — rather than replace — the user's existing task system.
+Bernstein augment - rather than replace - the user's existing task system.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ _IMPORT_SOURCE_KEY = "workflow_import_source"
 def detect_workflow_files(workdir: Path) -> list[Path]:
     """Return existing workflow/task files found in *workdir*.
 
-    Only the immediate project root is scanned — subdirectory files are
+    Only the immediate project root is scanned - subdirectory files are
     intentionally ignored to avoid picking up third-party task lists.
 
     Args:

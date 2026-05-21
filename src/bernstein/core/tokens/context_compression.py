@@ -531,7 +531,7 @@ class ContextCompressor:
 
 
 # ---------------------------------------------------------------------------
-# Section priority table — higher value = keep under tight budget
+# Section priority table - higher value = keep under tight budget
 # ---------------------------------------------------------------------------
 _SECTION_PRIORITIES: dict[str, int] = {
     "role": 10,

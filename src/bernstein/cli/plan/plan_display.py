@@ -1,4 +1,4 @@
-"""Futuristic execution plan display — mission briefing style.
+"""Futuristic execution plan display - mission briefing style.
 
 Renders the TaskPlan as a Rich-based panel with the same dark/cyan/green
 aesthetic used by the boot splash screen.  Replaces the previous plain
@@ -102,7 +102,7 @@ else:
     _ICON_X = "\u2715"  # ✕
     _ICON_CHECK = "\u2713"  # ✓
     _ICON_WARN = "\u26a0"  # ⚠
-    _ICON_DASH = "\u2014"  # —
+    _ICON_DASH = "\u2014"  # -
 
 _RISK_COLOR: dict[str, str] = {
     "low": C_GREEN,

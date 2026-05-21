@@ -30,7 +30,7 @@ _DEFAULT_CATALOG_TIPS: list[dict[str, str]] = [
     {"category": "general", "tip": "Use `bernstein status` to get a quick overview of your run."},
     {"category": "general", "tip": "Run `bernstein agents list` to see which CLI agents are available."},
     {"category": "general", "tip": "Set BERNSTEIN_MAX_COST to enforce a spending cap on every run."},
-    {"category": "productivity", "tip": "Small tasks finish faster — decompose goals before running."},
+    {"category": "productivity", "tip": "Small tasks finish faster - decompose goals before running."},
     {"category": "productivity", "tip": "Use git worktrees to isolate each agent session."},
     {"category": "productivity", "tip": "Review agent traces in .sdd/traces/ to understand decisions."},
     {"category": "troubleshooting", "tip": "Check `.sdd/runtime/logs/` for detailed orchestration logs."},

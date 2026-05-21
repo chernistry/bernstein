@@ -7,7 +7,7 @@ Guards two regressions:
    The fixtures now ship inside the wheel under
    ``src/bernstein/eval/golden_data/smoke/`` so a fresh ``pip install``
    has a working smoke tier without seeding ``.sdd/``.
-2. ``.sdd/`` is gitignored and CI-enforced — fixtures must NEVER live
+2. ``.sdd/`` is gitignored and CI-enforced - fixtures must NEVER live
    under ``.sdd/eval/golden/`` in the committed tree.  This test asserts
    the source-of-truth lives under the package.
 """
@@ -25,7 +25,7 @@ _PACKAGED_SMOKE_DIR = _REPO_ROOT / "src" / "bernstein" / "eval" / "golden_data" 
 
 def test_packaged_smoke_dir_exists_in_source_tree() -> None:
     assert _PACKAGED_SMOKE_DIR.is_dir(), (
-        f"packaged smoke fixture dir missing: {_PACKAGED_SMOKE_DIR} — "
+        f"packaged smoke fixture dir missing: {_PACKAGED_SMOKE_DIR} - "
         "fixtures must live under src/ to ship in the wheel"
     )
 
@@ -41,10 +41,10 @@ def test_sdd_smoke_dir_is_not_tracked() -> None:
     """
     sdd_smoke = _REPO_ROOT / ".sdd" / "eval" / "golden" / "smoke"
     if not sdd_smoke.exists():
-        return  # Clean — nothing to check.
+        return  # Clean - nothing to check.
     md_files = list(sdd_smoke.glob("*.md"))
     assert not md_files, (
-        f"{sdd_smoke} contains .md files — these are operator overrides "
+        f"{sdd_smoke} contains .md files - these are operator overrides "
         "and must not be committed.  Move source-of-truth fixtures into "
         "src/bernstein/eval/golden_data/smoke/ instead."
     )
@@ -93,6 +93,6 @@ def test_importlib_resources_can_locate_packaged_smoke_md() -> None:
     assert tier_root.is_dir(), "bernstein.eval.golden_data.smoke not present as a resource"
     md_entries = [e for e in tier_root.iterdir() if e.name.endswith(".md")]
     assert md_entries, (
-        "no *.md resources under bernstein.eval.golden_data.smoke — "
+        "no *.md resources under bernstein.eval.golden_data.smoke - "
         "wheel packaging regression (see pyproject.toml [tool.hatch.build.targets.wheel])"
     )

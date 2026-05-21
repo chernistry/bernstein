@@ -2,13 +2,13 @@
 
 Build API request payloads for syncing Bernstein tasks with external
 project management tools. This module constructs requests and parses
-responses but never makes actual HTTP calls — callers use their own
+responses but never makes actual HTTP calls - callers use their own
 HTTP client.
 
 Supported providers:
-- **Linear** — GraphQL API (``https://api.linear.app/graphql``)
-- **Asana** — REST API (``https://app.asana.com/api/1.0``)
-- **Shortcut** — REST API (``https://api.app.shortcut.com/api/v3``)
+- **Linear** - GraphQL API (``https://api.linear.app/graphql``)
+- **Asana** - REST API (``https://app.asana.com/api/1.0``)
+- **Shortcut** - REST API (``https://api.app.shortcut.com/api/v3``)
 
 Usage::
 

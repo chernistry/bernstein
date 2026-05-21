@@ -330,11 +330,11 @@ class ChatSession:
         await self.bridge.send_message(msg.thread_id, "Stop requested. Session will wind down gracefully.")
 
     async def _on_handoff(self, msg: ChatMessage) -> None:
-        """Handle ``/handoff [<token>]`` — emit or claim a resume token (op-005).
+        """Handle ``/handoff [<token>]`` - emit or claim a resume token (op-005).
 
         With no argument, freezes the current thread's binding and emits
         a token. With a token argument, claims it and rebinds this
-        thread to the same session — the live stream will continue to
+        thread to the same session - the live stream will continue to
         flow into the new thread without interrupting any in-flight
         tool calls because the session id is preserved.
         """

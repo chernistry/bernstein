@@ -169,7 +169,7 @@ def test_scoped_token_rejects_claim_substitution(tmp_path: Path, monkeypatch: py
     # Create a scoped token for task-A
     _identity_a, token_a = store.create_identity("worker-3", "backend", task_ids=["task-A"])
 
-    # Authenticate with the correct token — must succeed
+    # Authenticate with the correct token - must succeed
     authed = store.authenticate(token_a)
     assert authed is not None
     assert authed.task_ids == ["task-A"]

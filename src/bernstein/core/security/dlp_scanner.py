@@ -2,16 +2,16 @@
 
 Extends PII/secret detection (pii_output_gate.py) with additional categories:
 
-1. **License violations** — copyright headers or SPDX identifiers from external
+1. **License violations** - copyright headers or SPDX identifiers from external
    projects introduced by agent diffs.  Hard-blocks merge when detected.
-2. **Regulated data (PHI)** — HIPAA-relevant data patterns: medical record
+2. **Regulated data (PHI)** - HIPAA-relevant data patterns: medical record
    numbers, National Provider Identifiers, ICD-10 codes, DEA drug codes.
    Hard-blocks merge (alongside existing credit-card / SSN checks).
-3. **Proprietary data leakage** — internal hostnames / RFC-1918 addresses,
+3. **Proprietary data leakage** - internal hostnames / RFC-1918 addresses,
    customer-ID-labeled UUIDs, and configurable internal-URL patterns.
    Soft-flags by default; can be promoted to hard-block via config.
 
-Regex-only — no network calls, no LLM.  Designed to run as a quality gate
+Regex-only - no network calls, no LLM.  Designed to run as a quality gate
 that complements the existing ``pii_scan`` gate.
 
 Usage::
@@ -98,12 +98,12 @@ class DLPScanResult:
         """Return a human-readable summary for quality gate output."""
         if not self.findings:
             return "DLP scan: no violations detected."
-        lines = [f"DLP scan: {len(self.findings)} finding(s) — categories: {', '.join(sorted(self.categories_hit))}"]
+        lines = [f"DLP scan: {len(self.findings)} finding(s) - categories: {', '.join(sorted(self.categories_hit))}"]
         for f in self.findings:
             block_label = "[BLOCK]" if f.block_merge else "[WARN]"
             lines.append(
                 f"  {block_label} [{f.severity.upper()}] {f.category}/{f.rule}"
-                f" (line {f.line_number}): {f.description} — {f.redacted_match}"
+                f" (line {f.line_number}): {f.description} - {f.redacted_match}"
             )
         return "\n".join(lines)
 
@@ -126,7 +126,7 @@ class DLPConfig:
         block_license_violations: Hard-block merge on license violations.
         block_regulated_data: Hard-block merge on regulated data findings.
         block_proprietary_data: Hard-block merge on proprietary data findings
-            (default False — soft-flag only).
+            (default False - soft-flag only).
         internal_url_patterns: Additional hostname / URL glob patterns that
             are considered internal / proprietary (e.g. ``"*.corp.example.com"``).
         ignore_paths: Glob-like path patterns to skip during scanning.
@@ -160,7 +160,7 @@ _RuleEntry = tuple[DLPCategory, str, re.Pattern[str], DLPSeverity, str, bool]
 def _build_license_violation_rules() -> list[_RuleEntry]:
     """Rules that detect external project source code / license headers."""
     return [
-        # SPDX-License-Identifier lines — any license being *added* may indicate
+        # SPDX-License-Identifier lines - any license being *added* may indicate
         # copying of third-party code into the agent output.
         (
             "license_violation",
@@ -170,7 +170,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
                 re.IGNORECASE,
             ),
             "high",
-            "SPDX license identifier introduced — may indicate copied third-party source",
+            "SPDX license identifier introduced - may indicate copied third-party source",
             True,
         ),
         # Classic copyright header lines from external projects.
@@ -183,7 +183,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
                 re.IGNORECASE,
             ),
             "high",
-            "Third-party copyright header introduced — verify licence compatibility",
+            "Third-party copyright header introduced - verify licence compatibility",
             True,
         ),
         # "All rights reserved" boilerplate often accompanies proprietary code.
@@ -192,7 +192,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
             "all_rights_reserved",
             re.compile(r"(?i)All\s+rights\s+reserved"),
             "high",
-            '"All rights reserved" notice — indicates proprietary source being introduced',
+            '"All rights reserved" notice - indicates proprietary source being introduced',
             True,
         ),
         # GPL/AGPL license boilerplate text.
@@ -203,7 +203,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
                 r"(?i)(?:GNU General Public License|GNU Affero General Public License)",
             ),
             "high",
-            "GPL/AGPL license text introduced — strong copyleft obligation",
+            "GPL/AGPL license text introduced - strong copyleft obligation",
             True,
         ),
     ]
@@ -212,7 +212,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
 def _build_regulated_data_rules() -> list[_RuleEntry]:
     """Rules that detect regulated PHI / PCI DSS / financial record patterns."""
     return [
-        # Credit card numbers — 13-19 digits, Luhn-valid, with explicit label
+        # Credit card numbers - 13-19 digits, Luhn-valid, with explicit label
         # or in common card-number formatted patterns (groups separated by spaces/dashes).
         # We match labeled context first to reduce false positives.
         (
@@ -223,10 +223,10 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
                 r"""|pan|credit[-_]?card)\s*[=:]\s*["']?(?:\d[ -]*){13,19}["']?"""
             ),
             "critical",
-            "Credit card number (PCI DSS) — store/transmit only via compliant vault",
+            "Credit card number (PCI DSS) - store/transmit only via compliant vault",
             True,
         ),
-        # US Social Security Numbers — labeled or bare XXX-XX-XXXX pattern.
+        # US Social Security Numbers - labeled or bare XXX-XX-XXXX pattern.
         (
             "regulated_data",
             "us_ssn",
@@ -235,28 +235,28 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
                 r"""|(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)"""
             ),
             "critical",
-            "US Social Security Number — regulated PII, must not appear in code or logs",
+            "US Social Security Number - regulated PII, must not appear in code or logs",
             True,
         ),
-        # National Provider Identifier (NPI) — 10-digit number, often labeled.
+        # National Provider Identifier (NPI) - 10-digit number, often labeled.
         (
             "regulated_data",
             "npi_number",
             re.compile(r"""(?i)(?:npi|national_provider_id(?:entifier)?)\s*[=:]\s*["']?\b\d{10}\b["']?"""),
             "high",
-            "National Provider Identifier (NPI) — HIPAA-regulated healthcare entity ID",
+            "National Provider Identifier (NPI) - HIPAA-regulated healthcare entity ID",
             True,
         ),
-        # ICD-10 diagnostic code — letter followed by 2 digits, optional dot + up to 4 chars.
+        # ICD-10 diagnostic code - letter followed by 2 digits, optional dot + up to 4 chars.
         (
             "regulated_data",
             "icd10_code",
             re.compile(r"""(?i)(?:icd[-_]?10|diagnosis_code|diag_code)\s*[=:]\s*["']?[A-Z]\d{2}(?:\.\d{1,4})?["']?"""),
             "high",
-            "ICD-10 diagnosis code — HIPAA-protected health information",
+            "ICD-10 diagnosis code - HIPAA-protected health information",
             True,
         ),
-        # Medical Record Number (MRN) — often an 8-10 digit number with explicit label.
+        # Medical Record Number (MRN) - often an 8-10 digit number with explicit label.
         (
             "regulated_data",
             "mrn",
@@ -264,16 +264,16 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
                 r"""(?i)(?:mrn|medical_record_number|medical_record_no|patient_id)\s*[=:]\s*["']?\b\d{6,12}\b["']?"""
             ),
             "high",
-            "Medical Record Number (MRN) — HIPAA PHI",
+            "Medical Record Number (MRN) - HIPAA PHI",
             True,
         ),
-        # DEA drug enforcement registration number — format: 2 letters + 7 digits.
+        # DEA drug enforcement registration number - format: 2 letters + 7 digits.
         (
             "regulated_data",
             "dea_number",
             re.compile(r"""(?i)(?:dea_number|dea_reg|dea_registration)\s*[=:]\s*["']?[A-Z]{2}\d{7}["']?"""),
             "high",
-            "DEA drug enforcement registration number — federally regulated",
+            "DEA drug enforcement registration number - federally regulated",
             True,
         ),
         # Health plan beneficiary numbers / member IDs (labeled patterns).
@@ -284,7 +284,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
                 r"""(?i)(?:health_plan_id|beneficiary_id|member_id|insurance_id)\s*[=:]\s*["']?[A-Z0-9]{8,20}["']?"""
             ),
             "medium",
-            "Health plan beneficiary / member ID — potential HIPAA PHI",
+            "Health plan beneficiary / member ID - potential HIPAA PHI",
             True,
         ),
         # Date-of-birth with explicit label.
@@ -293,7 +293,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
             "date_of_birth",
             re.compile(r"""(?i)(?:date_of_birth|dob|birth_date)\s*[=:]\s*["']?\d{4}[-/]\d{2}[-/]\d{2}["']?"""),
             "medium",
-            "Date of birth — HIPAA PHI when combined with other health data",
+            "Date of birth - HIPAA PHI when combined with other health data",
             True,
         ),
     ]
@@ -312,7 +312,7 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
                 r"|192\.168\.\d{1,3}\.\d{1,3})\b"
             ),
             "medium",
-            "RFC-1918 private IP address — may expose internal network topology",
+            "RFC-1918 private IP address - may expose internal network topology",
             False,
         ),
         # Internal hostnames: .internal, .corp, .local, .intranet suffixes.
@@ -324,7 +324,7 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
                 re.IGNORECASE,
             ),
             "medium",
-            "Internal hostname suffix (.internal/.corp/.intranet) — may expose infrastructure",
+            "Internal hostname suffix (.internal/.corp/.intranet) - may expose infrastructure",
             False,
         ),
         # Customer ID / account ID labeled UUID values.
@@ -335,7 +335,7 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
                 r"""(?i)(?:customer|account|organization|organisation|client)_id\s*[=:]\s*["']?[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}["']?"""
             ),
             "medium",
-            "Customer/account UUID — may expose production customer data",
+            "Customer/account UUID - may expose production customer data",
             False,
         ),
         # Production database connection strings for customer-facing DBs.
@@ -346,7 +346,7 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
                 r"""(?i)(?:prod(?:uction)?[-_]db|db[-_]prod(?:uction)?).*(?:host|server|endpoint)\s*[=:]\s*["'][^"'\s]{5,}["']"""
             ),
             "high",
-            "Production database connection endpoint — proprietary infrastructure",
+            "Production database connection endpoint - proprietary infrastructure",
             False,
         ),
     ]
@@ -518,7 +518,7 @@ class DLPScanner:
         """Scan a unified diff, inspecting only added lines.
 
         Lines starting with ``+`` (additions) are checked.  Removed lines
-        and context lines are ignored — we only block on *new* violations.
+        and context lines are ignored - we only block on *new* violations.
 
         Args:
             diff_text: Unified diff text (e.g. from ``git diff``).

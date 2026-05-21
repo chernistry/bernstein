@@ -1,4 +1,4 @@
-"""Jira Cloud adapter — convert Jira issues to Bernstein tasks and sync back.
+"""Jira Cloud adapter - convert Jira issues to Bernstein tasks and sync back.
 
 This adapter handles two directions:
 
@@ -73,7 +73,7 @@ _STORY_POINTS_TO_SCOPE: list[tuple[int, TaskScope]] = [
 class JiraIssueRef:
     """Minimal Jira issue data used by the adapter.
 
-    Not a full Jira API model — just the fields Bernstein cares about.
+    Not a full Jira API model - just the fields Bernstein cares about.
     """
 
     key: str  # e.g. "PROJ-42"

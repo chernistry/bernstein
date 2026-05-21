@@ -1,4 +1,4 @@
-"""CLI command group: ``bernstein logs`` — tail and search agent logs.
+"""CLI command group: ``bernstein logs`` - tail and search agent logs.
 
 Subcommands:
   tail    Tail a single agent log file in real time or print recent lines.
@@ -223,7 +223,7 @@ def logs_search(
 
     console.print(
         f"[bold]{len(result.entries)}[/bold] result(s) for [bold]{query!r}[/bold] "
-        f"— {result.total_scanned:,} lines scanned\n"
+        f"- {result.total_scanned:,} lines scanned\n"
     )
 
     _LEVEL_COLOR: dict[str, str] = {

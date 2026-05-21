@@ -180,7 +180,7 @@ def _parse_entry_filter(event: LifecycleEvent, item_map: dict[object, object]) -
 def apply_config(registry: HookRegistry, config: HookConfig) -> None:
     """Register every script declaration from ``config`` against ``registry``.
 
-    Plugin references are informational — they are resolved by the
+    Plugin references are informational - they are resolved by the
     pluggy manager at plugin-discovery time, not here.
     """
     for event, entries in config.scripts.items():

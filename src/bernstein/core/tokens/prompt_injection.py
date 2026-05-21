@@ -52,7 +52,7 @@ class ScanResult:
 
 
 # ---------------------------------------------------------------------------
-# Injection patterns — ordered by severity
+# Injection patterns - ordered by severity
 # ---------------------------------------------------------------------------
 
 # (pattern_name, severity, compiled_regex)

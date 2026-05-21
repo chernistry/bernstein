@@ -15,22 +15,22 @@ Auth: ``cursor-agent login`` opens a browser for OAuth; for CI use
 
 Headless invocation surface (per https://cursor.com/docs/cli):
 
-* ``-p / --print``       — non-interactive one-shot mode (without this the
+* ``-p / --print``       - non-interactive one-shot mode (without this the
                            CLI starts a TTY chat and never returns).
-* ``--workspace <path>`` — project root the agent operates against.
-* ``--model <name>``     — e.g. ``claude-sonnet-4-6``, ``claude-opus-4``,
+* ``--workspace <path>`` - project root the agent operates against.
+* ``--model <name>``     - e.g. ``claude-sonnet-4-6``, ``claude-opus-4``,
                            ``gpt-5.2``.
 * ``--output-format stream-json``
-                         — emits JSON deltas suitable for tailing into the
+                         - emits JSON deltas suitable for tailing into the
                            runtime log.
-* ``--trust``            — skip the workspace-trust prompt (required for
+* ``--trust``            - skip the workspace-trust prompt (required for
                            first-run headless).
-* ``--approve-mcps``     — auto-approve configured MCP servers.
-* ``-f / --force``       — actually edit files in print mode; without it
+* ``--approve-mcps``     - auto-approve configured MCP servers.
+* ``-f / --force``       - actually edit files in print mode; without it
                            the CLI only prints suggestions (silent no-op).
                            Suppressed when ``task_scope == "readonly"``,
                            which switches the run to ``--mode ask``.
-* ``--mode ask``         — read-only, no edits, no tools that mutate state.
+* ``--mode ask``         - read-only, no edits, no tools that mutate state.
 
 MCP: there is no ``--add-mcp`` flag.  The CLI shares the editor's
 ``.cursor/mcp.json`` config (project precedence).  When ``mcp_config`` is
@@ -204,7 +204,7 @@ class CursorAdapter(CLIAdapter):
         if not (has_oauth or has_api_key):
             return None
 
-        # Cursor Pro is the most common paid tier — conservative estimate.
+        # Cursor Pro is the most common paid tier - conservative estimate.
         tier = ApiTier.PRO
         rate_limit = RateLimit(
             requests_per_minute=50,  # 500 fast req/month ≈ ~50/min burst

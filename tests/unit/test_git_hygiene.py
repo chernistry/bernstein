@@ -101,7 +101,7 @@ def test_delete_active_session_branch_is_preserved(tmp_path: Path) -> None:
 
     assert deleted == 0
     assert skipped == 1
-    # Only the list call — no ancestry check, no deletion.
+    # Only the list call - no ancestry check, no deletion.
     assert len(mock_run_git.call_args_list) == 1
 
 
@@ -160,7 +160,7 @@ def test_non_agent_branches_are_ignored(tmp_path: Path) -> None:
 
     assert deleted == 0
     assert skipped == 0
-    # Only the initial list call — we never touch non-agent branches.
+    # Only the initial list call - we never touch non-agent branches.
     assert len(mock_run_git.call_args_list) == 1
 
 

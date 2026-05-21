@@ -1,4 +1,4 @@
-"""Tests for claude_stream_parser — Claude Code streaming event parsing."""
+"""Tests for claude_stream_parser - Claude Code streaming event parsing."""
 
 from __future__ import annotations
 
@@ -266,13 +266,13 @@ class TestStreamParserState:
 
 
 class TestClaudeStreamParserBuffering:
-    """audit-143 — feed_line must buffer byte-split input and bound dedup."""
+    """audit-143 - feed_line must buffer byte-split input and bound dedup."""
 
     def test_feed_line_buffers_partial_then_completes_on_newline(self) -> None:
         parser = ClaudeStreamParser()
         line = _make_assistant_text("split text") + "\n"
         mid = len(line) // 2
-        # First half is partial JSON — no events yet.
+        # First half is partial JSON - no events yet.
         events = parser.feed_line(line[:mid])
         assert events == []
         # Second half completes the record (includes trailing \n).

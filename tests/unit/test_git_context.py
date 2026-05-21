@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.git_context — git read operations for agent context."""
+"""Tests for bernstein.core.git_context - git read operations for agent context."""
 
 from __future__ import annotations
 

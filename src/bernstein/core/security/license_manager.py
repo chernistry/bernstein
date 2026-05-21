@@ -24,7 +24,7 @@ from typing import Any, cast
 logger = logging.getLogger(__name__)
 
 # Environment variable that must be set to "1" to explicitly disable license
-# signature validation (e.g. in local dev). Any other value — including unset —
+# signature validation (e.g. in local dev). Any other value - including unset -
 # means validation is enforced. This prevents silent bypass when a signing key
 # is accidentally omitted from production config.
 LICENSE_DISABLED_ENV = "BERNSTEIN_LICENSE_DISABLED"

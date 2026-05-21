@@ -2,7 +2,7 @@
 
 When a coding agent hits rate limits, timeouts, or API errors, this module
 finds the best alternative agent that meets the task's capability requirements.
-Complex tasks never fall to weak agents — capability floor is a hard constraint,
+Complex tasks never fall to weak agents - capability floor is a hard constraint,
 not a preference.
 
 V2 features:
@@ -40,7 +40,7 @@ _STRENGTH_ORDER: dict[str, int] = {
 }
 
 # Minimum reasoning strength required per task complexity.
-# This is a HARD constraint — never violated, even if all capable agents are down.
+# This is a HARD constraint - never violated, even if all capable agents are down.
 CAPABILITY_FLOOR: dict[Complexity, int] = {
     Complexity.HIGH: _STRENGTH_ORDER["high"],  # only high or very_high
     Complexity.MEDIUM: _STRENGTH_ORDER["medium"],  # medium, high, very_high
@@ -56,7 +56,7 @@ _COST_ORDER: dict[str, int] = {
 }
 
 # Default cascade order: models/providers tried in sequence on failure.
-# Entries are resolved against discovered agents — model names map to their
+# Entries are resolved against discovered agents - model names map to their
 # provider (e.g. "opus" → claude), provider names use their default model.
 DEFAULT_CASCADE_ORDER: list[str] = ["opus", "sonnet", "codex", "gemini", "qwen"]
 
@@ -156,12 +156,12 @@ class CascadeFallbackManager:
     and tracks cascade metrics.
 
     Rules (in priority order):
-    1. Sticky fallback — if active, reuse the current fallback (avoid ping-pong).
-    2. Cascade order — walk the configured chain from the failed entry forward.
-    3. Capability floor — never assign a HIGH complexity task to a weak agent.
-    4. Logged-in only — skip agents the user hasn't authenticated.
-    5. Not throttled — skip agents currently rate-limited.
-    6. Budget-aware — prefer free/cheap agents; skip expensive ones if budget is tight.
+    1. Sticky fallback - if active, reuse the current fallback (avoid ping-pong).
+    2. Cascade order - walk the configured chain from the failed entry forward.
+    3. Capability floor - never assign a HIGH complexity task to a weak agent.
+    4. Logged-in only - skip agents the user hasn't authenticated.
+    5. Not throttled - skip agents currently rate-limited.
+    6. Budget-aware - prefer free/cheap agents; skip expensive ones if budget is tight.
     """
 
     METRICS_FILE = "cascade_metrics.json"
@@ -368,7 +368,7 @@ class CascadeFallbackManager:
         agent_strength = _STRENGTH_ORDER.get(agent.reasoning_strength, 0)
         if agent_strength < min_strength:
             logger.debug(
-                "Cascade: skipping %s (reasoning=%s) for %s task — below capability floor",
+                "Cascade: skipping %s (reasoning=%s) for %s task - below capability floor",
                 entry,
                 agent.reasoning_strength,
                 task_complexity.value,
@@ -377,7 +377,7 @@ class CascadeFallbackManager:
         if self._budget_remaining is not None and self._budget_remaining <= 0:
             cost_rank = _COST_ORDER.get(agent.cost_tier, 2)
             if cost_rank > 0:
-                logger.debug("Cascade: skipping %s — budget exhausted", entry)
+                logger.debug("Cascade: skipping %s - budget exhausted", entry)
                 return False
         return True
 
@@ -397,7 +397,7 @@ class CascadeFallbackManager:
         try:
             start_idx = self._cascade_order.index(current_lower) + 1
         except ValueError:
-            # Current entry not in chain — search the full chain
+            # Current entry not in chain - search the full chain
             start_idx = 0
 
         for entry in self._cascade_order[start_idx:]:

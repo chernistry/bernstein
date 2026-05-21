@@ -253,7 +253,7 @@ def make_multi_file_task(
     additional paths on top of the role defaults.
 
     Args:
-        role: Agent role — determines the file set used.
+        role: Agent role - determines the file set used.
         n_files: How many files to include (defaults to all role files).
         extra_files: Additional file paths appended to the selection.
         **kwargs: Forwarded to :func:`make_task`.
@@ -294,7 +294,7 @@ def make_dependency_chain(
         tasks.append(
             make_task(
                 title=f"Chain step {i + 1}/{n}",
-                description=f"Step {i + 1} — depends on previous step",
+                description=f"Step {i + 1} - depends on previous step",
                 role=role,
                 priority=1,
                 scope=Scope.SMALL,

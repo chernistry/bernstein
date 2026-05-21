@@ -1,4 +1,4 @@
-"""Tests for context_activation — .gitignore-style path matching for context rules."""
+"""Tests for context_activation - .gitignore-style path matching for context rules."""
 
 from __future__ import annotations
 

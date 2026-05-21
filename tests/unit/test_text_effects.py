@@ -1,4 +1,4 @@
-"""Tests for bernstein.cli.text_effects — TDD RED phase.
+"""Tests for bernstein.cli.text_effects - TDD RED phase.
 
 Tests cover:
 - Non-TTY fallback: instant print without animation
@@ -54,7 +54,7 @@ def test_default_colors_are_hex_strings() -> None:
 
 
 # ---------------------------------------------------------------------------
-# logo_reveal — non-TTY path (no animation, just print)
+# logo_reveal - non-TTY path (no animation, just print)
 # ---------------------------------------------------------------------------
 
 
@@ -68,7 +68,7 @@ def test_logo_reveal_non_tty_prints_text(monkeypatch: pytest.MonkeyPatch, capsys
 def test_logo_reveal_non_tty_does_not_animate(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """In non-TTY, output is the text itself — not partial frames."""
+    """In non-TTY, output is the text itself - not partial frames."""
     monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
     logo_reveal("HELLO")
     captured = capsys.readouterr()
@@ -87,7 +87,7 @@ def test_logo_reveal_non_tty_custom_effect_ignored(
 
 
 # ---------------------------------------------------------------------------
-# logo_reveal — TTE unavailable path
+# logo_reveal - TTE unavailable path
 # ---------------------------------------------------------------------------
 
 
@@ -122,7 +122,7 @@ def test_logo_reveal_default_colors_used_when_none(
 
 
 # ---------------------------------------------------------------------------
-# typing_effect — non-TTY path
+# typing_effect - non-TTY path
 # ---------------------------------------------------------------------------
 
 
@@ -163,7 +163,7 @@ def test_typing_effect_single_line(monkeypatch: pytest.MonkeyPatch, capsys: pyte
 
 
 # ---------------------------------------------------------------------------
-# _tte_available — smoke test (not mocked, checks real import)
+# _tte_available - smoke test (not mocked, checks real import)
 # ---------------------------------------------------------------------------
 
 
@@ -173,7 +173,7 @@ def test_tte_available_returns_bool() -> None:
 
 
 # ---------------------------------------------------------------------------
-# logo_reveal / typing_effect — function signatures
+# logo_reveal / typing_effect - function signatures
 # ---------------------------------------------------------------------------
 
 

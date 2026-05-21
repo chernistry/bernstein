@@ -193,7 +193,7 @@ def auto_route_task(task: Task) -> AutoRouteDecision:
                 reason="best available (no role preference)",
             )
 
-    # No agents at all — default to claude
+    # No agents at all - default to claude
     return AutoRouteDecision(
         agent_name="claude",
         model="sonnet",

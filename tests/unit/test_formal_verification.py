@@ -116,7 +116,7 @@ class TestVerifyPythonEval:
         assert _verify_python_eval(prop, ctx) is None
 
     def test_bad_expression_returns_none(self) -> None:
-        # Syntax errors should not raise — return None (skip rather than block)
+        # Syntax errors should not raise - return None (skip rather than block)
         prop = self._prop("this is not python")
         result = _verify_python_eval(prop, {})
         assert result is None
@@ -129,7 +129,7 @@ class TestVerifyPythonEval:
 
 
 # ---------------------------------------------------------------------------
-# run_formal_verification — disabled / empty
+# run_formal_verification - disabled / empty
 # ---------------------------------------------------------------------------
 
 
@@ -156,7 +156,7 @@ class TestRunFormalVerificationGatekeeping:
 
 
 # ---------------------------------------------------------------------------
-# run_formal_verification — Z3 path (via python_eval fallback)
+# run_formal_verification - Z3 path (via python_eval fallback)
 # ---------------------------------------------------------------------------
 
 
@@ -210,7 +210,7 @@ class TestRunFormalVerificationZ3:
 
 
 # ---------------------------------------------------------------------------
-# run_formal_verification — Lean4 path (subprocess mocked)
+# run_formal_verification - Lean4 path (subprocess mocked)
 # ---------------------------------------------------------------------------
 
 

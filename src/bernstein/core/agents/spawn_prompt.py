@@ -74,7 +74,7 @@ def _scope_ordinal(scope_value: str) -> int:
 def _files_match_patterns(files: list[str], patterns: tuple[str, ...]) -> bool:
     """Check if any file in *files* matches any gitignore-style glob in *patterns*.
 
-    Uses ``fnmatch.fnmatch`` for glob matching — supports ``*``, ``**``, ``?``,
+    Uses ``fnmatch.fnmatch`` for glob matching - supports ``*``, ``**``, ``?``,
     and ``[seq]`` syntax.
 
     Args:
@@ -92,7 +92,7 @@ def _files_match_patterns(files: list[str], patterns: tuple[str, ...]) -> bool:
 
 
 # Section relevance rules.  Sections not listed here are always included
-# (they are "critical" — role, tasks, instructions, git_safety).
+# (they are "critical" - role, tasks, instructions, git_safety).
 SECTION_RULES: dict[str, SectionRule] = {
     "specialists": SectionRule(roles=frozenset({"manager"})),
     "team awareness": SectionRule(
@@ -231,7 +231,7 @@ _LESSON_CACHE_TTL = SPAWN.lesson_cache_ttl_s
 # Memory-log auto-injection (BERNSTEIN_MEMORY_AUTO_INJECT)
 # ---------------------------------------------------------------------------
 
-#: Environment switch — flip to "1" to enable JSONL memory injection into
+#: Environment switch - flip to "1" to enable JSONL memory injection into
 #: leaf-agent prompts.  Default off so existing flows are unchanged.
 _MEMORY_AUTO_INJECT_ENV_VAR = "BERNSTEIN_MEMORY_AUTO_INJECT"
 
@@ -272,7 +272,7 @@ def _format_memory_lesson(entry: dict[str, Any]) -> str:
 
     Returns:
         A single-line bullet describing the lesson.  Returns an empty
-        string when the entry has no human-readable text — caller skips
+        string when the entry has no human-readable text - caller skips
         empty bullets so the rendered block stays tight.
     """
     text = entry.get("lesson") or entry.get("text") or entry.get("message")
@@ -311,13 +311,13 @@ def _render_memory_lessons_block(workdir: Path) -> str:
     log = JSONLMemoryLog(root=root)
     try:
         entries = log.read(_MEMORY_LESSONS_KEY)
-    except Exception:  # pragma: no cover — defensive, never block spawns
+    except Exception:  # pragma: no cover - defensive, never block spawns
         logger.debug("memory auto-inject: read failed", exc_info=True)
         return ""
     if not entries:
         return ""
 
-    # Tail-window — the most recent N entries, oldest-first inside the window.
+    # Tail-window - the most recent N entries, oldest-first inside the window.
     recent = entries[-_MEMORY_LESSONS_MAX:]
     bullets: list[str] = []
     for entry in recent:
@@ -594,7 +594,7 @@ def _extract_tags_from_tasks(tasks: list[Task]) -> list[str]:
     for task in tasks:
         tags.add(task.role.lower())
         for word in task.title.lower().split():
-            cleaned = word.strip("—-_.,;:!?()[]{}\"'`#")
+            cleaned = word.strip("-_.,;:!?()[]{}\"'`#")
             if len(cleaned) > 2 and cleaned not in stop_words:
                 tags.add(cleaned)
     return sorted(tags)
@@ -643,11 +643,11 @@ def _resolve_role_prompt(
 
     Resolution order (oai-004):
 
-    1. ``catalog_system_prompt`` — explicit Agency override.
-    2. Skill pack — ``templates/skills/<role>/SKILL.md`` plus a compact
+    1. ``catalog_system_prompt`` - explicit Agency override.
+    2. Skill pack - ``templates/skills/<role>/SKILL.md`` plus a compact
        index for the other skills, injected via
        :func:`bernstein.core.planning.role_resolver.resolve_role_prompt`.
-    3. Legacy role template — ``templates/roles/<role>/system_prompt.md``.
+    3. Legacy role template - ``templates/roles/<role>/system_prompt.md``.
     4. Agency catalog fallback or the generic ``"You are a <role> specialist."``
        stub.
     """
@@ -676,7 +676,7 @@ def _resolve_role_prompt(
                 resolved.skill_name,
             )
             return resolved.body
-        # ``fallback`` means neither skill nor legacy template matched — fall
+        # ``fallback`` means neither skill nor legacy template matched - fall
         # through to the agency / default-stub path below.
 
     try:
@@ -1158,7 +1158,7 @@ def _observe_cache_locality(prompt: str, tasks: list[Task]) -> None:
 
         prefix, _suffix = extract_system_prefix(prompt)
         observe_prefix(role=role, prefix=prefix)
-    except Exception:  # pragma: no cover — defensive, never block spawns
+    except Exception:  # pragma: no cover - defensive, never block spawns
         logger.debug("prompt cache locality observe failed", exc_info=True)
 
 
@@ -1400,7 +1400,7 @@ def expand_shell_commands(template: str, *, timeout: int = 5, workdir: Path | No
             logger.warning("Shell command in template timed out: %s", cmd)
             return f"<!-- shell command timed out: {cmd} -->"
         except Exception as exc:
-            logger.warning("Shell command in template error: %s — %s", cmd, exc)
+            logger.warning("Shell command in template error: %s - %s", cmd, exc)
             return f"<!-- shell command error: {cmd} -->"
 
     return _SHELL_CMD_PATTERN.sub(_run_cmd, template)
@@ -1439,7 +1439,7 @@ def fork_from_agent(
         A new prompt string where the prefix is byte-identical to the
         parent's prefix and only the directive section differs.
     """
-    # Find the task assignment marker — everything before it is the
+    # Find the task assignment marker - everything before it is the
     # cacheable prefix shared with the parent.
     prefix = _extract_cache_prefix(parent_prompt)
 
@@ -1504,7 +1504,7 @@ def render_spawn_prompt(
     """Render the task-content block of a spawn prompt.
 
     Returns a string containing the session header, task fields, and git
-    safety protocol — the three sections most susceptible to prompt injection.
+    safety protocol - the three sections most susceptible to prompt injection.
     Task content is indented with four spaces so that any injected directives
     (e.g. ``System:``) appear as body text rather than structural headers.
     Intended for use by the pen-test suite to verify injection resistance.

@@ -48,7 +48,7 @@ class TestBernsteinRun:
 
     @pytest.mark.asyncio
     async def test_run_posts_to_tasks_endpoint(self, lab: McpFakeLab) -> None:
-        """bernstein_run must POST to /tasks — catches regressions in the HTTP call."""
+        """bernstein_run must POST to /tasks - catches regressions in the HTTP call."""
         await lab.call_tool("bernstein_run", {"goal": "Build auth"})
         lab.assert_called("POST", "/tasks")
 
@@ -96,7 +96,7 @@ class TestBernsteinStatus:
 
     @pytest.mark.asyncio
     async def test_status_queries_status_endpoint(self, lab: McpFakeLab) -> None:
-        """bernstein_status must GET /status — catches endpoint regressions."""
+        """bernstein_status must GET /status - catches endpoint regressions."""
         await lab.call_tool("bernstein_status", {})
         lab.assert_called("GET", "/status")
 
@@ -203,7 +203,7 @@ class TestBernsteinApprove:
 
     @pytest.mark.asyncio
     async def test_approve_posts_to_complete_endpoint(self, lab: McpFakeLab) -> None:
-        """bernstein_approve must POST to /tasks/{id}/complete — regression guard."""
+        """bernstein_approve must POST to /tasks/{id}/complete - regression guard."""
         lab.seed_task("T-102", status="open")
         await lab.call_tool("bernstein_approve", {"task_id": "T-102"})
         lab.assert_called("POST", "/tasks/T-102/complete")
@@ -224,7 +224,7 @@ class TestBernsteinApprove:
 
 
 # ---------------------------------------------------------------------------
-# Regression guards — harness catches protocol drift
+# Regression guards - harness catches protocol drift
 # ---------------------------------------------------------------------------
 
 
@@ -262,7 +262,7 @@ class TestRegressionGuards:
     @pytest.mark.asyncio
     async def test_harness_assert_called_raises_on_missing_request(self, lab: McpFakeLab) -> None:
         """The harness itself raises AssertionError when an expected call never happens."""
-        # Don't make any calls — assert_called should detect the absence
+        # Don't make any calls - assert_called should detect the absence
         with pytest.raises(AssertionError, match="Expected POST /tasks"):
             lab.assert_called("POST", "/tasks")
 

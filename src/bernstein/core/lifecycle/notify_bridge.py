@@ -159,7 +159,7 @@ class NotifyLifecycleBridge:
             event = self._build_event(lifecycle_event, ctx)
             future = self._submit_async(event)
             # We deliberately don't await the future from within the
-            # synchronous hook — completion happens in the background
+            # synchronous hook - completion happens in the background
             # loop so a slow webhook doesn't stall the orchestrator.
             del future
 
@@ -278,7 +278,7 @@ def build_bridge_from_config(
             continue
         sinks.append(sink)
         if register_in_registry:
-            # Duplicate registration in the same process — ignore; the
+            # Duplicate registration in the same process - ignore; the
             # bridge still owns its own list.
             with contextlib.suppress(ValueError):
                 register_sink(sink)

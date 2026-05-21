@@ -5,7 +5,7 @@ management: refreshing statuses, handling orphaned tasks, reaping timed-out
 agents, and emitting metrics for dead agents.
 
 Includes ``_save_partial_work()`` which commits and merges uncommitted agent
-work before worktree destruction — preventing data loss on timeout kills.
+work before worktree destruction - preventing data loss on timeout kills.
 """
 
 from __future__ import annotations
@@ -45,17 +45,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Abort chain helpers — three-level hierarchy
+# Abort chain helpers - three-level hierarchy
 # ---------------------------------------------------------------------------
 # The abort chain enforces a strict containment hierarchy:
 #
 #   TOOL  < SIBLING  < SESSION
 #
-# * TOOL   — a single tool invocation is aborted; the agent session continues.
+# * TOOL   - a single tool invocation is aborted; the agent session continues.
 #            Written as a TOOL_ABORT signal file in the session's signals dir.
-# * SIBLING — sibling agents (same parent) receive SHUTDOWN; the parent and
+# * SIBLING - sibling agents (same parent) receive SHUTDOWN; the parent and
 #             this session are unaffected unless policy escalates further.
-# * SESSION — the full agent session is torn down and SHUTDOWN cascades to
+# * SESSION - the full agent session is torn down and SHUTDOWN cascades to
 #             all descendants via ``propagate_abort``.
 #
 # Escalation between levels is opt-in via ``AbortPolicy``.  By default each
@@ -367,7 +367,7 @@ def _maybe_preserve_worktree(orch: Any, session: AgentSession, task_id: str) -> 
 #: Meta-message injected into tasks retried after context-overflow compaction.
 _COMPACT_RETRY_META = (
     "CONTEXT COMPACTION: Previous attempt hit a context-window limit (HTTP 413). "
-    "The prompt has been compacted.  Focus on the task goal — do NOT try to "
+    "The prompt has been compacted.  Focus on the task goal - do NOT try to "
     "reconstruct the removed context."
 )
 
@@ -417,7 +417,7 @@ def _try_compact_and_retry(
     prior_compact_retries = sum(1 for m in task.meta_messages if "CONTEXT COMPACTION" in m)
     if prior_compact_retries >= _COMPACT_MAX_RETRIES:
         logger.warning(
-            "Task %s already had %d compaction retries — failing permanently",
+            "Task %s already had %d compaction retries - failing permanently",
             task_id,
             prior_compact_retries,
         )
@@ -602,7 +602,7 @@ def _patch_retry_with_compaction(
         logger.debug("No retry task found to patch with compaction for %s", original_task.id)
         return
 
-    # Build patch payload — include compaction nudge and optional budget hint.
+    # Build patch payload - include compaction nudge and optional budget hint.
     new_meta = [*original_task.meta_messages, _COMPACT_RETRY_META]
     if effective_remaining is not None:
         if effective_remaining >= 1_000_000:
@@ -746,7 +746,7 @@ def _resolve_budget_remaining_usd(orch: Any) -> float | None:
     used to wire budget-awareness into both the cascade fallback
     manager and the module-level router guard.  Returns ``None`` when the
     orchestrator has no cost tracker, the budget is unlimited, or the
-    lookup fails for any reason — callers must treat ``None`` as "unknown"
+    lookup fails for any reason - callers must treat ``None`` as "unknown"
     rather than "exhausted".
     """
     tracker = getattr(orch, "_cost_tracker", None)
@@ -815,7 +815,7 @@ def _run_cascade_fallback(
         return _decision.fallback_model
 
     logger.warning(
-        "Cascade exhausted for task %s: %s — task will wait for throttle recovery",
+        "Cascade exhausted for task %s: %s - task will wait for throttle recovery",
         task_id,
         _decision.reason,
     )
@@ -926,7 +926,7 @@ def _handle_orphan_no_signals(
             workdir=getattr(orch, "_workdir", None),
         )
         logger.warning(
-            "Task '%s' failed — agent died without output. "
+            "Task '%s' failed - agent died without output. "
             "Reason: process exited (PID %s, %ds runtime). Check log: .sdd/runtime/%s.log",
             task.title,
             session.pid or "unknown",
@@ -996,7 +996,7 @@ def handle_orphaned_task(
             task = Task.from_dict(resp.json())
             logger.debug("handle_orphaned_task %s: fetched live (not in snapshot)", task_id)
         except httpx.HTTPError as exc:
-            # 404 = task from a previous session — not a real error, just stale
+            # 404 = task from a previous session - not a real error, just stale
             if "404" in str(exc):
                 logger.info("Orphaned task %s from previous session (404), skipping", task_id)
             else:
@@ -1018,7 +1018,7 @@ def handle_orphaned_task(
             task_id,
             status.value,
         )
-        # Record as SUCCESS — agent completed work before dying.
+        # Record as SUCCESS - agent completed work before dying.
         # Previously this was not recorded at all, causing the SLO tracker
         # to count it as a failure (the death event was recorded elsewhere
         # without checking task status), creating a death spiral.
@@ -1228,7 +1228,7 @@ def _recover_loops(orch: Any, detector: Any, lock_mgr: Any) -> None:
         if session is None or session.status == "dead":
             continue
         logger.warning(
-            "Loop detected: agent %s edited '%s' %d times in %.0fs — killing agent",
+            "Loop detected: agent %s edited '%s' %d times in %.0fs - killing agent",
             loop.agent_id,
             loop.file_path,
             loop.edit_count,
@@ -1245,13 +1245,13 @@ def _recover_loops(orch: Any, detector: Any, lock_mgr: Any) -> None:
 def check_loops_and_deadlocks(orch: Any) -> None:
     """Detect and recover from agent edit loops and file-lock deadlocks.
 
-    **Loop detection** — polls modification times of files currently locked by
+    **Loop detection** - polls modification times of files currently locked by
     active agents.  When a file's mtime advances since the last poll, the edit
     is recorded.  If the same agent edits the same file more than
     :data:`~bernstein.core.loop_detector.LOOP_EDIT_THRESHOLD` times within the
     detection window, the agent is killed so the task can be retried.
 
-    **Deadlock detection** — builds a wait-for graph from the
+    **Deadlock detection** - builds a wait-for graph from the
     :class:`~bernstein.core.file_locks.FileLockManager` and any pending
     lock-wait entries recorded via
     :meth:`~bernstein.core.loop_detector.LoopDetector.record_lock_wait`.
@@ -1282,7 +1282,7 @@ def check_loops_and_deadlocks(orch: Any) -> None:
 
     for deadlock in detector.detect_deadlocks(lock_mgr):
         logger.warning(
-            "%s — releasing locks for victim agent %s",
+            "%s - releasing locks for victim agent %s",
             deadlock.description,
             deadlock.victim_agent_id,
         )
@@ -1478,7 +1478,7 @@ def reap_dead_agents(
         if runtime > timeout_s and _time_since_heartbeat < 120 and timeout_s < _hard_cap_s:
             session.timeout_s = min(timeout_s + 600, _hard_cap_s)
             logger.info(
-                "Agent %s exceeded %.0fs timeout but heartbeated %.0fs ago — extending to %.0fs",
+                "Agent %s exceeded %.0fs timeout but heartbeated %.0fs ago - extending to %.0fs",
                 session.id,
                 timeout_s,
                 _time_since_heartbeat,
@@ -1512,7 +1512,7 @@ def reap_dead_agents(
 # from the bottom of this module (see the ``from agent_recycling import ...``
 # block at EOF) so existing importers of ``bernstein.core.agent_lifecycle``
 # continue to work while the constants and algorithm have a single source
-# of truth. This closes — previously ``_detect_idle_reason`` and
+# of truth. This closes - previously ``_detect_idle_reason`` and
 # its four ``_IDLE_*`` thresholds existed in parallel copies that could
 # (and did) silently diverge when one was tuned and the other was not.
 #
@@ -1622,7 +1622,7 @@ def _release_task_to_session(orch: Any, task_ids: list[str]) -> None:
 # ``agent_recycling -> agent_reaping -> agent_lifecycle``. See.
 # ---------------------------------------------------------------------------
 
-from bernstein.core.agents.agent_recycling import (  # noqa: E402, F401 — re-exported for back-compat
+from bernstein.core.agents.agent_recycling import (  # noqa: E402, F401 - re-exported for back-compat
     _IDLE_GRACE_S,
     _IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S,
     _IDLE_HEARTBEAT_THRESHOLD_S,

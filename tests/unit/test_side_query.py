@@ -1,4 +1,4 @@
-"""Tests for side_query — btw / side-question protocol for agents."""
+"""Tests for side_query - btw / side-question protocol for agents."""
 
 from __future__ import annotations
 

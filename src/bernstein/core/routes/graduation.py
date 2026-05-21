@@ -1,4 +1,4 @@
-"""Graduation framework routes — stage inspection, event recording, and promotion."""
+"""Graduation framework routes - stage inspection, event recording, and promotion."""
 
 from __future__ import annotations
 

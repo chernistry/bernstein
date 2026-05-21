@@ -1,4 +1,4 @@
-"""Diff folding — collapsible diff display for large changes.
+"""Diff folding - collapsible diff display for large changes.
 
 Provides fold/expand functionality for file diffs in the TUI,
 showing summary information when folded and full diffs when expanded.

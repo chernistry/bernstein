@@ -4,9 +4,9 @@ Dynamically adjusts metric weights each evolution cycle based on project
 context, and maintains a full audit trail of every decision.
 
 Three core responsibilities:
-1. EvolutionWeights — the current scoring criteria for proposals.
-2. AdaptiveGovernor.adjust_weights — heuristic re-weighting from context.
-3. AdaptiveGovernor.log_decision — append governance entry to JSONL trail.
+1. EvolutionWeights - the current scoring criteria for proposals.
+2. AdaptiveGovernor.adjust_weights - heuristic re-weighting from context.
+3. AdaptiveGovernor.log_decision - append governance entry to JSONL trail.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class EvolutionWeights:
             + self.maintainability
         )
         if abs(total) < 1e-9:
-            # Degenerate — return uniform distribution
+            # Degenerate - return uniform distribution
             sixth = 1.0 / 6.0
             return EvolutionWeights(
                 test_coverage=sixth,
@@ -184,7 +184,7 @@ class AdaptiveGovernor:
             ts -= _REDUCE_PER_OTHER
             reasons.append(f"security: {context.security_issues_last_5_cycles} issues found in last 5 cycles")
 
-        # Rule 2: poor test health — prioritise coverage
+        # Rule 2: poor test health - prioritise coverage
         if context.test_pass_rate < 0.70:
             tc += _BOOST
             ls -= _REDUCE_PER_OTHER

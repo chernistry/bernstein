@@ -4,7 +4,7 @@ Every task completion can be attested with a keyless signature (Fulcio CA)
 and recorded in the Rekor transparency log, providing non-repudiable proof
 that a specific agent produced a specific result at a specific time.
 
-This is complementary to the HMAC-chained audit log (audit.py) — the HMAC
+This is complementary to the HMAC-chained audit log (audit.py) - the HMAC
 chain is self-contained tamper detection, while Rekor provides third-party
 immutable timestamping and signing that doesn't depend on the Bernstein
 infrastructure itself.
@@ -289,7 +289,7 @@ def _attest_with_ed25519_fallback(
         "public_key_file": pub_path.name,
         "signed_at": signed_at,
         "note": (
-            "Local Ed25519 fallback — sigstore package unavailable or "
+            "Local Ed25519 fallback - sigstore package unavailable or "
             "network unreachable. Install sigstore for Rekor attestation."
         ),
     }
@@ -310,7 +310,7 @@ class AttestationConfig:
     Attributes:
         attestation_dir: Directory to store attestation bundles and keys.
         require_rekor: Raise an error if Rekor recording fails (default False
-            — falls back to local signing).
+            - falls back to local signing).
     """
 
     attestation_dir: Path

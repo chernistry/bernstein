@@ -127,12 +127,12 @@ from bernstein.core.poll_config import SleepDetector
 
 class TestSleepDetector:
     def test_first_tick_never_detects_sleep(self) -> None:
-        """First tick has no previous reference — cannot detect sleep."""
+        """First tick has no previous reference - cannot detect sleep."""
         detector = SleepDetector(poll_interval_ms=5_000)
         assert detector.tick(now_ms=0) is False
 
     def test_normal_interval_no_sleep(self) -> None:
-        """A gap equal to poll_interval_ms is normal — no sleep detected."""
+        """A gap equal to poll_interval_ms is normal - no sleep detected."""
         detector = SleepDetector(poll_interval_ms=5_000)
         detector.tick(now_ms=0)
         assert detector.tick(now_ms=5_000) is False
@@ -144,13 +144,13 @@ class TestSleepDetector:
         assert detector.tick(now_ms=9_500) is False  # 1.9 × 5 000 ms
 
     def test_exactly_2x_threshold_not_sleep(self) -> None:
-        """A gap of exactly 2x is at the boundary — not detected as sleep."""
+        """A gap of exactly 2x is at the boundary - not detected as sleep."""
         detector = SleepDetector(poll_interval_ms=5_000)
         detector.tick(now_ms=0)
         assert detector.tick(now_ms=10_000) is False  # == 2 × 5 000 ms, not >
 
     def test_gap_just_above_2x_detects_sleep(self) -> None:
-        """A gap of 2x + 1 ms crosses the threshold — sleep detected."""
+        """A gap of 2x + 1 ms crosses the threshold - sleep detected."""
         detector = SleepDetector(poll_interval_ms=5_000)
         detector.tick(now_ms=0)
         assert detector.tick(now_ms=10_001) is True  # > 2 × 5 000 ms
@@ -188,7 +188,7 @@ class TestSleepDetector:
         assert detector.tick(now_ms=30_000) is False
 
     def test_default_now_uses_monotonic(self) -> None:
-        """tick() without explicit now_ms uses time.monotonic() — should not raise."""
+        """tick() without explicit now_ms uses time.monotonic() - should not raise."""
         detector = SleepDetector(poll_interval_ms=5_000)
         result = detector.tick()
         assert isinstance(result, bool)
@@ -197,5 +197,5 @@ class TestSleepDetector:
         """Detector works with very short poll intervals (edge case)."""
         detector = SleepDetector(poll_interval_ms=100)
         detector.tick(now_ms=0)
-        assert detector.tick(now_ms=150) is False  # 1.5 × 100 — normal
-        assert detector.tick(now_ms=550) is True  # > 2 × 100 from 150 — sleep
+        assert detector.tick(now_ms=150) is False  # 1.5 × 100 - normal
+        assert detector.tick(now_ms=550) is True  # > 2 × 100 from 150 - sleep

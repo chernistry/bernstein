@@ -15,7 +15,7 @@ from importlib import resources
 def test_packaged_smoke_resource_has_at_least_one_markdown_file() -> None:
     tier_root = resources.files("bernstein.eval.golden_data").joinpath("smoke")
     assert tier_root.is_dir(), (
-        "bernstein.eval.golden_data.smoke missing as a packaged resource — "
+        "bernstein.eval.golden_data.smoke missing as a packaged resource - "
         "check pyproject.toml [tool.hatch.build.targets.wheel].packages and "
         "the artifacts glob for src/bernstein/eval/golden_data/**/*.md"
     )
@@ -24,12 +24,12 @@ def test_packaged_smoke_resource_has_at_least_one_markdown_file() -> None:
 
 
 def test_packaged_smoke_markdown_starts_with_yaml_frontmatter() -> None:
-    """Cheap parse sanity check — every shipped fixture must have a YAML
+    """Cheap parse sanity check - every shipped fixture must have a YAML
     frontmatter block so the loader does not silently drop it.
     """
     tier_root = resources.files("bernstein.eval.golden_data").joinpath("smoke")
     md = [e for e in tier_root.iterdir() if e.name.endswith(".md")]
-    assert md, "no smoke fixtures shipped — packaging regression"
+    assert md, "no smoke fixtures shipped - packaging regression"
     for entry in md:
         text = entry.read_text(encoding="utf-8")
         assert text.startswith("---"), f"packaged fixture {entry.name} missing YAML frontmatter"

@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.pr_size_governor — PR Size Governor."""
+"""Tests for bernstein.core.pr_size_governor - PR Size Governor."""
 
 from __future__ import annotations
 
@@ -174,7 +174,7 @@ def test_build_dependency_order_non_python_first(tmp_path: Path) -> None:
 
 
 def test_build_dependency_order_missing_file_graceful(tmp_path: Path) -> None:
-    # File listed but doesn't exist on disk — should not crash
+    # File listed but doesn't exist on disk - should not crash
     result = build_dependency_order(["missing.py"], tmp_path)
     assert result == ["missing.py"]
 
@@ -196,7 +196,7 @@ def test_plan_split_no_files_no_diff(mock_run: MagicMock) -> None:
 
 @patch("bernstein.core.git.pr_size_governor.run_git")
 def test_plan_split_under_limit_no_split(mock_run: MagicMock, tmp_path: Path) -> None:
-    # 3 files, 100 lines total — well under 400
+    # 3 files, 100 lines total - well under 400
     mock_run.return_value = _git_ok(stdout="50\t10\ta.py\n30\t10\tb.py\n")
     plan = plan_split(tmp_path, files=["a.py", "b.py"], max_lines=400)
     assert plan.needs_split is False

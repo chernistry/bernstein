@@ -42,7 +42,7 @@ async def _raw_review_call(
     """Underlying reviewer LLM call.
 
     Wrapped by ``memoize_persistent`` on first use; a change to *this*
-    function's body invalidates every cached entry — that is the whole
+    function's body invalidates every cached entry - that is the whole
     point of fingerprint memoization.
     """
     return await call_llm(
@@ -97,15 +97,15 @@ for correctness, security, style, and scope.
 
 ## Instructions
 Focus on:
-1. Correctness — does the diff accomplish what the task description asks?
-2. Security — any obvious vulnerabilities (injection, hardcoded secrets, \
+1. Correctness - does the diff accomplish what the task description asks?
+2. Security - any obvious vulnerabilities (injection, hardcoded secrets, \
 insecure defaults, missing auth checks)?
-3. Bugs — off-by-one errors, missing error handling for likely failures.
-4. Style — obvious violations only: unused imports, dead code, inconsistent \
+3. Bugs - off-by-one errors, missing error handling for likely failures.
+4. Style - obvious violations only: unused imports, dead code, inconsistent \
 naming, gratuitous complexity. Skip minor formatting. \
 Project conventions: Python 3.12+, strict typing (no Any, no untyped dicts), \
 dataclasses/TypedDict instead of raw dicts, ruff for lint/format.
-5. Scope — did the diff change files or behaviour clearly outside the task's \
+5. Scope - did the diff change files or behaviour clearly outside the task's \
 stated scope? Flag only clear overreach, not incidental changes.
 
 Output a JSON object with exactly these fields:
@@ -240,12 +240,12 @@ def _parse_response(raw: str, reviewer_model: str) -> CrossModelVerdict:
 
     if not data:
         logger.warning(
-            "cross_model_verifier: unparseable response — defaulting to approve: %.200s",
+            "cross_model_verifier: unparseable response - defaulting to approve: %.200s",
             text,
         )
         return CrossModelVerdict(
             verdict="approve",
-            feedback="Reviewer returned unparseable response — defaulting to approve",
+            feedback="Reviewer returned unparseable response - defaulting to approve",
             issues=[],
             reviewer_model=reviewer_model,
         )
@@ -288,7 +288,7 @@ async def verify_with_cross_model(
     Args:
         task: The completed task.
         worktree_path: Path to the agent's git worktree (or main workdir).
-        writer_model: Model that wrote the code — used to select a different reviewer.
+        writer_model: Model that wrote the code - used to select a different reviewer.
         config: Verifier configuration.
         voter_models: Explicit list of voter model identifiers for multi-model
             voting.  Required when ``config.voting_config`` is set.
@@ -342,7 +342,7 @@ async def verify_with_cross_model(
         )
     except RuntimeError as exc:
         logger.warning(
-            "cross_model_verifier: LLM call failed for task %s: %s — defaulting to approve",
+            "cross_model_verifier: LLM call failed for task %s: %s - defaulting to approve",
             task.id,
             exc,
         )

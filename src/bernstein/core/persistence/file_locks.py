@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-LOCK_TTL_SECONDS = 7_200  # 2 hours — expire stale locks from crashed agents
+LOCK_TTL_SECONDS = 7_200  # 2 hours - expire stale locks from crashed agents
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +265,7 @@ class FileLockManager:
     def check_conflicts(self, files: list[str]) -> list[tuple[str, FileLock]]:
         """Return (path, lock) pairs for each *file* that is currently locked.
 
-        Unlike :meth:`acquire`, this is a read-only probe — it never modifies the
+        Unlike :meth:`acquire`, this is a read-only probe - it never modifies the
         lock table.  Expired locks are evicted before the check.
 
         Args:
@@ -335,7 +335,7 @@ class FileLockManager:
         Callers must hold the cross-process OS lock (via :meth:`_guard`).
         Routes through :func:`write_atomic_json` which does temp-file +
         fsync + ``os.replace`` so readers either see the old payload or the
-        new one — never a truncated mid-write document.
+        new one - never a truncated mid-write document.
         """
         try:
             data = [asdict(lock) for lock in self._locks.values()]
@@ -353,8 +353,8 @@ class ToolConcurrencySafety(Enum):
     """Classification of whether a tool is safe to run concurrently (T576).
 
     Attributes:
-        SAFE: Read-only or idempotent — may run in parallel with other tools.
-        UNSAFE: Mutates shared state — must be serialized.
+        SAFE: Read-only or idempotent - may run in parallel with other tools.
+        UNSAFE: Mutates shared state - must be serialized.
         UNKNOWN: Classification not determined; defaults to conservative UNSAFE.
     """
 
@@ -447,14 +447,14 @@ def partition_tools_by_concurrency(tool_names: list[str]) -> tuple[list[str], li
 #: Built-in tool concurrency classifications.
 #: Tools absent from this map default to UNKNOWN (treated as UNSAFE).
 TOOL_CONCURRENCY_CLASSIFICATIONS: dict[str, ToolConcurrencySafety] = {
-    # Read-only tools — safe to parallelize
+    # Read-only tools - safe to parallelize
     "read_file": ToolConcurrencySafety.SAFE,
     "list_directory": ToolConcurrencySafety.SAFE,
     "search_files": ToolConcurrencySafety.SAFE,
     "grep": ToolConcurrencySafety.SAFE,
     "glob": ToolConcurrencySafety.SAFE,
     "get_file_info": ToolConcurrencySafety.SAFE,
-    # Mutating tools — must be serialized
+    # Mutating tools - must be serialized
     "write_file": ToolConcurrencySafety.UNSAFE,
     "edit_file": ToolConcurrencySafety.UNSAFE,
     "create_file": ToolConcurrencySafety.UNSAFE,

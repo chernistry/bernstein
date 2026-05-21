@@ -4,12 +4,12 @@ Exposes Bernstein as an ACP-compatible agent so it is auto-discoverable
 in editors that support the protocol (JetBrains Air, Zed, Neovim, Emacs).
 
 Endpoints:
-  GET  /.well-known/acp.json          — discovery (public, no auth)
-  GET  /acp/v0/agents                 — list agents
-  GET  /acp/v0/agents/{agent_id}      — agent metadata
-  POST /acp/v0/runs                   — create run → Bernstein task
-  GET  /acp/v0/runs/{run_id}          — run status
-  DELETE /acp/v0/runs/{run_id}        — cancel run
+  GET  /.well-known/acp.json          - discovery (public, no auth)
+  GET  /acp/v0/agents                 - list agents
+  GET  /acp/v0/agents/{agent_id}      - agent metadata
+  POST /acp/v0/runs                   - create run → Bernstein task
+  GET  /acp/v0/runs/{run_id}          - run status
+  DELETE /acp/v0/runs/{run_id}        - cancel run
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def _get_acp_handler(request: Request) -> ACPHandler:
 
 @router.get("/.well-known/acp.json")
 def acp_discovery(request: Request) -> ACPDiscoveryResponse:
-    """ACP discovery document — editors poll this to find ACP-compatible agents."""
+    """ACP discovery document - editors poll this to find ACP-compatible agents."""
     doc = _get_acp_handler(request).discovery_doc()
     return ACPDiscoveryResponse(
         protocol=doc["protocol"],
@@ -167,7 +167,7 @@ def get_acp_agent(agent_id: str, request: Request) -> ACPAgentResponse:
     responses={400: {"description": "Unknown ACP agent"}},
 )
 async def create_acp_run(body: ACPRunCreateRequest, request: Request) -> ACPRunResponse:
-    """Create an ACP run — creates a Bernstein task and links it.
+    """Create an ACP run - creates a Bernstein task and links it.
 
     Editors call this when the user submits a goal via the ACP sidebar.
     """

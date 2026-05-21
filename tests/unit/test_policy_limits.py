@@ -360,9 +360,9 @@ class TestPolicyLimitsClient:
             new=capture_etag,
         ):
             client = PolicyLimitsClient(cache_dir=tmp_path)
-            # First fetch — no etag
+            # First fetch - no etag
             await client._refresh()
-            # Second fetch — should send the etag from first
+            # Second fetch - should send the etag from first
             await client._refresh()
 
         assert received_etags[0] is None

@@ -1,4 +1,4 @@
-"""Discord trigger source — normalize Discord interaction payloads into TriggerEvents."""
+"""Discord trigger source - normalize Discord interaction payloads into TriggerEvents."""
 
 from __future__ import annotations
 

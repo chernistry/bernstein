@@ -15,7 +15,7 @@ from bernstein.core.security.audit import AuditLog
 from bernstein.core.tasks.lifecycle import set_audit_log
 
 # ---------------------------------------------------------------------------
-# Direct helpers — confirms each event type is routed through the AuditLog
+# Direct helpers - confirms each event type is routed through the AuditLog
 # and produces exactly one entry with the expected fields.
 # ---------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ def _wire(tmp_path: Path) -> AuditLog:
 
 
 def _teardown() -> None:
-    # The singleton has no public unsetter — clear it via the module attribute.
+    # The singleton has no public unsetter - clear it via the module attribute.
     from bernstein.core.tasks import lifecycle
 
     lifecycle._audit_log = None  # pyright: ignore[reportPrivateUsage]
@@ -109,7 +109,7 @@ def test_record_scale_decision(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Regression — chain integrity must survive cluster events interleaved with
+# Regression - chain integrity must survive cluster events interleaved with
 # normal entries.  Mirrors test_hmac_chain_intact_with_lineage_records from
 # the lineage trail PR.
 # ---------------------------------------------------------------------------

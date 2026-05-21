@@ -3,7 +3,7 @@
 When an agent's cross-model review verdicts decline (N consecutive request_changes),
 checkpoint progress, send a graceful shutdown, and arrange for the replacement agent
 to receive a summarised context encoding what was already tried.  This turns context
-window exhaustion — Devin's main weakness — into a Bernstein strength.
+window exhaustion - Devin's main weakness - into a Bernstein strength.
 
 Lifecycle
 ---------
@@ -46,7 +46,7 @@ class ContextDegradationConfig:
         enabled: Master on/off switch.
         consecutive_reject_threshold: Fire after this many consecutive
             ``request_changes`` verdicts from the cross-model verifier.
-            Default 2 — two failures in a row signals quality drop.
+            Default 2 - two failures in a row signals quality drop.
         min_tasks_before_detection: Don't fire until at least this many
             cross-model verdicts have been recorded for the session.
             Prevents a single noisy review from triggering a restart.
@@ -155,7 +155,7 @@ class ContextDegradationDetector:
     ) -> None:
         """Record a cross-model review result and check for degradation.
 
-        Idempotent — recording the same verdict twice for the same task won't
+        Idempotent - recording the same verdict twice for the same task won't
         cause issues, but callers should avoid it.
 
         Args:
@@ -177,7 +177,7 @@ class ContextDegradationDetector:
         if session_id not in self._degraded and self._should_flag(session_id):
             self._degraded.add(session_id)
             logger.warning(
-                "context_degradation: session %s flagged — %d consecutive rejection(s) (%d total verdicts); tasks=%s",
+                "context_degradation: session %s flagged - %d consecutive rejection(s) (%d total verdicts); tasks=%s",
                 session_id,
                 self._consecutive_rejects(session_id),
                 len(history),
@@ -258,7 +258,7 @@ class ContextDegradationDetector:
             "- Run the test suite and linter *before* marking tasks complete.\n"
             "- Address all correctness and security issues raised by the reviewer.\n"
             "- If unsure about expected behaviour, write a failing test first.\n"
-            "- Keep diffs focused — one task, one concern.\n"
+            "- Keep diffs focused - one task, one concern.\n"
         )
         return "\n".join(lines)
 

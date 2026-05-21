@@ -1,7 +1,7 @@
-"""Worktree-backed :class:`SandboxBackend` — default, zero behaviour change.
+"""Worktree-backed :class:`SandboxBackend` - default, zero behaviour change.
 
 This backend wraps the existing :class:`~bernstein.core.git.worktree.WorktreeManager`
-without changing any of its internals — the graveyard salvage path,
+without changing any of its internals - the graveyard salvage path,
 stale-lock detection, and post-create isolation validation all continue
 to run exactly as before. Its purpose in phase 1 is to give callers a
 uniform :class:`SandboxBackend` handle even when they ultimately want
@@ -65,7 +65,7 @@ class WorktreeSandboxSession(SandboxSession):
                 directory name.
             worktree_path: Absolute path to the worktree on the host.
             manager: The :class:`WorktreeManager` that owns this
-                session — used on shutdown to run the existing cleanup
+                session - used on shutdown to run the existing cleanup
                 pipeline (salvage, graveyard, branch delete).
             base_env: Environment applied to every :meth:`exec`.
             default_timeout: Default wall-clock timeout for
@@ -208,7 +208,7 @@ class WorktreeSandboxSession(SandboxSession):
     async def shutdown(self) -> None:
         """Clean up the worktree via the underlying manager.
 
-        Idempotent — repeat calls are no-ops. Runs the existing
+        Idempotent - repeat calls are no-ops. Runs the existing
         :meth:`WorktreeManager.cleanup` so salvage, graveyard capture,
         branch delete, and lock removal all happen in their usual
         order.
@@ -277,7 +277,7 @@ class WorktreeSandboxBackend:
           Falls back to ``manifest.repo.src_path`` and finally to the
           current directory.
 
-        The manifest's ``root`` is treated as informational — worktrees
+        The manifest's ``root`` is treated as informational - worktrees
         always live at ``<repo_root>/.sdd/worktrees/<session_id>``
         for compatibility with existing tooling. This is intentional:
         phase 1 promises zero behaviour change for worktree users.

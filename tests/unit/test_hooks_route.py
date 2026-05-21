@@ -80,7 +80,7 @@ async def auth_client(app_with_auth) -> AsyncClient:  # type: ignore[no-untyped-
 
 
 # ---------------------------------------------------------------------------
-# POST /hooks/{session_id} — basic functionality
+# POST /hooks/{session_id} - basic functionality
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Scheduling panel widget for TUI — visualizes scheduling decisions."""
+"""Scheduling panel widget for TUI - visualizes scheduling decisions."""
 
 from __future__ import annotations
 

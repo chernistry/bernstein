@@ -4,8 +4,8 @@ Scans known sources for agent catalogs and maintains a registry at
 ``.sdd/agents/registry.json``.
 
 Supported sources:
-- **local**: ``~/.bernstein/agents/`` — user-level agent definitions.
-- **project**: ``.sdd/agents/local/`` — project-level custom agents.
+- **local**: ``~/.bernstein/agents/`` - user-level agent definitions.
+- **project**: ``.sdd/agents/local/`` - project-level custom agents.
 - **github**: Repos tagged ``bernstein-agents`` or containing
   ``.bernstein-catalog.yaml`` (requires network access).
 - **npm**: Packages with ``bernstein-agent`` keyword (requires network access).

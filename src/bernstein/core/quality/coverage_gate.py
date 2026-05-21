@@ -2,7 +2,7 @@
 
 The coverage gate compares the current branch's measured coverage against a
 baseline captured from the configured base ref (usually ``main``). Measuring
-baseline synchronously during a task completion is expensive — it requires a
+baseline synchronously during a task completion is expensive - it requires a
 full test run against a freshly checked-out worktree and historically blocked
 agent progress for 5+ minutes (see prior audit).
 
@@ -47,7 +47,7 @@ class CoverageEvaluation:
 
     Attributes:
         passed: ``True`` when the gate should not block. A skipped evaluation
-            (no baseline available yet) also reports ``passed=True`` — the gate
+            (no baseline available yet) also reports ``passed=True`` - the gate
             is not authoritative until a baseline exists.
         baseline_pct: Baseline coverage percentage. ``0.0`` when skipped.
         current_pct: Current coverage percentage. ``0.0`` when skipped.
@@ -72,7 +72,7 @@ class CoverageGate:
     """Compare current coverage against a cached base-ref baseline.
 
     The gate never kicks off a synchronous baseline measurement during
-    ``evaluate`` — long worktree + pytest runs belong to a background refresh
+    ``evaluate`` - long worktree + pytest runs belong to a background refresh
     job. When no fresh baseline is cached the gate reports a non-blocking
     ``skipped`` outcome so task completion is not stalled.
     """
@@ -169,7 +169,7 @@ class CoverageGate:
         cached = self._load_cached_baseline()
         if cached is None:
             detail = (
-                "Coverage baseline not available — gate skipped. "
+                "Coverage baseline not available - gate skipped. "
                 f"Run CoverageGate(base_ref={self._base_ref!r}).refresh_baseline() "
                 "to populate the cache."
             )

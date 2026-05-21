@@ -8,8 +8,8 @@ This module exposes two flavours of helpers:
   ``bernstein_scenario``, ``bernstein_scenarios``, and
   ``bernstein_scenario_status`` onto a FastMCP server.
 
-The MCP tools delegate to the Bernstein task server over HTTP — they do not
-run orchestration in-process — keeping the MCP layer thin and stateless.
+The MCP tools delegate to the Bernstein task server over HTTP - they do not
+run orchestration in-process - keeping the MCP layer thin and stateless.
 """
 
 from __future__ import annotations

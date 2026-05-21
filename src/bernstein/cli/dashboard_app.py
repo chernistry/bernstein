@@ -432,7 +432,7 @@ class BernsteinApp(App[None]):
                 if wt_count > 0:
                     self._write_activity("system", f"{wt_count} worktree(s) detected")
 
-        # File watcher for agents.json (500ms — instant agent visibility)
+        # File watcher for agents.json (500ms - instant agent visibility)
         self.set_interval(0.5, self._check_agents_file)
         # HTTP poll every 1s for full state (tasks + status + costs)
         self.set_interval(1.0, self._schedule_poll)

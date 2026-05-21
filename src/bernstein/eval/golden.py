@@ -1,4 +1,4 @@
-"""Golden benchmark suite — curated tasks for eval.
+"""Golden benchmark suite - curated tasks for eval.
 
 Tasks are stored as markdown files with YAML frontmatter.  The loader
 checks two sources in order:

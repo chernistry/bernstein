@@ -293,7 +293,7 @@ def _read_archive(archive_path: Path) -> list[dict[str, Any]]:
                     records.append(data)
                 except json.JSONDecodeError:
                     logger.warning(
-                        "Malformed JSON at %s:%d — skipping",
+                        "Malformed JSON at %s:%d - skipping",
                         archive_path,
                         line_num,
                     )
@@ -348,7 +348,7 @@ def render_markdown(changelog: Changelog) -> str:
     version_label = changelog.version or changelog.run_id
     lines.extend(
         [
-            f"# Changelog — {version_label}",
+            f"# Changelog - {version_label}",
             "",
             f"**Date:** {changelog.date}",
             f"**Run ID:** {changelog.run_id}",

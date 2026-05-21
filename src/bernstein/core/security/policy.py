@@ -279,7 +279,7 @@ class PolicyEngine:
                 logger.info("Loaded policies from %s (%d policies)", policies_file, len(engine.policies))
                 return engine
             except Exception as exc:
-                logger.warning("Failed to load policies from %s: %s — using defaults", policies_file, exc)
+                logger.warning("Failed to load policies from %s: %s - using defaults", policies_file, exc)
 
         default_policies = {
             "policies": [

@@ -3,16 +3,16 @@
 
 The tests in this module are split into two layers:
 
-* **Stateful machine** (``WalRecoveryMachine``) — drives a randomised
+* **Stateful machine** (``WalRecoveryMachine``) - drives a randomised
   sequence of ``claim``/``confirm_spawn``/``kill_worker``/``restart``
   events through ``WALWriter`` + ``WALRecovery`` and asserts the
   invariants documented in the bug-hunt brief on every step.
-* **Targeted regressions** — each one freezes a deterministic
+* **Targeted regressions** - each one freezes a deterministic
   reproducer for a bug surfaced by exploratory hand-runs of the
   state machine.  They are marked ``xfail`` so the suite is green on
   ``main`` while the operator triages each finding.
 
-All targeted tests run in ≪ 10 s and need no orchestrator wiring —
+All targeted tests run in ≪ 10 s and need no orchestrator wiring -
 they exercise the persistence module directly so an engineer can
 ``pytest tests/property/test_wal_cas_bughunt.py -x`` and immediately
 see the failing assertion line.
@@ -75,10 +75,10 @@ class WalRecoveryMachine(RuleBasedStateMachine):
     The machine models a single ``.sdd`` directory shared by a sequence
     of orchestrator runs.  Each step picks one rule:
 
-    * ``claim_task`` — write ``task_claimed`` (committed=False)
-    * ``confirm_spawn`` — write ``task_spawn_confirmed`` (committed=True)
-    * ``kill_worker`` — abandon the current writer (no graceful close)
-    * ``restart_orchestrator`` — start a new run that scans uncommitted
+    * ``claim_task`` - write ``task_claimed`` (committed=False)
+    * ``confirm_spawn`` - write ``task_spawn_confirmed`` (committed=True)
+    * ``kill_worker`` - abandon the current writer (no graceful close)
+    * ``restart_orchestrator`` - start a new run that scans uncommitted
       entries and asserts the recovery invariants on the result.
 
     Invariants checked after every step:
@@ -90,7 +90,7 @@ class WalRecoveryMachine(RuleBasedStateMachine):
        then no other (R, task_id) pair is reported by
        ``find_orphaned_claims`` after a closed-recovery cycle.
     4. The hash chain of every WAL file we wrote ourselves still
-       passes ``verify_chain()`` — i.e. a clean append history must
+       passes ``verify_chain()`` - i.e. a clean append history must
        never break the chain.
     """
 
@@ -205,7 +205,7 @@ class WalRecoveryMachine(RuleBasedStateMachine):
             for ln in _read_lines(wf):
                 data = json.loads(ln)
                 seqs.append(int(data["seq"]))
-            # Strictly increasing — duplicate seqs are a known bug.
+            # Strictly increasing - duplicate seqs are a known bug.
             assert seqs == sorted(set(seqs)) and len(seqs) == len(set(seqs)), (
                 f"WAL {wf.name} has non-monotonic seqs: {seqs}"
             )
@@ -257,7 +257,7 @@ def test_torn_tail_does_not_corrupt_chain(tmp_path: Path) -> None:
     Repro: write two valid entries, simulate a SIGKILL by appending a
     truncated line (no closing brace, no newline), then restart a
     ``WALWriter`` and append one more entry.  The new entry's
-    ``prev_hash`` must equal the last valid entry's ``entry_hash`` —
+    ``prev_hash`` must equal the last valid entry's ``entry_hash`` -
     otherwise ``verify_chain`` reports a permanent break and downstream
     consumers (audit slice, fingerprinting) cannot re-link the chain.
     """
@@ -274,7 +274,7 @@ def test_torn_tail_does_not_corrupt_chain(tmp_path: Path) -> None:
         f.write('{"seq":2,"prev_hash":"' + last_good_hash + '","timestamp":1.0,')
 
     # Restart: open a fresh writer.  The torn line should not destroy
-    # the chain — recovery should pick up at the last valid entry.
+    # the chain - recovery should pick up at the last valid entry.
     w2 = WALWriter(run_id="r1", sdd_dir=sdd)
     e3 = w2.append("a", {}, {}, "x", committed=True)
 
@@ -309,7 +309,7 @@ def test_fsync_failure_does_not_create_duplicate_seqs(tmp_path: Path) -> None:
     Repro: write one entry while ``os.fsync`` raises ENOSPC; the line
     lands on disk but the writer's bookkeeping never advances.  When
     fsync recovers and a second entry is appended, it gets the same
-    seq=0 — a duplicate that ``verify_chain`` flags forever.
+    seq=0 - a duplicate that ``verify_chain`` flags forever.
     """
     sdd = tmp_path / ".sdd"
     sdd.mkdir()
@@ -342,7 +342,7 @@ def test_fsync_failure_does_not_create_duplicate_seqs(tmp_path: Path) -> None:
         "with no symlink filter. An attacker (or a misconfigured test) "
         "that drops a symlink into .sdd/runtime/wal/ pointing at a "
         "foreign WAL file will see those uncommitted entries replayed "
-        "in the local orchestrator's recovery — producing force-claim "
+        "in the local orchestrator's recovery - producing force-claim "
         "POSTs against arbitrary task IDs from another project's WAL. "
         "Fix: skip wal_file when wal_file.is_symlink() (or resolve and "
         "assert it stays inside wal_dir). 5 LOC change."
@@ -382,7 +382,7 @@ def test_symlinked_wal_is_not_replayed(tmp_path: Path) -> None:
         "bug-hunt finding #4 (MED): find_orphaned_claims iterates "
         "WALReader.iter_entries() but never calls verify_chain(). A "
         "WAL file whose entry_hash field is forged (or whose prev_hash "
-        "linkage is broken) is treated as authoritative — the recovery "
+        "linkage is broken) is treated as authoritative - the recovery "
         "force-claims arbitrary task_ids. The hash chain that the WAL "
         "design promises is only enforced by callers who explicitly "
         "ask for verify_chain(); the recovery path doesn't. Fix: "
@@ -426,7 +426,7 @@ def test_find_orphaned_claims_rejects_broken_chain(tmp_path: Path) -> None:
         ".closed marker file but never the parent directory dirent. On "
         "ext4/xfs (and Linux POSIX semantics) a crash immediately after "
         "the marker write can leave the dirent unflushed, so the file "
-        "is invisible on next boot — re-triggering the audit-072 "
+        "is invisible on next boot - re-triggering the audit-072 "
         "'unbounded re-scan' bug the marker was added to prevent. The "
         "docstring at line 627-629 explicitly promises this property "
         "but the implementation is missing the directory fsync. Fix: "
@@ -480,7 +480,7 @@ def test_close_wal_fsyncs_parent_dir(tmp_path: Path, monkeypatch) -> None:
         "WALWriter.append() updates the index for every committed=False "
         "row, and mark_committed() removes rows. But "
         "WALRecovery.scan_all_uncommitted and find_orphaned_claims "
-        "still glob('*.wal.jsonl') and iterate every entry — they "
+        "still glob('*.wal.jsonl') and iterate every entry - they "
         "never read the index. The promised performance gain is not "
         "realised, and the index code is effectively dead-on-read. Fix: "
         "make scan_all_uncommitted's fast path read the index first "
@@ -492,7 +492,7 @@ def test_uncommitted_index_is_consulted_by_scan(tmp_path: Path, monkeypatch) -> 
 
     We assert by patching ``WALReader.iter_entries`` and counting calls
     when an up-to-date index exists.  Currently the call count is
-    nonzero — the index isn't consulted at all.
+    nonzero - the index isn't consulted at all.
     """
     sdd = tmp_path / ".sdd"
     sdd.mkdir()

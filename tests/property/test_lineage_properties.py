@@ -75,7 +75,7 @@ _PRIV, _PUB = generate_keypair()
 _CARD = AgentCard(agent_id="agent:t", kid="k1", public_key_pem=_PUB)
 
 
-# ── Property 1: Chain integrity — every parent_hash resolves ───────────────
+# ── Property 1: Chain integrity - every parent_hash resolves ───────────────
 
 
 @given(st.integers(min_value=1, max_value=20))
@@ -234,7 +234,7 @@ def test_property_per_byte_tamper_rejected(payload: bytes, flip_seed: int) -> No
 @settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 def test_property_jcs_determinism_same_field_dict_same_bytes(e1: LineageEntry, e2: LineageEntry) -> None:
     """For two entries with identical field values, canonical bytes must
-    match — regardless of insertion order during construction."""
+    match - regardless of insertion order during construction."""
     if asdict(e1) == asdict(e2):
         assert canonicalise(e1) == canonicalise(e2)
 

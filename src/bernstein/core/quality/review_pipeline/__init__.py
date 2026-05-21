@@ -3,7 +3,7 @@
 A ``review.yaml`` declares an ordered list of stages.  Each stage runs N
 agents in parallel; stage outputs are forwarded to the next stage's
 context via the bulletin board.  The pipeline's final verdict plugs into
-the existing janitor gate so a failed review blocks merge — same UX as
+the existing janitor gate so a failed review blocks merge - same UX as
 the legacy single-pass cross-model verifier, but generalised.
 
 Public API:

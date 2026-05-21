@@ -30,7 +30,7 @@ _GENERIC_WEBHOOK_SIGNATURE_HEADER = "x-bernstein-webhook-signature-256"
 _GENERIC_WEBHOOK_TIMESTAMP_HEADER = "x-bernstein-timestamp"
 # Replay window: reject requests whose timestamp drifts more than this
 # many seconds from the server clock. Five minutes matches
-# the Slack v0 and AWS SigV4 recommendations — short enough to bound
+# the Slack v0 and AWS SigV4 recommendations - short enough to bound
 # replay risk while tolerating modest clock skew between sender and
 # receiver.
 _WEBHOOK_TIMESTAMP_MAX_SKEW_SECONDS = 300
@@ -43,7 +43,7 @@ def _get_store(request: Request) -> TaskStore:
 def _parse_timestamp_header(raw: str) -> int | None:
     """Parse a decimal Unix-seconds timestamp header, or return ``None``.
 
-    Accepts only non-negative integers — leading whitespace is stripped
+    Accepts only non-negative integers - leading whitespace is stripped
     but decimals, scientific notation, or signs are rejected so a
     malformed header cannot be confused with a missing one.
     """
@@ -65,16 +65,16 @@ def _verify_generic_webhook_secret(request: Request, body: bytes) -> JSONRespons
     disabled and every POST returns 503.  When a secret *is*
     configured, callers MUST supply:
 
-    * ``X-Bernstein-Timestamp`` — Unix seconds; rejected if the skew
+    * ``X-Bernstein-Timestamp`` - Unix seconds; rejected if the skew
       from the server clock exceeds five minutes (replay protection).
-    * ``X-Bernstein-Webhook-Signature-256`` — HMAC-SHA256 of
+    * ``X-Bernstein-Webhook-Signature-256`` - HMAC-SHA256 of
       ``f"{timestamp}.".encode() + body`` using the shared secret,
       prefixed with ``sha256=``.  The timestamp is bound into the
       signature so an attacker cannot rewrite the header after
       capturing a valid pair.
 
     The plaintext ``X-Bernstein-Webhook-Secret`` fallback has been
-    removed — there is no remaining code path that
+    removed - there is no remaining code path that
     compares the raw secret against a request header.
     """
 
@@ -132,7 +132,7 @@ def _verify_generic_webhook_secret(request: Request, body: bytes) -> JSONRespons
 def get_alerts(request: Request) -> JSONResponse:
     """Return current dashboard alerts as JSON.
 
-    Builds alerts from the live task/agent state — failed tasks, blocked
+    Builds alerts from the live task/agent state - failed tasks, blocked
     tasks, stale agents, and budget thresholds.  Intended for dashboard
     polling or external monitoring.
 
@@ -186,7 +186,7 @@ def _count_ci_fix_attempts(store: TaskStore, head_branch: str) -> int:
 
     A task is "active" (counts toward the retry budget) when it is in any
     non-terminal status: ``open``, ``claimed``, ``in_progress``, or ``failed``.
-    Tasks that are ``done`` or ``cancelled`` are excluded — a successful fix
+    Tasks that are ``done`` or ``cancelled`` are excluded - a successful fix
     clears the budget so the branch can accumulate failures again.
 
     Args:
@@ -258,7 +258,7 @@ def _handle_workflow_run(event: Any, store: TaskStore) -> list[dict[str, Any]] |
     if retry_count >= MAX_CI_RETRIES:
         safe_branch = head_branch.replace("\n", "").replace("\r", "")[:200]
         logger.warning(
-            "CI fix retry cap reached for branch %r (%d/%d) — skipping",
+            "CI fix retry cap reached for branch %r (%d/%d) - skipping",
             safe_branch,
             retry_count,
             MAX_CI_RETRIES,
@@ -302,7 +302,7 @@ async def github_webhook(request: Request) -> JSONResponse:
     - ``issues`` (opened / labeled)
     - ``pull_request_review_comment`` / ``issue_comment``
     - ``push``
-    - ``workflow_run`` (completed + failure) — creates a ci-fix task, capped at
+    - ``workflow_run`` (completed + failure) - creates a ci-fix task, capped at
       ``MAX_CI_RETRIES`` active attempts per branch.
 
     Reads ``GITHUB_WEBHOOK_SECRET`` from environment for HMAC verification.
@@ -311,7 +311,7 @@ async def github_webhook(request: Request) -> JSONResponse:
     never accepted.
     Replay protection: if the caller includes an
     ``X-Bernstein-Timestamp`` header the request is additionally
-    checked for freshness — drift greater than five minutes returns
+    checked for freshness - drift greater than five minutes returns
     401.  Real GitHub deliveries omit this header and continue to
     work; the check is there so bernstein-internal relays cannot be
     replayed after capture.
@@ -324,7 +324,7 @@ async def github_webhook(request: Request) -> JSONResponse:
     store = _get_store(request)
     body = await request.body()
 
-    # Verify HMAC signature — secret MUST be configured.
+    # Verify HMAC signature - secret MUST be configured.
     gh_webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
     if not gh_webhook_secret:
         logger.error(
@@ -490,7 +490,7 @@ def _verify_gitlab_token(request: Request) -> JSONResponse | None:
     unsigned / unauthenticated GitLab webhooks are never accepted.
     Missing / mismatched tokens return 401.  Replay protection
     : when the caller includes ``X-Bernstein-Timestamp`` the
-    request is rejected if its drift exceeds five minutes — GitLab
+    request is rejected if its drift exceeds five minutes - GitLab
     itself never sends this header, so real deliveries are unaffected;
     the check hardens bernstein-internal relays.
     """
@@ -516,7 +516,7 @@ def _verify_gitlab_token(request: Request) -> JSONResponse | None:
         return JSONResponse(status_code=401, content={"detail": "Missing GitLab webhook token"})
     if not hmac.compare_digest(provided_token, gitlab_token):
         return JSONResponse(status_code=401, content={"detail": "Invalid GitLab webhook token"})
-    # opt-in timestamp freshness check — mirrors the generic
+    # opt-in timestamp freshness check - mirrors the generic
     # webhook.  Real GitLab deliveries never send this header; internal
     # relays may and, when they do, we fail closed on stale timestamps.
     ts_raw = request.headers.get(_GENERIC_WEBHOOK_TIMESTAMP_HEADER, "")
@@ -543,7 +543,7 @@ def _handle_gitlab_pipeline(data: dict[str, Any], store: TaskStore) -> list[dict
     if retry_count >= MAX_CI_RETRIES:
         safe_ref = ref.replace("\n", "").replace("\r", "")[:200]
         logger.warning(
-            "CI fix retry cap reached for ref %r (%d/%d) — skipping",
+            "CI fix retry cap reached for ref %r (%d/%d) - skipping",
             safe_ref,
             retry_count,
             MAX_CI_RETRIES,
@@ -605,9 +605,9 @@ async def gitlab_webhook(request: Request) -> JSONResponse:
     """Receive a GitLab CI webhook, verify token, and create ci-fix tasks.
 
     Handles the following event types:
-    - ``pipeline`` (failed) — creates a ci-fix task, capped at
+    - ``pipeline`` (failed) - creates a ci-fix task, capped at
       ``MAX_CI_RETRIES`` active attempts per branch.
-    - ``job`` (failed) — creates a ci-fix task for the specific job.
+    - ``job`` (failed) - creates a ci-fix task for the specific job.
 
     Reads ``GITLAB_WEBHOOK_TOKEN`` from environment. GitLab sends a simple
     plaintext token in the ``x-gitlab-token`` header.

@@ -58,7 +58,7 @@ def test_key_path_configurable_via_env_var(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_default_path_is_outside_sdd_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default path must NOT live under ``.sdd/`` — that was the audit-043 bug."""
+    """Default path must NOT live under ``.sdd/`` - that was the audit-043 bug."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
 
@@ -74,7 +74,7 @@ def test_key_load_rejects_world_readable_file(tmp_path: Path, monkeypatch: pytes
     """A key file with group or world bits set must fail loading."""
     key_path = tmp_path / "audit.key"
     key_path.write_bytes(b"a" * 64)
-    key_path.chmod(0o644)  # world-readable — insecure
+    key_path.chmod(0o644)  # world-readable - insecure
     monkeypatch.setenv(AUDIT_KEY_ENV, str(key_path))
 
     with pytest.raises(AuditKeyPermissionError) as excinfo:
@@ -83,7 +83,7 @@ def test_key_load_rejects_world_readable_file(tmp_path: Path, monkeypatch: pytes
 
 
 def test_key_load_rejects_group_readable_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Group-readable (0640) is rejected — only owner may read the key."""
+    """Group-readable (0640) is rejected - only owner may read the key."""
     key_path = tmp_path / "audit.key"
     key_path.write_bytes(b"a" * 64)
     key_path.chmod(0o640)
@@ -105,7 +105,7 @@ def test_key_load_accepts_0600(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_auditlog_uses_split_key_location(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """AuditLog constructed without an explicit key reads from the split path —
+    """AuditLog constructed without an explicit key reads from the split path -
     NOT from ``<audit_dir>/../config/audit-key``.
     """
     audit_dir = tmp_path / ".sdd" / "audit"

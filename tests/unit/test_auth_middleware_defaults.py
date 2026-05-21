@@ -426,7 +426,7 @@ def test_auth_disabled_logs_loud_warning(monkeypatch: pytest.MonkeyPatch, caplog
 
     caplog.set_level(logging.WARNING)
     client = _build_app(legacy_token="secret")
-    # Trigger middleware construction via a real request — Starlette builds
+    # Trigger middleware construction via a real request - Starlette builds
     # the middleware stack lazily on first request.
     client.get("/health")
 
@@ -452,7 +452,7 @@ def _build_hooks_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, secret: st
 
     app.include_router(hooks_router)
 
-    # The hook receiver writes under workdir/.sdd — give it a tmp sandbox.
+    # The hook receiver writes under workdir/.sdd - give it a tmp sandbox.
     sdd = tmp_path / ".sdd"
     (sdd / "runtime" / "hooks").mkdir(parents=True)
     (sdd / "runtime" / "completed").mkdir(parents=True)

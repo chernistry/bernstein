@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003 — used at runtime via `/` operator
+from pathlib import Path  # noqa: TC003 - used at runtime via `/` operator
 
 
 @dataclass(frozen=True)

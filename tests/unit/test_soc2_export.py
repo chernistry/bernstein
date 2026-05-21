@@ -93,7 +93,7 @@ def _make_sdd(tmp_path: Path) -> Path:
     """Create a minimal .sdd directory with audit data for Q1-2026."""
     sdd = tmp_path / ".sdd"
 
-    # Audit logs — one in range, one out of range
+    # Audit logs - one in range, one out of range
     audit = sdd / "audit"
     audit.mkdir(parents=True)
     (audit / "2026-01-15.jsonl").write_text(
@@ -134,7 +134,7 @@ def _make_sdd(tmp_path: Path) -> Path:
         json.dumps({"root_hash": "abc123", "sealed_at_iso": "2026-01-31T23:59:59Z"})
     )
 
-    # Compliance config (not the audit-key — that should be excluded)
+    # Compliance config (not the audit-key - that should be excluded)
     config = sdd / "config"
     config.mkdir(parents=True)
     (config / "compliance.json").write_text(json.dumps({"preset": "standard"}))
@@ -155,7 +155,7 @@ def _make_sdd(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# export_soc2_package — directory format
+# export_soc2_package - directory format
 # ---------------------------------------------------------------------------
 
 
@@ -246,7 +246,7 @@ class TestExportDir:
 
 
 # ---------------------------------------------------------------------------
-# export_soc2_package — zip format
+# export_soc2_package - zip format
 # ---------------------------------------------------------------------------
 
 

@@ -131,7 +131,7 @@ _FAILURE_DETECTORS: list[
         _detect_missing_file,
         CIFailureKind.MISSING_FILE,
         _summary_for_missing_file,
-        "Check .gitignore — required files may be excluded from the repo",
+        "Check .gitignore - required files may be excluded from the repo",
     ),
     (
         _detect_import_error,
@@ -300,7 +300,7 @@ def write_ci_fix_task(backlog_dir: Path, failures: list[CIFailure], run_url: str
 
 _HOOK_SCRIPT = """\
 #!/usr/bin/env bash
-# bernstein pre-push hook — runs fast CI checks before push
+# bernstein pre-push hook - runs fast CI checks before push
 # Install: cp this to .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 
 set -e
@@ -315,7 +315,7 @@ uv run ruff check src/ || { echo "[bernstein] FAIL: ruff lint errors. Run: uv ru
 echo "[bernstein] ruff format..."
 uv run ruff format --check src/ || { echo "[bernstein] FAIL: format issues. Run: uv run ruff format src/"; exit 1; }
 
-# 3. Tests (unit only — fast)
+# 3. Tests (unit only - fast)
 echo "[bernstein] pytest unit tests..."
 uv run python scripts/run_tests.py -x || {
     echo "[bernstein] FAIL: tests failed. Run: uv run python scripts/run_tests.py -x"
@@ -521,7 +521,7 @@ class CIFixPipeline:
 
         This is a single-shot method: it downloads the log once, parses
         it, and creates at most one fix task.  To retry after the agent
-        has pushed a fix, call this method again — the pipeline tracks
+        has pushed a fix, call this method again - the pipeline tracks
         attempts internally via the returned list.
 
         Args:
@@ -587,7 +587,7 @@ class CIFixPipeline:
             if last and last.result == CIFixResult.NO_FAILURES:
                 break
         else:
-            # Exhausted retries — mark the last attempt.
+            # Exhausted retries - mark the last attempt.
             if attempts and attempts[-1].result == CIFixResult.TASK_CREATED:
                 attempts.append(
                     CIFixAttempt(
@@ -689,7 +689,7 @@ class CIFixPipeline:
 
 
 # ---------------------------------------------------------------------------
-# CI Autofix Pipeline — integrates CIMonitor with task creation and PR flow
+# CI Autofix Pipeline - integrates CIMonitor with task creation and PR flow
 # ---------------------------------------------------------------------------
 
 

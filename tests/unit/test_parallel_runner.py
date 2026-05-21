@@ -1,4 +1,4 @@
-"""Tests for bernstein.testing.parallel_runner — bucketed parallel execution."""
+"""Tests for bernstein.testing.parallel_runner - bucketed parallel execution."""
 
 from __future__ import annotations
 

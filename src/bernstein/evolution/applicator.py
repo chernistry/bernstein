@@ -1,4 +1,4 @@
-"""Change applicator — execute upgrades via file modification."""
+"""Change applicator - execute upgrades via file modification."""
 
 from __future__ import annotations
 

@@ -65,7 +65,7 @@ class WebhookSignatureVerifier:
         Fail-closed: when no secret is configured (neither
         constructor argument, ``request.app.state.webhook_secret``, nor
         the configured environment variable) the dependency raises HTTP
-        503 — the endpoint is considered disabled and unsigned requests
+        503 - the endpoint is considered disabled and unsigned requests
         must never be accepted.
         """
         secret = self._resolve_secret(request)

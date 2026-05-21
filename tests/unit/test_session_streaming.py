@@ -1,9 +1,9 @@
 """Tests for interactive session streaming (ticket 708).
 
 Covers:
-- GET /agents/{session_id}/stream — SSE log tailing
-- GET /agents/{session_id}/logs  — log content endpoint
-- POST /agents/{session_id}/kill — kill signal file creation
+- GET /agents/{session_id}/stream - SSE log tailing
+- GET /agents/{session_id}/logs  - log content endpoint
+- POST /agents/{session_id}/kill - kill signal file creation
 - _read_log_tail helper
 - _check_kill_signals orchestrator method
 """

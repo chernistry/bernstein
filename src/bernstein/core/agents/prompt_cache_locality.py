@@ -69,7 +69,7 @@ _OPENAI_PAD_CHAR = " "
 
 
 # ---------------------------------------------------------------------------
-# Drift reason taxonomy — keep this closed so the Prometheus label set is
+# Drift reason taxonomy - keep this closed so the Prometheus label set is
 # bounded.  Unknown values bucket under ``unknown``.
 # ---------------------------------------------------------------------------
 
@@ -111,15 +111,15 @@ class StablePrefix:
     canonical bytes (``text``) so the caller can still hash them, plus
     one or more vendor-specific cache hints:
 
-    * ``segments`` — an ordered list of message-shaped dicts.  For
+    * ``segments`` - an ordered list of message-shaped dicts.  For
       Anthropic, each entry has the form
       ``{"type": "text", "text": "...", "cache_control": {...}}``
       with ``cache_control`` set to ``{"type": "ephemeral"}`` on the
       prefix segments.
-    * ``cached_content_handle`` — Gemini's canonical handle name; it is
+    * ``cached_content_handle`` - Gemini's canonical handle name; it is
       the lowercase ``cachedContent/<sha256>`` form so the caller can
       use it to look up an existing entry on the API.
-    * ``padded_text`` — OpenAI's text padded to the next 256-token
+    * ``padded_text`` - OpenAI's text padded to the next 256-token
       boundary so consecutive prompts share a cache-aligned prefix.
 
     Empty fields denote "vendor doesn't expose this hint".
@@ -172,15 +172,15 @@ def build_stable_prefix(
     bundle that carries vendor-specific cache hints in addition to the
     canonical bytes:
 
-    * ``"openai"`` — pads the prefix to the next 256-token boundary
+    * ``"openai"`` - pads the prefix to the next 256-token boundary
       (rounded up via ``tiktoken`` when installed; otherwise via a
       4 chars/token heuristic).  OpenAI's prompt-cache hashes only the
       first 1024-token prefix in 256-token chunks; alignment maximises
       hit rate.
-    * ``"anthropic"`` — splits the prompt into at most 4 segments and
+    * ``"anthropic"`` - splits the prompt into at most 4 segments and
       tags the prefix segments with ``cache_control: {"type": "ephemeral"}``
       so Anthropic's prompt cache treats them as a stable breakpoint.
-    * ``"gemini"`` — emits a candidate ``cachedContent`` handle name
+    * ``"gemini"`` - emits a candidate ``cachedContent`` handle name
       derived from the canonical SHA-256 of the prefix bytes.  The
       caller can use the handle to look up an existing context-cache
       entry on Vertex AI / Gemini.
@@ -197,7 +197,7 @@ def build_stable_prefix(
             the legacy ``str`` return type for backward compatibility.
 
     Returns:
-        For ``vendor == "generic"`` — the deterministic prefix string.
+        For ``vendor == "generic"`` - the deterministic prefix string.
         Otherwise a :class:`StablePrefix` bundle with vendor-specific
         cache hints.
     """
@@ -249,7 +249,7 @@ def _count_openai_tokens(text: str) -> int:
     try:
         import tiktoken  # type: ignore[import-not-found]
     except Exception:
-        # Heuristic fallback — OpenAI's own rule of thumb is ~4 chars
+        # Heuristic fallback - OpenAI's own rule of thumb is ~4 chars
         # per token for English text.  We round UP via ceiling division
         # so a partially-filled token still counts as one.
         return -(-len(text) // _HEURISTIC_CHARS_PER_TOKEN)
@@ -258,7 +258,7 @@ def _count_openai_tokens(text: str) -> int:
         # GPT-4o / GPT-3.5 chat completions.
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
-    except Exception:  # pragma: no cover — defensive
+    except Exception:  # pragma: no cover - defensive
         return -(-len(text) // _HEURISTIC_CHARS_PER_TOKEN)
 
 
@@ -293,11 +293,11 @@ def _anthropic_cache_segments(
 
     The result has at most :data:`_ANTHROPIC_MAX_SEGMENTS` entries:
 
-    1. ``header`` — the canonicalised header block (always tagged
+    1. ``header`` - the canonicalised header block (always tagged
        ephemeral so the system prefix is cached).
-    2. ``separator`` — the boundary sentinel.
-    3. ``body`` — the role/project/git_safety body (tagged ephemeral).
-    4. (reserved for caller-appended directive — no entry emitted by
+    2. ``separator`` - the boundary sentinel.
+    3. ``body`` - the role/project/git_safety body (tagged ephemeral).
+    4. (reserved for caller-appended directive - no entry emitted by
        this builder so callers can attach a 4th cache_control block on
        a final user/assistant turn if desired).
 
@@ -353,7 +353,7 @@ def _gemini_cached_content_handle(text: str) -> str:
         text: The prefix text.
 
     Returns:
-        ``cachedContents/<sha256>`` — the candidate handle that the
+        ``cachedContents/<sha256>`` - the candidate handle that the
         caller can pass to ``GenerativeModel.from_cached_content`` on
         Vertex AI / Gemini.  The hash is the same SHA-256 used by
         :func:`hash_prefix`, so two consecutive prefixes with the same
@@ -375,7 +375,7 @@ def hash_prefix(prefix: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Drift tracker — process-local, per-role.
+# Drift tracker - process-local, per-role.
 # ---------------------------------------------------------------------------
 
 
@@ -401,7 +401,7 @@ class DriftSnapshot:
 class PromptCacheLocality:
     """Track per-role prefix hashes and increment a drift counter on change.
 
-    Thread-safe.  The first spawn for any role is *not* counted as drift —
+    Thread-safe.  The first spawn for any role is *not* counted as drift -
     drift is by definition a *change* relative to a previous observation.
 
     Args:
@@ -494,7 +494,7 @@ class PromptCacheLocality:
             # in-process stub.  Wrap in try/except so a misconfigured
             # registry never blocks the spawn path.
             self._counter.labels(role=role, reason=reason).inc()  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover — defensive
+        except Exception:  # pragma: no cover - defensive
             logger.debug("prompt_cache_drift_total inc failed", exc_info=True)
 
 
@@ -512,7 +512,7 @@ def _build_default_locality() -> PromptCacheLocality:
         from bernstein.core.observability.prometheus import (
             prompt_cache_drift_total,
         )
-    except Exception:  # pragma: no cover — prometheus optional on Windows
+    except Exception:  # pragma: no cover - prometheus optional on Windows
         return PromptCacheLocality(prometheus_counter=None)
     return PromptCacheLocality(prometheus_counter=prompt_cache_drift_total)
 

@@ -1,4 +1,4 @@
-"""FleetAggregator — fans out to per-project task servers.
+"""FleetAggregator - fans out to per-project task servers.
 
 Owns one :class:`httpx.AsyncClient` and one per-project background SSE task.
 Per-project state is exposed as a :class:`ProjectSnapshot` and a unified
@@ -172,10 +172,10 @@ class FleetAggregator:
     """Fans out to per-project task servers.
 
     Lifecycle:
-        * :meth:`start` — kicks off background polling + SSE workers.
-        * :meth:`snapshots` — fast read of every project's latest state.
-        * :meth:`events` — async iterator over :class:`AggregatorEvent`.
-        * :meth:`stop` — cancels workers and closes the HTTP client.
+        * :meth:`start` - kicks off background polling + SSE workers.
+        * :meth:`snapshots` - fast read of every project's latest state.
+        * :meth:`events` - async iterator over :class:`AggregatorEvent`.
+        * :meth:`stop` - cancels workers and closes the HTTP client.
 
     The aggregator is the single shared dependency for both the TUI and the
     web view; do not instantiate two of them per process.
@@ -410,7 +410,7 @@ class FleetAggregator:
         try:
             self._event_queue.put_nowait(bus_event)
         except asyncio.QueueFull:
-            # Drop the oldest to make room — the dashboard must remain live.
+            # Drop the oldest to make room - the dashboard must remain live.
             with contextlib.suppress(asyncio.QueueEmpty):
                 self._event_queue.get_nowait()
             with contextlib.suppress(asyncio.QueueFull):

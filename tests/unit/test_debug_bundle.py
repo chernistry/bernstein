@@ -35,7 +35,7 @@ from bernstein.core.observability.debug_bundle import (
 )
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — API keys
+# redact_secrets() - API keys
 # ---------------------------------------------------------------------------
 
 
@@ -67,7 +67,7 @@ class TestRedactApiKeys:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — tokens
+# redact_secrets() - tokens
 # ---------------------------------------------------------------------------
 
 
@@ -92,13 +92,13 @@ class TestRedactTokens:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — passwords
+# redact_secrets() - passwords
 # ---------------------------------------------------------------------------
 
 
 class TestRedactPasswords:
     def test_password_env(self) -> None:
-        text = "export DATABASE_PASSWORD=hunter2"  # NOSONAR — test fixture for redaction
+        text = "export DATABASE_PASSWORD=hunter2"  # NOSONAR - test fixture for redaction
         result, count = redact_secrets(text)
         assert "hunter2" not in result
         assert count >= 1
@@ -111,7 +111,7 @@ class TestRedactPasswords:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — emails
+# redact_secrets() - emails
 # ---------------------------------------------------------------------------
 
 
@@ -138,7 +138,7 @@ class TestRedactEmails:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — JWTs
+# redact_secrets() - JWTs
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +159,7 @@ class TestRedactJWTs:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — SSH keys
+# redact_secrets() - SSH keys
 # ---------------------------------------------------------------------------
 
 
@@ -178,7 +178,7 @@ class TestRedactSSHKeys:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — YAML sensitive values
+# redact_secrets() - YAML sensitive values
 # ---------------------------------------------------------------------------
 
 
@@ -209,7 +209,7 @@ class TestRedactYAMLValues:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — URL credentials
+# redact_secrets() - URL credentials
 # ---------------------------------------------------------------------------
 
 
@@ -228,7 +228,7 @@ class TestRedactURLCredentials:
 
 
 # ---------------------------------------------------------------------------
-# redact_secrets() — clean text unchanged
+# redact_secrets() - clean text unchanged
 # ---------------------------------------------------------------------------
 
 
@@ -502,7 +502,7 @@ class TestGenerateReadme:
 
 
 # ---------------------------------------------------------------------------
-# create_debug_bundle() — zip structure and content
+# create_debug_bundle() - zip structure and content
 # ---------------------------------------------------------------------------
 
 
@@ -577,7 +577,7 @@ class TestCreateDebugBundle:
 
 
 # ---------------------------------------------------------------------------
-# BundleManifest — tracking
+# BundleManifest - tracking
 # ---------------------------------------------------------------------------
 
 

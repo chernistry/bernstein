@@ -1,6 +1,6 @@
 """Regression guard: .gitignore patterns must not strip shipped sub-packages.
 
-Hatchling uses VCS-awareness during the wheel build — any path that
+Hatchling uses VCS-awareness during the wheel build - any path that
 `git check-ignore` reports as ignored is dropped from the archive.  Two
 back-to-back releases (v1.8.9, v1.8.10) broke because:
 

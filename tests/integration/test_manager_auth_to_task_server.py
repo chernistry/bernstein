@@ -1,29 +1,29 @@
-"""End-to-end regression for #1261 — manager auth to the task server.
+"""End-to-end regression for #1261 - manager auth to the task server.
 
 Boots a real uvicorn server with the legacy bearer token enabled, then
 spawns a subprocess in a *worktree-like* cwd (a subdir of the
 orchestrator workdir, mirroring the runtime layout the production
 spawner produces). The subprocess receives exactly the env that
 :func:`bernstein.adapters.env_isolation.build_filtered_env` would hand a
-real agent — i.e. the ``BERNSTEIN_AUTH_TOKEN`` env var passes through
-the allowlist — and is given the prompt fragment :func:`_render_auth_section`
+real agent - i.e. the ``BERNSTEIN_AUTH_TOKEN`` env var passes through
+the allowlist - and is given the prompt fragment :func:`_render_auth_section`
 would inject.
 
 The subprocess then POSTs to ``/tasks`` using both auth channels:
 
 1. The Bearer header sourced from the absolute path embedded in the
-   prompt (the primary channel — broken before this fix, because the
+   prompt (the primary channel - broken before this fix, because the
    path could resolve as relative and miss the real token file when the
    spawn cwd was a git worktree).
 2. The Bearer header sourced from ``$BERNSTEIN_AUTH_TOKEN`` (the
-   documented fallback — also surfaced in the auth section after the
+   documented fallback - also surfaced in the auth section after the
    fix).
 
 Without the #1261 fix the first POST returns 401 (path resolves against
 the worktree, ``cat`` reads no file, openssl signs empty body, Bearer is
 literally the empty string). With the fix both POSTs return 201.
 
-Skipped on Windows for the same reason as the federation suite — uvicorn
+Skipped on Windows for the same reason as the federation suite - uvicorn
 + asyncio fixture mechanics are fragile under ProactorEventLoop.
 """
 
@@ -63,7 +63,7 @@ pytestmark = [
         sys.platform == "win32",
         reason="uvicorn + asyncio + httpx fixtures fragile on Windows CI runners",
     ),
-    # The whole module exercises the real auth middleware — opt out of the
+    # The whole module exercises the real auth middleware - opt out of the
     # global ``BERNSTEIN_AUTH_DISABLED=1`` test default (see tests/conftest.py).
     pytest.mark.auth_enabled,
 ]
@@ -142,7 +142,7 @@ def test_server_rejects_unauthenticated_post(auth_server: _AuthServer) -> None:
         json={
             "title": "should-be-rejected",
             "role": "backend",
-            "description": "anonymous post — must 401 before validation runs",
+            "description": "anonymous post - must 401 before validation runs",
         },
         timeout=5.0,
     )
@@ -254,7 +254,7 @@ def test_manager_subprocess_can_post_via_env_var_fallback(
 ) -> None:
     """``BERNSTEIN_AUTH_TOKEN`` env fallback also reaches the server with 201.
 
-    Defence-in-depth half of #1261 — if the per-agent token file is
+    Defence-in-depth half of #1261 - if the per-agent token file is
     missing or unreadable, the env var (passed through the
     env_isolation allowlist) must still authenticate the request. This
     guards against silent regressions in the env allowlist as much as in
@@ -314,7 +314,7 @@ def test_manager_subprocess_can_post_via_env_var_fallback(
 
 
 class _NoopAdapter:
-    """Adapter shell — :func:`_make_offline_spawner` never invokes spawn()."""
+    """Adapter shell - :func:`_make_offline_spawner` never invokes spawn()."""
 
     def spawn(
         self,
@@ -334,10 +334,10 @@ class _NoopAdapter:
     def name(self) -> str:
         return "noop"
 
-    def is_alive(self, pid: int) -> bool:  # pragma: no cover — never invoked
+    def is_alive(self, pid: int) -> bool:  # pragma: no cover - never invoked
         return False
 
-    def kill(self, pid: int) -> None:  # pragma: no cover — never invoked
+    def kill(self, pid: int) -> None:  # pragma: no cover - never invoked
         pass
 
 

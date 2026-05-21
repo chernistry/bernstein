@@ -237,7 +237,7 @@ def test_failure_rate_time_window(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# OpportunityDetector — failure integration
+# OpportunityDetector - failure integration
 # ---------------------------------------------------------------------------
 
 
@@ -293,7 +293,7 @@ def test_identify_opportunities_includes_failures(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MetricsAggregator — failure pattern analysis
+# MetricsAggregator - failure pattern analysis
 # ---------------------------------------------------------------------------
 
 
@@ -364,7 +364,7 @@ def test_analyze_failure_patterns_multiple_roles(tmp_path: Path) -> None:
             )
         )
 
-    # 2 qa failures — below threshold
+    # 2 qa failures - below threshold
     for i in range(2):
         collector.record_task_metrics(
             TaskMetrics(

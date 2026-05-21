@@ -76,7 +76,7 @@ class EnvelopeRollupRow:
         """Return the equivalent live :class:`EnvelopeReport`.
 
         Useful for dashboard tiles that already render
-        :class:`EnvelopeReport` from the live tracker — the rollup row
+        :class:`EnvelopeReport` from the live tracker - the rollup row
         carries the same fields when driven from a historical ledger.
         """
         remaining = max(self.cap - self.total_spend, 0.0) if self.cap > 0 else float("inf")

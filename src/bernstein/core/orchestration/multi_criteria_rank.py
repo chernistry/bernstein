@@ -13,16 +13,16 @@ on N axes (typically ``correctness``, ``cost``, ``latency``,
 ``reversibility``).  We:
 
 1. Normalise each axis across the candidate set (vector norm).
-2. Apply caller-supplied per-axis weights — identity by default.
+2. Apply caller-supplied per-axis weights - identity by default.
 3. Compute the per-axis ideal (best) and anti-ideal (worst) points,
    respecting whether each axis is a benefit (higher = better) or a cost
    (lower = better).
-4. Score each candidate by its *closeness coefficient* — Euclidean
+4. Score each candidate by its *closeness coefficient* - Euclidean
    distance to the anti-ideal divided by the sum of distances to ideal
    and anti-ideal.
 5. Rank by closeness, breaking ties on the original key for determinism.
 
-Why TOPSIS only:  the issue spec is explicit — the rest of the Synapse
+Why TOPSIS only:  the issue spec is explicit - the rest of the Synapse
 MCDM7 chain (AHP / SMART / DEMATEL / BWM) is overkill for best-of-N where
 N <= 5.  Constraining the surface keeps the runner deterministic and
 auditable.
@@ -83,13 +83,13 @@ class Criterion:
     """One ranking axis.
 
     Attributes:
-        name: Axis identifier — must match the keys used in every
+        name: Axis identifier - must match the keys used in every
             :class:`Candidate.scores` mapping.
         direction: ``"benefit"`` when higher is better (correctness,
             reversibility) or ``"cost"`` when lower is better (cost,
             latency).
         weight: Importance multiplier.  Must be non-negative.  Weights
-            do not need to sum to 1 — :func:`rank_candidates`
+            do not need to sum to 1 - :func:`rank_candidates`
             normalises internally.
     """
 
@@ -110,7 +110,7 @@ class Criterion:
 
 @dataclass(frozen=True)
 class Candidate:
-    """One ranking input — an opaque key and a per-axis score vector.
+    """One ranking input - an opaque key and a per-axis score vector.
 
     The ``key`` is only used for tie-breaking and audit; it can be the
     candidate task id, an index, or any stable string.  ``scores`` must
@@ -124,7 +124,7 @@ class Candidate:
 
 @dataclass(frozen=True)
 class CriterionProfile:
-    """A complete TOPSIS configuration — the criteria and their weights.
+    """A complete TOPSIS configuration - the criteria and their weights.
 
     Use :func:`build_criterion_profile` to construct a profile from a
     plain list of axis names; that helper applies the identity-weights
@@ -144,7 +144,7 @@ class CriterionProfile:
 
     @property
     def names(self) -> tuple[str, ...]:
-        """Ordered tuple of criterion names — matches axis order."""
+        """Ordered tuple of criterion names - matches axis order."""
         return tuple(c.name for c in self.criteria)
 
 
@@ -182,7 +182,7 @@ def build_criterion_profile(
 ) -> CriterionProfile:
     """Construct a :class:`CriterionProfile` from a plain axis list.
 
-    Identity weights are applied when *weights* is None — this is the
+    Identity weights are applied when *weights* is None - this is the
     default required by the issue spec.  ``cost_axes`` lists axes for
     which lower is better (defaults to the well-known ``cost`` /
     ``latency``); everything else is treated as a benefit axis.
@@ -232,8 +232,8 @@ def rank_candidates(
         candidates: Inputs to rank.  An empty list returns an empty list.
             A single-candidate list trivially returns rank 1 with
             closeness 1.0 (no comparison possible).
-        criteria: Either a sequence of axis names — in which case
-            identity weights are applied — or a fully built
+        criteria: Either a sequence of axis names - in which case
+            identity weights are applied - or a fully built
             :class:`CriterionProfile`.
         weights: Optional per-axis weights.  Only honoured when
             *criteria* is a sequence of names; passing both *weights*
@@ -325,7 +325,7 @@ def _check_scores_present(cand: Candidate, profile: CriterionProfile) -> None:
             raise TopsisError(f"Candidate {cand.key!r} is missing score for criterion {name!r}")
         value: object = cand.scores[name]
         # Reject booleans (which are ``int`` subclasses) and any non-real
-        # input — callers sometimes pass through ``Any`` mappings even
+        # input - callers sometimes pass through ``Any`` mappings even
         # though the declared mapping type is ``Mapping[str, float]``.
         if isinstance(value, bool) or not isinstance(value, (int, float)):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TopsisError(f"Candidate {cand.key!r} score for {name!r} must be a real number")
@@ -344,9 +344,9 @@ def _build_matrix(candidates: Sequence[Candidate], profile: CriterionProfile) ->
 
 
 def _vector_normalise(matrix: list[list[float]]) -> list[list[float]]:
-    """Vector (L2) normalisation per column — classical TOPSIS step.
+    """Vector (L2) normalisation per column - classical TOPSIS step.
 
-    A column that is identically zero stays zero — every candidate is
+    A column that is identically zero stays zero - every candidate is
     equally far from the ideal on that axis, so it contributes nothing
     to the ranking.
     """
@@ -427,7 +427,7 @@ def _closeness(matrix: list[list[float]], ideal: list[float], anti: list[float])
         d_minus = math.sqrt(sum((row[j] - anti[j]) ** 2 for j in range(len(row))))
         denom = d_plus + d_minus
         if denom <= 0.0:
-            # All candidates collapsed to the same point — assign equal
+            # All candidates collapsed to the same point - assign equal
             # closeness so the stable-sort tie-break decides the order.
             out.append(0.0)
         else:

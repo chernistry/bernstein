@@ -112,7 +112,7 @@ class TestExtractExecutable:
 
 
 # ---------------------------------------------------------------------------
-# check_command — core logic
+# check_command - core logic
 # ---------------------------------------------------------------------------
 
 
@@ -482,7 +482,7 @@ class TestEdgeCases:
         """Patterns are case-sensitive by default."""
         cfg = _make_config(global_deny=["DROP TABLE"])
         v = check_command("drop table users", "backend", cfg)
-        # Default is case-sensitive — lowercase doesn't match
+        # Default is case-sensitive - lowercase doesn't match
         assert v.allowed
 
     def test_case_insensitive_via_regex(self) -> None:

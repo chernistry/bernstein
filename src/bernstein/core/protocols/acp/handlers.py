@@ -86,7 +86,7 @@ TaskCanceller = Callable[[str, str], Awaitable[bool]]
 """Signature: ``async (session_id, reason) -> bool``."""
 
 StreamPublisher = Callable[[dict[str, Any]], Awaitable[None]]
-"""Signature: ``async (frame) -> None`` — publishes a JSON-RPC frame to the IDE."""
+"""Signature: ``async (frame) -> None`` - publishes a JSON-RPC frame to the IDE."""
 
 PermissionAsker = Callable[[str, str, str], Awaitable[str]]
 """Signature: ``async (session_id, tool, detail) -> "approved"|"rejected"``.
@@ -131,18 +131,18 @@ async def _default_task_creator(prompt: str, cwd: str, role: str) -> PromptResul
 
 
 async def _default_task_canceller(session_id: str, reason: str) -> bool:
-    """Fallback canceller — logs the cancellation and returns ``True``."""
+    """Fallback canceller - logs the cancellation and returns ``True``."""
     logger.info("acp.cancel session=%s reason=%s (no canceller wired)", session_id, reason)
     return True
 
 
 async def _default_stream_publisher(frame: dict[str, Any]) -> None:
-    """Fallback publisher — drops the frame on the floor."""
+    """Fallback publisher - drops the frame on the floor."""
     logger.debug("acp.stream dropped frame method=%s", frame.get("method"))
 
 
 def _default_audit_emitter(event_type: str, resource_id: str, details: dict[str, Any]) -> None:
-    """Fallback audit emitter — logs at INFO level for visibility."""
+    """Fallback audit emitter - logs at INFO level for visibility."""
     logger.info("acp.audit event=%s resource=%s details=%s", event_type, resource_id, details)
 
 
@@ -233,7 +233,7 @@ class ACPHandlerRegistry:
         """
         try:
             handler = self._handlers[ctx.method]
-        except KeyError as exc:  # pragma: no cover — schema layer rejects first
+        except KeyError as exc:  # pragma: no cover - schema layer rejects first
             raise ACPSchemaError(INTERNAL_ERROR, f"no handler for {ctx.method!r}") from exc
 
         try:

@@ -1,4 +1,4 @@
-"""Unit test conftest — ensure the local src/ takes priority on sys.path.
+"""Unit test conftest - ensure the local src/ takes priority on sys.path.
 
 In git worktrees the parent project's venv may appear earlier on sys.path
 than the worktree's own src/, causing new modules to be shadowed.  This

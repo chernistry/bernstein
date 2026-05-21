@@ -12,7 +12,7 @@ scanner (:mod:`mcp_scanner`) returns structured findings. This module
   proceeds. CRITICAL scanner findings are still surfaced loudly.
 
 The default for *new* environments is strict, but the *first run* in an
-existing environment defaults to warn-only — this matches the parent
+existing environment defaults to warn-only - this matches the parent
 ticket directive ("default: warn-only on first run") so an in-place
 upgrade does not break every running deployment until operators flip the
 flag explicitly.
@@ -76,14 +76,14 @@ __all__ = [
 ]
 
 
-#: Operator escape hatch — flips the policy to warn-only at the env-var
+#: Operator escape hatch - flips the policy to warn-only at the env-var
 #: layer. Logged loudly + counted on each unsigned load so misuse is
 #: easy to detect in audit.
 ENV_ALLOW_UNSIGNED: str = "BERNSTEIN_MCP_ALLOW_UNSIGNED"
 
 
 # ---------------------------------------------------------------------------
-# Tiny in-process metric counter (mirrors mcp_metrics.py style — a plain
+# Tiny in-process metric counter (mirrors mcp_metrics.py style - a plain
 # dict-backed counter is sufficient until a Prometheus exporter is wired)
 # ---------------------------------------------------------------------------
 
@@ -101,7 +101,7 @@ def unsigned_loaded_counter_value() -> int:
 
 
 def reset_metrics_for_test() -> None:
-    """Reset in-process counters. Tests only — never call from prod paths."""
+    """Reset in-process counters. Tests only - never call from prod paths."""
     _UNSIGNED_LOADED_COUNTER["total"] = 0
 
 
@@ -156,7 +156,7 @@ class MCPSigningPolicy:
         if allow_unsigned_env:
             logger.warning(
                 "MCP signing policy forced to warn-only via %s=true; "
-                "unsigned servers will load with a counter tick — do not "
+                "unsigned servers will load with a counter tick - do not "
                 "use this in production",
                 ENV_ALLOW_UNSIGNED,
             )
@@ -271,7 +271,7 @@ def enforce_mcp_server_load(
     )
 
     # Strict mode raises so the manager cannot proceed with a half-loaded
-    # server — the verifier is the choke point.
+    # server - the verifier is the choke point.
     if not decision.allowed and policy.strict:
         manifest = verification.manifest
         manifest_name = manifest.name if manifest is not None else server_name
@@ -312,7 +312,7 @@ def _decide(
 ) -> MCPLoadDecision:
     """Apply the strict/warn matrix to verification + findings.
 
-    Pure function — no logging or side effects beyond the unsigned counter
+    Pure function - no logging or side effects beyond the unsigned counter
     tick (which we *do* want even in warn-only since that's its purpose).
     """
     warnings: list[str] = []
@@ -339,7 +339,7 @@ def _decide(
             warnings=warnings,
         )
 
-    # Verification failed — count unsigned loads regardless of policy so
+    # Verification failed - count unsigned loads regardless of policy so
     # the metric reflects every "this server has no usable signature"
     # event the system encountered.
     if verification.verdict == VerificationVerdict.UNSIGNED:
@@ -355,7 +355,7 @@ def _decide(
 
     warnings.append(
         f"server '{server_name}' failed verification ({verification.verdict}: "
-        f"{verification.failure_reason}) — warn-only policy permits the load"
+        f"{verification.failure_reason}) - warn-only policy permits the load"
     )
     logger.warning(warnings[-1])
     return MCPLoadDecision(
@@ -374,12 +374,12 @@ def _resolve_publisher_key(
     """Look up the publisher's PEM by fingerprint declared in the manifest.
 
     When the manifest is unparseable or the fingerprint is missing from
-    ``publisher_keys``, return an empty bytes value — the verifier then
+    ``publisher_keys``, return an empty bytes value - the verifier then
     fails closed with BAD_SIGNATURE / UNTRUSTED_PUBLISHER. We deliberately
     do not raise here so the verifier can produce a structured verdict
     instead of an exception with no verdict tag.
     """
-    # We re-parse the manifest leniently — the verifier will repeat the
+    # We re-parse the manifest leniently - the verifier will repeat the
     # parse and emit the canonical BAD_MANIFEST verdict if it's truly bad.
     from bernstein.core.protocols.mcp.mcp_verifier import parse_manifest
 
@@ -412,6 +412,6 @@ def _remediation_message(
     )
     critical = [f for f in findings if f.severity == ScannerSeverity.CRITICAL]
     if critical:
-        bullets = "\n  - ".join(f"{f.rule} ({f.cwe}) at {f.path}:{f.line} — {f.message}" for f in critical[:3])
+        bullets = "\n  - ".join(f"{f.rule} ({f.cwe}) at {f.path}:{f.line} - {f.message}" for f in critical[:3])
         head += f"\nCRITICAL scanner findings:\n  - {bullets}"
     return head

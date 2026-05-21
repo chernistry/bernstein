@@ -14,12 +14,12 @@ Profiles are generated in the Docker seccomp JSON schema (same format used by
 
 Three built-in profiles are provided:
 
-- **strict** — file I/O only; no network sockets.  For agents that communicate
+- **strict** - file I/O only; no network sockets.  For agents that communicate
   via the task-server HTTP API *through the container runtime* (not directly).
-- **http_agent** — file I/O + TCP/UDP sockets for HTTP(S) calls to the task
+- **http_agent** - file I/O + TCP/UDP sockets for HTTP(S) calls to the task
   server and external APIs.  No raw sockets, no ``mount``, no kernel module
   loading.
-- **default** — http_agent + a slightly wider set of process management calls
+- **default** - http_agent + a slightly wider set of process management calls
   for agents that spawn sub-processes (e.g. running test suites).
 
 Usage::
@@ -320,7 +320,7 @@ class AgentSeccompProfile(StrEnum):
     """Named seccomp-bpf profiles for agent processes.
 
     Attributes:
-        STRICT: File I/O only — no network sockets.
+        STRICT: File I/O only - no network sockets.
         HTTP_AGENT: File I/O + TCP/UDP sockets for HTTP(S) calls.
         DEFAULT: HTTP_AGENT + broader process management for test-running agents.
     """

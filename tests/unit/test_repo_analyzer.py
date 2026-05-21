@@ -96,7 +96,7 @@ def test_analyze_minimal_repo(tmp_path: Path) -> None:
 
 
 def test_analyze_well_structured_repo(tmp_path: Path) -> None:
-    """Realistic repo with tests, CI, type hints — should score high."""
+    """Realistic repo with tests, CI, type hints - should score high."""
     _write(tmp_path, "src/myapp/__init__.py", "")
     _write(tmp_path, "src/myapp/api.py", "def f(x: int) -> int:\n    return x + 1\n")
     _write(tmp_path, "src/myapp/db.py", "def q(s: str) -> list:\n    return [s]\n")
@@ -113,7 +113,7 @@ def test_analyze_well_structured_repo(tmp_path: Path) -> None:
 
 
 def test_analyze_messy_repo(tmp_path: Path) -> None:
-    """Repo with one giant file, no tests, no CI — should score low."""
+    """Repo with one giant file, no tests, no CI - should score low."""
     big_body = "x = 1\n" * 1500
     _write(tmp_path, "src/giant.py", big_body)
     a = analyze_repo(tmp_path)

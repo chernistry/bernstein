@@ -2,14 +2,14 @@
 
 Two top-level commands are exposed:
 
-* ``bernstein connect <provider>`` — guided OAuth or token-paste flow that
+* ``bernstein connect <provider>`` - guided OAuth or token-paste flow that
   validates the credential against the provider's whoami endpoint and
   stores it in the OS keychain (default) or an AES-GCM file blob.
-* ``bernstein creds <list|revoke|test>`` — list metadata, revoke a stored
+* ``bernstein creds <list|revoke|test>`` - list metadata, revoke a stored
   credential (and call the provider's revoke endpoint when configured),
   or re-validate an existing entry.
 
-The CLI never prints secrets — every UI affordance uses
+The CLI never prints secrets - every UI affordance uses
 :func:`bernstein.core.security.vault.resolver.mask_secret` and
 :func:`bernstein.core.security.vault.resolver.fingerprint`.
 """

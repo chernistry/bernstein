@@ -35,7 +35,7 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
 
 
 class TestFleetProjects:
-    """``GET /fleet/projects`` — overview snapshots for the SPA grid."""
+    """``GET /fleet/projects`` - overview snapshots for the SPA grid."""
 
     @pytest.mark.anyio()
     async def test_returns_200(self, client: AsyncClient) -> None:
@@ -57,12 +57,12 @@ class TestFleetProjects:
         """The ``/api/v1`` prefix must serve the same payload."""
         resp = await client.get("/api/v1/fleet/projects")
         assert resp.status_code == 200
-        # Same stub flag — SPA must be able to detect "no aggregator" via /api/v1.
+        # Same stub flag - SPA must be able to detect "no aggregator" via /api/v1.
         assert resp.json()["stub"] is True
 
 
 class TestFleetSearch:
-    """``GET /fleet/search`` — operator search syntax round-trip."""
+    """``GET /fleet/search`` - operator search syntax round-trip."""
 
     @pytest.mark.anyio()
     async def test_parses_operator_syntax(self, client: AsyncClient) -> None:

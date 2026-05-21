@@ -1,8 +1,8 @@
 """Abstract TaskStore base class for pluggable storage backends.
 
 Concrete implementations:
-- TaskStore (server.py) — in-memory with JSONL persistence, zero dependencies.
-- PostgresTaskStore (store_postgres.py) — asyncpg + optional Redis locking.
+- TaskStore (server.py) - in-memory with JSONL persistence, zero dependencies.
+- PostgresTaskStore (store_postgres.py) - asyncpg + optional Redis locking.
 """
 
 from __future__ import annotations
@@ -195,7 +195,7 @@ class BaseTaskStore(ABC):
 
     @abstractmethod
     async def update(self, task_id: str, role: str | None, priority: int | None) -> Task:
-        """Update mutable task fields (role, priority) — manager corrections.
+        """Update mutable task fields (role, priority) - manager corrections.
 
         Only open or failed tasks should be reassigned; claimed tasks are left
         to finish before the new assignment takes effect.

@@ -1,7 +1,7 @@
 """Deterministic mock adapter for offline CI / contract tests.
 
 The adapter implements the bernstein :class:`CLIAdapter` interface but
-deliberately bypasses ``subprocess.Popen`` — it writes a canned NDJSON
+deliberately bypasses ``subprocess.Popen`` - it writes a canned NDJSON
 stream-json transcript to the session log path and synthesises a
 fast-exit ``Popen``-shape that the orchestrator can poll.
 
@@ -41,7 +41,7 @@ _DEFAULT_CANNED: dict[str, str] = {
 
 
 class ClaudeMockAdapter(CLIAdapter):
-    """Offline mock adapter — returns canned stream-json output.
+    """Offline mock adapter - returns canned stream-json output.
 
     The adapter never spawns the real ``claude`` binary. Instead it
     writes a deterministic NDJSON transcript to the session log and
@@ -54,7 +54,7 @@ class ClaudeMockAdapter(CLIAdapter):
             key when nothing matches.
     """
 
-    # Mock adapter has no real network endpoints — explicitly empty so
+    # Mock adapter has no real network endpoints - explicitly empty so
     # the network-policy enforcement helper short-circuits.
     external_endpoints: ClassVar[tuple[tuple[str, int], ...]] = ()
 

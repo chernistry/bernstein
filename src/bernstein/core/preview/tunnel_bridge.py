@@ -6,7 +6,7 @@ The bridge exposes a tiny, test-friendly surface around the
 construct registries, register drivers, or know how to fall back from
 ``provider=auto`` to ``provider=cloudflared``.
 
-The bridge never reimplements tunnel behaviour — every call funnels
+The bridge never reimplements tunnel behaviour - every call funnels
 into the existing wrapper.
 """
 
@@ -43,7 +43,7 @@ class TunnelBridge:
             file. Tests should supply a temp path; production callers
             should leave this as ``None`` to share state with
             ``bernstein tunnel``.
-        registry_factory: Optional factory used to build the registry —
+        registry_factory: Optional factory used to build the registry -
             mostly so tests can substitute fake providers.
     """
 

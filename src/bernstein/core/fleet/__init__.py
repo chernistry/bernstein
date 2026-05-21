@@ -1,4 +1,4 @@
-"""Fleet dashboard — supervise multiple Bernstein projects in one view.
+"""Fleet dashboard - supervise multiple Bernstein projects in one view.
 
 The fleet module aggregates per-project state (status, bulletin, cost,
 audit, Prometheus metrics, SSE events) from a list of locally-running

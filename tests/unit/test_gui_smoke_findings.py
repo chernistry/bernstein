@@ -1,6 +1,6 @@
 """Regression tests for the issues found by the end-to-end GUI smoke test.
 
-These are unit-level (no live server required) — they verify the specific
+These are unit-level (no live server required) - they verify the specific
 helpers/behaviours that the smoke run revealed as broken or under-tested.
 
 Findings exercised here:
@@ -32,7 +32,7 @@ PLAYGROUND_ROOT = REPO_ROOT.parent / "bernstein_playground"
 def _run_idle_mock_script(env: dict[str, str], *, tmp_path: Path) -> tuple[int, str]:
     """Spawn the embedded mock idle script with *env* and return (exit, log).
 
-    Reuses the same script source that the production adapter builds — keeps
+    Reuses the same script source that the production adapter builds - keeps
     this regression in lockstep with the runtime behaviour without faking the
     code path.
     """
@@ -98,7 +98,7 @@ class TestMockIdleEnvValidation:
 
     def test_idle_clamps_inverted_range(self, tmp_path: Path) -> None:
         # Original code used random.randint(min(lo,hi), max(lo,hi)) which works
-        # for swapped values but BREAKS if either is negative — we now clamp.
+        # for swapped values but BREAKS if either is negative - we now clamp.
         env = {
             "BERNSTEIN_MOCK_IDLE_MIN_S": "-5",
             "BERNSTEIN_MOCK_IDLE_MAX_S": "0",
@@ -142,7 +142,7 @@ class TestIdleHelpText:
 class TestPlaygroundConfig:
     """Lightweight smoke checks on the playground workdir config.
 
-    These do not require a running orchestrator — just that the operator-
+    These do not require a running orchestrator - just that the operator-
     facing yaml files have the right pins for GUI development.
     """
 

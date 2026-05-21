@@ -111,7 +111,7 @@ def cost_events(request: Request) -> StreamingResponse:
     sse_bus = _get_sse_bus(request)
     queue = sse_bus.subscribe()
 
-    # Timeout for individual queue.get() calls — if no message arrives
+    # Timeout for individual queue.get() calls - if no message arrives
     # within this window (including heartbeats), the connection is dead.
     _READ_TIMEOUT_S = 60.0
 
@@ -154,7 +154,7 @@ def get_costs(request: Request, tenant: str | None = None) -> JSONResponse:
     Scans every persisted cost file in ``.sdd/runtime/costs/``, aggregates
     per-agent and per-model totals, and computes cost attainment as
     ``(total_spent / total_budget) * 100``.  Budget of zero is treated as
-    unlimited — attainment is reported as 0.0 in that case.
+    unlimited - attainment is reported as 0.0 in that case.
     """
     from bernstein.core.cost_tracker import CostTracker
 
@@ -295,7 +295,7 @@ def _aggregate_window_spend(
     """Sum cost-tracker usages whose ``timestamp`` falls within the window.
 
     Returns:
-        Tuple of (cost_usd, latest_usage_ts) — ``latest_usage_ts`` is ``None``
+        Tuple of (cost_usd, latest_usage_ts) - ``latest_usage_ts`` is ``None``
         when the window saw no usages.
     """
     from bernstein.core.cost_tracker import CostTracker
@@ -356,7 +356,7 @@ def get_cost_current(request: Request) -> JSONResponse:
         "per_model": [],
         "per_agent": {},
         "timestamp": now_epoch,
-        # Web GUI additive fields — friendly defaults so the dashboard
+        # Web GUI additive fields - friendly defaults so the dashboard
         # never sees ``null`` and breaks the KPI cards.
         "today_usd": 0.0,
         "week_usd": 0.0,
@@ -390,7 +390,7 @@ def get_cost_current(request: Request) -> JSONResponse:
 
     remaining = budget_status.remaining_usd if math.isfinite(budget_status.remaining_usd) else 0.0
 
-    # Web GUI rollups — derived from on-disk usages across all runs so the
+    # Web GUI rollups - derived from on-disk usages across all runs so the
     # numbers don't reset when a new run rotates the active cost file.
     today_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=today_start)
     week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=week_start)
@@ -516,10 +516,10 @@ def get_cost_history(
 
     Two response modes share one endpoint:
 
-    * ``GET /costs/history?hours=24&granularity=hour`` (web GUI sparkline) —
+    * ``GET /costs/history?hours=24&granularity=hour`` (web GUI sparkline) -
       returns a flat ``[{ts, usd}]`` array bucketed from cost-tracker
       usages over the last *hours* window.
-    * ``GET /costs/history`` *or* ``?envelope=1`` (legacy/CLI) — returns the
+    * ``GET /costs/history`` *or* ``?envelope=1`` (legacy/CLI) - returns the
       original ``{history, trend, burn_rate_*, history_days}`` envelope
       built from ``.sdd/metrics/cost_history.jsonl`` daily snapshots.
 
@@ -530,7 +530,7 @@ def get_cost_history(
 
     sdd_dir = _get_sdd_dir(request)
 
-    # Web GUI sparkline branch — array form bucketed from live usages.
+    # Web GUI sparkline branch - array form bucketed from live usages.
     if hours is not None and not envelope:
         gran = granularity if granularity in {"hour", "day"} else "hour"
         since = time.time() - max(1, hours) * 3600
@@ -538,7 +538,7 @@ def get_cost_history(
         series = _bucket_usages(sdd_dir, costs_dir, since_ts=since, granularity=gran)
         return JSONResponse(content=series)
 
-    # Legacy envelope — unchanged shape so TUI / CLI keep working.
+    # Legacy envelope - unchanged shape so TUI / CLI keep working.
     history = load_history(sdd_dir)
     trend = compute_trends(history)
     recent_7d = history[-7:] if len(history) >= 7 else history
@@ -1054,13 +1054,13 @@ def get_costs_by_tag(
 
     The endpoint serves three callers:
 
-    * Web GUI (``Costs.tsx`` adapter table) — calls ``GET /costs/by-tag``
+    * Web GUI (``Costs.tsx`` adapter table) - calls ``GET /costs/by-tag``
       and expects an array of ``{adapter, calls, tokens, cost_usd,
       share_pct, delta_7d_pct}`` rows. With ``shape=auto`` (default) and
       no ``tag_key``, this is what we return.
-    * Legacy callers passing ``tag_key=…`` — receive the existing
+    * Legacy callers passing ``tag_key=…`` - receive the existing
       ``{by_tag: {key: {value: cost}}}`` envelope.
-    * Legacy callers wanting the envelope explicitly — pass
+    * Legacy callers wanting the envelope explicitly - pass
       ``shape=tags`` and get the envelope without supplying a key.
 
     The ``hours`` parameter controls the GUI window (default 24h).
@@ -1077,7 +1077,7 @@ def get_costs_by_tag(
         }
         return JSONResponse(content={"by_tag": result})
 
-    # Default (web GUI) — adapter array.
+    # Default (web GUI) - adapter array.
     rows = _build_adapter_breakdown(sdd_dir, costs_dir, hours=hours)
     return JSONResponse(content=rows)
 
@@ -1131,7 +1131,7 @@ def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> J
                 task_cost[task_id]["agent"] = str(getattr(usage, "agent_id", "") or "")
 
     # Resolve titles from the task store when available. Only look up the
-    # task ids that appear in the cost data (issue #1728 finding 3) — the
+    # task ids that appear in the cost data (issue #1728 finding 3) - the
     # previous full ``store.list_tasks()`` walk materialised every task in
     # the store just to read a handful of titles.
     store = getattr(request.app.state, "store", None)
@@ -1153,7 +1153,7 @@ def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> J
             {
                 "id": task_id,
                 "title": titles.get(task_id, task_id),
-                "agent": data["agent"] or "—",
+                "agent": data["agent"] or "-",
                 "cost_usd": round(float(data["cost"]), 6),
             }
             for task_id, data in task_cost.items()
@@ -1221,7 +1221,7 @@ def get_token_breakdown(request: Request, session_id: str | None = None) -> JSON
     system prompt (Bernstein overhead), context files, task description,
     tool call results accumulated at runtime, and assistant output.
 
-    Identifies optimization opportunities — e.g. if 60% of tokens are
+    Identifies optimization opportunities - e.g. if 60% of tokens are
     context files the agent never used.
 
     Args:
@@ -1358,7 +1358,7 @@ def _build_efficiency_message(
         parts.append(f"Run average: ${run_cost_per_line:.3f}/line")
     if hist_cost_per_line is not None:
         parts.append(f"Historical average: ${hist_cost_per_line:.3f}/line")
-    return ". ".join(parts) + "." if parts else "Insufficient data — no lines_changed recorded yet."
+    return ". ".join(parts) + "." if parts else "Insufficient data - no lines_changed recorded yet."
 
 
 def _build_current_data(
@@ -1452,7 +1452,7 @@ def get_cost_efficiency(request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# /costs/{run_id} — must be registered LAST.
+# /costs/{run_id} - must be registered LAST.
 #
 # FastAPI matches routes in registration order. Putting the path-parameter
 # route ahead of any sibling like /costs/by-tag, /costs/forecast, … makes

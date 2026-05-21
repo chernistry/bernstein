@@ -1,4 +1,4 @@
-"""Tests for context_files_doctor — doctor context warnings generation."""
+"""Tests for context_files_doctor - doctor context warnings generation."""
 
 from __future__ import annotations
 
@@ -196,7 +196,7 @@ class TestCheckPermissionRules:
         assert any(w.ok for w in results)
 
     def test_env_not_object_skipped(self, project_dir: Path) -> None:
-        """env key is not a dict — should be silently skipped."""
+        """env key is not a dict - should be silently skipped."""
         claude_dir = project_dir / ".claude"
         claude_dir.mkdir(parents=True)
         (claude_dir / "settings.json").write_text('{"env": "not-a-dict"}')

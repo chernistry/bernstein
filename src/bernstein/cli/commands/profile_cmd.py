@@ -51,7 +51,7 @@ def _load_profile_result(prof_path: Path, top_n: int) -> ProfileResult:
     stats.sort_stats("cumulative")
 
     top_functions: list[tuple[str, float, int]] = []
-    # pstats internal attributes — not in type stubs
+    # pstats internal attributes - not in type stubs
     raw_stats: Any = getattr(stats, "stats", {})
     raw_fcn_list: Any = getattr(stats, "fcn_list", [])
     for key in cast("list[tuple[str, int, str]]", raw_fcn_list[:top_n]):

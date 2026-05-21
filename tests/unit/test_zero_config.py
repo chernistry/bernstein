@@ -1,4 +1,4 @@
-"""Tests for zero-config agent setup — auto-detection on first run."""
+"""Tests for zero-config agent setup - auto-detection on first run."""
 
 from __future__ import annotations
 
@@ -133,7 +133,7 @@ class TestPreflightChecksAutoMode:
 
         discovery = DiscoveryResult(
             agents=[_make_agent("codex", logged_in=False)],
-            warnings=["codex found but not logged in — run: codex login"],
+            warnings=["codex found but not logged in - run: codex login"],
         )
         mock_discover.return_value = discovery
         # Should not raise (binary found, even if not authenticated)

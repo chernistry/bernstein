@@ -9,27 +9,27 @@ command injection on the runner.
 Properties:
 
 * **``shlex.split(shlex.join(parts))`` round-trips for arbitrary
-  argv** — the canonical invariant for safe command construction.
+  argv** - the canonical invariant for safe command construction.
   Catches regressions where a refactor introduces ``" ".join(args)``
   on a path that previously called ``shlex.join``.
 
-* **``shell_quote`` produces single-argv tokens** — feeding
+* **``shell_quote`` produces single-argv tokens** - feeding
   ``shell_quote(s)`` back through ``shlex.split`` always yields
   ``[s]`` (modulo whitespace-only edge cases). This is the contract
   the production CLI relies on for ``ssh_backend.write_file`` and
   similar shell-spliced calls.
 
-* **Injection metacharacters are not exposed** — strings containing
+* **Injection metacharacters are not exposed** - strings containing
   ``;``, ``$(...)``, backticks, ``|``, and ``&&`` survive a
   ``shell_quote`` → ``shlex.split`` round-trip as a single argv
   token. This is the security guarantee: if it ever splits into
   multiple tokens, an attacker controls subsequent shell tokens.
 
-* **Empty / whitespace-only strings round-trip safely** — ``""`` →
+* **Empty / whitespace-only strings round-trip safely** - ``""`` →
   ``"''"`` → ``[""]``. Catches regressions that drop the explicit
   empty quoting branch and accidentally collapse to ``[]``.
 
-Each property uses the smoke profile (50 examples) — these are
+Each property uses the smoke profile (50 examples) - these are
 microsecond operations and there's no IO to slow them down.
 """
 
@@ -77,7 +77,7 @@ def test_split_join_round_trip(argv: list[str]) -> None:
     The single critical invariant for safe command construction. A
     failure here means any caller that builds a command via
     ``shell_join`` and later re-parses with ``shlex.split`` will get
-    the wrong argument boundary — the root cause of every shell
+    the wrong argument boundary - the root cause of every shell
     injection bug we've ever closed.
     """
     joined = shell_join(argv)

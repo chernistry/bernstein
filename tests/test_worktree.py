@@ -1,4 +1,4 @@
-"""Tests for WorktreeManager — create/cleanup lifecycle (mocked subprocess)."""
+"""Tests for WorktreeManager - create/cleanup lifecycle (mocked subprocess)."""
 
 from __future__ import annotations
 
@@ -146,7 +146,7 @@ class TestCleanup:
         mock_run.assert_has_calls(expected_calls)
 
     def test_does_not_raise_on_worktree_remove_failure(self, mgr: WorktreeManager) -> None:
-        """cleanup() is best-effort — individual git failures should not propagate."""
+        """cleanup() is best-effort - individual git failures should not propagate."""
         with patch("subprocess.run", return_value=_fail("no worktree")):
             # Should complete without raising
             mgr.cleanup("sess1")
@@ -190,7 +190,7 @@ class TestListActive:
         assert set(result) == {"sessA", "sessB"}
 
     def test_ignores_non_agent_worktrees(self, mgr: WorktreeManager, repo_root: Path) -> None:
-        # Worktree outside .sdd/worktrees — should be ignored
+        # Worktree outside .sdd/worktrees - should be ignored
         extra = "worktree /some/other/path\nHEAD aaa\nbranch refs/heads/other\n"
         base = self._porcelain(repo_root, ["s1"])
         output = base + "\n" + extra

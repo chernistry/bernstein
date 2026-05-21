@@ -1,6 +1,6 @@
 """MCP server lifecycle manager.
 
-Manages the lifecycle of MCP servers — starting them as subprocesses (stdio
+Manages the lifecycle of MCP servers - starting them as subprocesses (stdio
 transport) or connecting via SSE, maintaining health status, and providing
 per-task MCP configuration to spawned agents.
 
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 #: Permitted signing-mode values for :class:`MCPManager`.
-#: ``"warn"`` is the default — unsigned servers log + tick the
+#: ``"warn"`` is the default - unsigned servers log + tick the
 #: ``mcp_unsigned_loaded_total`` counter but still load.
 #: ``"strict"`` refuses unsigned servers (raises through ``start_all``'s
 #: failure handler so other servers continue).
@@ -119,7 +119,7 @@ class MCPServerConfig:
         name: Human-readable identifier (used as mcpServers key).
         command: Command parts for stdio transport (e.g. ["npx", "-y", "pkg"]).
         url: URL for SSE transport.
-        transport: Transport type — "stdio" or "sse".
+        transport: Transport type - "stdio" or "sse".
         env: Extra environment variables for the server process.
     """
 
@@ -335,7 +335,7 @@ class MCPManager:
                 " ".join(config.command),
             )
         else:
-            # SSE transport — no subprocess to manage, mark alive optimistically
+            # SSE transport - no subprocess to manage, mark alive optimistically
             state.alive = bool(config.url)
             if state.alive:
                 logger.info("Registered SSE MCP server '%s' at %s", config.name, config.url)
@@ -349,16 +349,16 @@ class MCPManager:
 
         The verifier is wired in at the lifecycle layer rather than the
         registry so that *every* path that lands a server in the runtime
-        — in-process YAML, marketplace install, lazy discovery — flows
+        - in-process YAML, marketplace install, lazy discovery - flows
         through the same enforcement gate.  Behaviour is gated on
         :attr:`signing_mode`:
 
-        * ``"off"`` — no-op, return immediately.
-        * ``"warn"`` — invoke the policy enforcer in warn-only mode.
+        * ``"off"`` - no-op, return immediately.
+        * ``"warn"`` - invoke the policy enforcer in warn-only mode.
           Unsigned/untrusted servers tick the
           ``mcp_unsigned_loaded_total`` counter and emit one WARN log
           line; the load proceeds.
-        * ``"strict"`` — invoke the policy enforcer in strict mode.
+        * ``"strict"`` - invoke the policy enforcer in strict mode.
           Unsigned servers raise :class:`MCPVerificationError`, which
           propagates up through ``start_all``'s ``except Exception``
           branch so the other servers keep loading.
@@ -366,7 +366,7 @@ class MCPManager:
         if self._signing_mode == "off":
             return
 
-        # Late import — keeps the heavy mcp_signing_policy module out of
+        # Late import - keeps the heavy mcp_signing_policy module out of
         # cold-start paths and avoids an import cycle with mcp_signing_policy
         # (which already imports mcp_manager indirectly via the public surface).
         try:
@@ -386,7 +386,7 @@ class MCPManager:
         if policy is None:
             policy = MCPSigningPolicy.from_config(config=None)
         # The strict bit on the policy is gated by our mode, not the
-        # policy's own ``strict`` field — this lets the manager decide
+        # policy's own ``strict`` field - this lets the manager decide
         # warn vs. strict at runtime without rebuilding the policy.
         effective_strict = self._signing_mode == "strict"
         if effective_strict != policy.strict:
@@ -427,7 +427,7 @@ class MCPManager:
         if not manifest_text:
             # No manifest discoverable.  Synthesize the minimum-shape
             # body so the verifier returns a structured UNSIGNED verdict
-            # rather than BAD_MANIFEST — that keeps the warn-mode counter
+            # rather than BAD_MANIFEST - that keeps the warn-mode counter
             # correct (UNSIGNED ticks the counter; BAD_MANIFEST does not).
             manifest_text = (
                 '{"name": "' + config.name + '", '
@@ -611,7 +611,7 @@ class MCPManager:
 
 
 # ---------------------------------------------------------------------------
-# MCP run allowlist — strict server whitelist per run (T535)
+# MCP run allowlist - strict server whitelist per run (T535)
 # ---------------------------------------------------------------------------
 
 
@@ -625,7 +625,7 @@ class MCPRunAllowlist:
 
     Attributes:
         allowed_names: Frozenset of permitted server names for this run.
-        mode: ``'strict'`` — block unlisted servers; ``'permissive'`` — allow all.
+        mode: ``'strict'`` - block unlisted servers; ``'permissive'`` - allow all.
     """
 
     allowed_names: frozenset[str]

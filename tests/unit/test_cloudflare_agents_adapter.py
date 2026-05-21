@@ -45,7 +45,7 @@ class TestCloudflareAdapterName:
 
 
 # ---------------------------------------------------------------------------
-# CloudflareAgentsAdapter.spawn() — command construction
+# CloudflareAgentsAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +184,7 @@ class TestCloudflareAdapterSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +366,7 @@ class TestCloudflareRegistry:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

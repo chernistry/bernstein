@@ -208,7 +208,7 @@ def uninstall(
 
     Returns:
         ``True`` if the unit was removed, ``False`` if it was not present
-        (idempotent — no error is raised).
+        (idempotent - no error is raised).
     """
     if unit_dir is None:
         unit_dir = default_user_unit_dir() if scope == "user" else Path("/etc/systemd/system")

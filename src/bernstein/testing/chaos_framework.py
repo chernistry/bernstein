@@ -179,11 +179,11 @@ _GRADE_THRESHOLDS: list[str] = ["A", "B", "C", "D", "F"]
 def _compute_grade(total: int, failed: int) -> str:
     """Map the number of failures to a letter grade.
 
-    * A — all scenarios passed
-    * B — 1 failure
-    * C — 2 failures
-    * D — 3 failures
-    * F — 4 or more failures
+    * A - all scenarios passed
+    * B - 1 failure
+    * C - 2 failures
+    * D - 3 failures
+    * F - 4 or more failures
 
     When *total* is 0, returns ``"A"`` (vacuous truth).
     """

@@ -151,7 +151,7 @@ class TestSecretLeakGuardrail:
 class TestGuardrailPipeline:
     def test_runs_all_guardrails_on_clean_input(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Pin the OWASP ASI pack off so this test asserts only the four
-        # built-in guardrails — the default-on flip happens elsewhere.
+        # built-in guardrails - the default-on flip happens elsewhere.
         monkeypatch.setenv("BERNSTEIN_DISABLE_OWASP_ASI", "1")
         pipeline = GuardrailPipeline.default()
         results = pipeline.check_input("Please fix the bug in auth.py", {})

@@ -1,4 +1,4 @@
-"""Tests for trace utilities — T566, T560, T585."""
+"""Tests for trace utilities - T566, T560, T585."""
 
 from __future__ import annotations
 

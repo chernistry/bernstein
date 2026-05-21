@@ -152,7 +152,7 @@ class TestMergeWithConflictDetection:
 
     @patch("bernstein.core.git.git_pr.run_git")
     def test_nothing_to_commit_after_merge(self, mock: MagicMock) -> None:
-        """Branches are identical — merge succeeds but nothing to commit."""
+        """Branches are identical - merge succeeds but nothing to commit."""
         mock.side_effect = [
             GitResult(0, "", ""),  # merge --no-commit --no-ff
             GitResult(0, "", ""),  # _check_python_syntax

@@ -216,7 +216,7 @@ class TestLoadLicense:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """audit-050: only "1" opts out — "true", "0", "" stay enforcing."""
+        """audit-050: only "1" opts out - "true", "0", "" stay enforcing."""
         for bad_val in ("0", "true", "yes", "", "TRUE"):
             monkeypatch.setenv(LICENSE_DISABLED_ENV, bad_val)
             mgr = LicenseManager(signing_key="")

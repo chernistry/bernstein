@@ -1,7 +1,7 @@
 """Integration tests for the Modal sandbox backend (oai-002).
 
 Gated by ``MODAL_TOKEN_ID``; without credentials the suite skips. We
-do not start a live Modal sandbox in this ticket — that requires a
+do not start a live Modal sandbox in this ticket - that requires a
 paid account. The test here is a smoke test that the SDK loads and
 the backend advertises its capabilities correctly.
 """

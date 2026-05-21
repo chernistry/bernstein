@@ -470,7 +470,7 @@ def label_to_action(event: WebhookEvent) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
-# Handler classes — typed wrappers over the functional mappers above
+# Handler classes - typed wrappers over the functional mappers above
 # ---------------------------------------------------------------------------
 
 

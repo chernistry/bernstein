@@ -165,7 +165,7 @@ class TestApproveRejectCli:
         assert "Approved" in first.output
 
         # Second invocation must report the existing decision rather than
-        # silently rewriting state — that is what "first writer wins" means
+        # silently rewriting state - that is what "first writer wins" means
         # at the operator-experience layer.
         second = runner.invoke(approve, ["T-race", "--workdir", str(tmp_path), "--no-prompt"])
         assert second.exit_code == 0

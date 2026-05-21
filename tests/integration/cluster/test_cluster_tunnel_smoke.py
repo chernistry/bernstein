@@ -2,8 +2,8 @@
 
 This test brings up a 2-container compose:
 
-  * ``bernstein-central``     — the cluster central server
-  * ``bernstein-cloudflared`` — a ``cloudflared`` sidecar terminating
+  * ``bernstein-central``     - the cluster central server
+  * ``bernstein-cloudflared`` - a ``cloudflared`` sidecar terminating
     the public tunnel hostname
 
 …and asserts that a Bernstein worker, configured with the public
@@ -198,7 +198,7 @@ def test_worker_registers_and_heartbeats_via_tunnel(tunnel_stack: dict[str, str]
 
         # ---- heartbeat loop --------------------------------------------- #
         # Five heartbeats over ~15s. We don't try to assert reaper
-        # behaviour here — that's covered by the loopback suite. We
+        # behaviour here - that's covered by the loopback suite. We
         # just want to confirm the tunnel carries POSTs, not just GETs.
         hb_token = _mint_token(secret, node_id, ["node:heartbeat"])
         deadline = time.monotonic() + HEARTBEAT_OBSERVATION_WINDOW_S
@@ -221,5 +221,5 @@ def test_worker_registers_and_heartbeats_via_tunnel(tunnel_stack: dict[str, str]
             f"{public_url}/cluster/nodes/{node_id}",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        # Some builds return 200, others 204 — accept either.
+        # Some builds return 200, others 204 - accept either.
         assert deregister.status_code in (200, 204), f"deregister failed: {deregister.status_code} {deregister.text}"

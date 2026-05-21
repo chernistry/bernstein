@@ -73,7 +73,7 @@ class RunRecorder:
         }
         entry.update(data)
         # cap unbounded replay.jsonl. `bernstein replay` may stitch
-        # live + rotated backups if needed — see load_replay_events.
+        # live + rotated backups if needed - see load_replay_events.
         rotate_log_file(self._path, max_bytes=JANITOR.replay_rotate_bytes)
         try:
             with self._path.open("a") as f:

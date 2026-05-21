@@ -1,4 +1,4 @@
-"""Tests for `LineageRecorder` — the full record_write pipeline.
+"""Tests for `LineageRecorder` - the full record_write pipeline.
 
 These cover the orchestration the recorder performs on top of `LineageStore`:
 
@@ -29,7 +29,7 @@ from bernstein.core.lineage.store import LineageStore
 
 @pytest.fixture
 def hmac_key() -> bytes:
-    # Deterministic key — these tests verify behaviour, not key handling.
+    # Deterministic key - these tests verify behaviour, not key handling.
     return b"0" * 64
 
 
@@ -156,7 +156,7 @@ def test_recorded_jws_verifies_against_card(
     )
     entry, jws = next(iter(recorder.store.read_log()))
     # The recorder signs the JCS-canonical entry bytes; the verifier (gate)
-    # recomputes the same bytes — see ADR-009 §5.2.
+    # recomputes the same bytes - see ADR-009 §5.2.
     assert verify_detached(canonicalise(entry), jws, card) is True
 
 
@@ -191,7 +191,7 @@ def test_operator_hmac_matches_recomputed_envelope(
     hmac_key: bytes,
 ) -> None:
     """The on-disk ``operator_hmac`` must match HMAC-SHA256 over the entry's
-    canonical bytes computed with an empty ``operator_hmac`` field — the
+    canonical bytes computed with an empty ``operator_hmac`` field - the
     standard 'envelope around the body sans HMAC' pattern.
     """
     card, priv = card_and_keys

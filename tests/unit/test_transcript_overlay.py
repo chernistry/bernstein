@@ -1,4 +1,4 @@
-"""Tests for transcript_search — .sdd/traces/ text search overlay."""
+"""Tests for transcript_search - .sdd/traces/ text search overlay."""
 
 from __future__ import annotations
 

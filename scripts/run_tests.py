@@ -264,7 +264,7 @@ def main() -> None:
         if args.keyword:
             files = [f for f in files if args.keyword in f.stem]
         if not files:
-            print("No affected tests found — nothing to run")
+            print("No affected tests found - nothing to run")
             sys.exit(0)
         print(f"Running {len(files)} affected test files (each in its own process)")
         print(f"{'=' * 60}")

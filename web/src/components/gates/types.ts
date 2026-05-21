@@ -23,7 +23,7 @@ export type GateStatus =
 /** Coarse UI bucket used for sorting, chips, counts, and tone. */
 export type GateBucket = 'failing' | 'pending' | 'passing' | 'skipped';
 
-/** Coarse lifecycle bucket for the task itself — drives polling cadence. */
+/** Coarse lifecycle bucket for the task itself - drives polling cadence. */
 export type TaskLifecycle = 'active' | 'terminal' | 'unknown';
 
 export interface GateResult {

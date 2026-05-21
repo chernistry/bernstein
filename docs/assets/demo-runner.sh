@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bernstein demo runner — simulates a real orchestration run for recording.
+# Bernstein demo runner - simulates a real orchestration run for recording.
 # Used by demo.tape (vhs) to produce docs/assets/demo.gif.
 # Run directly to preview: bash docs/assets/demo-runner.sh
 
@@ -21,7 +21,7 @@ sleep_short() { sleep "${1:-0.3}"; return 0; }
 echo ""
 printf "${BLUE}${BOLD}"
 echo "╔══════════════════════════════════╗"
-echo "║  🎼 Bernstein — Agent Orchestra  ║"
+echo "║  🎼 Bernstein - Agent Orchestra  ║"
 echo "╚══════════════════════════════════╝"
 printf "${RESET}\n"
 sleep_short 0.4

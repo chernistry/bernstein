@@ -25,18 +25,18 @@ Source: `src/bernstein/core/credential_scoping.py`.
 
 `resolve_default_policy()` runs once at orchestrator startup:
 
-1. `BERNSTEIN_DISABLE_CREDENTIAL_SCOPING` truthy — return an empty
+1. `BERNSTEIN_DISABLE_CREDENTIAL_SCOPING` truthy - return an empty
    (disabled) policy and log one INFO line.
-2. `BERNSTEIN_CREDENTIAL_POLICY_PATH` set to a readable file — load
+2. `BERNSTEIN_CREDENTIAL_POLICY_PATH` set to a readable file - load
    that file. Errors propagate so misconfigurations are loud.
-3. First existing entry in `DEFAULT_POLICY_PATHS` — load it. The chain:
+3. First existing entry in `DEFAULT_POLICY_PATHS` - load it. The chain:
     1. `.bernstein/credential_policy.yaml`
     2. `.bernstein/credential_policy.yml`
     3. `.sdd/config/credential_scopes.yaml`
     4. `.sdd/config/credential_scopes.yml`
     5. `credential_policy.yaml`
     6. `examples/credential-policies/default.yaml` (bundled)
-4. Nothing found — return an empty policy and log one WARN line so
+4. Nothing found - return an empty policy and log one WARN line so
    operators know they are running unscoped.
 
 The bundled `default.yaml` ships with `enabled: true`, the four
@@ -54,7 +54,7 @@ path delete or rename the bundled file (or set the env-var opt-out).
 # .bernstein/credential_policy.yaml
 enabled: true
 
-# Spell-check surface — every credential env-var name any rule below
+# Spell-check surface - every credential env-var name any rule below
 # may grant. The loader rejects rules that reference a key not in
 # this list, which catches typos like ANTHORPIC_API_KEY at parse time.
 known_keys:
@@ -124,7 +124,7 @@ env = build_filtered_env(
 
 The filter intersects `extra_keys` with the policy-allowed set and
 returns only the keys the agent is entitled to. The filtered env is
-what the subprocess inherits — the orchestrator's other secrets never
+what the subprocess inherits - the orchestrator's other secrets never
 cross the spawn boundary.
 
 For ad-hoc paths that do not go through `build_filtered_env`,
@@ -140,7 +140,7 @@ in `core.storage.credential_scoping` and stripped from every spawned
 env regardless of the per-agent policy. A compromised agent therefore
 cannot exfiltrate the orchestrator's long-lived cloud keys even when
 the agent's role lists `AWS_ACCESS_KEY_ID` in `known_keys` by mistake
-— the storage scrubber runs after the per-agent filter.
+- the storage scrubber runs after the per-agent filter.
 
 `list_storage_credential_env_vars()` exposes the list so audit and
 documentation can enumerate the current surface.
@@ -160,7 +160,7 @@ showing:
 - the keys the orchestrator process actually has loaded.
 
 The diff between "would receive" and "has loaded" is the operator
-checklist — keys that show up in *would* but not in *has* are
+checklist - keys that show up in *would* but not in *has* are
 declared in the policy but missing from the host environment, and
 keys in *has* but not in *would* are correctly being stripped.
 
@@ -172,9 +172,9 @@ keys in *has* but not in *would* are correctly being stripped.
   `src/bernstein/core/storage/credential_scoping.py`,
   `src/bernstein/adapters/env_isolation.py`
 - Bundled default: `examples/credential-policies/default.yaml`
-- [Secrets and credentials](../operations/secrets.md) — where the
+- [Secrets and credentials](../operations/secrets.md) - where the
   underlying tokens live (vault, secrets-manager, env vars)
-- [Env isolation](../operations/env-isolation.md) — sibling page
+- [Env isolation](../operations/env-isolation.md) - sibling page
   covering the env-var allowlist mechanics
-- [Capability matrix](capability-matrix.md) — the role-to-tool
+- [Capability matrix](capability-matrix.md) - the role-to-tool
   binding that pairs with the role-to-credential binding here

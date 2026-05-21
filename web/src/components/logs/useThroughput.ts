@@ -1,4 +1,4 @@
-// Rolling lines/sec readout — exposes a smoothed throughput value the
+// Rolling lines/sec readout - exposes a smoothed throughput value the
 // status bar can render without coupling the visualisation to the buffer
 // shape used by `useTaskLogStream`.
 

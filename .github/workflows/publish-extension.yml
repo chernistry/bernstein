@@ -94,7 +94,7 @@ jobs:
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: ${{ steps.vsix.outputs.path }}
 
-      # Publish to Open VSX — used by Cursor, VSCodium, Gitpod (requires OPEN_VSX_TOKEN secret)
+      # Publish to Open VSX - used by Cursor, VSCodium, Gitpod (requires OPEN_VSX_TOKEN secret)
       # continue-on-error: version may already exist if re-running for same tag
       - name: Publish to Open VSX
         if: env.OPEN_VSX_TOKEN != ''
@@ -106,4 +106,4 @@ jobs:
           extensionFile: ${{ steps.vsix.outputs.path }}
 
       # VSIX is published to VS Code Marketplace and Open VSX above.
-      # No GitHub Release — avoids cluttering the main release list.
+      # No GitHub Release - avoids cluttering the main release list.

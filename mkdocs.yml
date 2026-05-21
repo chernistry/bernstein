@@ -6,7 +6,7 @@ site_description: >-
   agents. Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in
   parallel with deterministic scheduling, 43 adapters, pluggable sandbox
   backends, cloud artifact storage, and zero vendor lock-in. Built for the
-  forward-deployed engineering pattern — drop the swarm onto a client repo
+  forward-deployed engineering pattern - drop the swarm onto a client repo
   with file-based state, per-agent credential scoping, and a signed audit trail.
 repo_url: https://github.com/sipyourdrink-ltd/bernstein
 repo_name: sipyourdrink-ltd/bernstein
@@ -284,7 +284,7 @@ nav:
       - OpenAI Agents vs Codex vs Claude: adapters/openai-agents-comparison.md
   - Blog:
       - Ten agents one release: blog/ten-agents-one-release.md
-      - v1.9 — Four commands that close the last-mile gap: blog/v1.9-four-commands-last-mile.md
+      - v1.9 - Four commands that close the last-mile gap: blog/v1.9-four-commands-last-mile.md
       - Zero-LLM coordination: blog/zero-llm-coordination.md
       - Multi-agent benchmark: blog/multi-agent-benchmark.md
       - Self-evolution 30 days: blog/self-evolution-30-days.md

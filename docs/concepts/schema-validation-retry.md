@@ -75,7 +75,7 @@ prior validation failure, not just the most recent.
 
 - This is a **wrapper** around existing validation, not a replacement
   for Pydantic. Models still own field constraints.
-- The agent itself is the repair loop — there is no LLM-based schema
+- The agent itself is the repair loop - there is no LLM-based schema
   repair sitting between the validator and the agent.
 - Token cost of retries is captured by the existing `cost_tracker`,
   not by this module.

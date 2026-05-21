@@ -1,14 +1,14 @@
 # ── Bernstein Plan File ──
 #
 # A plan defines a multi-stage project as stages and steps.
-# Standard DevOps vocabulary — like Ansible playbooks or K8s manifests.
+# Standard DevOps vocabulary - like Ansible playbooks or K8s manifests.
 #
 # Usage:
 #   bernstein run plan.yaml
 #
 # Bernstein reads the stages, creates tasks from each step,
 # wires up the dependency graph, and starts execution.
-# No manager agent needed — the plan IS the decomposition.
+# No manager agent needed - the plan IS the decomposition.
 
 # ---------------------------------------------------------------------------
 # Plan metadata (required)
@@ -22,7 +22,7 @@ description: >
   What this plan builds or changes, in one or two sentences.
 
 # ---------------------------------------------------------------------------
-# Orchestration config (optional — same fields as bernstein.yaml)
+# Orchestration config (optional - same fields as bernstein.yaml)
 # ---------------------------------------------------------------------------
 
 # Which CLI agent to use. auto detects installed agents.
@@ -40,7 +40,7 @@ description: >
 #
 # When `buffered: true`, writes are committed locally (preserving WAL
 # fsync semantics for crash safety) and asynchronously mirrored to the
-# remote sink — recommended for production deployments on ephemeral
+# remote sink - recommended for production deployments on ephemeral
 # compute where the host may die between restarts.
 # ---------------------------------------------------------------------------
 # storage:
@@ -176,7 +176,7 @@ stages:
         #   - "src/app.py"
         #   - "tests/test_app.py"
 
-        # Janitor verification — machine-checkable completion criteria.
+        # Janitor verification - machine-checkable completion criteria.
         # completion_signals:
         #   - type: path_exists
         #     path: "src/app.py"

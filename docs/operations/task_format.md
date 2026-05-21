@@ -59,7 +59,7 @@ The scheduler resolves parallel-safety in this order:
 When every task in a `story_id` group completes, the orchestrator
 surfaces "story `<id>` complete" as a single milestone. A
 story-scoped revert reverses **only** the changes attributed to that
-story id — sibling stories remain intact. Tasks without a `story_id`
+story id - sibling stories remain intact. Tasks without a `story_id`
 participate in milestone reporting individually and are not bundled.
 
 ## Out of scope

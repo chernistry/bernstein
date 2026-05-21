@@ -11,20 +11,20 @@
 
 Bernstein orchestrates multiple LLM agents working on software development tasks. Without a feedback mechanism:
 
-1. **Performance degradation goes undetected** — Agent success rates drop, costs increase, but no automatic correction occurs
-2. **Improvement opportunities are missed** — Better model routing, policy adjustments, and prompt optimizations require manual analysis
-3. **System stagnation** — The system cannot adapt to changing conditions (new providers, API changes, project evolution)
-4. **Reactive rather than proactive** — Humans must notice problems and manually fix them
+1. **Performance degradation goes undetected** - Agent success rates drop, costs increase, but no automatic correction occurs
+2. **Improvement opportunities are missed** - Better model routing, policy adjustments, and prompt optimizations require manual analysis
+3. **System stagnation** - The system cannot adapt to changing conditions (new providers, API changes, project evolution)
+4. **Reactive rather than proactive** - Humans must notice problems and manually fix them
 
 ---
 
 ## Requirements
 
-1. **Automatic metrics collection** — Track task success, cost, latency, token usage, provider health
-2. **Performance analysis** — Detect trends, anomalies, and bottlenecks
-3. **Upgrade decision logic** — Determine when and how to improve the system
-4. **Safe execution** — Apply changes with rollback capability
-5. **Continuous operation** — Run in background without human intervention
+1. **Automatic metrics collection** - Track task success, cost, latency, token usage, provider health
+2. **Performance analysis** - Detect trends, anomalies, and bottlenecks
+3. **Upgrade decision logic** - Determine when and how to improve the system
+4. **Safe execution** - Apply changes with rollback capability
+5. **Continuous operation** - Run in background without human intervention
 
 ---
 
@@ -379,21 +379,21 @@ Automatic analysis + human approval for high-risk changes.
 ## Consequences
 
 ### Positive
-- **Continuous improvement** — System gets better over time without manual intervention
-- **Early problem detection** — Anomalies caught before they become critical
-- **Cost optimization** — Automatic switching to cheaper providers when possible
-- **Performance tuning** — Router thresholds adjust based on real data
+- **Continuous improvement** - System gets better over time without manual intervention
+- **Early problem detection** - Anomalies caught before they become critical
+- **Cost optimization** - Automatic switching to cheaper providers when possible
+- **Performance tuning** - Router thresholds adjust based on real data
 
 ### Risks
-- **Over-optimization** — System might optimize for metrics at expense of quality
-- **Change fatigue** — Too many automatic changes could destabilize development
-- **Debugging complexity** — Harder to trace why a change was made
+- **Over-optimization** - System might optimize for metrics at expense of quality
+- **Change fatigue** - Too many automatic changes could destabilize development
+- **Debugging complexity** - Harder to trace why a change was made
 
 ### Mitigations
-- **Confidence thresholds** — Only apply changes with >80% confidence
-- **Rate limiting** — Maximum 2 concurrent upgrades
-- **Audit trail** — All changes logged with rationale
-- **Rollback capability** — Automatic revert if metrics degrade
+- **Confidence thresholds** - Only apply changes with >80% confidence
+- **Rate limiting** - Maximum 2 concurrent upgrades
+- **Audit trail** - All changes logged with rationale
+- **Rollback capability** - Automatic revert if metrics degrade
 
 ---
 

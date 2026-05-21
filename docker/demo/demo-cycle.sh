@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Demo cycle — seeds tasks, runs real agents, resets every N minutes.
+# Demo cycle - seeds tasks, runs real agents, resets every N minutes.
 #
 # Runs inside the bernstein-demo container.  Requires:
-#   BERNSTEIN_SERVER_URL  — internal URL of bernstein-server (default: http://bernstein-server:8052)
-#   ANTHROPIC_API_KEY or OPENAI_API_KEY — at least one LLM key
-#   DEMO_CYCLE_INTERVAL   — seconds between resets (default: 900 = 15 min)
+#   BERNSTEIN_SERVER_URL  - internal URL of bernstein-server (default: http://bernstein-server:8052)
+#   ANTHROPIC_API_KEY or OPENAI_API_KEY - at least one LLM key
+#   DEMO_CYCLE_INTERVAL   - seconds between resets (default: 900 = 15 min)
 #
 # The demo project lives at /workspace/project (Flask hello-world starter).
 # Each cycle:

@@ -1,5 +1,5 @@
 ---
-description: Bernstein orchestrator context — always active when working in a Bernstein-managed project
+description: Bernstein orchestrator context - always active when working in a Bernstein-managed project
 alwaysApply: true
 ---
 
@@ -12,7 +12,7 @@ Bernstein runs at `http://127.0.0.1:8052` and coordinates parallel AI coding age
 
 - **Tasks** have states: `open` → `claimed` → `in_progress` → `done` | `failed` | `cancelled` | `blocked`
 - **Agents** are short-lived (1-3 tasks each), spawned per task, isolated in git worktrees
-- **Roles**: backend, frontend, qa, security, devops, docs — each agent specializes
+- **Roles**: backend, frontend, qa, security, devops, docs - each agent specializes
 - **Quality gates**: every task goes through lint, type-check, and test verification before completion
 - **Cost tracking**: real-time per-model, per-agent spend with budget enforcement
 
@@ -20,7 +20,7 @@ Bernstein runs at `http://127.0.0.1:8052` and coordinates parallel AI coding age
 
 - `.sdd/` directory contains all orchestrator state (backlog, runtime, metrics, config)
 - `.sdd/backlog/` has task YAML files
-- Agents are spawned fresh per task — no persistent memory
+- Agents are spawned fresh per task - no persistent memory
 
 ## When you see Bernstein-related requests
 

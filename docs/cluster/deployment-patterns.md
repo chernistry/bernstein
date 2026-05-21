@@ -20,7 +20,7 @@ Pick one based on where the workers live relative to the central node.
 
 ---
 
-## Pattern 1 — Same-VPC mTLS
+## Pattern 1 - Same-VPC mTLS
 
 Both the central server and the workers run inside one trusted network
 (office VPC, single AWS VPC, single GKE namespace). No NAT to traverse.
@@ -60,11 +60,11 @@ auditable.
 
 ---
 
-## Pattern 2 — Cloudflare Tunnel
+## Pattern 2 - Cloudflare Tunnel
 
 The central server runs in your office or a private VPC, and you do not
 control (or do not want to touch) the firewall it sits behind. Workers run
-on the public internet — contractor laptops, a separate cloud account, a
+on the public internet - contractor laptops, a separate cloud account, a
 build runner. A `cloudflared` sidecar opens an outbound connection from
 the central server to Cloudflare's edge, and workers reach the central
 server via a public hostname under your Cloudflare zone.
@@ -90,7 +90,7 @@ server via a public hostname under your Cloudflare zone.
 1. A Cloudflare account with a zone (`example.com`).
 2. A tunnel created in the Zero Trust dashboard (or via `cloudflared
    tunnel create bernstein-central`). Copy the tunnel token.
-3. A public hostname routed to the tunnel — e.g.
+3. A public hostname routed to the tunnel - e.g.
    `central.bernstein.example.com` → `http://bernstein-central:8052`.
 4. (Recommended) A Cloudflare Access policy on that hostname so only
    identified workers/users can reach it. Service tokens work well for
@@ -101,9 +101,9 @@ server via a public hostname under your Cloudflare zone.
 A complete copy-paste-runnable example lives at
 [`examples/cluster/cloudflared/`](../../examples/cluster/cloudflared/):
 
-- `config.yml` — `cloudflared` ingress config
-- `Dockerfile` — sidecar image (pinned `cloudflare/cloudflared:latest`)
-- `docker-compose.yml` — central + sidecar wired together
+- `config.yml` - `cloudflared` ingress config
+- `Dockerfile` - sidecar image (pinned `cloudflare/cloudflared:latest`)
+- `docker-compose.yml` - central + sidecar wired together
 
 ### Bring it up
 
@@ -121,7 +121,7 @@ curl -fsS https://central.bernstein.example.com/health
 
 ### Worker config
 
-Workers don't need to know anything about Cloudflare — they point at the
+Workers don't need to know anything about Cloudflare - they point at the
 public hostname like any HTTPS server.
 
 ```bash
@@ -142,7 +142,7 @@ export CF_ACCESS_CLIENT_SECRET="<service-token-secret>"
 …and add them to the worker's HTTP headers via your environment's standard
 mechanism (Bernstein passes through `CF-Access-*` headers as-is).
 
-### Customer scenario — contractor laptop
+### Customer scenario - contractor laptop
 
 > **Scenario:** You have three contractors building a feature against
 > your internal Bernstein. They are not on the corporate VPN, you are not
@@ -163,7 +163,7 @@ End-to-end:
    touch your VPN.
 4. **Verify.** On the central node, `bernstein cluster status` lists the
    contractor's worker as `ONLINE`. Revoking the service token in
-   Cloudflare immediately blocks them at the edge — Bernstein doesn't
+   Cloudflare immediately blocks them at the edge - Bernstein doesn't
    need to know.
 
 For a regulated workload, layer mTLS underneath the tunnel so the
@@ -172,7 +172,7 @@ identity independently of Cloudflare.
 
 ---
 
-## Pattern 3 — Tailscale overlay
+## Pattern 3 - Tailscale overlay
 
 Both the central server and the workers join the same tailnet and
 address each other on private MagicDNS hostnames. Tailscale handles NAT
@@ -183,7 +183,7 @@ This is the right shape when:
 - Workers are on contractor laptops *and* you don't want to manage
   Cloudflare zones.
 - You already use Tailscale for other internal services.
-- You want identity-on-the-network — the tailnet ACL decides who can
+- You want identity-on-the-network - the tailnet ACL decides who can
   even reach Bernstein, before Bernstein evaluates a JWT.
 
 ```
@@ -200,12 +200,12 @@ This is the right shape when:
 
 ### What you need
 
-1. A Tailscale account (or Headscale, ZeroTier — same shape).
+1. A Tailscale account (or Headscale, ZeroTier - same shape).
 2. A tagged auth key for the central server (`tag:bernstein-central`)
    and one for workers (`tag:bernstein-worker`). Reusable, ephemeral
    keys are fine.
 3. An ACL that allows `tag:bernstein-worker` to talk to
-   `tag:bernstein-central` on TCP/8052 — see
+   `tag:bernstein-central` on TCP/8052 - see
    [`examples/cluster/tailscale/tailscale.json`](../../examples/cluster/tailscale/tailscale.json).
 
 ### Files
@@ -213,9 +213,9 @@ This is the right shape when:
 A complete copy-paste-runnable example lives at
 [`examples/cluster/tailscale/`](../../examples/cluster/tailscale/):
 
-- `tailscale.json` — tailnet ACL granting only worker→central on 8052
-- `docker-compose.yml` — central + tailscaled sidecar
-- `bernstein.yaml` — sample config showing the tailnet hostname
+- `tailscale.json` - tailnet ACL granting only worker→central on 8052
+- `docker-compose.yml` - central + tailscaled sidecar
+- `bernstein.yaml` - sample config showing the tailnet hostname
 
 ### Bring it up
 
@@ -247,7 +247,7 @@ bernstein cluster worker \
 The traffic stays inside the tailnet; the URL is `http://` because the
 encryption is handled by WireGuard at the network layer. If you also
 want application-layer mTLS for audit purposes, follow
-[`mtls-setup.md`](./mtls-setup.md) on top of this — they compose.
+[`mtls-setup.md`](./mtls-setup.md) on top of this - they compose.
 
 ### ACL shape
 
@@ -267,7 +267,7 @@ The shipped ACL is intentionally minimal:
 }
 ```
 
-Workers cannot reach each other on the tailnet — Bernstein's STAR
+Workers cannot reach each other on the tailnet - Bernstein's STAR
 topology routes everything through the central server, so peer-to-peer
 reachability would just be attack surface.
 
@@ -294,7 +294,7 @@ operations and point the worker at the resulting hostname.
   central server. Workers don't talk to each other.
 - **ZeroTier / WireGuard / Headscale.** Same shape as Tailscale; adapt
   the example accordingly.
-- **Automated cert rotation.** Rotation is manual today — see the
+- **Automated cert rotation.** Rotation is manual today - see the
   rotation section of `mtls-setup.md`.
 - **In-cluster service mesh.** If you're already running Istio/Linkerd,
   Bernstein's plain HTTP works fine behind the mesh; you don't need
@@ -302,8 +302,8 @@ operations and point the worker at the resulting hostname.
 
 ## Related
 
-- [`mtls-setup.md`](./mtls-setup.md) — application-layer mutual TLS
+- [`mtls-setup.md`](./mtls-setup.md) - application-layer mutual TLS
 - [`examples/cluster/cloudflared/`](../../examples/cluster/cloudflared/)
 - [`examples/cluster/tailscale/`](../../examples/cluster/tailscale/)
 - [`tests/integration/cluster/test_cluster_tunnel_smoke.py`](../../tests/integration/cluster/test_cluster_tunnel_smoke.py)
-  — CI smoke test for Pattern 2
+  - CI smoke test for Pattern 2

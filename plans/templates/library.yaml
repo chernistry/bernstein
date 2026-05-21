@@ -27,7 +27,7 @@ stages:
         description: >
           Implement the primary public API of the library.
           All public functions and classes must have type annotations and docstrings.
-          Keep the public surface minimal — add methods only when there's a clear use case.
+          Keep the public surface minimal - add methods only when there's a clear use case.
           Export the public API cleanly from the package __init__.py.
         role: backend
         scope: large

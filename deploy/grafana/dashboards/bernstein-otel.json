@@ -3,7 +3,7 @@
     {
       "name": "DS_PROMETHEUS",
       "label": "Prometheus",
-      "description": "Prometheus datasource — scrapes OTel Collector /metrics endpoint",
+      "description": "Prometheus datasource - scrapes OTel Collector /metrics endpoint",
       "type": "datasource",
       "pluginId": "prometheus"
     }
@@ -201,7 +201,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Throughput broken down by task role — shows which agents are busiest.",
+      "description": "Throughput broken down by task role - shows which agents are busiest.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -288,7 +288,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Cumulative cost over time — flat sections indicate no activity; steep sections indicate high spend periods.",
+      "description": "Cumulative cost over time - flat sections indicate no activity; steep sections indicate high spend periods.",
       "fieldConfig": {
         "defaults": {
           "color": { "fixedColor": "purple", "mode": "fixed" },
@@ -415,7 +415,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "OTel Collector pipeline errors — dropped spans and metric points.",
+      "description": "OTel Collector pipeline errors - dropped spans and metric points.",
       "fieldConfig": {
         "defaults": {
           "color": { "fixedColor": "dark-red", "mode": "fixed" },
@@ -432,7 +432,7 @@
       },
       "gridPos": { "h": 8, "w": 10, "x": 14, "y": 28 },
       "id": 233,
-      "title": "OTel Collector — Dropped Signals",
+      "title": "OTel Collector - Dropped Signals",
       "type": "timeseries",
       "targets": [
         { "expr": "rate(otelcol_processor_dropped_spans[5m])", "legendFormat": "dropped spans/s" },
@@ -491,7 +491,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Agent spawn latency percentiles — time from task claim to first agent output.",
+      "description": "Agent spawn latency percentiles - time from task claim to first agent output.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -519,7 +519,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Heatmap of task durations — shows shape of the latency distribution over time.",
+      "description": "Heatmap of task durations - shows shape of the latency distribution over time.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "scheme", "scheme": "Oranges" },
@@ -590,7 +590,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "OTel Collector queue usage — rising fill indicates downstream exporter is falling behind.",
+      "description": "OTel Collector queue usage - rising fill indicates downstream exporter is falling behind.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -636,7 +636,7 @@
     "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
   },
   "timezone": "browser",
-  "title": "Bernstein — OTel Pipeline",
+  "title": "Bernstein - OTel Pipeline",
   "uid": "bernstein-otel",
   "version": 1
 }

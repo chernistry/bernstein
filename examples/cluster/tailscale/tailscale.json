@@ -1,13 +1,13 @@
 // Tailnet ACL for Bernstein cluster.
 //
 // Two tags:
-//   tag:bernstein-central — the central server
-//   tag:bernstein-worker  — every worker
+//   tag:bernstein-central - the central server
+//   tag:bernstein-worker  - every worker
 //
 // Workers can reach the central server on TCP/8052 only. Workers
 // cannot reach each other; the central server cannot initiate
 // connections back to workers (Bernstein's STAR topology routes
-// everything through the central node — peer-to-peer reachability
+// everything through the central node - peer-to-peer reachability
 // would just be attack surface).
 //
 // Drop this into the "Access controls" page of your tailnet (or

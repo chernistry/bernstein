@@ -8,7 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // Single JS file — no code-splitting needed for a VS Code webview
+        // Single JS file - no code-splitting needed for a VS Code webview
         inlineDynamicImports: true,
         entryFileNames: 'main.js',
         assetFileNames: '[name][extname]',

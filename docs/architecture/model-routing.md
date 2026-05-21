@@ -5,7 +5,7 @@
 Yes. Bernstein ships **two distinct cascade systems**, both 100%
 implemented and wired into the orchestrator:
 
-| | System 1 — `CascadeRouter` | System 2 — `CascadeFallbackManager` |
+| | System 1 - `CascadeRouter` | System 2 - `CascadeFallbackManager` |
 |---|---|---|
 | Scope | Intra-Claude tier escalation | Cross-adapter failover |
 | Trigger | Task failure, janitor failure, low-confidence output | Rate limit, timeout, provider error |
@@ -18,7 +18,7 @@ observability surface. For the higher-level provider-policy controls
 
 ---
 
-## System 1 — Intra-Claude tier escalation (CascadeRouter)
+## System 1 - Intra-Claude tier escalation (CascadeRouter)
 
 `CascadeRouter` (`src/bernstein/core/routing/cascade_router.py:246`)
 selects the cheapest viable Claude tier for a task's first attempt and
@@ -27,9 +27,9 @@ escalates only when post-hoc signals warrant it.
 ### When it runs
 
 The router is consulted when the chosen adapter is Claude-compatible
-(`router_applicable()` line 294 — checks the adapter name against the
+(`router_applicable()` line 294 - checks the adapter name against the
 `{claude, claude code, claude_code, claude-code}` set). For every other
-adapter the router is skipped — its arms (`sonnet`, `opus`) are
+adapter the router is skipped - its arms (`sonnet`, `opus`) are
 Claude-specific.
 
 ### The tier ladder
@@ -82,7 +82,7 @@ class CascadeDecision:
 3. Otherwise consult the bandit (next section). If the cheapest tier
    has been observed `≥ MIN_OBSERVATIONS` times and its observed
    `success_rate < QUALITY_THRESHOLD`, **skip it** and try the next
-   tier — a proactive cost-then-quality move.
+   tier - a proactive cost-then-quality move.
 
 ### Escalation triggers
 
@@ -128,13 +128,13 @@ proactive-skip rule in `_select_initial_model()` reads
 
 A new arm starts with a pessimistic `success_rate = 0.5` (`cost.py:139`)
 so a freshly added cheap model cannot greedily win selection on its
-first observation — it has to earn the trust through real successes.
+first observation - it has to earn the trust through real successes.
 
 The bandit's persisted state is loaded lazily via `EpsilonGreedyBandit.load(metrics_dir)`
 (`cascade_router.py:553-554`) and saved on demand via `save_bandit()`
 (line 541-544).
 
-### Persistence — `cascade_chains.jsonl`
+### Persistence - `cascade_chains.jsonl`
 
 `save_chain(chain_id, task, metrics_dir)` (`cascade_router.py:518-539`)
 appends one JSON line per completed chain to:
@@ -184,7 +184,7 @@ Aggregate stats are computed on demand by
 
 ---
 
-## System 2 — Cross-adapter failover (CascadeFallbackManager)
+## System 2 - Cross-adapter failover (CascadeFallbackManager)
 
 `CascadeFallbackManager` (`src/bernstein/core/routing/cascade.py:108-`)
 handles a different problem: the chosen provider is **unavailable** (rate
@@ -213,7 +213,7 @@ which condition fired so metrics can split by cause.
 
 ### Capability floor
 
-Cross-adapter fallback never violates the task's reasoning floor —
+Cross-adapter fallback never violates the task's reasoning floor -
 fallback to a weak model just because the strong one is throttled
 would silently degrade output quality:
 
@@ -383,9 +383,9 @@ availability**.
 
 ## Related
 
-- `operations/MODEL_POLICY.md` — provider-level allow/deny policy that
+- `operations/MODEL_POLICY.md` - provider-level allow/deny policy that
   runs **before** either cascade decides anything.
-- `architecture/quality-pipeline.md` — janitor + gates that emit the
+- `architecture/quality-pipeline.md` - janitor + gates that emit the
   `janitor_passed` signal the cascade router consumes.
-- `architecture/state-persistence.md` — where bandit state and cascade
+- `architecture/state-persistence.md` - where bandit state and cascade
   chain reports live on disk.

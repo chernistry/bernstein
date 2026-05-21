@@ -1,8 +1,8 @@
 # awesome-bernstein-plugins
 
-> A curated list of plugins, adapters, role templates, and integrations for [Bernstein](https://github.com/sipyourdrink-ltd/bernstein) — the multi-agent orchestration system.
+> A curated list of plugins, adapters, role templates, and integrations for [Bernstein](https://github.com/sipyourdrink-ltd/bernstein) - the multi-agent orchestration system.
 
-Plugins extend Bernstein without touching core code. They hook into the task and agent lifecycle via [pluggy](https://pluggy.readthedocs.io/) — the same machinery used by pytest. A plugin is a plain Python class. No subclassing. No registration boilerplate.
+Plugins extend Bernstein without touching core code. They hook into the task and agent lifecycle via [pluggy](https://pluggy.readthedocs.io/) - the same machinery used by pytest. A plugin is a plain Python class. No subclassing. No registration boilerplate.
 
 **Install a plugin** in 30 seconds:
 
@@ -50,7 +50,7 @@ Send alerts when tasks complete, fail, or agents are spawned.
 | `SlackNotifier` | Posts task failure and completion alerts to Slack via Incoming Webhook. Non-blocking (daemon thread). | `examples.plugins.slack_notifier:SlackNotifier` |
 | `DiscordNotifier` | Posts color-coded embeds to a Discord channel via webhook. | `examples.plugins.discord_notifier:DiscordNotifier` |
 
-**SlackNotifier** — configuration:
+**SlackNotifier** - configuration:
 
 ```bash
 export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
@@ -61,7 +61,7 @@ plugins:
   - examples.plugins.slack_notifier:SlackNotifier
 ```
 
-**DiscordNotifier** — configuration:
+**DiscordNotifier** - configuration:
 
 ```bash
 export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/CHANNEL_ID/TOKEN
@@ -69,7 +69,7 @@ export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/CHANNEL_ID/TOKEN
 
 ### Community
 
-> Submit your notifier plugin — see [Contributing to This List](#contributing-to-this-list).
+> Submit your notifier plugin - see [Contributing to This List](#contributing-to-this-list).
 
 | Plugin | Description | Source |
 |--------|-------------|--------|
@@ -87,7 +87,7 @@ Record lifecycle events, feed dashboards, and build audit trails.
 |--------|-------------|---------|
 | `MetricsPlugin` | Writes all lifecycle events to `.sdd/metrics/plugin_events.jsonl` as structured JSON. Foundation for custom dashboards. | `examples.plugins.metrics_plugin:MetricsPlugin` |
 
-**MetricsPlugin** — configuration:
+**MetricsPlugin** - configuration:
 
 ```bash
 export BERNSTEIN_METRICS_DIR=/path/to/metrics   # default: .sdd/metrics
@@ -120,7 +120,7 @@ Keep Jira, Linear, or GitHub Issues in sync with Bernstein task state.
 | `JiraPlugin` | Transitions Jira issues when tasks complete or fail. Links via `external_ref: "jira:PROJ-42"`. | `examples.plugins.jira_plugin:JiraPlugin` |
 | `LinearPlugin` | Transitions Linear issues via GraphQL API. Links via `external_ref: "linear:ENG-42"`. | `examples.plugins.linear_plugin:LinearPlugin` |
 
-**JiraPlugin** — configuration:
+**JiraPlugin** - configuration:
 
 ```bash
 pip install bernstein-sdk[jira]
@@ -136,7 +136,7 @@ Hook mapping:
 | `on_task_completed` | Transition issue → Done |
 | `on_task_failed` | Transition issue → Done (failed tag) + add error comment |
 
-**LinearPlugin** — configuration:
+**LinearPlugin** - configuration:
 
 ```bash
 pip install bernstein-sdk
@@ -154,7 +154,7 @@ Hook mapping:
 
 | Plugin | Description | Source |
 |--------|-------------|--------|
-| _(your plugin here — GitHub Issues, Shortcut, Asana, etc.)_ | | |
+| _(your plugin here - GitHub Issues, Shortcut, Asana, etc.)_ | | |
 
 ---
 
@@ -168,7 +168,7 @@ Run automated checks after tasks complete. Log results, alert on failure, option
 |--------|-------------|---------|
 | `SecurityScanGate` | Runs `bandit` (or any configurable command) after every task completes. Records results to `.sdd/metrics/custom_gates.jsonl`. | `examples.plugins.quality_gate_plugin:SecurityScanGate` |
 
-**SecurityScanGate** — configuration:
+**SecurityScanGate** - configuration:
 
 ```bash
 # Default: bandit -r . -ll -q
@@ -178,13 +178,13 @@ export BERNSTEIN_SECURITY_CMD="semgrep --config=auto . --quiet"
 export BERNSTEIN_SECURITY_CMD="trivy fs . --exit-code 1 --severity HIGH,CRITICAL"
 ```
 
-**Note**: The plugin gate is a *soft gate* — it records and alerts but does not block the orchestrator. For hard blocking, use `quality_gates:` in `bernstein.yaml`.
+**Note**: The plugin gate is a *soft gate* - it records and alerts but does not block the orchestrator. For hard blocking, use `quality_gates:` in `bernstein.yaml`.
 
 ### Community
 
 | Plugin | Description | Source |
 |--------|-------------|--------|
-| _(your plugin here — coverage threshold, lint gate, type-check gate, etc.)_ | | |
+| _(your plugin here - coverage threshold, lint gate, type-check gate, etc.)_ | | |
 
 ---
 
@@ -198,7 +198,7 @@ Monitor spend and influence model selection without touching core routing code.
 |--------|-------------|---------|
 | `CostAwareRouter` | Tracks cumulative model spend. Writes routing hints to `.sdd/runtime/routing_hints.json`. Downgrades preferred model at 60% and 90% of daily budget. Protected roles (`manager`, `architect`, `security`) are never downgraded. | `examples.plugins.custom_router_plugin:CostAwareRouter` |
 
-**CostAwareRouter** — configuration:
+**CostAwareRouter** - configuration:
 
 ```bash
 export BERNSTEIN_DAILY_BUDGET_USD=5.00   # default: 10.00
@@ -226,7 +226,7 @@ Routing hints file (`.sdd/runtime/routing_hints.json`):
 
 | Plugin | Description | Source |
 |--------|-------------|--------|
-| _(your plugin here — spend alerting, per-team budgets, model A/B testing, etc.)_ | | |
+| _(your plugin here - spend alerting, per-team budgets, model A/B testing, etc.)_ | | |
 
 ---
 
@@ -310,14 +310,14 @@ Plan templates are reusable `bernstein.yaml` structures for common project patte
 
 | Template | Description |
 |----------|-------------|
-| `templates/plan.yaml` | Base template — stages, steps, roles, priorities |
-| `templates/demo/bernstein.yaml` | Demo Flask app — 4 bug-fix tasks across 3 agents |
+| `templates/plan.yaml` | Base template - stages, steps, roles, priorities |
+| `templates/demo/bernstein.yaml` | Demo Flask app - 4 bug-fix tasks across 3 agents |
 
 ### Community
 
 | Template | Description | Source |
 |----------|-------------|--------|
-| _(your template here — SaaS launch, API migration, monolith split, etc.)_ | | |
+| _(your template here - SaaS launch, API migration, monolith split, etc.)_ | | |
 
 ---
 
@@ -368,23 +368,23 @@ class MyPlugin:
 
 ### Rules
 
-- **Decorate with `@hookimpl`** — unmarked methods are ignored.
-- **Keyword arguments only** — omit parameters you don't need.
-- **Return `None`** — return values are discarded.
-- **Don't block** — hooks run in the orchestrator's main loop. Offload slow I/O to a background thread.
+- **Decorate with `@hookimpl`** - unmarked methods are ignored.
+- **Keyword arguments only** - omit parameters you don't need.
+- **Return `None`** - return values are discarded.
+- **Don't block** - hooks run in the orchestrator's main loop. Offload slow I/O to a background thread.
 
-Exceptions raised inside a hook are caught and logged at `WARNING` level — they never crash the orchestrator.
+Exceptions raised inside a hook are caught and logged at `WARNING` level - they never crash the orchestrator.
 
 ### Loading a plugin
 
-**Option A — per-project (`bernstein.yaml`)**:
+**Option A - per-project (`bernstein.yaml`)**:
 
 ```yaml
 plugins:
   - my_package.hooks:MyPlugin
 ```
 
-**Option B — distributable (entry points)**:
+**Option B - distributable (entry points)**:
 
 ```toml
 # pyproject.toml
@@ -433,7 +433,7 @@ compatibility:
 bernstein plugin publish ./my-bernstein-plugin/
 ```
 
-4. **Add to this list** — open a pull request with your plugin added to the appropriate section above. Include: name, one-line description, source link.
+4. **Add to this list** - open a pull request with your plugin added to the appropriate section above. Include: name, one-line description, source link.
 
 ---
 

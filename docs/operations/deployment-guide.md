@@ -4,8 +4,8 @@ How to run Bernstein in different environments. Each section is self-contained w
 
 **Jump to:**
 - [Local development](#local-development)
-- [CI/CD — GitHub Actions](#cicd--github-actions)
-- [CI/CD — GitLab CI](#cicd--gitlab-ci)
+- [CI/CD - GitHub Actions](#cicd--github-actions)
+- [CI/CD - GitLab CI](#cicd--gitlab-ci)
 - [Docker single-host](#docker-single-host)
 - [Docker Compose cluster](#docker-compose-cluster)
 - [Kubernetes / Helm](#kubernetes--helm)
@@ -33,7 +33,7 @@ How to run Bernstein in different environments. Each section is self-contained w
 ### Install
 
 ```bash
-# With uv (recommended — faster, handles virtualenvs automatically)
+# With uv (recommended - faster, handles virtualenvs automatically)
 uv pip install bernstein
 
 # Or install from source
@@ -111,7 +111,7 @@ Expected: all 3 tasks complete and a summary table prints with elapsed time and 
 
 ---
 
-## CI/CD — GitHub Actions
+## CI/CD - GitHub Actions
 
 ### Single-shot plan execution
 
@@ -228,7 +228,7 @@ If the job fails with a non-zero exit, check the "Run plan" step logs. The most 
 
 ---
 
-## CI/CD — GitLab CI
+## CI/CD - GitLab CI
 
 ### Basic pipeline stage
 
@@ -288,7 +288,7 @@ bernstein:
 ### Multi-project pipeline (scheduled)
 
 ```yaml
-# .gitlab-ci.yml — runs nightly
+# .gitlab-ci.yml - runs nightly
 weekly-refactor:
   image: python:3.12-slim
   stage: maintenance
@@ -470,7 +470,7 @@ kubectl create secret generic bernstein-provider-keys \
   --from-literal=OPENAI_API_KEY="sk-..."
 ```
 
-### `values.yaml` — complete example
+### `values.yaml` - complete example
 
 ```yaml
 # my-values.yaml
@@ -732,7 +732,7 @@ ExecStop=/opt/bernstein/venv/bin/bernstein stop --hard
 Restart=on-failure
 RestartSec=10
 
-# Secrets — set via EnvironmentFile in production
+# Secrets - set via EnvironmentFile in production
 EnvironmentFile=/etc/bernstein/env
 Environment=BERNSTEIN_SDD_DIR=/var/lib/bernstein/.sdd
 Environment=BERNSTEIN_BIND_HOST=0.0.0.0
@@ -817,7 +817,7 @@ Run separate orchestrators on different ports for project isolation:
 ```bash
 # /etc/systemd/system/bernstein@.service  (template unit)
 [Unit]
-Description=Bernstein Orchestrator — %i
+Description=Bernstein Orchestrator - %i
 After=network.target
 
 [Service]
@@ -843,26 +843,26 @@ sudo systemctl start bernstein@project-b
 
 | Variable | Default | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Claude API key |
-| `OPENAI_API_KEY` | — | OpenAI / Codex API key |
-| `GOOGLE_API_KEY` | — | Gemini API key |
+| `ANTHROPIC_API_KEY` | - | Claude API key |
+| `OPENAI_API_KEY` | - | OpenAI / Codex API key |
+| `GOOGLE_API_KEY` | - | Gemini API key |
 | `BERNSTEIN_SERVER_URL` | `http://127.0.0.1:8052` | Task server URL (for remote workers) |
 | `BERNSTEIN_BIND_HOST` | `127.0.0.1` | Server bind address |
 | `BERNSTEIN_PORT` | `8052` | Server port |
 | `BERNSTEIN_MAX_AGENTS` | `6` | Max concurrent agents |
-| `BERNSTEIN_AUTH_TOKEN` | — | Inter-node auth secret (cluster mode) |
-| `BERNSTEIN_DASHBOARD_PASSWORD` | — | Dashboard HTTP auth password |
+| `BERNSTEIN_AUTH_TOKEN` | - | Inter-node auth secret (cluster mode) |
+| `BERNSTEIN_DASHBOARD_PASSWORD` | - | Dashboard HTTP auth password |
 | `BERNSTEIN_STORAGE_BACKEND` | `memory` | `memory`, `postgres`, or `redis` |
-| `BERNSTEIN_DATABASE_URL` | — | PostgreSQL DSN (e.g. `postgresql://user:pass@host/db`) |
-| `BERNSTEIN_REDIS_URL` | — | Redis URL (e.g. `redis://localhost:6379/0`) |
+| `BERNSTEIN_DATABASE_URL` | - | PostgreSQL DSN (e.g. `postgresql://user:pass@host/db`) |
+| `BERNSTEIN_REDIS_URL` | - | Redis URL (e.g. `redis://localhost:6379/0`) |
 | `BERNSTEIN_CLUSTER_ENABLED` | `false` | Enable multi-node cluster mode |
 | `BERNSTEIN_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`) |
 | `BERNSTEIN_LOG_JSON` | `false` | Emit JSON log lines (for log aggregators) |
-| `BERNSTEIN_BUDGET` | — | Hard spending cap in USD |
+| `BERNSTEIN_BUDGET` | - | Hard spending cap in USD |
 | `BERNSTEIN_TICK_INTERVAL` | `5` | Orchestrator tick interval in seconds |
-| `BERNSTEIN_SKIP_GATES` | — | Skip quality gates (requires `BERNSTEIN_SKIP_GATE_REASON`) |
-| `BERNSTEIN_NO_TUI` | — | Disable interactive TUI (useful in CI) |
-| `BERNSTEIN_QUIET` | — | Suppress all non-error output |
+| `BERNSTEIN_SKIP_GATES` | - | Skip quality gates (requires `BERNSTEIN_SKIP_GATE_REASON`) |
+| `BERNSTEIN_NO_TUI` | - | Disable interactive TUI (useful in CI) |
+| `BERNSTEIN_QUIET` | - | Suppress all non-error output |
 
 ---
 
@@ -991,10 +991,10 @@ kubectl logs -n bernstein deploy/bernstein-server
 **Check 1: Auth token mismatch.** Every node must share the same `BERNSTEIN_AUTH_TOKEN`:
 
 ```bash
-# Docker Compose — inspect worker env
+# Docker Compose - inspect worker env
 docker compose exec bernstein-worker env | grep AUTH_TOKEN
 
-# Kubernetes — decode the secret
+# Kubernetes - decode the secret
 kubectl get secret bernstein-auth -n bernstein -o jsonpath='{.data.BERNSTEIN_AUTH_TOKEN}' | base64 -d
 ```
 
@@ -1019,7 +1019,7 @@ curl http://localhost:8052/tasks?status=open
 A previous Bernstein session did not shut down cleanly. Find and stop it:
 
 ```bash
-# Local — use Bernstein's own stop command
+# Local - use Bernstein's own stop command
 bernstein stop --force
 
 # Or find the PID manually
@@ -1095,7 +1095,7 @@ kubectl patch storageclass <name> -p '{"metadata": {"annotations":{"storageclass
 Check that Prometheus is scraping the task server:
 
 ```bash
-# Docker Compose — open Prometheus targets page
+# Docker Compose - open Prometheus targets page
 open http://localhost:9090/targets
 
 # Kubernetes
@@ -1107,6 +1107,6 @@ If `bernstein-server` shows as `DOWN`, the metrics endpoint is not reachable. Ve
 
 ### Still stuck?
 
-1. Run `bernstein doctor` — it checks the most common issues automatically.
+1. Run `bernstein doctor` - it checks the most common issues automatically.
 2. Check the [Troubleshooting guide](TROUBLESHOOTING.md) for agent-level issues (API errors, quality gate failures, cost overruns).
 3. Open an issue at [sipyourdrink-ltd/bernstein](https://github.com/sipyourdrink-ltd/bernstein/issues) with the output of `bernstein doctor --json`.

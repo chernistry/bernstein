@@ -103,7 +103,7 @@ Observed failure modes:
   mechanism to "refresh" an agent's context without killing and respawning.
 - **LLM orchestrator single point of failure**: the LLM manager agent was
   responsible for keeping all worker queues filled. When it fell asleep, the
-  entire system stalled. This is not fixable with better prompts — it is an
+  entire system stalled. This is not fixable with better prompts - it is an
   architectural single point of failure.
 
 Only 3 of 12 agents were reliable producers. The rest
@@ -117,7 +117,7 @@ zero idle waste.
 **Why not chosen as the primary model:**
 
 With many tasks and ~3–5K tokens per spawn for context loading, pure pull accumulates significant spawn overhead. Many tasks are related (e.g., "implement
-function X" followed by "write tests for function X") — context learned on the
+function X" followed by "write tests for function X") - context learned on the
 first task is directly applicable to the second. Batching 2–3 related tasks
 amortizes spawn cost and preserves useful context.
 
@@ -160,8 +160,8 @@ estimated duration).
 
 **No context accumulation across batches.** If a long-running feature requires
 deep understanding of a complex codebase, each new batch re-reads the relevant
-files. This is usually not a problem — CLI agents like Claude Code read files as
-part of their normal operation — but it is a difference from persistent sessions.
+files. This is usually not a problem - CLI agents like Claude Code read files as
+part of their normal operation - but it is a difference from persistent sessions.
 
 **Batch assembly complexity.** The orchestrator must decide which tasks to group
 in a batch. Currently: group by role (same role type), then by code proximity

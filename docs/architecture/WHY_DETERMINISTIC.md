@@ -19,7 +19,7 @@ When you run `bernstein run`, a Python process wakes up and runs a tick loop:
 
 There are no LLM calls in this loop. No model decides which task to run next,
 which agent to assign it to, or whether the agent is making progress. Those
-decisions are made by code — specifically, by a priority queue, a role grouper,
+decisions are made by code - specifically, by a priority queue, a role grouper,
 and a state machine with defined transitions.
 
 The orchestrator's code has no `import` of any LLM client. This boundary is
@@ -50,14 +50,14 @@ PAPA fell asleep. When PAPA fell asleep, every downstream agent starved, because
 PAPA was responsible for keeping their task queues full. The system had a
 single non-deterministic point of failure, and it failed.
 
-Five "phantom agents" — spawned without identity or tasks — generated 200+
+Five "phantom agents" - spawned without identity or tasks - generated 200+
 noise messages and zero useful output. Long-running agents (like SMARTY) lost
 track of what they had done versus what others had done, and started claiming
 credit for commits they did not make.
 
 No amount of prompt engineering fixed it. The system prompt had 350 lines of
 anti-sleep instructions. They did not work reliably. Sleep is not a prompt
-engineering problem — it is a fundamental property of long-lived LLM sessions.
+engineering problem - it is a fundamental property of long-lived LLM sessions.
 
 The conclusion: **the orchestration layer must be code, not a model.**
 
@@ -72,7 +72,7 @@ If it falls asleep, hallucinates a task assignment, or burns through its context
 window, all downstream agents are blocked.
 
 A deterministic scheduler does not fall asleep. It does not forget to check the
-queue. If there is a bug in the scheduling code, the bug is reproducible — you
+queue. If there is a bug in the scheduling code, the bug is reproducible - you
 can write a test that catches it and a fix that eliminates it.
 
 ### 2. Token cost of coordination
@@ -80,7 +80,7 @@ can write a test that catches it and a fix that eliminates it.
 Every tick of an LLM orchestrator costs tokens: the manager reads agent status,
 reasons about priorities, issues instructions. In a system running 737 tasks
 over 47 hours with 12 agents, that coordination overhead adds up to tens of
-millions of tokens — tokens that produce no code, no tests, no value.
+millions of tokens - tokens that produce no code, no tests, no value.
 
 The deterministic orchestrator spends zero tokens on scheduling decisions. The
 only tokens spent in a Bernstein run are on actual task execution.
@@ -104,7 +104,7 @@ to the number of agents and outstanding tasks. At 30 agents with 500 open tasks,
 that context is enormous and expensive. The manager becomes a bottleneck.
 
 A deterministic scheduler's cost per tick is O(tasks) for the fetch and O(1)
-per agent for the spawn decision — a hash lookup and a queue pop. Adding more
+per agent for the spawn decision - a hash lookup and a queue pop. Adding more
 agents adds work linearly, not quadratically.
 
 ---
@@ -114,14 +114,14 @@ agents adds work linearly, not quadratically.
 ### The orchestrator is a scheduler, not a reasoner
 
 `core/orchestration/orchestrator.py` is a thin façade over three subsystems
-(resolved via `core.__init__` redirect map — legacy paths `core/orchestrator.py`,
+(resolved via `core.__init__` redirect map - legacy paths `core/orchestrator.py`,
 `core/task_lifecycle.py`, etc. still import correctly):
 
-- **Tick Pipeline** (`orchestration/tick_pipeline.py`) — fetch tasks, group by role, compute
+- **Tick Pipeline** (`orchestration/tick_pipeline.py`) - fetch tasks, group by role, compute
   batch assignments using deterministic priority rules
-- **Task Lifecycle** (`orchestration/task_lifecycle.py`) — state machine: OPEN → CLAIMED →
+- **Task Lifecycle** (`orchestration/task_lifecycle.py`) - state machine: OPEN → CLAIMED →
   IN_PROGRESS → DONE → CLOSED, with retry logic on failure or orphan
-- **Agent Lifecycle** (`orchestration/agent_lifecycle.py`) — heartbeat monitoring, crash
+- **Agent Lifecycle** (`orchestration/agent_lifecycle.py`) - heartbeat monitoring, crash
   detection, stall detection, dead agent reaping
 
 None of these make LLM calls. They apply rules.
@@ -137,9 +137,9 @@ This eliminates the sleep problem structurally. A dead agent cannot fall asleep.
 
 ### Verification is concrete, not claimed
 
-When an agent reports a task complete, the janitor checks concrete signals —
+When an agent reports a task complete, the janitor checks concrete signals -
 "does this file exist?", "does the test suite pass?", "does this function appear
-in the file?" — rather than trusting the agent's claim. An agent that says
+in the file?" - rather than trusting the agent's claim. An agent that says
 "done" but leaves tests broken gets the task returned to the queue.
 
 ### LLMs appear only at explicit leaf nodes
@@ -152,10 +152,10 @@ Three places in Bernstein call an LLM, all optional and named:
 | `core/orchestration/reviewer.py` | Review completed code for quality | After janitor verification, if `reviewer.enabled: true` |
 | `core/quality/cross_model_verifier.py` | Independent diff verification | For high-stakes tasks, if configured |
 
-*(Resolved via `core.__init__` redirect map — legacy imports `core/manager.py`, `core/reviewer.py`, `core/cross_model_verifier.py` still work via `_CoreRedirectFinder`.)*
+*(Resolved via `core.__init__` redirect map - legacy imports `core/manager.py`, `core/reviewer.py`, `core/cross_model_verifier.py` still work via `_CoreRedirectFinder`.)*
 
 None of these are in the scheduling critical path. If the manager falls asleep
-mid-decomposition, the orchestrator is unaffected — you re-run the decomposition
+mid-decomposition, the orchestrator is unaffected - you re-run the decomposition
 and inject the resulting tasks. If the reviewer produces a bad verdict, the task
 goes back to the queue; the orchestrator continues.
 
@@ -181,7 +181,7 @@ tasks by role to improve context reuse within a batch. If tasks are not tagged
 with a role, they land in a default pool and may be batched suboptimally.
 
 These costs are real. They are also, in practice, the costs of writing good
-task specs — which you need anyway for any automated system to do useful work.
+task specs - which you need anyway for any automated system to do useful work.
 
 ---
 
@@ -199,8 +199,8 @@ This is not just a policy. The import graph enforces it.
 
 ## Summary
 
-Deterministic orchestration means the control plane — scheduling, task
-assignment, lifecycle management, retry logic — is code with no LLM calls.
+Deterministic orchestration means the control plane - scheduling, task
+assignment, lifecycle management, retry logic - is code with no LLM calls.
 Agents are short-lived, spawned with pre-assigned work and no idle state.
 Verification is concrete.
 
@@ -217,10 +217,10 @@ where the LLM-orchestrated predecessor ran 737 tasks over 47 hours with only
 
 ## Further reading
 
-- [ADR-001: Agent Lifecycle Model](decisions/001-agent-lifecycle.md) — Full
+- [ADR-001: Agent Lifecycle Model](decisions/001-agent-lifecycle.md) - Full
   scoring analysis of hunger vs. pull vs. short-lived models with raw data
-- [ADR-006: No Embedded LLM in the Orchestrator](decisions/006-no-embedded-llm.md) —
+- [ADR-006: No Embedded LLM in the Orchestrator](decisions/006-no-embedded-llm.md) -
   Formal decision record with rejected alternatives
-- [Architecture Comparison Diagram](compare/deterministic-vs-llm-orchestration.md) —
+- [Architecture Comparison Diagram](compare/deterministic-vs-llm-orchestration.md) -
   Side-by-side Mermaid diagrams of LLM-based vs. deterministic orchestration
-- [Architecture](ARCHITECTURE.md) — Full system diagram and module breakdown
+- [Architecture](ARCHITECTURE.md) - Full system diagram and module breakdown

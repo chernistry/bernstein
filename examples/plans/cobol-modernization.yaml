@@ -1,4 +1,4 @@
-# Bernstein Plan — COBOL Modernization
+# Bernstein Plan - COBOL Modernization
 #
 # A four-stage plan that migrates a COBOL application to Java:
 #   1. Discovery:    scan codebase, map dependencies, document business logic
@@ -19,7 +19,7 @@
 name: "COBOL to Java Modernization"
 description: >
   Migrate a legacy COBOL application to Java. Automated discovery,
-  specification, parallel translation, and verification — each stage
+  specification, parallel translation, and verification - each stage
   builds on artifacts from the previous one.
 
 cli: auto
@@ -28,7 +28,7 @@ max_agents: 8
 constraints:
   - "Source COBOL in cobol/"
   - "Target Java 17+ with Spring Boot"
-  - "Preserve business logic exactly — no functional changes"
+  - "Preserve business logic exactly - no functional changes"
   - "All generated code must pass compilation and unit tests"
   - "Document every translation decision in MIGRATION.md"
 
@@ -122,7 +122,7 @@ stages:
           Initialize a Spring Boot 3.x project with Java 17, Maven, and the
           package structure from module-map.yaml. Include spring-boot-starter-web,
           spring-boot-starter-data-jpa, and spring-boot-starter-test.
-          No business logic yet — just the skeleton.
+          No business logic yet - just the skeleton.
         files:
           - "pom.xml"
           - "src/main/java/"

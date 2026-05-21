@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# researcher_sandbox.sh — spin up a network-isolated Bernstein instance for security research
+# researcher_sandbox.sh - spin up a network-isolated Bernstein instance for security research
 #
 # Usage:
 #   ./scripts/researcher_sandbox.sh start    # start the sandbox
@@ -10,7 +10,7 @@
 #
 # Requirements: Docker 24+, Docker Compose v2, bash 4+
 # The sandbox binds to localhost ports 18052 (API) and 18080 (dashboard).
-# No outbound network access is granted — egress is blocked at the compose level.
+# No outbound network access is granted - egress is blocked at the compose level.
 
 set -euo pipefail
 
@@ -78,9 +78,9 @@ cmd_start() {
     echo "  Dashboard:    http://localhost:18080"
     echo
     _bold "Demo tokens (use in Authorization: Bearer <TOKEN>):"
-    echo "  observer       — read-only (use token value: \$BERNSTEIN_SANDBOX_OBS_TOKEN)"
-    echo "  standard       — create/complete tasks (use token: \$BERNSTEIN_SANDBOX_STD_TOKEN)"
-    echo "  elevated       — admin endpoints (use token: \$BERNSTEIN_SANDBOX_ADMIN_TOKEN)"
+    echo "  observer       - read-only (use token value: \$BERNSTEIN_SANDBOX_OBS_TOKEN)"
+    echo "  standard       - create/complete tasks (use token: \$BERNSTEIN_SANDBOX_STD_TOKEN)"
+    echo "  elevated       - admin endpoints (use token: \$BERNSTEIN_SANDBOX_ADMIN_TOKEN)"
     echo "  (Tokens are generated at container start and printed to the compose logs.)"
     echo
     _bold "Quick test (after exporting the sandbox token to \$TOKEN):"
@@ -149,11 +149,11 @@ case "${1:-help}" in
     help|--help|-h)
         echo "Usage: $0 {start|stop|reset|status|logs}"
         echo
-        echo "  start   — build and start the isolated research sandbox"
-        echo "  stop    — stop containers and delete volumes"
-        echo "  reset   — clear tasks/worktrees without restarting containers"
-        echo "  status  — show container status"
-        echo "  logs    — tail all container logs"
+        echo "  start   - build and start the isolated research sandbox"
+        echo "  stop    - stop containers and delete volumes"
+        echo "  reset   - clear tasks/worktrees without restarting containers"
+        echo "  status  - show container status"
+        echo "  logs    - tail all container logs"
         ;;
     *)
         _red "Unknown command: ${1}"

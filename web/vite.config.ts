@@ -12,7 +12,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      // Canonical Bernstein orchestrator port (DEFAULT 8052 — see run_bootstrap).
+      // Canonical Bernstein orchestrator port (DEFAULT 8052 - see run_bootstrap).
       '/api': { target: 'http://127.0.0.1:8052', changeOrigin: true },
       // Proxy FastAPI's auto-generated docs surface so an operator hitting
       // ``/openapi.json``, ``/docs``, ``/redoc`` through the dev server gets

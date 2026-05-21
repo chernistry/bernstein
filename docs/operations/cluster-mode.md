@@ -46,19 +46,19 @@ happen on the central server.
 
 Code references:
 
-- `src/bernstein/core/protocols/cluster/cluster.py:37` — `NodeRegistry`,
+- `src/bernstein/core/protocols/cluster/cluster.py:37` - `NodeRegistry`,
   the in-memory (optionally disk-persisted) registry of nodes.
-- `src/bernstein/core/protocols/cluster/cluster.py:340` — `TaskStealPolicy`
+- `src/bernstein/core/protocols/cluster/cluster.py:340` - `TaskStealPolicy`
   matches over- and under-loaded nodes.
-- `src/bernstein/core/protocols/cluster/cluster.py:396` —
+- `src/bernstein/core/protocols/cluster/cluster.py:396` -
   `NodeHeartbeatClient` library used by `bernstein worker` to call back.
-- `src/bernstein/core/routes/task_cluster.py:25` — every cluster HTTP
+- `src/bernstein/core/routes/task_cluster.py:25` - every cluster HTTP
   endpoint listed below.
-- `src/bernstein/core/protocols/cluster/cluster_auth.py:49` —
+- `src/bernstein/core/protocols/cluster/cluster_auth.py:49` -
   `ClusterAuthenticator` (JWT issuance, verification, revocation).
-- `src/bernstein/cli/commands/worker_cmd.py:50` — `WorkerLoop`, the
+- `src/bernstein/cli/commands/worker_cmd.py:50` - `WorkerLoop`, the
   worker-side run loop.
-- `src/bernstein/core/fleet/` — fleet aggregator that can roll up the same
+- `src/bernstein/core/fleet/` - fleet aggregator that can roll up the same
   cluster status across multiple Bernstein projects (see
   `core/fleet/aggregator.py`).
 
@@ -90,7 +90,7 @@ Common flags (`worker_cmd.py:371-430`):
 Capacity is set with `--slots`. Internally the worker tracks `available_slots
 = max_agents - len(active_tasks)` and reports it on every heartbeat
 (`worker_cmd.py:104-108`). Pick a value that reflects how many parallel
-adapter processes the host can comfortably run. There is no auto-detection —
+adapter processes the host can comfortably run. There is no auto-detection -
 oversubscribing a worker just queues longer.
 
 Worker environment requirements:
@@ -107,28 +107,28 @@ Worker environment requirements:
 Cluster auth is JWT-based and is the recommended deployment mode in
 production. The flow is:
 
-1. **Server config** — pass a `ClusterAuthConfig(secret=..., require_auth=True)`
+1. **Server config** - pass a `ClusterAuthConfig(secret=..., require_auth=True)`
    into `ClusterAuthenticator` and mount it on
    `app.state.cluster_authenticator` (`cluster_auth.py:32-46`,
    `task_cluster.py:54`). When `require_auth=False`, the verifier returns a
-   synthetic anonymous payload (`cluster_auth.py:113-121`) — useful for tests
+   synthetic anonymous payload (`cluster_auth.py:113-121`) - useful for tests
    only.
-2. **Token issuance** — the server issues a node token via
+2. **Token issuance** - the server issues a node token via
    `ClusterAuthenticator.issue_node_token(node_id)`
    (`cluster_auth.py:70-93`). By default the token carries
    `node:register` and `node:heartbeat` scopes; admin tokens additionally
    require `node:admin`.
-3. **Worker presents token** — the worker sends `Authorization: Bearer
+3. **Worker presents token** - the worker sends `Authorization: Bearer
    <token>` on every cluster HTTP call (`worker_cmd.py:98-102`).
-4. **Per-request verification** — `task_cluster._verify_cluster_auth()` resolves
+4. **Per-request verification** - `task_cluster._verify_cluster_auth()` resolves
    the required scope per route (`SCOPE_NODE_REGISTER`,
    `SCOPE_NODE_HEARTBEAT`, `SCOPE_NODE_ADMIN`) and rejects with HTTP 401 on
    any failure (`task_cluster.py:44-60`).
-5. **Heartbeat-bound identity** — the heartbeat verifier checks that the
+5. **Heartbeat-bound identity** - the heartbeat verifier checks that the
    token's `user_id` matches the path's `node_id`
    (`cluster_auth.py:262-265`); a stolen heartbeat token cannot be replayed
    against a different node.
-6. **Revocation** — `revoke_token(token)` and `revoke_node(node_id)` mark a
+6. **Revocation** - `revoke_token(token)` and `revoke_node(node_id)` mark a
    token unusable for subsequent verifications (`cluster_auth.py:174-191`).
    Token revocation is in-memory; for persistence across restarts use
    short-lived tokens (default 24h, `ClusterAuthConfig.token_expiry_hours`).
@@ -155,15 +155,15 @@ Every primitive is one HTTP POST. The server-side handlers all live in
 | ------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
 | **Cordon a node**               | `POST /cluster/nodes/{id}/cordon`               | Sets status to `CORDONED`. Node still heartbeats but is excluded from scheduling (`cluster.py:155-163`). |
 | **Uncordon a node**             | `POST /cluster/nodes/{id}/uncordon`             | Restores `ONLINE` status from `CORDONED` or `DRAINING` (`cluster.py:165-174`). |
-| **Drain a node**                | `POST /cluster/nodes/{id}/drain`                | Sets status to `DRAINING`. Equivalent to cordon + signal — agents finish their current tasks but no new work is assigned (`cluster.py:176-184`). |
+| **Drain a node**                | `POST /cluster/nodes/{id}/drain`                | Sets status to `DRAINING`. Equivalent to cordon + signal - agents finish their current tasks but no new work is assigned (`cluster.py:176-184`). |
 | **Trigger task stealing**       | `POST /cluster/steal`                           | Server runs `TaskStealPolicy.find_steal_pairs()` and resets eligible tasks back to `open` so quieter nodes can claim them (`task_cluster.py:197-246`, `cluster.py:340-393`). |
 | **Unregister (graceful exit)**  | `DELETE /cluster/nodes/{id}`                    | Removes the node from the registry. Workers call this on `SIGINT` / `SIGTERM` (`worker_cmd.py:310-322`). |
 
 Task stealing thresholds (`cluster.py:351-358`):
 
-- `overload_threshold=5` — a node with more than 5 queued tasks is a *donor*.
-- `idle_threshold=2` — a node with at least 2 free slots is a *receiver*.
-- `max_steal_per_tick=3` — at most 3 tasks move per call.
+- `overload_threshold=5` - a node with more than 5 queued tasks is a *donor*.
+- `idle_threshold=2` - a node with at least 2 free slots is a *receiver*.
+- `max_steal_per_tick=3` - at most 3 tasks move per call.
 
 The body of `POST /cluster/steal` is `{"queue_depths": {"node-a": 7,
 "node-b": 0, ...}}`; the response lists `(donor_node_id, receiver_node_id,
@@ -175,7 +175,7 @@ primitive for an unhealthy host you want to investigate without rebooting.
 
 ## Failure modes
 
-Bernstein's cluster recovery is conservative — there is no global lock
+Bernstein's cluster recovery is conservative - there is no global lock
 service, no leader election, no consensus protocol. Behaviours below are
 exact descriptions of what the code does today.
 
@@ -183,7 +183,7 @@ exact descriptions of what the code does today.
 server keeps the node entry. Each tick the orchestrator (or any caller of
 `NodeRegistry.mark_stale()`, `cluster.py:197-210`) checks
 `last_heartbeat`; if it exceeds `node_timeout_s` the node is flipped to
-`OFFLINE`. The node's claimed tasks are *not* automatically reassigned —
+`OFFLINE`. The node's claimed tasks are *not* automatically reassigned -
 they remain in `claimed` status. Operators recover them with
 `POST /cluster/steal` (donor=offline-node) or by deleting and re-claiming
 the tasks. When the worker returns, its first heartbeat re-registers it
@@ -204,7 +204,7 @@ restart). Workers detect eviction via HTTP 404 on heartbeat and re-register
 via `_register_with_retry()` (`worker_cmd.py:260-270`).
 
 **Worker holds a stale token after revocation.** The next mutating call
-returns 401. The worker does *not* automatically renew — issue a fresh
+returns 401. The worker does *not* automatically renew - issue a fresh
 token externally and pass it via `BERNSTEIN_AUTH_TOKEN`. Heartbeats are
 separately scoped, so a heartbeat-only token cannot be promoted to
 `node:admin` operations.
@@ -218,9 +218,9 @@ without crashing (`worker_cmd.py:230-258`); the task is left unclaimed.
 
 Endpoints relevant to cluster operations:
 
-- `GET /cluster/nodes[?status=online|cordoned|draining|offline]` — full
+- `GET /cluster/nodes[?status=online|cordoned|draining|offline]` - full
   node list (`task_cluster.py:163-177`).
-- `GET /cluster/status` — aggregate summary (`task_cluster.py:180-194`):
+- `GET /cluster/status` - aggregate summary (`task_cluster.py:180-194`):
   topology, total/online/offline node counts, total capacity, available
   slots, active agents, full node list.
 - Per-node fields surfaced: `last_heartbeat`, `registered_at`,
@@ -228,7 +228,7 @@ Endpoints relevant to cluster operations:
   `labels`, `cell_ids` (`cluster.py:274-292`).
 
 Pair these with the standard observability surface
-(`/metrics`, `/grafana/dashboard`, `/slo`) — see
+(`/metrics`, `/grafana/dashboard`, `/slo`) - see
 [Observability overview](observability-overview.md). The fleet aggregator
 in `core/fleet/aggregator.py` is the right primitive when you have multiple
 Bernstein projects you want rolled into a single dashboard; it scrapes each
@@ -252,4 +252,4 @@ guarantees and how to export them.
 | Heartbeat client (library)       | `src/bernstein/core/protocols/cluster/cluster.py:396-...`                       |
 | Cluster autoscaler (optional)    | `src/bernstein/core/protocols/cluster/cluster_autoscaler.py`                    |
 | Fleet aggregator                 | `src/bernstein/core/fleet/aggregator.py`                                        |
-| Models / data classes            | `src/bernstein/core/models.py` — `NodeInfo`, `NodeCapacity`, `NodeStatus`, `ClusterConfig` |
+| Models / data classes            | `src/bernstein/core/models.py` - `NodeInfo`, `NodeCapacity`, `NodeStatus`, `ClusterConfig` |

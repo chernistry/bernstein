@@ -4,7 +4,7 @@ type Props = {
   name: string;
   ticket: string;
   description: string;
-  /** Optional rich content rendered above the "Pending implementation" card —
+  /** Optional rich content rendered above the "Pending implementation" card -
    *  use for screens that want to surface a usable affordance now (e.g. the
    *  Fleet placeholder pointing operators at the topbar toggle). */
   children?: ReactNode;

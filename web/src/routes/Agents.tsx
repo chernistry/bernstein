@@ -1,4 +1,4 @@
-// Agents — grid of agent cards + drawer with token meter and live log tail.
+// Agents - grid of agent cards + drawer with token meter and live log tail.
 // Source: design_handoff_bernstein_phase1/design-source/screens/screen-agents.jsx + README §6.02 / §8.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 
 // Canonical front-end agent state. Backend sometimes returns the raw
 // AgentSession status enum (`starting`/`working`/`dead`) and sometimes
-// task-derived synthetic statuses (`completed`/`failed`/etc.) — every
+// task-derived synthetic statuses (`completed`/`failed`/etc.) - every
 // inbound status passes through `normalizeStatus` below.
 type AgentState =
   | 'spawning'
@@ -162,7 +162,7 @@ function inferLevel(line: string): LogLevel {
   return 'INFO';
 }
 
-// Avatar label resolution — first try the agent role (matches TUI worker
+// Avatar label resolution - first try the agent role (matches TUI worker
 // badges), then fall back to the model/CLI family in the agent name. This
 // fixes the empty / generic avatar that appeared whenever an agent name
 // didn't start with claude/codex/gemini/aider.
@@ -241,14 +241,14 @@ const HISTORY_FALLBACK: LogLine[] = [
   { ts: '16:42:01.881', level: 'INFO', text: 'tool_result · 416 lines' },
   { ts: '16:42:02.103', level: 'PLAN', text: 'step 3/5 · migrate handler approve_resolve' },
   { ts: '16:42:03.448', level: 'INFO', text: 'tool_call · apply_patch("core/websocket/mux.py")' },
-  { ts: '16:42:04.190', level: 'WARN', text: 'patch hunk #2 fuzz=2 — applied with offset' },
+  { ts: '16:42:04.190', level: 'WARN', text: 'patch hunk #2 fuzz=2 - applied with offset' },
   { ts: '16:42:05.020', level: 'INFO', text: 'tool_call · pytest -k mux_per_session' },
   { ts: '16:42:07.301', level: 'PASS', text: '12 passed · 0 failed · 1.74s' },
   { ts: '16:42:08.012', level: 'INFO', text: 'approval_required · tool=apply_patch path=core/websocket/handler_kill.py' },
   { ts: '16:42:08.013', level: 'WAIT', text: 'waiting for approval id=apr_4f9a (queue depth 7)' },
 ];
 
-// Normalise raw `/agents` payloads — both legacy [Agent] and any future
+// Normalise raw `/agents` payloads - both legacy [Agent] and any future
 // `{agents: [...]}` envelope. Status is canonicalised here so consumers can
 // rely on the union type.
 function normalizeAgents(raw: unknown): Agent[] {
@@ -442,7 +442,7 @@ export default function Agents() {
       />
     );
   } else if (agents.length === 0) {
-    bodyContent = <EmptyState title="No agents — `bernstein run` to spawn" />;
+    bodyContent = <EmptyState title="No agents - `bernstein run` to spawn" />;
   } else {
     bodyContent = (
       <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
@@ -460,7 +460,7 @@ export default function Agents() {
 
   return (
     <div className="grid h-full grid-cols-[1fr_420px] overflow-hidden">
-      {/* LEFT — header + grid */}
+      {/* LEFT - header + grid */}
       <div className="overflow-auto px-[22px] py-[18px]">
         {header}
         {roleChips}
@@ -475,7 +475,7 @@ export default function Agents() {
         )}
       </div>
 
-      {/* RIGHT — selected agent drawer */}
+      {/* RIGHT - selected agent drawer */}
       <AgentDrawer
         agent={selected}
         reduceMotion={reduceMotion}
@@ -521,7 +521,7 @@ function AgentCard({ agent, selected, onSelect }: AgentCardProps) {
           <div className="min-w-0">
             <div className="truncate text-[13px] font-medium text-foreground">{agent.name}</div>
             <div className="mt-px font-mono text-[10.5px] text-meta-foreground">
-              {agent.session_id} · {agent.role || '—'}
+              {agent.session_id} · {agent.role || '-'}
               {agent.synthetic && ' · synthetic'}
             </div>
           </div>
@@ -538,7 +538,7 @@ function AgentCard({ agent, selected, onSelect }: AgentCardProps) {
           idle || !agent.current_task ? 'text-meta-foreground' : 'text-foreground',
         )}
       >
-        {idle || !agent.current_task ? 'no current task — awaiting dispatch' : agent.current_task}
+        {idle || !agent.current_task ? 'no current task - awaiting dispatch' : agent.current_task}
       </div>
 
       <div className="mt-3 grid grid-cols-4 border-t border-border-subtle pt-2.5">
@@ -581,7 +581,7 @@ function Metric({ label, value, valueClass, first }: MetricProps) {
 }
 
 // ============================================================================
-// Drawer — header / token meter / live log / tool calls
+// Drawer - header / token meter / live log / tool calls
 // ============================================================================
 
 interface AgentDrawerProps {
@@ -593,7 +593,7 @@ interface AgentDrawerProps {
 }
 
 function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDrawerProps) {
-  // Local log buffer — capped at LOG_BUFFER_MAX, fed by SSE.
+  // Local log buffer - capped at LOG_BUFFER_MAX, fed by SSE.
   const [liveLog, setLiveLog] = useState<LogLine[]>([]);
   const [recentTools, setRecentTools] = useState<ToolCall[]>([]);
   const [streamUnavailable, setStreamUnavailable] = useState(false);
@@ -769,7 +769,7 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
       >
         {isSynthetic || streamUnavailable ? (
           <div className="text-meta-foreground">
-            log unavailable for synthetic agent — spawn a real session to tail output
+            log unavailable for synthetic agent - spawn a real session to tail output
           </div>
         ) : (
           <>
@@ -787,7 +787,7 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
             {tail.length === 0 && history.length === 0 && (
               <div className="text-meta-foreground">stream open · awaiting events</div>
             )}
-            {/* Static caret — no idle motion, honor reduce-motion. */}
+            {/* Static caret - no idle motion, honor reduce-motion. */}
             <div className="mt-0.5 flex items-baseline gap-2.5">
               <span className="min-w-[92px] text-[10.5px] text-meta-foreground">
                 {new Date().toISOString().slice(11, 19)}.
@@ -805,7 +805,7 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
         <SectionLabel>RECENT TOOL CALLS</SectionLabel>
         <ul className="mt-1.5 space-y-0.5">
           {recentTools.length === 0 ? (
-            <li className="font-mono text-[10.5px] text-meta-foreground">—</li>
+            <li className="font-mono text-[10.5px] text-meta-foreground">-</li>
           ) : (
             recentTools.map((t, i) => (
               <li
@@ -847,13 +847,13 @@ function LogRow({ line }: { line: LogLine }) {
 function SeparatorRow() {
   return (
     <div className="py-2 text-meta-foreground">
-      ↳ historical / live separator —————————
+      ↳ historical / live separator ---------
     </div>
   );
 }
 
 // ============================================================================
-// Compare-two overlay — side-by-side drawers sharing a time axis.
+// Compare-two overlay - side-by-side drawers sharing a time axis.
 // ============================================================================
 
 interface ComparisonOverlayProps {
@@ -865,7 +865,7 @@ interface ComparisonOverlayProps {
 function ComparisonOverlay({ primary, agents, onClose }: ComparisonOverlayProps) {
   const [otherId, setOtherId] = useState<string | null>(null);
 
-  // Keep `otherId` valid as the agents list changes — initialise once when
+  // Keep `otherId` valid as the agents list changes - initialise once when
   // we first see a viable peer, drop it if the chosen peer disappears.
   useEffect(() => {
     if (!primary) return;
@@ -913,7 +913,7 @@ function ComparisonOverlay({ primary, agents, onClose }: ComparisonOverlayProps)
         <div className="mb-3 flex flex-wrap items-center gap-2 text-[11.5px] text-muted-foreground">
           <span>Compare</span>
           <span className="rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-[10.5px] text-foreground">
-            {primary?.name ?? '—'}
+            {primary?.name ?? '-'}
           </span>
           <span>vs.</span>
           <select

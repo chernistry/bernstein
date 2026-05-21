@@ -42,7 +42,7 @@ entry.hmac = HMAC_SHA256(audit_key, payload).hexdigest()
 ```
 
 the very first event in a chain uses a genesis `prev_hmac` of 64
-zeros. daily rotation never resets the chain — the next file's first
+zeros. daily rotation never resets the chain - the next file's first
 entry uses the last `hmac` from yesterday.
 
 source: `src/bernstein/core/security/audit.py`.
@@ -56,12 +56,12 @@ the HMAC key is loaded from, in order:
 3. `~/.local/state/bernstein/audit.key` (XDG default).
 
 a legacy fallback at `<sdd>/../config/audit-key` is still read for
-verification only — bernstein logs a warning when it is used. migrate
+verification only - bernstein logs a warning when it is used. migrate
 off it.
 
 design intent: the key sits **outside** `.sdd/audit/` so an attacker
 who can write `.sdd/audit/*.jsonl` cannot also read or rotate the
-signing key. don't undo this — never colocate the key with the log
+signing key. don't undo this - never colocate the key with the log
 volume, and don't bake the key into a docker image layer.
 
 ### Permissions
@@ -84,7 +84,7 @@ if no key file exists, bernstein generates one (32 bytes of
 parent directory created `0700` and the file `0600`. that auto-bootstrap
 is fine for a developer laptop. for a production deploy, materialise
 the key from your secrets manager and write it yourself before the
-orchestrator first starts — that way the key value is owned by your
+orchestrator first starts - that way the key value is owned by your
 KMS / vault, not by whichever host happened to boot first.
 
 ```bash
@@ -97,7 +97,7 @@ chmod 0600 ~/.local/state/bernstein/audit.key
 
 ### Externalising to a KMS / vault
 
-bernstein does not call out to a KMS for every entry — that would put
+bernstein does not call out to a KMS for every entry - that would put
 a network hop on the audit write path. the supported pattern is:
 
 - KMS / vault holds the canonical key.
@@ -107,7 +107,7 @@ a network hop on the audit write path. the supported pattern is:
   projected file and restart to roll keys.
 
 if you need full HSM-backed signing, that's an enhancement, not a
-shipped feature — open an issue.
+shipped feature - open an issue.
 
 ### Rotating the key without breaking the chain
 
@@ -130,13 +130,13 @@ procedure:
 3. archive `.sdd/audit/` somewhere read-only and clear the live
    directory (or move the orchestrator to a fresh `.sdd/`). the
    sealed merkle root + the archived JSONL still verify with the
-   **old** key — keep it alongside the archive.
+   **old** key - keep it alongside the archive.
 4. write the new key to `BERNSTEIN_AUDIT_KEY_PATH` (`0600`).
 5. start the orchestrator. the next entry begins a new chain with a
    genesis `prev_hmac`.
 
 the practical rotation cadence is annual or on personnel/key
-compromise events, not weekly — the cost is a chain split, not zero.
+compromise events, not weekly - the cost is a chain split, not zero.
 schedule it alongside SOC 2 / ISO renewals.
 
 if you want a "soft rotation" with no chain break, the only honest
@@ -168,7 +168,7 @@ a healthy run prints a green panel:
 ╰───────────────────────────────────╯
 ```
 
-a tamper hit prints a red panel and one line per mismatched entry —
+a tamper hit prints a red panel and one line per mismatched entry -
 filename, line number, expected vs stored prefix:
 
 ```
@@ -179,7 +179,7 @@ filename, line number, expected vs stored prefix:
   ! 2026-05-07.jsonl:43: prev_hmac mismatch (expected a1b2c3d4… got deadbeef…)
 ```
 
-run from cron (every 15 min is fine — the verify is read-only and a
+run from cron (every 15 min is fine - the verify is read-only and a
 day's worth of events checks in milliseconds):
 
 ```cron
@@ -194,7 +194,7 @@ on every orchestrator start, bernstein re-verifies the last 100
 entries automatically (`verify_on_startup` in
 `src/bernstein/core/security/audit_integrity.py`). a key with
 loose permissions raises `AuditKeyPermissionError` and the
-orchestrator **refuses to start** — that's by design. clean up the
+orchestrator **refuses to start** - that's by design. clean up the
 permissions, don't bypass the check.
 
 ### Verifying without the CLI
@@ -213,7 +213,7 @@ print(result.valid, result.entries_checked, result.errors)
 ## Replaying a log
 
 the `query` verb walks all JSONL files under `.sdd/audit/` and
-streams matching events back as a table — handy for "show me what
+streams matching events back as a table - handy for "show me what
 this actor did between these two timestamps":
 
 ```bash
@@ -222,15 +222,15 @@ bernstein audit query --event-type task.transition --limit 200
 bernstein audit show --limit 50           # tail of the live log
 ```
 
-note that `query` does not re-verify hmacs — pair it with
+note that `query` does not re-verify hmacs - pair it with
 `bernstein audit verify` if the question is "is this trustworthy",
 not "what happened".
 
 ## Slicing a deterministic subset
 
 `bernstein audit slice` writes a deterministic JSONL subset of the
-audit log between two HMAC anchors. The output is byte-stable —
-each line is `sort_keys`-serialised — so a downstream replayer can
+audit log between two HMAC anchors. The output is byte-stable -
+each line is `sort_keys`-serialised - so a downstream replayer can
 hash the slice directly. The HMAC chain inside the slice is
 re-verified before the file is written; a structural mismatch
 aborts the export.
@@ -269,7 +269,7 @@ archiver:
     nocreate
     missingok
     notifempty
-    # do NOT use copytruncate — the orchestrator appends, truncating
+    # do NOT use copytruncate - the orchestrator appends, truncating
     # mid-write would corrupt the in-memory chain pointer
 }
 ```
@@ -322,7 +322,7 @@ webhook payload, one batch:
 
 retry behaviour: failed batches retry with exponential backoff
 (`max_retries`, `retry_backoff_s`) before being counted in
-`total_failed`. the chain on disk is the source of truth — SIEM is
+`total_failed`. the chain on disk is the source of truth - SIEM is
 a mirror, not the master copy. if the SIEM drops a batch, replay
 from `.sdd/audit/` with `bernstein audit query`.
 
@@ -343,13 +343,13 @@ service:bernstein-audit @event_type:task.transition @outcome:failure
 
 a real tamper looks like one or both of:
 
-- `prev_hmac mismatch` — someone deleted or reordered an entry.
-- `HMAC mismatch` — someone edited an entry's payload after the fact.
+- `prev_hmac mismatch` - someone deleted or reordered an entry.
+- `HMAC mismatch` - someone edited an entry's payload after the fact.
 
 rare benign causes:
 
 - partial write at process kill (last line truncated). expected to be
-  unparseable JSON, not an hmac mismatch — both verifier paths log
+  unparseable JSON, not an hmac mismatch - both verifier paths log
   this distinctly.
 - key rotation done without archive-then-clear (see above).
 - legacy log written under the old `.hmac_key` filename, now read
@@ -365,7 +365,7 @@ rare benign causes:
    bernstein audit verify > /tmp/audit-verify.txt 2>&1; echo $?
    ```
 
-3. diff the suspect line range against your SIEM mirror — if the
+3. diff the suspect line range against your SIEM mirror - if the
    webhook / splunk export was healthy, the SIEM has the original
    payload and you can identify exactly which fields were edited.
 4. seal the broken chain so the corruption is itself tamper-evident
@@ -377,16 +377,16 @@ rare benign causes:
 
 5. file an incident, preserve the snapshot, and start a fresh chain
    per the rotation procedure above. **do not** rewrite hmacs to
-   "fix" the chain — that destroys the evidence.
+   "fix" the chain - that destroys the evidence.
 6. if the orchestrator can't start because of `AuditKeyPermissionError`,
    tighten the key permissions and try again rather than pointing at
-   a different key — the existing log was signed with the original.
+   a different key - the existing log was signed with the original.
 
 ## Cross-references
 
 - [SOC 2 audit mode quick start](AUDIT.md)
 - [Multi-tenant audit-chain export](audit-multitenant.md)
-- [DSSE / in-toto envelope](audit-dsse-envelope.md) — third-party-verifiable
+- [DSSE / in-toto envelope](audit-dsse-envelope.md) - third-party-verifiable
   wrapper over the Article 12 bundle.
 - [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
 - [Security hardening guide](security-hardening.md)

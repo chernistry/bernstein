@@ -1,7 +1,7 @@
 # Orchestrator hardening primitives
 
-Three primitives — concurrency limits, deadline enforcement, and a
-budget guard — are wired into the orchestrator runtime so they
+Three primitives - concurrency limits, deadline enforcement, and a
+budget guard - are wired into the orchestrator runtime so they
 engage on every run rather than living as off-by-default research
 code. Together they bound the worst-case behaviour of a single run:
 how many agents can be live at once, how long any single task can

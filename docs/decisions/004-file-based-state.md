@@ -19,7 +19,7 @@ requires infrastructure), or files (durable, no infrastructure).
 
 ## Decision
 
-All persistent Bernstein state lives in `.sdd/` — plain text files (YAML,
+All persistent Bernstein state lives in `.sdd/` - plain text files (YAML,
 Markdown, JSONL, JSON) on the local filesystem. No embedded database. No hidden
 in-memory state.
 
@@ -63,7 +63,7 @@ interface. Several task management tools use this approach.
 - Backup complexity. Backing up an SQLite file mid-write can produce a corrupt
   backup. YAML files copy safely at any time with `cp -r`.
 - Single point of failure. A corrupt `.db` file requires recovery tools. A
-  corrupt YAML file is one bad file out of many — delete it and the system
+  corrupt YAML file is one bad file out of many - delete it and the system
   continues.
 
 ### Option B: Redis or another external database
@@ -72,7 +72,7 @@ Redis would give real-time pub/sub, atomic operations, and easy clustering.
 
 **Why rejected:**
 - Requires external infrastructure. Bernstein's core value proposition is
-  `pip install bernstein && bernstein run` — zero external dependencies for a
+  `pip install bernstein && bernstein run` - zero external dependencies for a
   solo developer. Requiring Redis breaks this.
 - State becomes invisible. You can't `ls` a Redis instance. Debugging requires
   `redis-cli` and knowledge of the key schema.
@@ -84,8 +84,8 @@ Redis would give real-time pub/sub, atomic operations, and easy clustering.
 The initial prototype stored tasks in a Python dict in the task server process.
 
 **Why rejected:**
-- Lost on crash. Any process restart — even a clean `bernstein stop` + `bernstein
-  run` — lost all task state.
+- Lost on crash. Any process restart - even a clean `bernstein stop` + `bernstein
+  run` - lost all task state.
 - Not inspectable. You had to query the REST API to see what was happening.
 - Not auditable. There was no record of what happened after the fact.
 
@@ -123,17 +123,17 @@ installation. No database server to start, no connection string to configure.
 ### Costs
 
 **Not suitable for high-frequency writes.** Writing thousands of tasks per second
-would be slow due to filesystem overhead. This is acceptable — Bernstein
+would be slow due to filesystem overhead. This is acceptable - Bernstein
 orchestrates software development tasks that take minutes to hours, not
 millisecond event streams.
 
 **No atomic multi-task transactions.** Moving a task from `open/` to `claimed/`
-is a file rename — atomic on most filesystems (POSIX `rename(2)`) but not across
+is a file rename - atomic on most filesystems (POSIX `rename(2)`) but not across
 network filesystems. For distributed multi-node use, the task server mediates
 access via the REST API, which provides the serialization guarantee.
 
 **Disk space grows over time.** `metrics/tasks.jsonl` is append-only. For
-long-running projects, it accumulates indefinitely. This is intentional — metrics
+long-running projects, it accumulates indefinitely. This is intentional - metrics
 are the audit trail. Pruning policy is left to the operator.
 
 ---
@@ -151,5 +151,5 @@ takes precedence for status (claimed/done/failed), the YAML for definition
 (goal, role, priority).
 
 File locking (`core/file_locks.py`) prevents concurrent agents from claiming the
-same task. The move from `open/` to `claimed/` is a `rename()` syscall —
+same task. The move from `open/` to `claimed/` is a `rename()` syscall -
 atomic by POSIX guarantee.

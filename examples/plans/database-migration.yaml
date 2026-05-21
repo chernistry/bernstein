@@ -1,4 +1,4 @@
-# Bernstein Plan — Database Migration with Rollback
+# Bernstein Plan - Database Migration with Rollback
 #
 # A three-stage plan for a safe, reversible database migration:
 #   1. Schema Design:   model new schema, document changes, plan rollback
@@ -20,7 +20,7 @@ cli: auto
 budget: "$15"
 max_agents: 4
 constraints:
-  - "Migrations must be idempotent — safe to re-run"
+  - "Migrations must be idempotent - safe to re-run"
   - "Every migration script requires a paired rollback (down) script"
   - "No destructive DDL on production data without a backup step"
   - "All scripts must pass CI before merge"
@@ -38,7 +38,7 @@ stages:
           Inspect the current database schema (tables, indexes, constraints,
           foreign keys). Produce db/migration/schema-audit.md listing every
           object that will change, be added, or be removed. Flag any nullable
-          columns being made NOT NULL — these require a data backfill step.
+          columns being made NOT NULL - these require a data backfill step.
         files:
           - "db/migration/schema-audit.md"
         completion_signals:
@@ -71,7 +71,7 @@ stages:
         scope: medium
         complexity: medium
         description: >
-          Using a migration tool (Flyway/Alembic/Liquibase — match the existing
+          Using a migration tool (Flyway/Alembic/Liquibase - match the existing
           project convention), write numbered migration files under db/migrations/.
           Each file handles one logical change: add table, add column, add index,
           add constraint. Scripts must be idempotent (use IF NOT EXISTS / IF EXISTS).

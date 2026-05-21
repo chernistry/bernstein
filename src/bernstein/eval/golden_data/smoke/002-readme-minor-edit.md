@@ -7,7 +7,7 @@ expected_files_modified:
 expected_test_outcomes: {}
 completion_signals:
   - "README.md diff is <= 3 lines changed"
-  - "the change is a copy edit (typo, punctuation, or phrasing tweak) — no semantic or structural change"
+  - "the change is a copy edit (typo, punctuation, or phrasing tweak) - no semantic or structural change"
   - "no markdown headings or links are altered"
 max_cost_usd: 0.10
 max_duration_s: 120
@@ -15,8 +15,8 @@ owned_files:
   - README.md
 ---
 
-Find one small, low-risk copy edit in `README.md` — a typo, a missing
-period, a stray double space, or an awkward phrasing — and fix only that.
+Find one small, low-risk copy edit in `README.md` - a typo, a missing
+period, a stray double space, or an awkward phrasing - and fix only that.
 
 Constraints:
 

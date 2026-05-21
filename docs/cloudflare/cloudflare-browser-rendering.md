@@ -1,8 +1,8 @@
 # Cloudflare Browser Rendering
 
 Bernstein's `BrowserRenderingBridge` lets agents browse the web. It
-wraps Cloudflare's Browser Rendering API — a fleet of headless Chrome
-instances on Cloudflare's edge — and exposes the operations that an
+wraps Cloudflare's Browser Rendering API - a fleet of headless Chrome
+instances on Cloudflare's edge - and exposes the operations that an
 agent realistically needs: render a page after JavaScript runs,
 extract structured content via CSS selector, take a screenshot,
 generate a PDF, and execute arbitrary JavaScript on the rendered page.
@@ -40,7 +40,7 @@ your Python; the Sandbox will not screenshot a website.
 ### Required Cloudflare account configuration
 
 1. A Cloudflare account on the Workers Paid plan (Browser Rendering
-   is **not** in the free tier as of writing — check the
+   is **not** in the free tier as of writing - check the
    [pricing notes](#cost-and-quota) below before enabling it).
 2. Browser Rendering enabled for the account (Dashboard → Workers &
    Pages → Browser Rendering → Enable).
@@ -189,7 +189,7 @@ items = await browser.execute_script(
 
 The script must `return` the value you want back; whatever you return
 must round-trip through JSON. This is the escape hatch for pages
-where `scrape()` is not flexible enough — e.g. paginated lists where
+where `scrape()` is not flexible enough - e.g. paginated lists where
 you have to scroll, or content gated behind a click.
 
 Treat `execute_script` as a sandboxed *data* extractor, not a way to
@@ -202,7 +202,7 @@ browser instance terminates.
 
 The hard caps come from Cloudflare's Browser Rendering platform.
 Bernstein adds one bridge-side default (the request timeout). All
-limits below match the Cloudflare docs at the time of writing —
+limits below match the Cloudflare docs at the time of writing -
 re-check before relying on them in production.
 
 | Constraint                  | Value                                              |
@@ -216,7 +216,7 @@ re-check before relying on them in production.
 | Screenshot output           | PNG, base64-encoded in the JSON response           |
 | PDF output                  | Cloudflare-imposed page count and size limits      |
 
-The bridge does not enforce per-call rate limiting — it relies on
+The bridge does not enforce per-call rate limiting - it relies on
 Cloudflare's API to reject excess concurrent renders with a 4xx,
 which the bridge surfaces as a `BrowserRenderingError`. If you are
 running many parallel agents that all want to browse, wrap calls in a
@@ -239,7 +239,7 @@ committing budget):
   the Workers Paid plan.
 - Additional minutes billed per minute of active browser session, with
   parallel sessions billed independently.
-- Storage of returned screenshots and PDFs is on you — typically R2
+- Storage of returned screenshots and PDFs is on you - typically R2
   or your own object store. The bridge returns bytes; it does not
   upload anywhere.
 
@@ -326,7 +326,7 @@ auth, timeouts, and error mapping; the agent only sees a clean
 Rendering arbitrary URLs is, by design, a sandbox. Treat it as one:
 
 1. **Outbound network**. The bridge can be made to fetch anything
-   reachable from Cloudflare's edge — internal hostnames included
+   reachable from Cloudflare's edge - internal hostnames included
    when DNS resolves them publicly. If you have private services on
    public DNS, an SSRF-style mistake from an over-eager agent can
    surface them. Mitigations: keep private services on private DNS;
@@ -335,7 +335,7 @@ Rendering arbitrary URLs is, by design, a sandbox. Treat it as one:
    only accepts `http(s)`, but the agent may still try).
 
 2. **Cookies and session reuse**. Each render starts a fresh browser
-   instance. There is no implicit session reuse across calls — if you
+   instance. There is no implicit session reuse across calls - if you
    need authenticated browsing, you must inject the cookies via
    `execute_script` or pass them in the request payload.
 
@@ -347,7 +347,7 @@ Rendering arbitrary URLs is, by design, a sandbox. Treat it as one:
    side effects.
 
 4. **Returned content is untrusted**. HTML, scraped text, screenshot
-   bytes — all of it comes from the rendered URL. Pass it through the
+   bytes - all of it comes from the rendered URL. Pass it through the
    same sanitisers you would for any user-supplied content before
    feeding it back into prompts, file writes, or DB inserts. The
    default DLP scanner (`core/security/dlp_scanner_v2.py`) is a
@@ -377,11 +377,11 @@ Rendering arbitrary URLs is, by design, a sandbox. Treat it as one:
 
 ## Related
 
-- [Cloudflare overview](cloudflare-overview.md) — how Browser
+- [Cloudflare overview](cloudflare-overview.md) - how Browser
   Rendering fits among the other Cloudflare bridges.
-- [Cloudflare setup](cloudflare-setup.md) — wrangler, account, and
+- [Cloudflare setup](cloudflare-setup.md) - wrangler, account, and
   token setup that this bridge relies on.
-- [Cloudflare bridges](cloudflare-bridges.md) — Workers / Workflow /
+- [Cloudflare bridges](cloudflare-bridges.md) - Workers / Workflow /
   Sandbox / R2 bridges that share the same auth env vars.
-- [Secrets and credentials](../operations/secrets.md) — where the
+- [Secrets and credentials](../operations/secrets.md) - where the
   `CLOUDFLARE_API_TOKEN` lives and how to rotate it.

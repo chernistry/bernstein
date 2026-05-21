@@ -8,7 +8,7 @@ steps inside a stage run in parallel. Bernstein loads the plan, validates
 the graph, materialises each step as a `Task` row, and lets the orchestrator
 schedule it. Anything you can do at the CLI by typing
 `bernstein run --goal "..."` you can also describe declaratively as a plan
-and re-run with `bernstein run --from-plan path/to/plan.yaml` — same
+and re-run with `bernstein run --from-plan path/to/plan.yaml` - same
 contract, reproducible inputs.
 
 If you only have time for one sentence: **a plan is just YAML with
@@ -27,7 +27,7 @@ The runtime model is simple:
 - A **step** becomes a **task** the orchestrator schedules onto an agent.
 - **Stages** run sequentially by default; declare `depends_on` to skip the
   default ordering or to express cross-stage parallelism.
-- **Steps within a stage** run in parallel — the loader marks each step in
+- **Steps within a stage** run in parallel - the loader marks each step in
   stage `B` as `depends_on` every step title in stages `B.depends_on`, so
   no work in `B` starts until all of `A`'s steps are done.
 
@@ -79,24 +79,24 @@ alias).
 
 | Key | Type | Default | Meaning |
 |-----|------|---------|---------|
-| `title` | string | — | Short title. **Required** unless `goal` is set. |
-| `goal` | string | — | Legacy alias for `title`. |
+| `title` | string | - | Short title. **Required** unless `goal` is set. |
+| `goal` | string | - | Legacy alias for `title`. |
 | `description` | string | `title` | Detailed instructions injected into the agent prompt. |
 | `role` | enum | `backend` | Specialist role; one of `analyst, architect, backend, ci-fixer, data, devops, docs, frontend, manager, ml-engineer, prompt-engineer, qa, resolver, retrieval, reviewer, security, visionary, vp` (`plan_schema.py:20-39`). |
 | `priority` | int 1-5 | `2` | 1 = highest, 5 = lowest. Affects orchestrator ordering when multiple steps are ready. |
 | `scope` | enum | `medium` | `small` (<30min), `medium` (30-90min), `large` (90min+). Influences cost/model picks. |
 | `complexity` | enum | `medium` | `low`, `medium`, `high`. Drives router/cascade tier choice. |
-| `model` | enum | — | Override model: `auto`, `opus`, `sonnet`, `haiku`. |
-| `effort` | enum | — | Effort knob: `low`, `normal`, `high`, `max`. |
+| `model` | enum | - | Override model: `auto`, `opus`, `sonnet`, `haiku`. |
+| `effort` | enum | - | Effort knob: `low`, `normal`, `high`, `max`. |
 | `estimated_minutes` | int | `30` | Used by the duration predictor and plan cost estimate. |
-| `mode` | string | — | Execution mode (e.g. `batch`). |
-| `cli` | string | — | Override adapter for this step only. |
-| `repo` | string | — | Multi-repo: route this step to a named repo. Falls back to stage-level `repo`. |
-| `depends_on_repo` | string | — | Cross-repo dependency: another repo must complete first. |
-| `files` | list[string] | `[]` | File ownership for conflict detection — agents declare which files they will touch. |
+| `mode` | string | - | Execution mode (e.g. `batch`). |
+| `cli` | string | - | Override adapter for this step only. |
+| `repo` | string | - | Multi-repo: route this step to a named repo. Falls back to stage-level `repo`. |
+| `depends_on_repo` | string | - | Cross-repo dependency: another repo must complete first. |
+| `files` | list[string] | `[]` | File ownership for conflict detection - agents declare which files they will touch. |
 | `completion_signals` | list[object] | `[]` | Machine-checkable completion criteria (see below). |
 
-Step-level `depends_on` is *not* on the schema — dependencies between
+Step-level `depends_on` is *not* on the schema - dependencies between
 steps are declared at the **stage** level. The loader expands stage
 dependencies into per-step `depends_on` lists when it builds the Task
 objects (`plan_loader.py:244-249`).
@@ -127,18 +127,18 @@ Source: `plan_schema.py:49-77`, `plan_loader.py:70-97`.
 `bernstein validate path/to/plan.yaml` runs four checks before the plan is
 ever scheduled:
 
-1. **Schema check** — required fields, enum values, integer ranges
+1. **Schema check** - required fields, enum values, integer ranges
    (`plan_schema.validate_plan()` at `plan_schema.py:428-451`).
-2. **Duplicate titles** — every step title must be unique within the plan
+2. **Duplicate titles** - every step title must be unique within the plan
    (`plan_validate_cmd._check_duplicate_titles`).
-3. **Dependency references** — every `depends_on` entry must point at a
+3. **Dependency references** - every `depends_on` entry must point at a
    real upstream stage name (`_check_dependency_refs`).
-4. **Cycle detection** — DFS over the stage DAG; reports any cycle
+4. **Cycle detection** - DFS over the stage DAG; reports any cycle
    (`_check_dependency_cycles`).
 
 Plus warnings:
 
-- **Unknown roles** — any role not in the registry-known list is flagged
+- **Unknown roles** - any role not in the registry-known list is flagged
   (`_check_unknown_roles`).
 
 Common errors:
@@ -153,7 +153,7 @@ Common errors:
 | `Plan file must be a YAML mapping` | Top-level must be a dict, not a list. |
 | `Cycle detected: a -> b -> a` | Break the dependency chain. |
 
-Run validation in CI before merging plan files — schema drift and missing
+Run validation in CI before merging plan files - schema drift and missing
 deps are the two failure modes that bite hardest.
 
 Source: `cli/commands/plan_validate_cmd.py:142-163`.
@@ -180,17 +180,17 @@ bernstein plan generate "Bump dependencies" -o plans/deps.yaml
 
 What the command does (`cli/commands/plan_generate_cmd.py:268-340`):
 
-1. **Gather repo context** — directory tree, `README.md`, top-level
+1. **Gather repo context** - directory tree, `README.md`, top-level
    files, build config (capped at ~8 KB).
-2. **Build prompt** — concatenates description + repo context + a system
+2. **Build prompt** - concatenates description + repo context + a system
    prompt asking for `name / description / stages / steps` YAML.
-3. **Call LLM** — Haiku 4.5 by default (cheap; you usually iterate on the
+3. **Call LLM** - Haiku 4.5 by default (cheap; you usually iterate on the
    plan in your editor anyway). 2k token cap, temperature 0.3.
-4. **Extract YAML** — strips markdown fences if the model wraps the answer.
-5. **Inject defaults** — fills `name`/`description` from the user's input
+4. **Extract YAML** - strips markdown fences if the model wraps the answer.
+5. **Inject defaults** - fills `name`/`description` from the user's input
    if the model omitted them.
-6. **Estimate cost** — sums step complexities into a rough USD figure.
-7. **Save** — to `plans/<slug>.yaml` (or `--output`); `--dry-run` prints
+6. **Estimate cost** - sums step complexities into a rough USD figure.
+7. **Save** - to `plans/<slug>.yaml` (or `--output`); `--dry-run` prints
    to stdout.
 
 The output is **never** auto-executed. You're expected to read it, edit
@@ -199,7 +199,7 @@ roles/scopes, and run `bernstein validate` before `bernstein run
 
 There is also a higher-tier API in
 `core/planning/plan_execute.py` (`build_plan`, `save_plan`) which the
-manager agent uses internally — it picks the most capable available
+manager agent uses internally - it picks the most capable available
 planning model (Opus / o3) and produces `GeneratedPlan` objects with
 per-task `recommended_model` selections (`plan_execute.py:120-203`).
 
@@ -211,22 +211,22 @@ When you run `bernstein run --from-plan path.yaml` (or pass it via API),
 the loader does the following:
 
 1. **Parse YAML** (`plan_loader.load_plan()` at `plan_loader.py:120-196`).
-2. **Build a `PlanConfig`** — top-level metadata (name, description,
+2. **Build a `PlanConfig`** - top-level metadata (name, description,
    constraints, repos, budget, max_agents, cli).
-3. **Walk stages** — for each stage build an in-order list of step titles.
-4. **Materialise tasks** — each step becomes a `Task` with:
+3. **Walk stages** - for each stage build an in-order list of step titles.
+4. **Materialise tasks** - each step becomes a `Task` with:
    - `id = "plan-<stage_idx>-<step_idx>"` (replaced server-side once
      posted to `/tasks`).
    - `depends_on` populated from the upstream stages' step titles
      (cross-stage dep expansion at `plan_loader.py:244-249`).
-   - `owned_files` from the step's `files` list — used by the conflict
+   - `owned_files` from the step's `files` list - used by the conflict
      detector so two parallel agents can't clobber each other.
    - `completion_signals` parsed and validated (invalid entries are
      logged and dropped, not fatal).
-5. **Resolve title→ID** — once all tasks have server-assigned IDs, the
+5. **Resolve title→ID** - once all tasks have server-assigned IDs, the
    manager parser's `_resolve_depends_on` rewrites titles to UUIDs so the
    orchestrator can join.
-6. **Post to `/tasks`** — each task is `POST`ed to the running Bernstein
+6. **Post to `/tasks`** - each task is `POST`ed to the running Bernstein
    server (one HTTP call per step, with a 10 s timeout).
 
 From here the run looks identical to a free-text goal: the orchestrator
@@ -234,7 +234,7 @@ ticks, the spawner picks up `OPEN` tasks whose `depends_on` are all
 `DONE`, and the janitor verifies completion signals.
 
 Repeat-runs: if you re-run the same plan, dedupe is **by title**, not by
-plan-task-ID — the server's task store treats incoming tasks as new
+plan-task-ID - the server's task store treats incoming tasks as new
 unless your plan changes the title. For idempotent re-runs prefer
 `bernstein replay` over re-posting.
 
@@ -246,13 +246,13 @@ For DAGs with **conditional edges** and **retry loops**, Bernstein has a
 sibling format in `core/planning/workflow_dsl.py`. It's a stricter
 successor that adds:
 
-- **Phases** — explicit gates (`plan`, `implement`, `verify`, `merge`)
+- **Phases** - explicit gates (`plan`, `implement`, `verify`, `merge`)
   with `requires_approval` and `allowed_roles`.
-- **Conditional edges** — `depends_on: [{source: x, condition: "status
-  == 'failed'"}]` — the edge resolves only when the upstream task's
+- **Conditional edges** - `depends_on: [{source: x, condition: "status
+  == 'failed'"}]` - the edge resolves only when the upstream task's
   output matches the predicate.
-- **Retry loops** — `retry: {max_attempts: 3, until: "status == 'done'"}`.
-- **Safe expression evaluator** — no `eval()`; AST is whitelisted to
+- **Retry loops** - `retry: {max_attempts: 3, until: "status == 'done'"}`.
+- **Safe expression evaluator** - no `eval()`; AST is whitelisted to
   comparisons, boolean ops, attribute / subscript access, and literals
   (`workflow_dsl.py:108-228`).
 

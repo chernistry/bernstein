@@ -1,4 +1,4 @@
-// Fleet screen — multi-project supervisor overview.
+// Fleet screen - multi-project supervisor overview.
 //
 // Talks to the `/api/v1/fleet/*` aggregator stub. When the backend has no
 // FleetAggregator attached the stub returns `{projects: [], stub: true}`
@@ -6,7 +6,7 @@
 //
 // Cache-key strategy: every fleet-mode query is namespaced under
 // `['fleet', ...]` and every single-project query under `['tasks', ...]`,
-// `['agents', ...]`, etc. — toggling modes therefore never reuses a cached
+// `['agents', ...]`, etc. - toggling modes therefore never reuses a cached
 // payload from the wrong scope.
 
 import { useMemo, useState } from 'react';
@@ -274,7 +274,7 @@ export default function Fleet() {
   const parsed = useMemo(() => parseSearchQuery(query), [query]);
 
   // React Query keys are namespaced by mode (see Tasks.tsx for the
-  // single-project counterpart) — see the PR body for the cache-key
+  // single-project counterpart) - see the PR body for the cache-key
   // strategy diagram.
   const projectsQ = useQuery({
     queryKey: ['fleet', 'projects'],
@@ -337,7 +337,7 @@ export default function Fleet() {
           </span>
           {searchQ.data.stub && (
             <span className="ml-2 text-meta-foreground">
-              (backend search is stubbed — see PR for follow-up)
+              (backend search is stubbed - see PR for follow-up)
             </span>
           )}
         </div>
@@ -365,7 +365,7 @@ export default function Fleet() {
               title="Could not load fleet"
               message={
                 projectsQ.error instanceof ApiError
-                  ? `${projectsQ.error.status} — ${projectsQ.error.message}`
+                  ? `${projectsQ.error.status} - ${projectsQ.error.message}`
                   : (projectsQ.error as Error | null)?.message ?? 'unknown error'
               }
               retry={() => projectsQ.refetch()}

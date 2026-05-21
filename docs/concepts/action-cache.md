@@ -2,8 +2,8 @@
 
 The WAL gives Bernstein crash recovery. The **action cache** sits one
 layer above it and gives Bernstein **deterministic replay without
-paying the LLM bill**. Every action — prompt, model output, tool
-call, tool result — is content-addressed by `(model_id,
+paying the LLM bill**. Every action - prompt, model output, tool
+call, tool result - is content-addressed by `(model_id,
 normalized_prompt, tool_name, tool_args)` and stored under
 `.sdd/runtime/action_cache/<sha256>.json`. On replay, cache hits
 return the recorded result; misses fall through to the live model and
@@ -30,10 +30,10 @@ Pick a mode and run:
 # Record (default in normal runs once enabled)
 bernstein run plan.yaml --cache record
 
-# Replay-only — fail-loud on cache miss instead of calling the model
+# Replay-only - fail-loud on cache miss instead of calling the model
 bernstein run plan.yaml --cache replay
 
-# Hybrid — replay on hit, fall through to live model on miss, append result
+# Hybrid - replay on hit, fall through to live model on miss, append result
 bernstein run plan.yaml --cache hybrid
 
 # Re-execute a past run against its cache; emit a diff report on drift

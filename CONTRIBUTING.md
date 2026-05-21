@@ -17,7 +17,7 @@ uv run python scripts/run_tests.py -k router  # filter by keyword
 uv run pytest tests/unit/test_foo.py -x -q    # single file (fast)
 ```
 
-> **WARNING: Never run `uv run pytest tests/ -x -q`** — the full suite keeps references across 2000+ tests and can leak 100+ GB RAM. The isolated runner in `scripts/run_tests.py` caps each file at ~200 MB.
+> **WARNING: Never run `uv run pytest tests/ -x -q`** - the full suite keeps references across 2000+ tests and can leak 100+ GB RAM. The isolated runner in `scripts/run_tests.py` caps each file at ~200 MB.
 
 ## Linting & type checking
 
@@ -91,7 +91,7 @@ the `BERNSTEIN_CI_FIX_ENABLED` repo variable, refuses to recurse on
 - `from __future__ import annotations` at the top of every module
 - Max line length: 120 (enforced by ruff)
 - Ruff rules: E, F, W, I, UP, B, SIM, TCH, RUF
-- No dict soup — use `@dataclass` or `TypedDict`, not raw `dict[str, Any]`
+- No dict soup - use `@dataclass` or `TypedDict`, not raw `dict[str, Any]`
 - Enums over string literals for any value with a fixed set of options
 - Google-style docstrings on all public symbols
 - Async only for IO-bound code; sync for CPU-bound/pure logic
@@ -158,7 +158,7 @@ When adding a new CLI command, create a new `*_cmd.py` module in `cli/commands/`
 
 ## Supported CLI Adapters
 
-Bernstein ships with 44 adapters (43 named + 1 generic catch-all). Before writing a new adapter, check `src/bernstein/adapters/registry.py` for the full list — a subset is shown here for orientation:
+Bernstein ships with 44 adapters (43 named + 1 generic catch-all). Before writing a new adapter, check `src/bernstein/adapters/registry.py` for the full list - a subset is shown here for orientation:
 
 | Adapter | File | Agent |
 |---------|------|-------|
@@ -207,7 +207,7 @@ Steps:
 1. Create `src/bernstein/adapters/mycli.py` implementing all four abstract methods. See `adapters/claude.py` for a complete reference.
 2. Register in `adapters/registry.py`: `_ADAPTERS["mycli"] = MyCLIAdapter`
 3. Run checks: `uv run ruff check src/ && uv run pyright src/ && uv run python scripts/run_tests.py -x`
-4. Open a PR — include a short note on how you tested it.
+4. Open a PR - include a short note on how you tested it.
 
 **Important:** All adapter `.spawn()` implementations must wrap the CLI command with `build_worker_cmd()` from `adapters/base.py`. This sets the process title and writes the PID metadata file that the orchestrator uses for `bernstein ps` and crash detection.
 
@@ -230,9 +230,9 @@ Steps:
 
 Role templates live in `templates/roles/<role-name>/` with three files:
 
-- `system_prompt.md` — agent persona and standing instructions
-- `task_prompt.md` — per-task instructions template
-- `config.yaml` — default model and effort
+- `system_prompt.md` - agent persona and standing instructions
+- `task_prompt.md` - per-task instructions template
+- `config.yaml` - default model and effort
 
 Built-in roles: `adversary`, `analyst`, `architect`, `backend`, `ci-fixer`, `devops`, `docs`, `frontend`, `manager`, `ml-engineer`, `prompt-engineer`, `qa`, `resolver`, `retrieval`, `reviewer`, `security`, `visionary`, `vp`.
 
@@ -242,20 +242,20 @@ Copy an existing role and customize:
 cp -r templates/roles/backend templates/roles/data-engineer
 ```
 
-The new role is available immediately — no code changes required.
+The new role is available immediately - no code changes required.
 
 ## Architecture Principles
 
-- **Deterministic orchestrator** — no LLM calls for scheduling/coordination
-- **Short-lived agents** — spawn per task batch, exit when done
-- **File-based state** — everything in `.sdd/`, no databases
-- **Pluggable adapters** — new CLI agents via `adapters/base.py` ABC
-- **Branch is `main`** — never `master`
-- **No monoliths** — don't create or extend god-files (>400 LOC soft, >600 LOC hard stop)
+- **Deterministic orchestrator** - no LLM calls for scheduling/coordination
+- **Short-lived agents** - spawn per task batch, exit when done
+- **File-based state** - everything in `.sdd/`, no databases
+- **Pluggable adapters** - new CLI agents via `adapters/base.py` ABC
+- **Branch is `main`** - never `master`
+- **No monoliths** - don't create or extend god-files (>400 LOC soft, >600 LOC hard stop)
 
 ## Process management
 
-Bernstein writes PID metadata to `.sdd/runtime/pids/`. Use those to find and stop processes. **Never** `pkill -f bernstein` or `pgrep bernstein` — it will kill the orchestrator indiscriminately.
+Bernstein writes PID metadata to `.sdd/runtime/pids/`. Use those to find and stop processes. **Never** `pkill -f bernstein` or `pgrep bernstein` - it will kill the orchestrator indiscriminately.
 
 ```bash
 # Correct: signal via file

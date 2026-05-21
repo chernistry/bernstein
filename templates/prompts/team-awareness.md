@@ -7,7 +7,7 @@ Other agents are working in parallel on this codebase. Recent activity:
 - Before creating a shared utility, check if it already exists: search the codebase first
 - If you define an API endpoint, use consistent naming with existing endpoints in `src/bernstein/core/routes/`
 - If you create a new module or important function, post it to the bulletin board so other agents know
-- Do NOT modify files owned by other agents — if you need changes in their files, post a bulletin requesting it
+- Do NOT modify files owned by other agents - if you need changes in their files, post a bulletin requesting it
 
 ### Bulletin board API
 ```bash

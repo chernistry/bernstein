@@ -8,7 +8,7 @@ to recover from: an agent dies mid-task, a provider returns 429, a file
 disappears from a worktree, the disk fills up.
 
 The CLI lives in `cli/commands/chaos_cmd.py:32` (`@click.group("chaos")`).
-All state — including replayable history — is written under
+All state - including replayable history - is written under
 `.sdd/runtime/chaos/` (`chaos_cmd.py:29`).
 
 ---
@@ -41,7 +41,7 @@ Every subcommand records an entry into
 `.sdd/runtime/chaos/chaos_log.jsonl` so that runs can be replayed and
 correlated against orchestrator logs.
 
-### `agent-kill` — kill an active agent process
+### `agent-kill` - kill an active agent process
 
 ```
 bernstein chaos agent-kill [--agent-id <name>]
@@ -59,7 +59,7 @@ the tier is too flaky, escalates to the next adapter. No commit should
 land for the killed run, and no second commit should land for the same
 task ID once it completes.
 
-### `rate-limit` — simulate a provider 429
+### `rate-limit` - simulate a provider 429
 
 ```
 bernstein chaos rate-limit [--provider claude] [--duration 60]
@@ -75,7 +75,7 @@ adapter in the cascade. In-flight tasks targeting the rate-limited
 provider should retry with backoff, then escalate. No tokens should be
 spent on the throttled provider during the window.
 
-### `file-remove` — yank a file out of a worktree
+### `file-remove` - yank a file out of a worktree
 
 ```
 bernstein chaos file-remove [--pattern "*.py"]
@@ -90,7 +90,7 @@ worktree must either fail loudly (gate failure, missing import) or
 re-fetch the file from the merge base. The backup is left in place so
 post-mortems can verify the original content.
 
-### `agent-oom` — record a synthetic OOM
+### `agent-oom` - record a synthetic OOM
 
 ```
 bernstein chaos agent-oom [--agent-id <name>]
@@ -104,7 +104,7 @@ yet expose.
 **What recovery should look like.** Today this is observability only.
 Treat it as a placeholder until an in-band OOM injector exists.
 
-### `disk-full` — simulate disk-full for the duration window
+### `disk-full` - simulate disk-full for the duration window
 
 ```
 bernstein chaos disk-full [--duration 60]
@@ -118,7 +118,7 @@ reject writes during the window.
 write-failure error, the WAL replay retries once disk space "returns"
 (marker expires), and no half-written state files are left in `.sdd/`.
 
-### `status` — replay the chaos log
+### `status` - replay the chaos log
 
 ```
 bernstein chaos status [--limit 20]
@@ -130,7 +130,7 @@ events: timestamp, scenario, target, success/error
 simulation so operators do not forget a marker is still pinned
 (`chaos_cmd.py:244-261`).
 
-### `slo` — read the SLO dashboard during the experiment
+### `slo` - read the SLO dashboard during the experiment
 
 ```
 bernstein chaos slo
@@ -141,9 +141,9 @@ plus the error-budget panel (`chaos_cmd.py:264-318`).
 
 The output table contains:
 
-- `target` (e.g. `99%`) — the SLO threshold.
-- `current` (e.g. `97.4%`) — the live measurement.
-- `status` — `GREEN` / `YELLOW` / `RED`.
+- `target` (e.g. `99%`) - the SLO threshold.
+- `current` (e.g. `97.4%`) - the live measurement.
+- `status` - `GREEN` / `YELLOW` / `RED`.
 
 The error-budget panel reports `total_tasks`, `failed_tasks`, and
 `budget_remaining` / `budget_total`. A non-empty `actions` list at the
@@ -177,7 +177,7 @@ is in flight.
 
 ---
 
-## Safety rails — what is never injected
+## Safety rails - what is never injected
 
 The chaos CLI is intentionally narrow:
 
@@ -204,27 +204,27 @@ The chaos CLI is intentionally narrow:
 
 If you need a fault that the CLI does not expose, prefer extending
 `chaos_cmd.py` with a new subcommand over hand-editing `.sdd/runtime/`
-state directly — the audit trail in `chaos_log.jsonl` is what makes a
+state directly - the audit trail in `chaos_log.jsonl` is what makes a
 chaos run reproducible.
 
 ---
 
 ## Code pointers
 
-- `cli/commands/chaos_cmd.py:32` — `@click.group("chaos")` entry point.
-- `cli/commands/chaos_cmd.py:37-71` — active-agent discovery and target
+- `cli/commands/chaos_cmd.py:32` - `@click.group("chaos")` entry point.
+- `cli/commands/chaos_cmd.py:37-71` - active-agent discovery and target
   selection.
-- `cli/commands/chaos_cmd.py:74-99` — `agent-kill`.
-- `cli/commands/chaos_cmd.py:102-127` — `rate-limit` with marker file.
-- `cli/commands/chaos_cmd.py:130-165` — `file-remove` with backup.
-- `cli/commands/chaos_cmd.py:168-176` — `agent-oom` (recording-only).
-- `cli/commands/chaos_cmd.py:179-201` — `disk-full` with marker file.
-- `cli/commands/chaos_cmd.py:204-241` — `status` (chaos log table).
-- `cli/commands/chaos_cmd.py:264-318` — `slo` (SLO dashboard).
-- `cli/commands/chaos_cmd.py:321-342` — `_record_chaos_event` (JSONL
+- `cli/commands/chaos_cmd.py:74-99` - `agent-kill`.
+- `cli/commands/chaos_cmd.py:102-127` - `rate-limit` with marker file.
+- `cli/commands/chaos_cmd.py:130-165` - `file-remove` with backup.
+- `cli/commands/chaos_cmd.py:168-176` - `agent-oom` (recording-only).
+- `cli/commands/chaos_cmd.py:179-201` - `disk-full` with marker file.
+- `cli/commands/chaos_cmd.py:204-241` - `status` (chaos log table).
+- `cli/commands/chaos_cmd.py:264-318` - `slo` (SLO dashboard).
+- `cli/commands/chaos_cmd.py:321-342` - `_record_chaos_event` (JSONL
   append).
-- `.sdd/runtime/chaos/chaos_log.jsonl` — replayable event log.
+- `.sdd/runtime/chaos/chaos_log.jsonl` - replayable event log.
 - `.sdd/runtime/chaos/rate_limit_active.json` /
-  `disk_full_active.json` — time-bounded markers.
-- `.sdd/metrics/slos.json` — SLO dashboard source consumed by
+  `disk_full_active.json` - time-bounded markers.
+- `.sdd/metrics/slos.json` - SLO dashboard source consumed by
   `bernstein chaos slo`.

@@ -1,4 +1,4 @@
-// Tiny, dependency-free syntax tokenizer. We deliberately avoid Prism here —
+// Tiny, dependency-free syntax tokenizer. We deliberately avoid Prism here -
 // the diff payload is usually < 2 MiB and the heavyweight grammars are
 // overkill for a glanceable preview. Each language gets a small regex set
 // that covers strings, comments, keywords, numbers, and a few common bits.
@@ -122,7 +122,7 @@ function isKeywordFor(lang: string | null | undefined, word: string): boolean {
 }
 
 /**
- * Tokenize a single line. We never cross newline boundaries — every diff line
+ * Tokenize a single line. We never cross newline boundaries - every diff line
  * is highlighted in isolation, which keeps the renderer simple and predictable
  * for the kinds of small hunks we typically display.
  */

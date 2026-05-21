@@ -44,10 +44,10 @@ run_parser.add_argument('--max-agents', type=int, default=3)
 **Cons**:
 - Verbose. A simple subcommand with a few options requires 15–20 lines of
   boilerplate that does nothing except describe the interface.
-- Help text quality is mediocre — single-line descriptions, no formatting.
+- Help text quality is mediocre - single-line descriptions, no formatting.
 - No automatic shell completion generation.
 - Testing requires calling `sys.argv` manipulation or `parser.parse_args()` with
-  string lists — awkward.
+  string lists - awkward.
 - No built-in support for environment variable overrides (`BERNSTEIN_MAX_AGENTS`
   automatically mapping to `--max-agents`).
 
@@ -74,12 +74,12 @@ def run(
 ```
 
 **Pros**:
-- Annotation-driven — less boilerplate than raw Click.
+- Annotation-driven - less boilerplate than raw Click.
 - Generates rich help text automatically.
-- Built on Click — full Click compatibility.
+- Built on Click - full Click compatibility.
 
 **Cons**:
-- Adds a dependency (Typer) on top of Click — you still get Click as a transitive
+- Adds a dependency (Typer) on top of Click - you still get Click as a transitive
   dep. If we're already depending on Click, Typer adds complexity without a clear
   benefit.
 - Some Typer idioms (the automatic `Optional[str] = None` → optional argument
@@ -102,7 +102,7 @@ import click
 @click.group()
 @click.version_option()
 def cli() -> None:
-    """Bernstein — multi-agent orchestration for CLI coding agents."""
+    """Bernstein - multi-agent orchestration for CLI coding agents."""
 
 @cli.command()
 @click.argument('plan', required=False)
@@ -121,7 +121,7 @@ def run(plan: str | None, goal: str | None, max_agents: int) -> None:
    without reading documentation.
 
 2. **`envvar` support is built-in.** `envvar='BERNSTEIN_MAX_AGENTS'` makes every
-   CLI option also settable via environment variable — essential for CI/CD usage
+   CLI option also settable via environment variable - essential for CI/CD usage
    where you don't want long command lines.
 
 3. **Shell completion generation.** `bernstein --install-completion` (via

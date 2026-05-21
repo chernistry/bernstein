@@ -267,7 +267,7 @@ grep mcp_servers bernstein.yaml           # project-level overrides
 
 ## 12. Agent Timeout (Watchdog Kill)
 
-**Symptom:** Agent is killed mid-task. Log shows `"Timeout after Xds: pid=... — sending SIGTERM"`.
+**Symptom:** Agent is killed mid-task. Log shows `"Timeout after Xds: pid=... - sending SIGTERM"`.
 
 **Cause:** The agent exceeded its wall-clock timeout. Default is 1800s (30 min). Scope-based timeouts: small=15min, medium=30min, large=60min. XL roles (architect, security, manager) get 120min. Adaptive timeouts (`core/orchestration/adaptive_timeout.py`) can adjust these based on historical task durations. All timeout constants are in `src/bernstein/core/defaults.py` (`TASK.scope_timeout_s`, `TASK.xl_timeout_s`).
 
@@ -522,8 +522,8 @@ bernstein doctor
 
 If you cannot resolve an issue with this guide:
 
-1. **Run `bernstein doctor`** — the built-in diagnostic prints the most common configuration problems.
-2. **Run `bernstein debug`** — generates a debug bundle with logs, config, metrics, and git state for sharing.
-3. **Check agent logs** — `.sdd/runtime/<session>.log` contains the full CLI output including provider error messages.
-4. **Search GitHub Issues** — many error messages are already tracked at `https://github.com/sipyourdrink-ltd/bernstein/issues`.
-5. **File a bug report** — include the output of `bernstein debug`, the relevant log snippet, and your `bernstein.yaml` (redact API keys).
+1. **Run `bernstein doctor`** - the built-in diagnostic prints the most common configuration problems.
+2. **Run `bernstein debug`** - generates a debug bundle with logs, config, metrics, and git state for sharing.
+3. **Check agent logs** - `.sdd/runtime/<session>.log` contains the full CLI output including provider error messages.
+4. **Search GitHub Issues** - many error messages are already tracked at `https://github.com/sipyourdrink-ltd/bernstein/issues`.
+5. **File a bug report** - include the output of `bernstein debug`, the relevant log snippet, and your `bernstein.yaml` (redact API keys).

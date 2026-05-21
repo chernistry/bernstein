@@ -57,7 +57,7 @@
         "head_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
-          "description": "SHA-256 of the canonical JSONL serialization of the slice. Tamper-evident even without the HMAC key — flipping any byte of any event changes this anchor."
+          "description": "SHA-256 of the canonical JSONL serialization of the slice. Tamper-evident even without the HMAC key - flipping any byte of any event changes this anchor."
         }
       }
     },
@@ -159,7 +159,7 @@
             "anchor_sha256": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$",
-              "description": "sha256(head_sha256 || anchored_at_iso) — deterministic and auditable but does not certify wall-clock truth."
+              "description": "sha256(head_sha256 || anchored_at_iso) - deterministic and auditable but does not certify wall-clock truth."
             }
           }
         }

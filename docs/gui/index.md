@@ -1,5 +1,5 @@
 ---
-title: Bernstein web GUI — overview
+title: Bernstein web GUI - overview
 description: Operator dashboard for Bernstein orchestration runs. Replaces the Textual TUI for browser-based supervision.
 tags:
   - gui
@@ -26,8 +26,8 @@ Browser-based operator surface for live Bernstein runs. Mounted on the same Fast
 | Approve / deny tool calls with diff context       | yes          |
 | Inspect HMAC audit chain head and verify          | yes          |
 | Review per-adapter cost over the last 24 h        | yes          |
-| Pipe Bernstein into a script or CI step           | no — use the REST API |
-| Drive Bernstein from a terminal-only host         | no — use `bernstein dashboard` (TUI) |
+| Pipe Bernstein into a script or CI step           | no - use the REST API |
+| Drive Bernstein from a terminal-only host         | no - use `bernstein dashboard` (TUI) |
 
 ## Who it is for
 
@@ -35,9 +35,9 @@ Operators supervising live agent runs. The GUI mirrors what an operator already 
 
 ## Read next
 
-- [Install](install.md) — `pip install bernstein[gui]`, launch, ports.
-- [Screens](screens.md) — what each route shows and which TUI widget it replaces.
-- [Playground](playground.md) — zero-cost dev loop with `bernstein run --idle`.
-- [Configuration](configuration.md) — env vars, auth token, theme, fleet toggle.
-- [Mobile + tunnel](mobile.md) — installable PWA, `bernstein gui serve --tunnel`, QR onboarding (#1218).
-- [Troubleshooting](troubleshooting.md) — common failure modes.
+- [Install](install.md) - `pip install bernstein[gui]`, launch, ports.
+- [Screens](screens.md) - what each route shows and which TUI widget it replaces.
+- [Playground](playground.md) - zero-cost dev loop with `bernstein run --idle`.
+- [Configuration](configuration.md) - env vars, auth token, theme, fleet toggle.
+- [Mobile + tunnel](mobile.md) - installable PWA, `bernstein gui serve --tunnel`, QR onboarding (#1218).
+- [Troubleshooting](troubleshooting.md) - common failure modes.

@@ -12,7 +12,7 @@ label), Bernstein will convert it to a backlog task, open a PR, and close
 this issue automatically when the PR is merged.
 
 Fill in the sections below so the visionary / analyst pipeline can evaluate
-your request accurately. Free-form text is fine — all fields except Problem
+your request accurately. Free-form text is fine - all fields except Problem
 are optional.
 -->
 
@@ -34,4 +34,4 @@ are optional.
 
 ### Effort
 
-<!-- S / M / L — rough guess. Leave blank if unsure. -->
+<!-- S / M / L - rough guess. Leave blank if unsure. -->

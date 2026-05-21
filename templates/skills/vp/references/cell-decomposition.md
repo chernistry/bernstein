@@ -16,7 +16,7 @@ When deciding how to split work across cells:
 ## Signs a cell is too small
 - One or two workers idle each cycle.
 - Manager burns cycles creating filler tasks.
-- Scope overlaps another cell's remit — they will collide on files soon.
+- Scope overlaps another cell's remit - they will collide on files soon.
 
 ## When you redistribute work
 - Freeze in-flight tasks; move only the ones that haven't started.

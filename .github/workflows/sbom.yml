@@ -40,7 +40,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
         with:
-          # SBOMs ship as release assets — the cache is shared across the
+          # SBOMs ship as release assets - the cache is shared across the
           # repo, so an attacker who can write to PR caches could poison
           # a release-time build. Disable on this workflow specifically.
           enable-cache: false

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bernstein dev toolkit — interactive chore menu with CI monitoring
+# bernstein dev toolkit - interactive chore menu with CI monitoring
 # Usage:
 #   ./scripts/safe-push-main.sh          # interactive menu
 #   ./scripts/safe-push-main.sh --push   # validate → push → monitor CI → verify release
@@ -43,7 +43,7 @@ _is_dirty() { ! git diff --quiet || ! git diff --cached --quiet; return $?; }
 
 _require_gh() {
   if ! command -v gh &>/dev/null; then
-    _err "gh CLI not found — install with: brew install gh"
+    _err "gh CLI not found - install with: brew install gh"
     return 1
   fi
 }
@@ -78,10 +78,10 @@ _sidebar() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Local validation — runs the same checks as CI
+# Local validation - runs the same checks as CI
 # ═══════════════════════════════════════════════════════════════════
 do_local_validate() {
-  _header "Local Validation — ruff, pyright, tests"
+  _header "Local Validation - ruff, pyright, tests"
   local failed=0
 
   _step "ruff check …"
@@ -130,10 +130,10 @@ do_local_validate() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# CI Fix — auto-format and fix lint issues
+# CI Fix - auto-format and fix lint issues
 # ═══════════════════════════════════════════════════════════════════
 do_ci_fix() {
-  _header "CI Fix — lint → format → pyright"
+  _header "CI Fix - lint → format → pyright"
 
   _step "ruff check --fix …"
   uv run ruff check src/ --fix 2>&1 | tail -4
@@ -145,7 +145,7 @@ do_ci_fix() {
   if uv run pyright src/ 2>&1 | tail -6; then
     _ok "pyright clean"
   else
-    _warn "pyright has errors — check output above"
+    _warn "pyright has errors - check output above"
   fi
 
   if _is_dirty; then
@@ -159,12 +159,12 @@ do_ci_fix() {
       _ok "committed"
     fi
   else
-    _ok "working tree clean — nothing to commit"
+    _ok "working tree clean - nothing to commit"
   fi
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Safe Push — fetch → rebase → push (never force)
+# Safe Push - fetch → rebase → push (never force)
 # ═══════════════════════════════════════════════════════════════════
 do_safe_push() {
   _header "Safe Push  →  ${REMOTE}/${BRANCH}"
@@ -203,7 +203,7 @@ do_safe_push() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Monitor CI — poll GitHub Actions until CI finishes
+# Monitor CI - poll GitHub Actions until CI finishes
 # ═══════════════════════════════════════════════════════════════════
 do_monitor_ci() {
   _header "Monitoring CI  →  ${CI_WORKFLOW} on ${BRANCH}"
@@ -275,7 +275,7 @@ do_monitor_ci() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Monitor Auto-release — verify autorelease triggered and succeeded
+# Monitor Auto-release - verify autorelease triggered and succeeded
 # ═══════════════════════════════════════════════════════════════════
 do_monitor_release() {
   _header "Monitoring Auto-release"
@@ -349,10 +349,10 @@ do_monitor_release() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Git Hygiene — prune worktrees, branches, stale refs
+# Git Hygiene - prune worktrees, branches, stale refs
 # ═══════════════════════════════════════════════════════════════════
 do_git_clean() {
-  _header "Git Hygiene — prune worktrees & stale branches"
+  _header "Git Hygiene - prune worktrees & stale branches"
 
   local wt_count; wt_count=$(git worktree list | grep -v "^$(git rev-parse --show-toplevel)" | wc -l | tr -d ' ')
   local agent_branches; agent_branches=$(git branch | grep -E "agent/|codex/" 2>/dev/null | wc -l | tr -d ' ')
@@ -389,10 +389,10 @@ do_git_clean() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Runtime Reset — wipe .sdd/runtime
+# Runtime Reset - wipe .sdd/runtime
 # ═══════════════════════════════════════════════════════════════════
 do_runtime_clean() {
-  _header "Runtime Reset — wipe .sdd/runtime for a fresh start"
+  _header "Runtime Reset - wipe .sdd/runtime for a fresh start"
 
   local rt=".sdd/runtime"
   local pid_files; pid_files=$(find "$rt/pids" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
@@ -424,10 +424,10 @@ do_runtime_clean() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# CI Status — show recent runs
+# CI Status - show recent runs
 # ═══════════════════════════════════════════════════════════════════
 do_ci_status() {
-  _header "CI Status — latest runs on ${BRANCH}"
+  _header "CI Status - latest runs on ${BRANCH}"
   _require_gh || return 1
 
   _step "fetching run list …"
@@ -470,10 +470,10 @@ do_ci_status() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Ship — the full pipeline: validate → push → CI → release
+# Ship - the full pipeline: validate → push → CI → release
 # ═══════════════════════════════════════════════════════════════════
 do_ship() {
-  _header "Ship Pipeline — validate → push → CI → release"
+  _header "Ship Pipeline - validate → push → CI → release"
 
   echo -e "  ${BOLD}Phase 1/4${RST}  Local validation"
   if ! do_local_validate; then
@@ -511,7 +511,7 @@ do_ship() {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# Merge all branches — merge feature branches into main
+# Merge all branches - merge feature branches into main
 # ═══════════════════════════════════════════════════════════════════
 do_merge_all() {
   _header "Merge All Branches → ${BRANCH}"
@@ -547,7 +547,7 @@ do_merge_all() {
       _ok "merged: ${fb}"
       git branch -d "$fb" 2>/dev/null || true
     else
-      _err "conflict merging ${fb} — aborting this merge"
+      _err "conflict merging ${fb} - aborting this merge"
       git merge --abort 2>/dev/null || true
     fi
   done

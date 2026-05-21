@@ -82,7 +82,7 @@ If you run only local models and local storage, Bernstein can operate without th
 Bernstein ships first-class plumbing for this case: a pinned-dependency wheelhouse, signed `MANIFEST.json` plus per-wheel detached signatures, a `bernstein verify <wheelhouse>` checksum/signature pass (cosign or GPG), a `--profile airgap` runtime that flips the egress default to deny-all, a `--allow-network HOST|CIDR|none|any` per-destination override, and a `bernstein doctor airgap` self-check that confirms the perimeter before the first run.
 
 Read next:
-- [Air-gap installation](installation/air-gap.md) — wheelhouse build, signed verification, `--profile airgap`, and adapter network endpoint audit
+- [Air-gap installation](installation/air-gap.md) - wheelhouse build, signed verification, `--profile airgap`, and adapter network endpoint audit
 - [Model policy](operations/MODEL_POLICY.md)
 - [Compliance](operations/compliance.md)
 - [Deployment guide](operations/deployment-guide.md)
@@ -224,7 +224,7 @@ These are the bits a security team should hear plainly:
 - "No external traffic" is only true for the deployment you actually configure. Cloud features, remote storage, webhooks, and hosted model providers change the answer.
 - Compliance tooling helps produce evidence; it does not make an unsafe deployment safe by itself.
 - Provider risk is real. Model policy reduces it, but cannot change a provider's underlying trust model.
-- Prompt-injection exfiltration is structurally refused at spawn time by the [lethal-trifecta capability gate](security/lethal-trifecta.md) — tool chains that combine private data, untrusted input, and external comm are denied before the agent process starts. This narrows the prompt-injection surface but does not remove it.
+- Prompt-injection exfiltration is structurally refused at spawn time by the [lethal-trifecta capability gate](security/lethal-trifecta.md) - tool chains that combine private data, untrusted input, and external comm are denied before the agent process starts. This narrows the prompt-injection surface but does not remove it.
 
 ## 9. Evaluation checklist
 
@@ -255,7 +255,7 @@ Use this as a practical sign-off sheet.
 ### Audit and recovery
 
 - [ ] Inspected `.sdd/` layout and retention plan
-- [ ] Reviewed HMAC audit-chain handling — see [audit-log.md](security/audit-log.md)
+- [ ] Reviewed HMAC audit-chain handling - see [audit-log.md](security/audit-log.md)
 - [ ] Reconstructed a sample run from logs and task state
 - [ ] Tested stop/restart / crash-recovery behavior
 

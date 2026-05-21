@@ -67,7 +67,7 @@ stages:
 ### Or submit via API
 
 5. Run `scripts/plan.sh submit plans/{plan-name}.yaml` to submit for approval.
-6. The plan enters `pending` state — use `/bernstein-approve` to review and approve.
+6. The plan enters `pending` state - use `/bernstein-approve` to review and approve.
 7. Once approved, planned tasks promote to `open` and agents start picking them up.
 
 ### Reviewing plans
@@ -80,5 +80,5 @@ stages:
 - Keep stages to 2-5 tasks each
 - Use `depends_on` to enforce ordering (foundation before implementation)
 - Assign appropriate roles: backend, frontend, qa, security, devops, docs
-- Mark risky tasks with `complexity: high` — they'll get more capable models
+- Mark risky tasks with `complexity: high` - they'll get more capable models
 - Foundation stages should be `tiny` or `small` scope

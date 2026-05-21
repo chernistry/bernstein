@@ -7,7 +7,7 @@
 - Hybrid wins on out-of-distribution queries where either alone loses.
 
 ## Fusion
-- **Reciprocal Rank Fusion** (RRF) is the safe default — no tuning.
+- **Reciprocal Rank Fusion** (RRF) is the safe default - no tuning.
 - **Weighted linear** only works when scores are calibrated; normalize
   per-query first.
 - **Learned-to-rank** pays off at scale but needs training data.
@@ -21,5 +21,5 @@
 - BM25 over a tokenizer that disagrees with the embedding model will drift.
 - Duplicate docs (same chunk ingested twice) corrupt both recall and
   reranker training.
-- Filter pushdown before retrieval, not after — post-filtering discards
+- Filter pushdown before retrieval, not after - post-filtering discards
   quality candidates.

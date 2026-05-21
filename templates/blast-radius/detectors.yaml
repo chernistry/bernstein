@@ -2,7 +2,7 @@
 #
 # Each entry adds a signal to the scorer. Detectors with `hard_one_way: true`
 # force the final score to 1.0 (regardless of other signals) and flag the
-# change as a one-way door — the merge / deploy gate must require explicit
+# change as a one-way door - the merge / deploy gate must require explicit
 # approval.
 #
 # `kind` selects how the pattern is matched:

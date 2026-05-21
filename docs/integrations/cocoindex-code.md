@@ -27,7 +27,7 @@ keyword, symbol, or near-miss neighbour:
 - Long-running self-evolving runs whose token bills are dominated by
   full-file reads on near-miss matches.
 
-It is overkill — and wasted disk — for short-lived single-feature
+It is overkill - and wasted disk - for short-lived single-feature
 projects, leaf libraries, or runs that touch a known small set of files.
 
 ## Resource cost
@@ -50,13 +50,13 @@ cocoindex-code embeds the contents of your source tree to build the
 semantic index. Treat the index as source-equivalent:
 
 - The index lives outside `.sdd/` (kept outside the snapshot tree on
-  purpose so it doesn't bloat run archives) — by default cocoindex
+  purpose so it doesn't bloat run archives) - by default cocoindex
   writes under the user cache directory chosen by the upstream
   defaults. Confirm the path in your environment before enabling on
   shared machines.
 - No telemetry is sent in the default configuration. If you swap to a
   cloud embedding provider via LiteLLM, the embedding API receives
-  source contents — review your data-handling policy first and gate
+  source contents - review your data-handling policy first and gate
   the upgrade through `bernstein.core.security.policy_engine`.
 - The bundled manifest pins a specific cocoindex version
   (see `version_pin` in the YAML). Upgrades go through the same
@@ -89,16 +89,16 @@ in `bernstein mcp catalog list` for future re-enable.
 
 ## Limitations
 
-- Local index only — no shared index across hosts.
+- Local index only - no shared index across hosts.
 - Disabled by default. Catalog entry exists; servers are not started
   until the operator explicitly enables.
 - The default embedding model is the upstream SentenceTransformer
   default. Switching to a cloud-hosted embedding model means source
-  bytes cross the network — review that change as a data-flow
+  bytes cross the network - review that change as a data-flow
   decision, not just a config flag.
 - The index path is upstream-managed (under the user cache dir). It
   is intentionally outside `.sdd/` to avoid bloating run snapshots,
-  but the path is **not** controlled by Bernstein — confirm before
+  but the path is **not** controlled by Bernstein - confirm before
   enabling on shared machines.
 
 ## Related

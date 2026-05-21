@@ -1,6 +1,6 @@
 ---
 name: architect
-description: System design — module boundaries, API contracts, ADRs.
+description: System design - module boundaries, API contracts, ADRs.
 trigger_keywords:
   - architecture
   - design

@@ -6,7 +6,7 @@
 
 **Do not open a public issue for security vulnerabilities.**
 
-### Preferred channel — Bug Bounty
+### Preferred channel - Bug Bounty
 
 Submit reports through our HackerOne program:
 
@@ -14,7 +14,7 @@ Submit reports through our HackerOne program:
 
 HackerOne handles triage, communication, and rewards. Reports are triaged within 72 hours.
 
-### Alternative — Email
+### Alternative - Email
 
 For issues outside the HackerOne scope or if you prefer direct contact:
 
@@ -30,7 +30,7 @@ For issues outside the HackerOne scope or if you prefer direct contact:
 
 | Target | Notes |
 |--------|-------|
-| `github.com/sipyourdrink-ltd/bernstein` — Python package | `src/bernstein/` |
+| `github.com/sipyourdrink-ltd/bernstein` - Python package | `src/bernstein/` |
 | Task server API (`localhost:8052` when self-hosted) | All HTTP endpoints |
 | Agent spawner / orchestrator | Privilege escalation, task injection |
 | Docker images (`bernstein:latest`, `bernstein:sandbox`) | Container escapes |
@@ -39,7 +39,7 @@ For issues outside the HackerOne scope or if you prefer direct contact:
 
 #### Out of scope
 
-- Third-party CLI agents (Claude Code, Codex, Gemini CLI) — report to their vendors
+- Third-party CLI agents (Claude Code, Codex, Gemini CLI) - report to their vendors
 - The researcher's own sandboxed instance if improperly configured
 - Social engineering / phishing attacks
 - Denial-of-service against the public demo (rate-limit the test, not the server)
@@ -102,7 +102,7 @@ The script spins up a Docker Compose stack with:
 
 - Task server on `http://localhost:18052` (separate port to avoid collisions)
 - No outbound network access (firewall rules block egress)
-- Ephemeral filesystem — nothing persists after `./scripts/researcher_sandbox.sh stop`
+- Ephemeral filesystem - nothing persists after `./scripts/researcher_sandbox.sh stop`
 - Pre-loaded demo tasks and synthetic agent tokens for testing
 
 See [`docs/security/bug-bounty.md`](docs/security/bug-bounty.md) for the full sandbox guide.

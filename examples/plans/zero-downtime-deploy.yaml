@@ -1,4 +1,4 @@
-# Bernstein Plan — Zero-Downtime Deployment Strategy
+# Bernstein Plan - Zero-Downtime Deployment Strategy
 #
 # A three-stage plan that implements zero-downtime deploys:
 #   1. Blue-Green:  infrastructure provisioning and traffic switching

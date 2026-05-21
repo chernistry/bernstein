@@ -8,7 +8,7 @@ it expects, and how rotation works so peers stay verified through the
 swap.
 
 For the wire-level signing flow, see
-[A2A v1.0 — signed agent cards](../architecture/a2a.md).
+[A2A v1.0 - signed agent cards](../architecture/a2a.md).
 
 ---
 
@@ -50,7 +50,7 @@ grant other local users filesystem read.
 | Envelope encryption | Not in this module. Layer KMS / sops / age on the directory if you need it. |
 
 The `O_EXCL` plus `0o600` pair is the file-level invariant the
-orchestrator relies on. A wider mode raises `PermissionError` on load —
+orchestrator relies on. A wider mode raises `PermissionError` on load -
 the operator sees the misconfiguration immediately rather than silently
 running with a too-readable key.
 

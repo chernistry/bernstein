@@ -43,7 +43,7 @@ known_keys:
   - GITHUB_TOKEN
 
 # Per-agent rules (exact id or glob like ``backend-*``). Empty by
-# default — most setups should reach the role fallback below.
+# default - most setups should reach the role fallback below.
 agents: {}
 
 # Default role mapping. Each leaf agent gets its provider key plus the

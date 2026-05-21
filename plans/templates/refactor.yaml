@@ -15,7 +15,7 @@ description: >
 
 constraints:
   - "Tests must pass before and after each refactor step"
-  - "No behavior changes — pure refactor unless explicitly noted"
+  - "No behavior changes - pure refactor unless explicitly noted"
   - "Commit after each stage so rollback is easy"
 
 stages:

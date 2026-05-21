@@ -4,14 +4,14 @@ Bernstein wraps upstream coding-agent CLIs through a per-CLI adapter
 under [`src/bernstein/adapters/`](../../src/bernstein/adapters/). Each
 adapter passes a small set of flags / subcommands that the upstream CLI
 must keep advertising. When a release drops or renames one of those
-flags the adapter breaks silently — the spawn still runs but emits
+flags the adapter breaks silently - the spawn still runs but emits
 wrong-shape output.
 
 The **adapter contract** captures the always-passed surface so the
 [`Adapter contract drift`](../../.github/workflows/adapter-contract-drift.yml)
 workflow can detect drift three times a day and on every PR that
 touches `src/bernstein/adapters/` or `tests/contract/`. Drift is a
-**hard fail** — there is no batched auto-PR. The workflow opens (or
+**hard fail** - there is no batched auto-PR. The workflow opens (or
 refreshes) a tracking issue and fails CI.
 
 Refs: [#1291](https://github.com/sipyourdrink-ltd/bernstein/issues/1291).
@@ -75,7 +75,7 @@ expected_models:
 1. **Read the adapter source.** Open
    `src/bernstein/adapters/<adapter>.py` and identify which flags and
    subcommands the adapter passes to the CLI on **every** invocation.
-   Flags wrapped in `if <opt>:` blocks are conditional — leave them
+   Flags wrapped in `if <opt>:` blocks are conditional - leave them
    out. Be conservative: a too-strict contract creates false drift.
 
 2. **Inspect the upstream help.** Install the CLI locally and run
@@ -114,7 +114,7 @@ expected_models:
 
 The workflow consults the following organisation/repository secrets
 when running the optional model-presence check. **None of them are
-required** — adapters that need a secret simply degrade to help-only
+required** - adapters that need a secret simply degrade to help-only
 coverage when it is absent.
 
 | Secret                             | Used by                |
@@ -134,7 +134,7 @@ the listed model IDs are still served.
   that drowns the rare real regression.
 * **Not a full integration test.** The check confirms the surface the
   adapter relies on still exists. It does not verify the CLI actually
-  produces correct output — that is the job of the adapter unit
+  produces correct output - that is the job of the adapter unit
   suite under [`tests/unit/adapters/`](../../tests/unit/adapters/).
 * **Not auto-fixable.** When drift is detected the workflow opens a
   tracking issue; an operator updates the adapter (or the contract)

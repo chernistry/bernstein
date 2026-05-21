@@ -2,14 +2,14 @@
 
 **Audience:** SREs wiring Bernstein into existing chat/alert systems.
 
-**What:** Outbound, fire-and-forget notification drivers — Slack, Telegram,
+**What:** Outbound, fire-and-forget notification drivers - Slack, Telegram,
 Discord, Email, generic webhook, PagerDuty (via webhook), Jira (via webhook),
 and shell command. Lifecycle events (`pre_task`, `post_task`, `pre_merge`,
 `post_merge`, `pre_spawn`) are fanned out to every configured sink whose
 filters match.
 
 **Why:** Bernstein's chat-control bridges (Telegram/Slack/Discord drivers
-under `core/chat/`) are *inbound* — a human attaches and drives a run
+under `core/chat/`) are *inbound* - a human attaches and drives a run
 interactively. Long-running unattended runs need a *symmetric outbound* path
 to push "task failed", "merge landed", "budget exceeded" back to humans
 without hijacking the same chat. The notifications subsystem is that path.
@@ -75,7 +75,7 @@ notifications:
 
 ### `slack`
 
-Incoming Webhook flavour — bot tokens / Block Kit are out of scope. Source:
+Incoming Webhook flavour - bot tokens / Block Kit are out of scope. Source:
 `core/notifications/sinks/slack.py`.
 
 ```yaml
@@ -137,7 +137,7 @@ stdlib `smtplib` on a background thread; STARTTLS by default. Source:
 
 ### `webhook`
 
-Generic JSON POST — body is `NotificationEvent.to_payload()`. Drop-in for
+Generic JSON POST - body is `NotificationEvent.to_payload()`. Drop-in for
 PagerDuty Events v2, Jira REST, Opsgenie, custom routers. Source:
 `core/notifications/sinks/webhook.py`.
 
@@ -162,13 +162,13 @@ PagerDuty Events v2, Jira REST, Opsgenie, custom routers. Source:
 
 For PagerDuty's exact Events API v2 envelope, the legacy formatter
 `core/communication/notifications.py:287-308` (`format_pagerduty`) renders
-the routing-key/dedup-key payload — wrap your own webhook handler around
+the routing-key/dedup-key payload - wrap your own webhook handler around
 it if you need v2 schema compliance instead of the raw event dump.
 
 ### `shell`
 
 Spawns `argv` with the JSON event payload on stdin and a pinned env. No
-shell interpolation — safe by construction. Source:
+shell interpolation - safe by construction. Source:
 `core/notifications/sinks/shell.py`.
 
 ```yaml
@@ -224,7 +224,7 @@ Source: `cli/commands/notify_cmd.py`.
 
 ### `notify list`
 
-Print every configured sink as JSON-per-line. No live state — purely
+Print every configured sink as JSON-per-line. No live state - purely
 reflects the parsed YAML.
 
 ```console
@@ -245,10 +245,10 @@ $ bernstein notify test --sink slack-ops --event synthetic
 
 Flags:
 
-- `--sink <id>` — required; matches `bernstein.yaml::notifications.sinks[*].id`.
-- `--event <kind>` — defaults to `synthetic`. One of `pre_task`, `post_task`,
+- `--sink <id>` - required; matches `bernstein.yaml::notifications.sinks[*].id`.
+- `--event <kind>` - defaults to `synthetic`. One of `pre_task`, `post_task`,
   `pre_merge`, `post_merge`, `pre_spawn`, `post_spawn`, `synthetic`.
-- `--config <path>` — defaults to `./bernstein.yaml`.
+- `--config <path>` - defaults to `./bernstein.yaml`.
 
 The command builds an *isolated* `NotificationsConfig` containing only the
 named sink, so a smoke test never accidentally spams every sink
@@ -323,22 +323,22 @@ via `build_bridge_from_config`
 
 ## Code pointers
 
-- `src/bernstein/core/notifications/protocol.py:1-22` — design rationale
-- `src/bernstein/core/notifications/protocol.py:40-92` — event/outcome enums + error classes
-- `src/bernstein/core/notifications/protocol.py:95-187` — `NotificationEvent` + `NotificationSink` protocol
-- `src/bernstein/core/notifications/config.py:46-156` — pydantic schema, validators
-- `src/bernstein/core/notifications/bridge.py:94-229` — `DedupCache`, `DeadLetter`
-- `src/bernstein/core/notifications/bridge.py:232-396` — `NotificationDispatcher`
-- `src/bernstein/core/notifications/registry.py:42-282` — first-party kinds + entry-point loader
-- `src/bernstein/core/notifications/sinks/slack.py` — Slack
-- `src/bernstein/core/notifications/sinks/telegram.py` — Telegram
-- `src/bernstein/core/notifications/sinks/discord.py` — Discord
-- `src/bernstein/core/notifications/sinks/email_smtp.py` — SMTP email
-- `src/bernstein/core/notifications/sinks/webhook.py` — generic JSON POST
-- `src/bernstein/core/notifications/sinks/shell.py` — shell command
-- `src/bernstein/core/lifecycle/notify_bridge.py` — lifecycle hook glue
-- `src/bernstein/cli/commands/notify_cmd.py` — `bernstein notify {test,list}`
-- `src/bernstein/core/communication/notifications.py:97-308` — legacy formatters
+- `src/bernstein/core/notifications/protocol.py:1-22` - design rationale
+- `src/bernstein/core/notifications/protocol.py:40-92` - event/outcome enums + error classes
+- `src/bernstein/core/notifications/protocol.py:95-187` - `NotificationEvent` + `NotificationSink` protocol
+- `src/bernstein/core/notifications/config.py:46-156` - pydantic schema, validators
+- `src/bernstein/core/notifications/bridge.py:94-229` - `DedupCache`, `DeadLetter`
+- `src/bernstein/core/notifications/bridge.py:232-396` - `NotificationDispatcher`
+- `src/bernstein/core/notifications/registry.py:42-282` - first-party kinds + entry-point loader
+- `src/bernstein/core/notifications/sinks/slack.py` - Slack
+- `src/bernstein/core/notifications/sinks/telegram.py` - Telegram
+- `src/bernstein/core/notifications/sinks/discord.py` - Discord
+- `src/bernstein/core/notifications/sinks/email_smtp.py` - SMTP email
+- `src/bernstein/core/notifications/sinks/webhook.py` - generic JSON POST
+- `src/bernstein/core/notifications/sinks/shell.py` - shell command
+- `src/bernstein/core/lifecycle/notify_bridge.py` - lifecycle hook glue
+- `src/bernstein/cli/commands/notify_cmd.py` - `bernstein notify {test,list}`
+- `src/bernstein/core/communication/notifications.py:97-308` - legacy formatters
   (`format_slack`, `format_discord`, `format_telegram`, `format_webhook`,
   `format_pagerduty`) re-exported via `bernstein.core.notifications` for
   backwards compatibility

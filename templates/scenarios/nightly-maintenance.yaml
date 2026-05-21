@@ -1,6 +1,6 @@
 id: nightly-maintenance
 name: Nightly Maintenance
-description: Automated nightly maintenance — dependency updates, stale branch cleanup, lint fixes
+description: Automated nightly maintenance - dependency updates, stale branch cleanup, lint fixes
 tags: [maintenance, ci, cleanup, schedule]
 version: "1.0"
 tasks:

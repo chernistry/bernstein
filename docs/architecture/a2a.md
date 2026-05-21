@@ -1,4 +1,4 @@
-# A2A v1.0 — signed agent cards
+# A2A v1.0 - signed agent cards
 
 Bernstein's task server publishes an A2A v1.0 agent card at
 `/.well-known/agent.json` and the public verification keys at
@@ -55,7 +55,7 @@ The signing flow is three steps:
    array on the body.
 
 The detached JWS shape follows RFC 7515 §A.5: the compact form is
-`base64url(header)..base64url(signature)` — the payload segment is
+`base64url(header)..base64url(signature)` - the payload segment is
 empty, so verifiers reconstruct it themselves from the body bytes
 they were served. The protected header carries `alg: EdDSA`,
 `typ: agent-card+jws`, and the `kid` matching the JWKS entry that
@@ -83,7 +83,7 @@ lives in `src/bernstein/core/security/agent_card_signer.py`.
 ### Why detached
 
 Embedding the body inside the JWS payload would force every verifier to
-parse the JWS twice — once to recover the bytes, once to verify them.
+parse the JWS twice - once to recover the bytes, once to verify them.
 Detached signatures over the JCS-canonical body let the verifier work
 directly off the JSON it already had to parse, with no round-trip
 through base64url. The `card_hash` field on the underlying
@@ -156,7 +156,7 @@ The first `/.well-known/agent.json` request after a fresh boot triggers
 two things at once: it lazily binds the keystore to its on-disk
 directory, and it loads the cached PEM bytes for the signing key.
 Both helpers (`_get_keystore` and `_get_signing_keypair`) take the
-same `_KEY_LOCK`, so the lock has to be reentrant — a plain
+same `_KEY_LOCK`, so the lock has to be reentrant - a plain
 `threading.Lock` self-deadlocks on the cold path because the outer
 holder calls into the inner helper which tries to re-acquire it.
 
@@ -227,7 +227,7 @@ race.
 - Operator security runbook:
   [operations/security-and-identity.md](../operations/security-and-identity.md).
 - Source:
-  - `src/bernstein/core/routes/well_known.py` — routes, body builder, JWS attach.
-  - `src/bernstein/core/security/agent_card_signer.py` — JCS, JWS, keypair primitives.
-  - `src/bernstein/core/security/agent_card_keystore.py` — file-backed keystore.
-  - `src/bernstein/core/security/auth_middleware.py` — RFC 8707 audience binding.
+  - `src/bernstein/core/routes/well_known.py` - routes, body builder, JWS attach.
+  - `src/bernstein/core/security/agent_card_signer.py` - JCS, JWS, keypair primitives.
+  - `src/bernstein/core/security/agent_card_keystore.py` - file-backed keystore.
+  - `src/bernstein/core/security/auth_middleware.py` - RFC 8707 audience binding.

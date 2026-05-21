@@ -1,7 +1,7 @@
 # Session handoff
 
-`bernstein handoff` moves a live session between surfaces — terminal,
-web dashboard, chat bridge — without losing the active task or stream
+`bernstein handoff` moves a live session between surfaces - terminal,
+web dashboard, chat bridge - without losing the active task or stream
 tail. The source surface freezes and prints a short-lived token; the
 destination presents the token and re-attaches.
 
@@ -33,7 +33,7 @@ Anatomy:
 
 | Segment | Length | Source |
 |---------|--------|--------|
-| `h_` prefix | 2 chars | Constant — used to recognise a handoff token in logs and to keep the token from starting with `-`. |
+| `h_` prefix | 2 chars | Constant - used to recognise a handoff token in logs and to keep the token from starting with `-`. |
 | Body | ~32 chars | URL-safe base64 from `secrets.token_urlsafe(24)`; alphabet is `A-Z a-z 0-9 - _`. |
 
 Total length is therefore around 34 characters. Match against
@@ -42,7 +42,7 @@ Total length is therefore around 34 characters. Match against
 ### Why the prefix
 
 `secrets.token_urlsafe()` occasionally produces a token whose first
-character is `-`. Click — the CLI parser Bernstein uses — then misreads
+character is `-`. Click - the CLI parser Bernstein uses - then misreads
 `bernstein handoff claim -Vb7c1...` as the option `-V` followed by junk,
 and the claim fails with an obscure `No such option` error. Roughly
 1.5% of issued tokens hit this edge case. Forcing every token to start
@@ -63,7 +63,7 @@ If you wrote any of the following against `v1.10.0` tokens, update for
 
 The token is still URL-safe and printable, just two characters longer
 and prefixed with `h_`. Old tokens issued by `1.10.0` are not
-re-validated by `claim` — any token still in flight at the upgrade
+re-validated by `claim` - any token still in flight at the upgrade
 boundary will fail closed; re-emit on the new version.
 
 Implementation: `HandoffTokenStore.issue()` in
@@ -71,7 +71,7 @@ Implementation: `HandoffTokenStore.issue()` in
 
 ## Related
 
-- [Voice control](voice-control.md) — `recap` / `show recap` voice
+- [Voice control](voice-control.md) - `recap` / `show recap` voice
   commands wrap `bernstein recap`, which inherits the same session.
-- [Autofix](autofix.md) — the `autofix attach` command uses the same
+- [Autofix](autofix.md) - the `autofix attach` command uses the same
   resume-from-any-terminal handoff pattern for chat-control sessions.

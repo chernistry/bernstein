@@ -11,7 +11,7 @@ routes failures back as auto-fix tasks or human-review bulletins.
 Before this loop, "spec said X, code does X" was a human re-read of
 the plan. Silent drift between plan intent and merged code went
 unnoticed until a human noticed. This pattern complements the
-[feature contract](feature-contract.md) — that one freezes the WHAT,
+[feature contract](feature-contract.md) - that one freezes the WHAT,
 spec-as-test verifies the IS.
 
 ## How to use it
@@ -91,7 +91,7 @@ than running.
 - The pytest emitter writes synchronous tests; async-only test suites
   need a custom runner wrap.
 - Failures attach an auto-fix task but never block merge by themselves
-  — the existing janitor + quality gates remain the merge gate.
+  - the existing janitor + quality gates remain the merge gate.
 
 ## Related
 

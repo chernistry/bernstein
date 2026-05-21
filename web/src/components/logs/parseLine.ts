@@ -1,4 +1,4 @@
-// Best-effort log line parsing — extracts level + timestamp from common
+// Best-effort log line parsing - extracts level + timestamp from common
 // Python / Node / agent stdout formats. Anything that doesn't match leaves
 // the corresponding field null.
 
@@ -14,7 +14,7 @@ import type { LogLevel, LogLine } from './types';
 //   ERROR: something blew up
 //   TRACE  fine-grained
 //
-// We don't try to parse JSON log lines here — those are detected with a
+// We don't try to parse JSON log lines here - those are detected with a
 // cheap startsWith('{') check at the renderer level.
 
 const LEVEL_RE =
@@ -23,13 +23,13 @@ const LEVEL_RE =
 const STACK_TRACE_RE =
   /^\s*(Traceback \(most recent call last\):|File "[^"]+", line \d+|at\s+[\w$.<>]+\s+\()/;
 
-// Permissive timestamp matcher — covers ISO-8601 with / without milliseconds
+// Permissive timestamp matcher - covers ISO-8601 with / without milliseconds
 // and the most common space-separated variant. We anchor at start so a
 // timestamp embedded mid-line doesn't shift the level offset.
 const TIMESTAMP_PREFIX_RE =
   /^\[?(?<ts>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?)\]?/;
 
-// HH:MM:SS(.ms)? variant — common for short tail-style logs.
+// HH:MM:SS(.ms)? variant - common for short tail-style logs.
 const TIME_ONLY_PREFIX_RE = /^\[?(?<t>\d{2}:\d{2}:\d{2}(?:[.,]\d+)?)\]?/;
 
 function levelTokenToCanonical(raw: string): LogLevel | null {
@@ -53,7 +53,7 @@ function parseTimestamp(plain: string): number | null {
   }
   const m2 = TIME_ONLY_PREFIX_RE.exec(plain);
   if (m2?.groups?.t) {
-    // Time-only — anchor to today (caller treats as approximate).
+    // Time-only - anchor to today (caller treats as approximate).
     const [hms, ms] = m2.groups.t.replace(',', '.').split('.');
     const [h, mi, s] = hms.split(':').map((n) => Number.parseInt(n, 10));
     const today = new Date();

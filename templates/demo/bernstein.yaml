@@ -1,4 +1,4 @@
-# Bernstein demo project — orchestrator config.
+# Bernstein demo project - orchestrator config.
 # This goal is not executed by the orchestrator; tasks are seeded directly
 # by the demo-cycle script via the task server REST API.
 goal: "Demo: implement a Flask REST API with health check, echo endpoint, and tests"
@@ -6,7 +6,7 @@ goal: "Demo: implement a Flask REST API with health check, echo endpoint, and te
 # Auto-detect the CLI agent based on which API key is set.
 cli: auto
 
-# Keep costs low — 2 agents in parallel is enough to show parallel execution.
+# Keep costs low - 2 agents in parallel is enough to show parallel execution.
 max_agents: 2
 
 # Demo budget cap ($2 per cycle should be plenty for 4 simple tasks).

@@ -1,4 +1,4 @@
-# ProgressWatch — agent liveness via session-log growth
+# ProgressWatch - agent liveness via session-log growth
 
 ProgressWatch is a small observability primitive that decides whether a
 spawned CLI agent is "stuck or just thinking" without parsing the

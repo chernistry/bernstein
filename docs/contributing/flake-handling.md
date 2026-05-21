@@ -9,7 +9,7 @@ How Bernstein detects, quarantines, and recovers from flaky tests.
 - A "flaky" test is one that fails at least twice AND passes at least
   twice across five consecutive runs of the unit suite under
   randomised ordering.
-- Quarantined tests get `@pytest.mark.xfail(strict=False)` — they
+- Quarantined tests get `@pytest.mark.xfail(strict=False)` - they
   still run, still emit XPASS when they pass, but stop blocking the
   merge gate.
 - Unquarantining requires three consecutive green runs after the
@@ -38,7 +38,7 @@ flaky tests when present.
 and on `workflow_dispatch`. It:
 
 1. Installs the `dev` group plus `pytest-randomly` (the latter only
-   in this ephemeral runner — it is intentionally not a global dev
+   in this ephemeral runner - it is intentionally not a global dev
    dep because it auto-activates on import and would shuffle every
    other CI job's test order).
 2. Runs `pytest tests/unit --xflaky-collect --json-report` five
@@ -62,11 +62,11 @@ operators an explicit checklist for investigation and unquarantining.
 1. Open the PR from branch `bot/flake-quarantine`.
 2. Read the affected test names. If they cluster around a single
    subsystem (network, async event loops, filesystem races), that is
-   strong evidence of a shared root cause — file a bug to track the
+   strong evidence of a shared root cause - file a bug to track the
    underlying defect.
 3. Pull the `xflaky-reports` artifact for per-run details.
 4. Land the PR if the markers look reasonable. Close it if the run
-   was infra noise — the next nightly run will redetect any real
+   was infra noise - the next nightly run will redetect any real
    flake.
 
 ### Investigating a quarantined test
@@ -112,7 +112,7 @@ trade off detection latency for false-positive rate:
 - Lower `--xflaky-min-failures` would catch slower-flaking tests
   faster but file false-positive PRs more often.
 - More runs per night would tighten the signal at the cost of hosted-
-  runner minutes — the current five-run budget is ~25 minutes per
+  runner minutes - the current five-run budget is ~25 minutes per
   unit suite on a `ubuntu-latest` hosted runner.
 
 Both knobs live in `.github/workflows/flake-quarantine.yml`. Tune in

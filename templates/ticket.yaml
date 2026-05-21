@@ -11,8 +11,8 @@ priority: 2                   # 1=critical, 2=normal, 3=nice-to-have
 scope: medium                 # small (<30min) | medium (30-90min) | large (90min+)
 complexity: medium             # low | medium | high
 role: backend                 # backend | qa | security | frontend | docs | architect | manager
-model: auto                   # auto | opus | sonnet | haiku | codex | gemini — which model to use
-effort: normal                # low | normal | high | max — model effort/reasoning level
+model: auto                   # auto | opus | sonnet | haiku | codex | gemini - which model to use
+effort: normal                # low | normal | high | max - model effort/reasoning level
 estimated_minutes: 45          # Estimated time for agent to complete
 
 # ── Routing & Dependencies ──

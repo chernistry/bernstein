@@ -1,4 +1,4 @@
-# Bernstein Plan — Testing Infrastructure Overhaul
+# Bernstein Plan - Testing Infrastructure Overhaul
 #
 # A three-stage plan that builds a complete testing stack from scratch:
 #   1. Framework:   configure test runners, factories, fixtures, and coverage
@@ -21,8 +21,8 @@ max_agents: 4
 constraints:
   - "pytest as the test runner (Python) or Jest (Node); no mixing"
   - "Minimum 80% line coverage on new code; 70% overall gate"
-  - "Tests must be isolated — no shared mutable state between test functions"
-  - "No real network calls or database in unit tests — mock at the boundary"
+  - "Tests must be isolated - no shared mutable state between test functions"
+  - "No real network calls or database in unit tests - mock at the boundary"
   - "Integration tests use testcontainers for real database/cache instances"
   - "Test suite must complete in under 3 minutes in CI"
 

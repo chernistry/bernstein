@@ -1,4 +1,4 @@
-# Bernstein Plan — Security & Compliance Remediation
+# Bernstein Plan - Security & Compliance Remediation
 #
 # A three-stage plan for reaching compliance (OWASP Top 10 / SOC 2 baseline):
 #   1. Audit:       static analysis, dependency scan, secrets detection
@@ -42,7 +42,7 @@ stages:
           / Trivy against the dependency manifest. Run Gitleaks or truffleHog
           against the git history for leaked secrets. Produce security/audit-report.md
           with all findings categorised by severity (Critical / High / Medium / Low).
-          Do not fix anything yet — discovery only.
+          Do not fix anything yet - discovery only.
         files:
           - "security/audit-report.md"
         completion_signals:
@@ -76,7 +76,7 @@ stages:
         complexity: medium
         description: >
           For every API endpoint: add strict schema validation (Pydantic, Zod,
-          Joi, Marshmallow — match existing stack) for all request inputs. Reject
+          Joi, Marshmallow - match existing stack) for all request inputs. Reject
           requests that fail validation with 400 and a structured error. Ensure
           all database queries use parameterized statements (no string interpolation
           into SQL). Add output encoding for any HTML rendered server-side.
@@ -94,7 +94,7 @@ stages:
         description: >
           Move all secrets (API keys, DB passwords, signing keys) from source
           files and .env to a secrets manager (AWS Secrets Manager, HashiCorp
-          Vault, or GitHub Actions Secrets — match existing infra). Add envelope
+          Vault, or GitHub Actions Secrets - match existing infra). Add envelope
           encryption for PII database columns using the application-level
           encryption library (SQLAlchemy-Utils EncryptedType, TypeORM transformers,
           etc.). Rotate any keys that were previously committed to git.
@@ -115,7 +115,7 @@ stages:
           (UTC), actor user ID, action type, target resource ID, source IP, and
           outcome (success/failure). Write to a tamper-evident append-only store
           (a dedicated audit_log table or structured log stream). Do not log
-          sensitive field values — log IDs only.
+          sensitive field values - log IDs only.
         files:
           - "src/audit/"
         completion_signals:
@@ -150,7 +150,7 @@ stages:
         complexity: low
         description: >
           Add the following CI jobs to the pipeline (GitHub Actions / GitLab CI
-          / Buildkite — match existing): (1) Semgrep SAST scan with fail-on-error,
+          / Buildkite - match existing): (1) Semgrep SAST scan with fail-on-error,
           (2) pip-audit / npm audit failing on critical severity, (3) Gitleaks
           secret scan, (4) OWASP Dependency-Check for license compliance.
           Add a security/ci-baseline.json that records accepted false positives

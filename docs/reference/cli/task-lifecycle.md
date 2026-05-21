@@ -51,12 +51,12 @@ Create a single task on the running task server (`POST /tasks`).
 | `--priority` | `2` | `1`=critical, `2`=normal, `3`=nice-to-have (range 1-3). |
 | `--scope` | `medium` | `small` / `medium` / `large`. |
 | `--complexity` | `medium` | `low` / `medium` / `high`. |
-| `--depends-on TASK_ID` | — | Task IDs this task depends on. Repeatable. |
+| `--depends-on TASK_ID` | - | Task IDs this task depends on. Repeatable. |
 | `--dry-run` | off | Print the JSON payload without calling the API. |
 
 The command is registered as `task compose` internally and exposed as the visible `bernstein add-task` (see `cli/main.py:696`).
 
-**Example — create a task and read its ID:**
+**Example - create a task and read its ID:**
 
 ```bash
 bernstein add-task "Add JWT middleware" \
@@ -85,7 +85,7 @@ List tasks visible to the running task server, with optional filters.
 | `--role ROLE` | none | Filter by role (e.g. `backend`, `qa`, `security`). |
 | `--json` | off | Emit raw JSON list instead of the Rich table. |
 
-The data source is `GET /status`; only tasks the server currently knows about are returned (archived tasks are not in this view — use `bernstein recap` or `bernstein replay` for archive views).
+The data source is `GET /status`; only tasks the server currently knows about are returned (archived tasks are not in this view - use `bernstein recap` or `bernstein replay` for archive views).
 
 ```bash
 # Only the in-flight backend tasks, JSON
@@ -110,7 +110,7 @@ List tasks waiting for **human approval** in the `--approval review` flow.
 
 A task is "pending" when its task store has dropped a JSON file under `.sdd/runtime/pending_approvals/`. This happens automatically when `bernstein run --approval review` verifies a task and pauses awaiting your decision. The state is **not** `PENDING_APPROVAL` (which is the FSM enum used by the security/approval subsystem); the file-on-disk semaphore is what `bernstein pending` reads.
 
-JSON output mode (`--json` on the root) emits the raw array of pending records — useful in scripts:
+JSON output mode (`--json` on the root) emits the raw array of pending records - useful in scripts:
 
 ```bash
 bernstein --json pending | jq -r '.[].task_id' | while read tid; do
@@ -137,7 +137,7 @@ bernstein reject  TASK_ID [--workdir .]
 | `TASK_ID` | required | Task ID, positional. |
 | `--workdir` | `.` | Project root. |
 
-Both commands are file-only: they write `.sdd/runtime/approvals/<id>.approved` or `.rejected`. The orchestrator's next tick picks the file up, transitions the task (merge on approve, cleanup on reject), and removes the file. **Approval and rejection are both idempotent** — the orchestrator scrubs duplicates.
+Both commands are file-only: they write `.sdd/runtime/approvals/<id>.approved` or `.rejected`. The orchestrator's next tick picks the file up, transitions the task (merge on approve, cleanup on reject), and removes the file. **Approval and rejection are both idempotent** - the orchestrator scrubs duplicates.
 
 > **Not the same as `bernstein approve-tool` / `bernstein reject-tool`.** Those resolve **tool-call** approvals (a single tool invocation by a running agent). The lifecycle approve/reject above resolves a **whole task's verification** review. See `cli/commands/approval_cmd.py` for the tool-call variants.
 
@@ -237,7 +237,7 @@ fi
 # 4. Trigger the merge (if the run wasn't already auto-merging).
 bernstein merge
 
-# 5. Final state — anything other than `closed` means the merge failed.
+# 5. Final state - anything other than `closed` means the merge failed.
 bernstein --json list-tasks \
   | jq --arg id "$TASK_ID" '.[] | select(.id == $id)'
 ```
@@ -245,5 +245,5 @@ bernstein --json list-tasks \
 Notes:
 
 - All four state-mutating commands (`add-task`, `approve`, `reject`, `cancel`) are safe to retry. The server / orchestrator dedupes on `task_id`.
-- Treat `cancelled` / `failed` / `closed` as terminal in scripts. `done` is **not** terminal — it precedes verification + merge.
+- Treat `cancelled` / `failed` / `closed` as terminal in scripts. `done` is **not** terminal - it precedes verification + merge.
 - For long-running orchestrations, prefer `bernstein watch` (streams events) over a polling loop. (`cli/watch_cmd.py:252`.)

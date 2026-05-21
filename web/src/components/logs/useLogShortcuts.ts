@@ -57,7 +57,7 @@ export function useLogShortcuts({
       // OR the focused element is the document body (no focused control).
       if (!inside && document.activeElement !== document.body) return;
       // While the user is typing into the search field, only `Escape` and
-      // `Enter` / `Shift+Enter` are handled here — the rest fall through to
+      // `Enter` / `Shift+Enter` are handled here - the rest fall through to
       // the input.
       const inField = isTextInput(e.target);
       if (e.key === 'Escape') {
@@ -114,7 +114,7 @@ export function useLogShortcuts({
           onToggleHelp();
           break;
         default:
-          // unhandled — leave it alone
+          // unhandled - leave it alone
           break;
       }
     };

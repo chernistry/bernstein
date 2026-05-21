@@ -2,15 +2,15 @@
 
 A plan step can split into discrete `research → plan → implement →
 verify` phases, each spawned as a fresh short-lived agent with its own
-context window. Between phases, only the **distilled handoff** —
-summary, decisions, constraints, open questions — passes forward. The
+context window. Between phases, only the **distilled handoff** -
+summary, decisions, constraints, open questions - passes forward. The
 implement phase never sees the research transcript.
 
 ## Why it exists
 
 When one long-running agent does research, planning, and execution in
 the same window, it burns 60 k tokens reading the codebase, emits a
-plan, then keeps reading on top of that bloat while implementing —
+plan, then keeps reading on top of that bloat while implementing -
 hitting compaction and degrading quality. Discrete phases keep each
 context window small and let the router pick a different model per
 phase: a high-reasoning model for research, a cheaper one for
@@ -42,7 +42,7 @@ phase. Each phase writes a structured artefact to
 }
 ```
 
-The next phase's prompt is seeded with that JSON only — not the prior
+The next phase's prompt is seeded with that JSON only - not the prior
 phase's transcript.
 
 Existing single-phase plans (no `phases:` field) run unchanged.

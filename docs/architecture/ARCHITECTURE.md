@@ -4,7 +4,7 @@
 
 Bernstein is a deterministic orchestrator for CLI coding agents. Think Kubernetes for containers, but for AI coding agents: you declare what you want, the control plane schedules it, short-lived agents execute in isolated worktrees, and a janitor verifies the output before anything lands.
 
-The orchestrator is **deterministic Python** — zero LLM tokens on coordination. Every scheduling decision, every retry, every spawn is auditable code, not a model response.
+The orchestrator is **deterministic Python** - zero LLM tokens on coordination. Every scheduling decision, every retry, every spawn is auditable code, not a model response.
 
 ---
 
@@ -43,20 +43,20 @@ graph TD
 
 ## Why file-based state
 
-Bernstein stores everything in `.sdd/` files — no databases, no hidden memory. This is a deliberate design choice:
+Bernstein stores everything in `.sdd/` files - no databases, no hidden memory. This is a deliberate design choice:
 
-- **Inspectable**: `cat .sdd/backlog/open/*.yaml` — read task specs as plain text
+- **Inspectable**: `cat .sdd/backlog/open/*.yaml` - read task specs as plain text
 - **Recoverable**: copy `.sdd/` to another machine, restart Bernstein, resume
 - **Auditable**: every metric, trace, and lesson is a JSONL file you can grep
 - **Git-friendly**: back up `.sdd/backlog/` and `.sdd/metrics/` alongside your code
 
-Runtime state (`.sdd/runtime/`) is ephemeral — PIDs, logs, signals. Never commit it.
+Runtime state (`.sdd/runtime/`) is ephemeral - PIDs, logs, signals. Never commit it.
 
 ---
 
 ## Package structure
 
-Since v1.6, `core/` is organized into 35 sub-packages rather than flat files. Top-level modules like `core/server.py` and `core/orchestrator.py` still exist but are **thin re-export shims** — the real implementation lives in the corresponding sub-package. This keeps import paths stable while allowing each subsystem to grow independently.
+Since v1.6, `core/` is organized into 35 sub-packages rather than flat files. Top-level modules like `core/server.py` and `core/orchestrator.py` still exist but are **thin re-export shims** - the real implementation lives in the corresponding sub-package. This keeps import paths stable while allowing each subsystem to grow independently.
 
 | Sub-package | Responsibility |
 |-------------|----------------|
@@ -93,15 +93,15 @@ Each module has one responsibility. The split follows the pattern: thin façade 
 
 ### Task Server (`core/server.py` shim → `core/server/`)
 
-FastAPI application exposing the REST API. Central coordination point for all agents. State persists to `.sdd/runtime/tasks.jsonl` as a recovery checkpoint. The server app factory, middleware, and launch logic live in `core/server/`. Routes are split across `core/routes/` — over 40 route modules including `tasks.py`, `status.py`, `costs.py`, `agents.py`, `plans.py`, `quality.py`, `graduation.py`, `slack.py`, `webhooks.py`, `dashboard.py`, `auth.py`, `observability.py`, `health.py`, `gateway.py`, and more.
+FastAPI application exposing the REST API. Central coordination point for all agents. State persists to `.sdd/runtime/tasks.jsonl` as a recovery checkpoint. The server app factory, middleware, and launch logic live in `core/server/`. Routes are split across `core/routes/` - over 40 route modules including `tasks.py`, `status.py`, `costs.py`, `agents.py`, `plans.py`, `quality.py`, `graduation.py`, `slack.py`, `webhooks.py`, `dashboard.py`, `auth.py`, `observability.py`, `health.py`, `gateway.py`, and more.
 
 ### Orchestrator (`core/orchestrator.py` shim → `core/orchestration/`)
 
 The public façade. Runs the tick loop: fetch open tasks, batch by role, spawn agents, monitor heartbeats, handle completion. The actual logic lives in `core/orchestration/`:
 
-- **Tick pipeline** (`core/orchestration/tick_pipeline.py`) — data containers and task fetching
-- **Task lifecycle** (`core/tasks/task_lifecycle.py`) — claim, spawn, complete, retry, decompose
-- **Agent lifecycle** (`core/agents/agent_lifecycle.py`) — heartbeat, crash detection, reaping, loop/deadlock detection
+- **Tick pipeline** (`core/orchestration/tick_pipeline.py`) - data containers and task fetching
+- **Task lifecycle** (`core/tasks/task_lifecycle.py`) - claim, spawn, complete, retry, decompose
+- **Agent lifecycle** (`core/agents/agent_lifecycle.py`) - heartbeat, crash detection, reaping, loop/deadlock detection
 
 All task and agent status changes are validated by the Lifecycle Governance Kernel (`core/tasks/lifecycle.py`), which enforces an explicit FSM transition table and emits typed `LifecycleEvent` records for audit and replay. See [LIFECYCLE.md](LIFECYCLE.md) for the full state diagrams, transition tables, and `TransitionReason`/`AbortReason` enumerations.
 
@@ -117,7 +117,7 @@ See [`architecture/model-routing.md`](model-routing.md) for cascade behaviour.
 
 ### Janitor (`core/quality/janitor.py`)
 
-Verifies task completion via concrete signals: file exists, glob matches, tests pass, file contains expected content. Moves tasks from `claimed/` to `done/` or `failed/` based on signal results. Does not trust agent claims — verifies them.
+Verifies task completion via concrete signals: file exists, glob matches, tests pass, file contains expected content. Moves tasks from `claimed/` to `done/` or `failed/` based on signal results. Does not trust agent claims - verifies them.
 
 ### Reviewer (`core/quality/reviewer.py`)
 
@@ -141,7 +141,7 @@ Tracks per-agent token consumption in real time. Detects runaway token growth an
 
 | Module (sub-package) | What it does |
 |--------|-------------|
-| `core/observability/circuit_breaker.py` | Halts agents that repeatedly violate purpose or crash — sends SHUTDOWN signal |
+| `core/observability/circuit_breaker.py` | Halts agents that repeatedly violate purpose or crash - sends SHUTDOWN signal |
 | `core/cost/cost_tracker.py` | Per-run cost budget tracking with threshold warnings |
 | `core/cost/cost_history.py` | Persisted cost history and alert logic |
 | `core/quality/cross_model_verifier.py` | Routes completed diffs to a different model for independent review |
@@ -157,18 +157,18 @@ Tracks per-agent token consumption in real time. Detects runaway token growth an
 | `core/git/git_pr.py` | PR creation and branching operations |
 | `core/security/guardrails.py` | Output guardrails: secret detection, scope enforcement, dangerous operations |
 | `core/knowledge/knowledge_base.py` | Codebase indexing and task context enrichment |
-| `core/knowledge/lessons.py` | Agent lesson propagation — tag-matched, confidence-decayed over time |
+| `core/knowledge/lessons.py` | Agent lesson propagation - tag-matched, confidence-decayed over time |
 | `core/routing/llm.py` | Async native LLM client for the manager and external models |
 | `core/orchestration/manager.py` | LLM-powered task decomposition and review (splits across `manager_models.py`, `manager_parsing.py`, `manager_prompts.py`) |
 | `core/git/merge_queue.py` | FIFO merge queue for serialized branch merging with conflict routing |
 | `core/observability/metric_collector.py` | Metrics collection and recording |
 | `core/observability/metrics.py` | Performance metrics facade |
-| `core/orchestration/multi_cell.py` | Multi-cell orchestrator — each cell has its own manager + workers |
+| `core/orchestration/multi_cell.py` | Multi-cell orchestrator - each cell has its own manager + workers |
 | `core/communication/notifications.py` | Webhook notification system for run events |
 | `core/security/policy.py` | Model routing policy: tier optimization and provider routing |
 | `core/orchestration/preflight.py` | Pre-flight checks: validate CLI, API key, port availability |
 | `core/quality/quality_gates.py` | Automated quality gates: lint, type-check, test gates |
-| `core/security/quarantine.py` | Cross-run task quarantine — track repeatedly-failing tasks |
+| `core/security/quarantine.py` | Cross-run task quarantine - track repeatedly-failing tasks |
 | `core/observability/rate_limit_tracker.py` | Per-provider throttle tracking and 429 detection |
 | `core/config/seed.py` | Seed file parser for bernstein.yaml |
 | `core/persistence/session.py` | Session state persistence for fast resume after stop/restart |
@@ -211,20 +211,20 @@ Tracks per-agent token consumption in real time. Detects runaway token growth an
 Three pluggable subsystems landed in the 1.9 series. Each has its own
 dedicated architecture page:
 
-- **[Sandbox backends](sandbox.md)** — pluggable `SandboxBackend` /
+- **[Sandbox backends](sandbox.md)** - pluggable `SandboxBackend` /
   `SandboxSession` protocol. First-party backends: local git
   `worktree` (default), `docker`, `e2b` (Firecracker microVMs), and
   `modal` (serverless containers with optional GPU). Third parties
   register through the `bernstein.sandbox_backends` entry-point group;
   `bernstein agents sandbox-backends` lists every installed backend.
-- **[Artifact storage sinks](storage.md)** — async `ArtifactSink`
+- **[Artifact storage sinks](storage.md)** - async `ArtifactSink`
   protocol that decouples `.sdd/` persistence from the local
   filesystem. First-party sinks cover `local_fs`, `s3`, `gcs`,
   `azure_blob`, and `r2`. `BufferedSink` preserves the WAL
   crash-safety contract by fsyncing locally first and mirroring the
   payload to the remote asynchronously. Third parties extend via
   `bernstein.storage_sinks`.
-- **[Progressive skill packs](skills.md)** — OpenAI Agents SDK
+- **[Progressive skill packs](skills.md)** - OpenAI Agents SDK
   "Skills" pattern: only a compact index ships in every
   spawn's system prompt; agents pull full bodies on demand via the
   `load_skill` MCP tool. Plugins register additional skill sources
@@ -250,7 +250,7 @@ class CLIAdapter(ABC):
 
 The `CachingAdapter` wrapper in `adapters/caching_adapter.py` transparently deduplicates system prompt prefixes across agents, saving tokens on repeated spawns.
 
-Adapters must use `build_worker_cmd()` for process visibility — this sets the process title and writes the PID metadata file that `bernstein ps` reads.
+Adapters must use `build_worker_cmd()` for process visibility - this sets the process title and writes the PID metadata file that `bernstein ps` reads.
 
 ---
 
@@ -273,14 +273,14 @@ Adapters must use `build_worker_cmd()` for process visibility — this sets the 
 
 Bernstein can execute agents on Cloudflare's edge infrastructure in addition to local processes. The integration provides:
 
-- **RuntimeBridge** (`bridges/cloudflare.py`) — spawn agents on Workers + Durable Objects
-- **WorkflowBridge** (`bridges/cloudflare_workflow.py`) — durable multi-step workflows with auto-retry and approval gates
-- **SandboxBridge** (`bridges/cloudflare_sandbox.py`) — isolated V8 or container execution for untrusted code
-- **BrowserRenderingBridge** (`bridges/browser_rendering.py`) — headless web browsing for agents
-- **R2WorkspaceSync** (`bridges/r2_sync.py`) — content-addressed workspace file sync via R2
-- **WorkersAIProvider** (`core/routing/cloudflare_ai.py`) — free-tier LLM models for planning
-- **D1AnalyticsClient** (`core/cost/d1_analytics.py`) — usage metering and billing
-- **VectorizeSemanticCache** (`core/memory/vectorize_cache.py`) — semantic LLM response caching
+- **RuntimeBridge** (`bridges/cloudflare.py`) - spawn agents on Workers + Durable Objects
+- **WorkflowBridge** (`bridges/cloudflare_workflow.py`) - durable multi-step workflows with auto-retry and approval gates
+- **SandboxBridge** (`bridges/cloudflare_sandbox.py`) - isolated V8 or container execution for untrusted code
+- **BrowserRenderingBridge** (`bridges/browser_rendering.py`) - headless web browsing for agents
+- **R2WorkspaceSync** (`bridges/r2_sync.py`) - content-addressed workspace file sync via R2
+- **WorkersAIProvider** (`core/routing/cloudflare_ai.py`) - free-tier LLM models for planning
+- **D1AnalyticsClient** (`core/cost/d1_analytics.py`) - usage metering and billing
+- **VectorizeSemanticCache** (`core/memory/vectorize_cache.py`) - semantic LLM response caching
 
 The cloud bridges implement the same `RuntimeBridge` interface as local execution, so the orchestrator remains agnostic to where agents run. See the [Cloudflare Overview](cloudflare-overview.md) for architecture diagrams and setup instructions.
 
@@ -288,10 +288,10 @@ The cloud bridges implement the same `RuntimeBridge` interface as local executio
 
 ## What to read next
 
-- **[Getting Started](../getting-started/GETTING_STARTED.md)** — install, init, run, monitor
-- **[Feature Matrix](../reference/FEATURE_MATRIX.md)** — shipped vs. partial vs. roadmap
-- **[Benchmarks](../benchmarks/BENCHMARKS.md)** — performance baseline and methodology
-- **[Sandbox backends](sandbox.md)** — pluggable `SandboxBackend` protocol (1.9.x)
-- **[Artifact storage sinks](storage.md)** — cloud `.sdd/` persistence (1.9.x)
-- **[Skills](skills.md)** — progressive-disclosure capability packs (1.9.x)
-- **[What's New](../whats-new.md)** — 1.8.x → 1.9.x user-facing changes
+- **[Getting Started](../getting-started/GETTING_STARTED.md)** - install, init, run, monitor
+- **[Feature Matrix](../reference/FEATURE_MATRIX.md)** - shipped vs. partial vs. roadmap
+- **[Benchmarks](../benchmarks/BENCHMARKS.md)** - performance baseline and methodology
+- **[Sandbox backends](sandbox.md)** - pluggable `SandboxBackend` protocol (1.9.x)
+- **[Artifact storage sinks](storage.md)** - cloud `.sdd/` persistence (1.9.x)
+- **[Skills](skills.md)** - progressive-disclosure capability packs (1.9.x)
+- **[What's New](../whats-new.md)** - 1.8.x → 1.9.x user-facing changes

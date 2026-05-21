@@ -15,7 +15,7 @@ export function bucketFor(status: GateStatus): GateBucket {
       return 'failing';
     case 'warn':
       // ``warn`` is non-blocking by design but still wants the operator's
-      // attention — group with pending so it sits above the green wall.
+      // attention - group with pending so it sits above the green wall.
       return 'pending';
     case 'pending':
       return 'pending';
@@ -31,14 +31,14 @@ export function bucketFor(status: GateStatus): GateBucket {
 /**
  * Treat a result as failing when it actually broke the build (``blocked``)
  * OR when its status alone implies failure. Non-required failures still land
- * in the failing bucket because operators want to see them — they just don't
+ * in the failing bucket because operators want to see them - they just don't
  * gate completion.
  */
 export function isFailing(r: GateResult): boolean {
   return r.blocked || r.status === 'fail' || r.status === 'timeout';
 }
 
-/** Sort rank — failing first, then pending/warn, then passing, then skipped. */
+/** Sort rank - failing first, then pending/warn, then passing, then skipped. */
 const BUCKET_RANK: Record<GateBucket, number> = {
   failing: 0,
   pending: 1,
@@ -86,7 +86,7 @@ export function filterByBuckets(
   return results.filter((r) => active.has(bucketFor(r.status)));
 }
 
-/** Display label per bucket — used in chips, headers, and ARIA. */
+/** Display label per bucket - used in chips, headers, and ARIA. */
 export const BUCKET_LABEL: Record<GateBucket, string> = {
   failing: 'failing',
   pending: 'pending',

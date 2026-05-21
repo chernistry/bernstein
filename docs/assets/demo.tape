@@ -1,4 +1,4 @@
-# Bernstein demo tape — generates docs/assets/demo.gif
+# Bernstein demo tape - generates docs/assets/demo.gif
 # Run with: vhs docs/assets/demo.tape  (from project root)
 # Requires: vhs (brew install vhs)
 
@@ -18,7 +18,7 @@ Set WindowBar     "Rings"
 Set Padding       16
 Set BorderRadius  8
 
-# ── Hidden setup — alias bernstein and set clean prompt ───────────────────────
+# ── Hidden setup - alias bernstein and set clean prompt ───────────────────────
 Hide
 Type `export PS1="$ " && alias bernstein="bash docs/assets/demo-runner.sh"`
 Enter

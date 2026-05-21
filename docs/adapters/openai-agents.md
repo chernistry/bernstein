@@ -22,7 +22,7 @@ or with uv:
 uv add 'bernstein[openai]'
 ```
 
-The adapter module itself loads without the SDK — `bernstein agents` will
+The adapter module itself loads without the SDK - `bernstein agents` will
 list the adapter either way, but `spawn()` will fail with a clear error
 until the extra is installed.
 
@@ -38,9 +38,9 @@ scoping:
 | Variable | Purpose |
 |----------|---------|
 | `OPENAI_API_KEY` | API key (required) |
-| `OPENAI_BASE_URL` | Custom endpoint (optional — proxies, Azure) |
-| `OPENAI_ORGANIZATION` | Organization ID (optional — Enterprise tier detection) |
-| `OPENAI_PROJECT` | Project ID (optional — per-project billing) |
+| `OPENAI_BASE_URL` | Custom endpoint (optional - proxies, Azure) |
+| `OPENAI_ORGANIZATION` | Organization ID (optional - Enterprise tier detection) |
+| `OPENAI_PROJECT` | Project ID (optional - per-project billing) |
 
 Register per-agent scope in `.sdd/config/credential_scopes.yaml`:
 
@@ -68,7 +68,7 @@ supported set has pricing rows in `src/bernstein/core/cost/cost.py`:
 | `gpt-5-mini` | 0.50 | 2.50 | Adapter default |
 | `o4` | 3.00 | 12.00 | Reasoning tasks |
 
-Any other model works — Bernstein will fall back to the generic
+Any other model works - Bernstein will fall back to the generic
 `_model_cost` default if pricing is missing, and SonarCloud's cost
 panels will flag the gap.
 
@@ -88,7 +88,7 @@ stages:
         sandbox_provider: unix_local   # unix_local | docker | e2b | modal
 ```
 
-Sandbox provider selection is currently adapter-internal — set it on
+Sandbox provider selection is currently adapter-internal - set it on
 the step that uses the `openai_agents` CLI.
 
 ---
@@ -126,8 +126,8 @@ Agents events into the same log stream as Claude Code, Codex, etc.:
 
 ## MCP bridging
 
-MCP servers that Bernstein already manages — `bernstein` bridge,
-user-configured servers — are passed through to the OpenAI Agents
+MCP servers that Bernstein already manages - `bernstein` bridge,
+user-configured servers - are passed through to the OpenAI Agents
 runner via the manifest's `mcp_servers` key.  The runner forwards them
 to `RunConfig` so the Agent can call into them **without** letting the
 SDK spawn its own MCP child processes.  This avoids duplicate

@@ -1,4 +1,4 @@
-// Multi-select log-level filter — clicking a level chip toggles its inclusion
+// Multi-select log-level filter - clicking a level chip toggles its inclusion
 // in the visible set. The "any" pseudo-chip resets the filter to "show all".
 
 import { cn } from '@/lib/utils';
@@ -8,7 +8,7 @@ import { LOG_LEVELS_ORDER } from './types';
 
 interface Props {
   active: ReadonlySet<LogLevel>;
-  /** Lines without a parsed level — controlled by a separate "untyped" pill. */
+  /** Lines without a parsed level - controlled by a separate "untyped" pill. */
   includeUntyped: boolean;
   onToggleLevel: (l: LogLevel) => void;
   onToggleUntyped: () => void;

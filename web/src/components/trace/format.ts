@@ -73,7 +73,7 @@ const KIND_STYLE: Partial<Record<string, KindStyle>> = {
 /**
  * Resolve the colour palette for a card based on its outcome and kind. Outcome
  * wins for terminal events (complete/fail), kind wins for routine events
- * (edit/compact) — this matches how the TUI renders the same vocabulary.
+ * (edit/compact) - this matches how the TUI renders the same vocabulary.
  */
 export function cardStyle(kind: TraceKind, outcome: TraceOutcome): KindStyle {
   if (outcome === 'failed') return OUTCOME_STYLE.failed;
@@ -85,7 +85,7 @@ export function cardStyle(kind: TraceKind, outcome: TraceOutcome): KindStyle {
 
 /** Render a unix-seconds timestamp as a wall-clock time string. */
 export function formatWallClock(ts: number): string {
-  if (!Number.isFinite(ts) || ts <= 0) return '—';
+  if (!Number.isFinite(ts) || ts <= 0) return '-';
   const d = new Date(ts * 1000);
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
@@ -93,15 +93,15 @@ export function formatWallClock(ts: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-/** ISO timestamp shown in the hover tooltip — useful when scrubbing logs. */
+/** ISO timestamp shown in the hover tooltip - useful when scrubbing logs. */
 export function formatIso(ts: number): string {
-  if (!Number.isFinite(ts) || ts <= 0) return '—';
+  if (!Number.isFinite(ts) || ts <= 0) return '-';
   return new Date(ts * 1000).toISOString();
 }
 
 /** Compact relative phrase: 3s, 12m, 4h, 2d. Mirrors `lib/format.ts`. */
 export function formatRelativeSeconds(ts: number, now: number = Date.now() / 1000): string {
-  if (!Number.isFinite(ts) || ts <= 0) return '—';
+  if (!Number.isFinite(ts) || ts <= 0) return '-';
   const delta = Math.max(0, Math.floor(now - ts));
   if (delta < 60) return `${delta}s ago`;
   if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
@@ -111,8 +111,8 @@ export function formatRelativeSeconds(ts: number, now: number = Date.now() / 100
 
 /** Span between two unix-second timestamps, friendly-printed. */
 export function formatSpanSeconds(start: number | null, end: number | null): string {
-  if (start == null || end == null) return '—';
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return '—';
+  if (start == null || end == null) return '-';
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '-';
   const span = Math.max(0, end - start);
   if (span < 1) return '<1s';
   const totalSec = Math.floor(span);

@@ -29,15 +29,15 @@ window + same risk class → byte-identical archive.
 
 | Entry | Purpose | Article 12 anchor |
 |---|---|---|
-| `manifest.json` | Schema version, bundle id, window bounds, risk class, event count, chain anchor (head HMAC), per-artefact SHA-256, retention block. | 12(2)(c) — chain anchor; 12(3) — retention pin. |
-| `events.jsonl` | The HMAC-chained audit slice for the window, sorted, byte-identical to the on-disk source records. | 12(1) — automatic recording. |
-| `data_catalog.json` | Per-resource activity counts (input/output catalog). | 12(2)(b) — post-market monitoring; Annex IV §2(d) — data governance. |
+| `manifest.json` | Schema version, bundle id, window bounds, risk class, event count, chain anchor (head HMAC), per-artefact SHA-256, retention block. | 12(2)(c) - chain anchor; 12(3) - retention pin. |
+| `events.jsonl` | The HMAC-chained audit slice for the window, sorted, byte-identical to the on-disk source records. | 12(1) - automatic recording. |
+| `data_catalog.json` | Per-resource activity counts (input/output catalog). | 12(2)(b) - post-market monitoring; Annex IV §2(d) - data governance. |
 | `clause_map.json` | Maps each artefact above to its Article 12 sub-clause. | Auditor navigation. |
 
 Determinism rules applied to the zip:
 
 - Fixed file order (alphabetical).
-- Fixed mtime (1980-01-01 — the floor zip can encode).
+- Fixed mtime (1980-01-01 - the floor zip can encode).
 - Stored mode `0644`.
 - Canonical JSON (sorted keys, no whitespace) for every JSON entry.
 
@@ -98,7 +98,7 @@ bundle = build_article12_bundle(
 print(bundle.bundle_id, bundle.event_count, bundle.archive_path, bundle.sha256)
 ```
 
-Pass `write=False` to build the bundle in-memory only — useful for
+Pass `write=False` to build the bundle in-memory only - useful for
 spot-checking a window before shipping.
 
 ### Per-run anchor (alternative)
@@ -211,7 +211,7 @@ the bundles:
 }
 ```
 
-The index is operator-maintained — bernstein does not generate it. It is
+The index is operator-maintained - bernstein does not generate it. It is
 the artefact the auditor asks for first ("show me every bundle for this
 system over the last six months") and the only thing that demonstrates
 continuity at the lifetime granularity.
@@ -220,12 +220,12 @@ continuity at the lifetime granularity.
 
 | Article 12 clause | Bundle artefact |
 |---|---|
-| 12(1) — automatic recording over lifetime | `events.jsonl`. |
-| 12(2)(a) — Art. 79(1) risk situations + substantial modifications | Operator-side: surface the assessment via the `eu_ai_act.py:assess_task()` per-task store. The bundle does not auto-flag substantial modifications. |
-| 12(2)(b) — post-market monitoring | `data_catalog.json` aggregates per-resource activity counts. |
-| 12(2)(c) — third-party-verifiable monitoring of high-risk systems (Art. 26(5)) | `chain_anchor` + DSSE envelope (see [DSSE](../security/audit-dsse-envelope.md)). |
-| 12(3) — retention horizon | `manifest.json:retention`; pair with an immutable backend for storage-side enforcement. |
-| 19(1) — logs ≥6 months | Same as 12(3) plus operator-maintained bundle index. |
+| 12(1) - automatic recording over lifetime | `events.jsonl`. |
+| 12(2)(a) - Art. 79(1) risk situations + substantial modifications | Operator-side: surface the assessment via the `eu_ai_act.py:assess_task()` per-task store. The bundle does not auto-flag substantial modifications. |
+| 12(2)(b) - post-market monitoring | `data_catalog.json` aggregates per-resource activity counts. |
+| 12(2)(c) - third-party-verifiable monitoring of high-risk systems (Art. 26(5)) | `chain_anchor` + DSSE envelope (see [DSSE](../security/audit-dsse-envelope.md)). |
+| 12(3) - retention horizon | `manifest.json:retention`; pair with an immutable backend for storage-side enforcement. |
+| 19(1) - logs ≥6 months | Same as 12(3) plus operator-maintained bundle index. |
 
 For the AIGF control map, see
 [FINOS AIGF mapping](finos-aigf-mapping.md). For the regulator-class
@@ -252,15 +252,15 @@ lineage trail that pairs with the bundle, see
 
 ## Related
 
-- [Audit log](../security/audit-log.md) — HMAC chain layout, key
+- [Audit log](../security/audit-log.md) - HMAC chain layout, key
   management, verify procedure.
-- [DSSE / in-toto envelope](../security/audit-dsse-envelope.md) —
+- [DSSE / in-toto envelope](../security/audit-dsse-envelope.md) -
   third-party-verifiable wrapper around the bundle.
-- [Multi-tenant audit-chain export](../security/audit-multitenant.md) —
+- [Multi-tenant audit-chain export](../security/audit-multitenant.md) -
   per-tenant slice of the same chain with optional RFC 3161 timestamping.
-- [Regulatory lineage](regulatory-lineage.md) — per-artefact lineage
+- [Regulatory lineage](regulatory-lineage.md) - per-artefact lineage
   trail with customer-key signatures.
-- [Compliance CLI](../operations/compliance.md) — `bernstein compliance
+- [Compliance CLI](../operations/compliance.md) - `bernstein compliance
   assess` for the Annex IV / Article 43 paperwork.
 - Source: `src/bernstein/core/security/article12_bundle.py`,
   `src/bernstein/core/security/audit_dsse.py`,

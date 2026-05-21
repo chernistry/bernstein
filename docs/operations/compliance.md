@@ -1,8 +1,8 @@
 # Compliance
 
 Bernstein ships a compliance toolkit aimed at enterprise security
-engineers and compliance officers who need to prove — to an auditor or
-to internal reviewers — that the orchestrator's runtime configuration
+engineers and compliance officers who need to prove - to an auditor or
+to internal reviewers - that the orchestrator's runtime configuration
 matches a specific control framework. The CLI lives in
 `cli/commands/compliance_cmd.py:26` (`@click.group("compliance")`) and
 is a thin wrapper over two engines:
@@ -49,7 +49,7 @@ the members of `ComplianceFramework`
 All subcommands accept `--workdir` (default: `.`). Per-subcommand
 notes below cite `cli/commands/compliance_cmd.py` line numbers.
 
-### `eu-ai-act` — task-risk summary
+### `eu-ai-act` - task-risk summary
 
 ```
 bernstein compliance eu-ai-act [--workdir .] [--json-output]
@@ -61,7 +61,7 @@ plus the latest high-risk tasks (`compliance_cmd.py:31-68`). Use this
 during a run to confirm that no task was flagged `high` or
 `unacceptable` without the required approval.
 
-### `assess` — generate the EU AI Act evidence package
+### `assess` - generate the EU AI Act evidence package
 
 ```
 bernstein compliance assess [--workdir .] [--output-dir DIR]
@@ -80,7 +80,7 @@ The printed summary includes risk category, Annex III domain, conformity
 status (pass/fail/partial), justification, mandatory gaps, and the
 August 2027 compliance deadline (`compliance_cmd.py:141-182`).
 
-### `report` — pretty-print an existing evidence package
+### `report` - pretty-print an existing evidence package
 
 ```
 bernstein compliance report [--evidence-package PATH] [--workdir .]
@@ -92,7 +92,7 @@ given with `--evidence-package`) and re-renders the same summary table
 (`compliance_cmd.py:116-138`). Useful for auditors who want a textual
 view of an artifact already on disk.
 
-### `enable` / `disable` — activate a framework
+### `enable` / `disable` - activate a framework
 
 ```
 bernstein compliance enable  <soc2|iso27001|pci_dss|nist_800_53>
@@ -105,7 +105,7 @@ persists across restarts (`compliance_cmd.py:190-235`). After enabling,
 the next `bernstein compliance check` (without `--framework`) evaluates
 all enabled frameworks at once.
 
-### `list` — list policies
+### `list` - list policies
 
 ```
 bernstein compliance list [--framework <name>] [--json-output]
@@ -115,7 +115,7 @@ Prints policy id, framework, control id, severity, name. Without
 `--framework` it lists every policy across every framework
 (`compliance_cmd.py:238-278`).
 
-### `check` — evaluate policies against a runtime snapshot
+### `check` - evaluate policies against a runtime snapshot
 
 ```
 bernstein compliance check [--framework <name>] [--workdir .]
@@ -151,7 +151,7 @@ The full `PolicyInput` schema covers ~30 fields including
 exposed as flags; pipe `--json-output` and use the embedded library
 when richer snapshots are needed.
 
-### `rego` — export OPA / Rego rules
+### `rego` - export OPA / Rego rules
 
 ```
 bernstein compliance rego <framework> [--output-dir DIR] [--workdir .]
@@ -169,33 +169,33 @@ OPA server for live evaluation in front of the API gateway.
 The EU AI Act surface is implemented in `bernstein.compliance.eu_ai_act`
 (see `src/bernstein/compliance/eu_ai_act.py:1`) and covers:
 
-- **Article 5** — prohibited practices (unacceptable risk).
-- **Article 6 + Annex III** — high-risk classification (eight domains:
+- **Article 5** - prohibited practices (unacceptable risk).
+- **Article 6 + Annex III** - high-risk classification (eight domains:
   biometrics, critical infrastructure, education, employment, essential
   services, law enforcement, migration, justice).
-- **Article 43** — conformity assessment (pass / fail / partial per
+- **Article 43** - conformity assessment (pass / fail / partial per
   control).
-- **Article 50** — transparency obligations (limited risk).
-- **Annex IV** — technical documentation (auto-generated as part of the
+- **Article 50** - transparency obligations (limited risk).
+- **Annex IV** - technical documentation (auto-generated as part of the
   evidence package).
 
 What `bernstein compliance assess` writes:
 
 - `evidence_package.json` containing:
-  - `report.classification` — risk category + Annex III domain +
+  - `report.classification` - risk category + Annex III domain +
     plain-language justification.
-  - `report.conformity` — overall status, per-control pass/fail/partial
+  - `report.conformity` - overall status, per-control pass/fail/partial
     counts, mandatory gaps.
-  - `report.compliance_summary` — next-step list and the August 2027
+  - `report.compliance_summary` - next-step list and the August 2027
     deadline (`Article 111(2)`).
-  - `tech_doc` — the Annex IV technical document (system description,
+  - `tech_doc` - the Annex IV technical document (system description,
     intended use, data sets, risk-management measures, post-market
     monitoring).
 
 Bernstein itself classifies as **limited risk** by default (transparency
 obligations only) under `bernstein_descriptor()`. Override the
 descriptor in code if your deployment falls into one of the Annex III
-domains — for example, an HR-screening use case (Annex III §4) shifts
+domains - for example, an HR-screening use case (Annex III §4) shifts
 the classification to `high`, and the conformity assessment becomes
 mandatory before the August 2027 deadline.
 
@@ -216,15 +216,15 @@ HIPAA mode activates when `compliance: hipaa` is set in
 `bernstein.yaml`. The implementation lives in
 `core/security/hipaa.py:1`. It provides four enforcement layers:
 
-1. **PHI detection** — regex-based scan of agent inputs and outputs
+1. **PHI detection** - regex-based scan of agent inputs and outputs
    for SSNs, MRNs, DOBs, phone numbers, emails, ICD codes, and the 18
    identifier categories listed in 45 CFR §164.514(b)
    (`core/security/hipaa.py:59`).
-2. **File access controls** — agents are denied access to paths matching
+2. **File access controls** - agents are denied access to paths matching
    PHI globs (e.g. `*.phi`, `patient_records/**`).
-3. **Encryption at rest** — `.sdd/` state files are AES-256-GCM
+3. **Encryption at rest** - `.sdd/` state files are AES-256-GCM
    encrypted via the `cryptography` package.
-4. **BAA-ready report** — `core/security/hipaa.py` emits a structured
+4. **BAA-ready report** - `core/security/hipaa.py` emits a structured
    compliance report suitable for inclusion in a Business Associate
    Agreement audit package.
 
@@ -241,8 +241,8 @@ Configure HIPAA mode end-to-end by combining:
 - Credential vault (`operations/secrets.md` once published) for any
   PHI-bearing credentials.
 
-For provider-side data residency — "PHI never leaves Anthropic", "no
-cloud APIs at all" — combine HIPAA mode with model policy
+For provider-side data residency - "PHI never leaves Anthropic", "no
+cloud APIs at all" - combine HIPAA mode with model policy
 (`operations/MODEL_POLICY.md`) constraints.
 
 ---
@@ -296,53 +296,53 @@ EU AI Act high-risk classification or a HIPAA covered entity.
 
 ## Code pointers
 
-- `cli/commands/compliance_cmd.py:26` — `@click.group("compliance")`
+- `cli/commands/compliance_cmd.py:26` - `@click.group("compliance")`
   entry point.
-- `cli/commands/compliance_cmd.py:31-68` — `eu-ai-act` summary.
-- `cli/commands/compliance_cmd.py:71-113` — `assess` (writes evidence
+- `cli/commands/compliance_cmd.py:31-68` - `eu-ai-act` summary.
+- `cli/commands/compliance_cmd.py:71-113` - `assess` (writes evidence
   package).
-- `cli/commands/compliance_cmd.py:116-138` — `report` (re-renders an
+- `cli/commands/compliance_cmd.py:116-138` - `report` (re-renders an
   existing package).
-- `cli/commands/compliance_cmd.py:190-235` — `enable` / `disable`
+- `cli/commands/compliance_cmd.py:190-235` - `enable` / `disable`
   framework.
-- `cli/commands/compliance_cmd.py:238-278` — `list` policies.
-- `cli/commands/compliance_cmd.py:281-406` — `check` (PolicyInput
+- `cli/commands/compliance_cmd.py:238-278` - `list` policies.
+- `cli/commands/compliance_cmd.py:281-406` - `check` (PolicyInput
   evaluation, exit-code threshold).
-- `cli/commands/compliance_cmd.py:409-435` — `rego` export.
-- `src/bernstein/compliance/eu_ai_act.py:1` — `ComplianceEngine`,
+- `cli/commands/compliance_cmd.py:409-435` - `rego` export.
+- `src/bernstein/compliance/eu_ai_act.py:1` - `ComplianceEngine`,
   `RiskCategory`, `AnnexIIIDomain`, `bernstein_descriptor()`.
-- `core/security/compliance_policies.py:54` — `ComplianceFramework`
+- `core/security/compliance_policies.py:54` - `ComplianceFramework`
   enum (soc2 / iso27001 / pci_dss / nist_800_53).
-- `core/security/compliance_policies.py:79` — `PolicyInput` dataclass
+- `core/security/compliance_policies.py:79` - `PolicyInput` dataclass
   (full ~30-field runtime snapshot schema).
-- `core/security/compliance_policies.py:1233` —
+- `core/security/compliance_policies.py:1233` -
   `CompliancePolicyLibrary` (enable/disable, evaluate, export Rego).
-- `core/security/compliance_policies.py:166` — `CompliancePolicy`
+- `core/security/compliance_policies.py:166` - `CompliancePolicy`
   dataclass.
-- `core/security/compliance_policies.py:198` — `PolicyResult`
+- `core/security/compliance_policies.py:198` - `PolicyResult`
   dataclass.
-- `core/security/hipaa.py:1` — HIPAA mode (PHI detection, file ACL,
+- `core/security/hipaa.py:1` - HIPAA mode (PHI detection, file ACL,
   encryption, BAA report).
-- `core/security/hipaa.py:59` — `PHICategory` (45 CFR §164.514(b)
+- `core/security/hipaa.py:59` - `PHICategory` (45 CFR §164.514(b)
   identifier categories).
-- `core/eu_ai_act.py` — task-level risk assessment store consumed by
+- `core/eu_ai_act.py` - task-level risk assessment store consumed by
   `bernstein compliance eu-ai-act`.
-- `[security/AUDIT.md](../security/AUDIT.md)` — HMAC-chained audit log
+- `[security/AUDIT.md](../security/AUDIT.md)` - HMAC-chained audit log
   (SOC 2 evidence component).
-- `[operations/MODEL_POLICY.md](MODEL_POLICY.md)` — provider-policy
+- `[operations/MODEL_POLICY.md](MODEL_POLICY.md)` - provider-policy
   enforcement (CISO-level constraints on which provider sees which
   code).
-- [`compliance/lineage-export.md`](../compliance/lineage-export.md) —
+- [`compliance/lineage-export.md`](../compliance/lineage-export.md) -
   operator guide to `bernstein lineage export` / `verify`, including
   worked DORA / SOC 2 / EU AI Act / HIPAA workflows.
 - [`compliance/regulatory-lineage.md`](../compliance/regulatory-lineage.md)
-  — schema-v2 reference for the per-artefact lineage trail, customer-
+  - schema-v2 reference for the per-artefact lineage trail, customer-
   key signing, KMS-adapter dispatch, and SIEM-webhook tamper-loud
   configuration.
 - [`compliance/eu-ai-act-article-12-bundle.md`](../compliance/eu-ai-act-article-12-bundle.md)
-  — operator guide for the deterministic Article 12 evidence pack.
+  - operator guide for the deterministic Article 12 evidence pack.
 - [`security/audit-dsse-envelope.md`](../security/audit-dsse-envelope.md)
-  — DSSE / in-toto v1 envelope wrapper plus the standalone stdlib-only
+  - DSSE / in-toto v1 envelope wrapper plus the standalone stdlib-only
   verifier.
 - [`compliance/finos-aigf-mapping.md`](../compliance/finos-aigf-mapping.md)
-  — bernstein's coverage of the 16 AIGF controls and 14 AIR risks.
+  - bernstein's coverage of the 16 AIGF controls and 14 AIR risks.

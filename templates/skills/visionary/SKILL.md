@@ -1,6 +1,6 @@
 ---
 name: visionary
-description: Ideation — generate bold feature proposals.
+description: Ideation - generate bold feature proposals.
 trigger_keywords:
   - visionary
   - ideation
@@ -39,8 +39,8 @@ For each proposal, produce structured JSON with these fields:
 
 ## Rules
 - Generate 3-5 proposals per session.
-- Think big but stay grounded — proposals must be technically possible.
+- Think big but stay grounded - proposals must be technically possible.
 - Focus on user value, not code elegance.
-- Each proposal is independent — no dependency chains.
-- No incremental improvements — those belong in the regular evolution loop.
+- Each proposal is independent - no dependency chains.
+- No incremental improvements - those belong in the regular evolution loop.
 - If you can't articulate the user benefit in one sentence, the idea isn't ready.

@@ -1,4 +1,4 @@
-// State primitives — every screen-level component must use these (no rolling-your-own).
+// State primitives - every screen-level component must use these (no rolling-your-own).
 // Per Variant A handoff §8 + system-tokens-and-states ticket.
 
 import type { ReactNode } from 'react';
@@ -52,7 +52,7 @@ interface LoadingStateProps {
   className?: string;
 }
 
-/** Skeleton block — mirrors final layout. Buttons in loading state retain their text. */
+/** Skeleton block - mirrors final layout. Buttons in loading state retain their text. */
 export function LoadingState({ rows = 5, label, className }: LoadingStateProps) {
   return (
     <div className={cn('animate-fade-in', className)} aria-busy="true" aria-live="polite">

@@ -9,7 +9,7 @@ name: CI gate stub
 # emitted by the `ci-gate` job in `ci.yml`. `ci.yml` is configured with
 # a `paths-ignore:` list (SDKs, packaging, docs, infra configs, etc.)
 # so PRs whose diff is fully contained in those paths never trigger
-# `ci.yml` at all — and therefore never publish a `CI gate` check.
+# `ci.yml` at all - and therefore never publish a `CI gate` check.
 # Such PRs sit `BLOCKED` indefinitely (e.g. Renovate lockfile bumps
 # under `sdk/typescript/**` or `packages/vscode/**`).
 #
@@ -24,7 +24,7 @@ name: CI gate stub
 # ci.yml fire; branch protection treats two passing checks with the
 # same name as passing.
 #
-# IMPORTANT — keep in sync
+# IMPORTANT - keep in sync
 # ------------------------
 # The `paths:` list below MUST stay aligned with the `paths-ignore:`
 # list in `.github/workflows/ci.yml`. The canary

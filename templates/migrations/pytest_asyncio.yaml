@@ -8,7 +8,7 @@
 #     --chunk-size 5 \
 #     --max-parallel 10
 #
-# The YAML body itself is consumed as the free-text transform prompt — the
+# The YAML body itself is consumed as the free-text transform prompt - the
 # top-level keys are informational only and ignored by `bernstein migrate`.
 id: pytest-asyncio-rollout
 description: |

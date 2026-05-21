@@ -136,7 +136,7 @@ export function GateRow({ gate, expanded, onToggle }: Props) {
             ) : (
               <span
                 className="inline-flex items-center rounded-full border border-border-subtle bg-card px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.1em] text-meta-foreground"
-                title="Advisory gate — does not block"
+                title="Advisory gate - does not block"
               >
                 advisory
               </span>

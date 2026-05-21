@@ -32,7 +32,7 @@ docstrings only (`Brief`).
 | Metrics/trace persistence | Full | Paths documented, JSONL schema |
 | Lessons/memory persistence | Brief | Stored and injected |
 | Storage backends (`memory/postgres/redis`) | Full | Config + doctor coverage |
-| Session persistence (fast resume) | Brief | `session.py` — resume after stop/restart |
+| Session persistence (fast resume) | Brief | `session.py` - resume after stop/restart |
 | Bulletin board (cross-agent messaging) | Brief | Append-only, used by agents for handoff |
 
 ## Observability
@@ -63,11 +63,11 @@ docstrings only (`Brief`).
 | Circuit breaker | Full | Halts misbehaving agents, writes SHUTDOWN signal |
 | Token growth monitor | Brief | Auto-intervention on runaway consumption |
 | Cost anomaly detection | Brief | Z-score based, acts via task completion |
-| Peak-hour scheduling | Brief | `peak_hour_router.py` — cost-aware time-of-day routing |
+| Peak-hour scheduling | Brief | `peak_hour_router.py` - cost-aware time-of-day routing |
 | Agent loop detection | Brief | Kills agents in edit-loop cycles |
 | Deadlock detection | Brief | Wait-for graph, automatic victim selection |
 | Cross-model verification | Brief | Different model reviews completed diffs (opt-in) |
-| Behaviour anomaly detection | Brief | `core/observability/behavior_anomaly.py` — flags agents whose runtime metrics deviate statistically from baseline |
+| Behaviour anomaly detection | Brief | `core/observability/behavior_anomaly.py` - flags agents whose runtime metrics deviate statistically from baseline |
 | Agent run manifest | Brief | Hashable workflow spec for SOC2 evidence |
 | Context degradation detector | Brief | Monitors quality over time, restarts when degraded |
 | Progressive permission prompts | Brief | Per-agent permission levels |
@@ -84,32 +84,32 @@ docstrings only (`Brief`).
 | Multi-repo workspaces | Full | `workspace:` in bernstein.yaml, workspace CLI |
 | MCP server mode | Brief | `bernstein mcp`, MCP server in `mcp/server.py` |
 | MCP tool registry | Brief | Auto-discovery and per-task config |
-| MCP catalog client | Brief | `bernstein mcp catalog browse/search/install` — installable server catalog (`core/protocols/mcp_catalog/`) |
-| ACP native bridge | Full | `bernstein acp serve --stdio\|--http :PORT` — IDE-native bridge (`core/protocols/acp/`); see `reference/acp-bridge.md` |
-| Protocol negotiation | Brief | `protocol_negotiation.py` — runtime protocol version handshake |
-| Schema registry | Brief | `schema_registry.py` — versioned message schemas for protocols |
-| Credential vault | Brief | `bernstein connect <provider>`, `bernstein creds list/revoke/test` — OS-keychain token storage (`core/security/vault/`) |
-| Autofix CI daemon | Brief | `bernstein autofix start/stop/status/attach` — watches PRs, dispatches repair runs on CI failure (`core/autofix/`) |
-| Dev preview | Brief | `bernstein preview start/stop/list/status` — exposes agent dev server via tunnel with configurable auth (`core/preview/`) |
-| Fleet dashboard | Brief | `bernstein fleet [--web HOST:PORT]` — cross-session multi-instance view (`core/fleet/`) |
-| Notification sinks | Brief | `bernstein notify test --sink <id>` — pluggable notification backends (`core/notifications/`) |
-| PR review responder | Brief | `bernstein review-responder start/status/tick` — auto-responds to PR review comments (`core/review_responder/`) |
-| Review pipeline DSL | Brief | `bernstein review --pipeline review.yaml` — YAML-driven multi-phase review (`core/quality/review_pipeline/`) |
-| Plan archival | Brief | `bernstein plan ls/show` — list and inspect archived plans (`core/planning/lifecycle.py`) |
+| MCP catalog client | Brief | `bernstein mcp catalog browse/search/install` - installable server catalog (`core/protocols/mcp_catalog/`) |
+| ACP native bridge | Full | `bernstein acp serve --stdio\|--http :PORT` - IDE-native bridge (`core/protocols/acp/`); see `reference/acp-bridge.md` |
+| Protocol negotiation | Brief | `protocol_negotiation.py` - runtime protocol version handshake |
+| Schema registry | Brief | `schema_registry.py` - versioned message schemas for protocols |
+| Credential vault | Brief | `bernstein connect <provider>`, `bernstein creds list/revoke/test` - OS-keychain token storage (`core/security/vault/`) |
+| Autofix CI daemon | Brief | `bernstein autofix start/stop/status/attach` - watches PRs, dispatches repair runs on CI failure (`core/autofix/`) |
+| Dev preview | Brief | `bernstein preview start/stop/list/status` - exposes agent dev server via tunnel with configurable auth (`core/preview/`) |
+| Fleet dashboard | Brief | `bernstein fleet [--web HOST:PORT]` - cross-session multi-instance view (`core/fleet/`) |
+| Notification sinks | Brief | `bernstein notify test --sink <id>` - pluggable notification backends (`core/notifications/`) |
+| PR review responder | Brief | `bernstein review-responder start/status/tick` - auto-responds to PR review comments (`core/review_responder/`) |
+| Review pipeline DSL | Brief | `bernstein review --pipeline review.yaml` - YAML-driven multi-phase review (`core/quality/review_pipeline/`) |
+| Plan archival | Brief | `bernstein plan ls/show` - list and inspect archived plans (`core/planning/lifecycle.py`) |
 | Slack integration | Brief | Slash commands and events API endpoints |
 | Webhook ingestion | Brief | `POST /webhooks/` for external event routing |
-| Adaptive parallelism | Brief | `core/orchestration/adaptive_parallelism.py` — auto-tunes concurrency from observed success rates |
-| Warm pool | Brief | `core/agents/warm_pool.py` — pre-spawned agent pool to cut spawn latency |
-| Content-addressed artifact store | Brief | `core/persistence/cas_store.py` — content-addressed deduplication for artifacts |
+| Adaptive parallelism | Brief | `core/orchestration/adaptive_parallelism.py` - auto-tunes concurrency from observed success rates |
+| Warm pool | Brief | `core/agents/warm_pool.py` - pre-spawned agent pool to cut spawn latency |
+| Content-addressed artifact store | Brief | `core/persistence/cas_store.py` - content-addressed deduplication for artifacts |
 | Workflow DSL | Brief | `bernstein workflow validate/list/show` |
 | Chaos engineering | Brief | `bernstein chaos agent-kill/rate-limit/file-remove/status/slo` |
 | Benchmark suite | Full | `bernstein benchmark run/compare/swe-bench` |
 | Eval harness | Brief | `bernstein eval run/report/failures` |
 | SWE-Bench harness | Full | Verified eval in `benchmarks/swe_bench/run.py` |
 | Graduation system | Brief | Agent promotion stages, routes in `routes/graduation.py` |
-| Semantic caching | Brief | `semantic_cache.py` — prompt deduplication |
-| Cascade router (intra-Claude tier escalation) | Brief | Tier escalation within a single provider — see `core/routing/cascade_router.py:386` |
-| Cascade fallback manager (cross-adapter failover) | Brief | Cross-adapter provider failover — see `core/routing/cascade.py:287` |
+| Semantic caching | Brief | `semantic_cache.py` - prompt deduplication |
+| Cascade router (intra-Claude tier escalation) | Brief | Tier escalation within a single provider - see `core/routing/cascade_router.py:386` |
+| Cascade fallback manager (cross-adapter failover) | Brief | Cross-adapter provider failover - see `core/routing/cascade.py:287` |
 | Batch router | Brief | Task batching for non-urgent work |
 | Prompt caching | Brief | SHA-256 system prefix deduplication |
 | Output style customization | Brief | Configurable agent output format |
@@ -202,14 +202,14 @@ docstrings only (`Brief`).
 
 | Capability | Docs status | Notes |
 |---|---|---|
-| Workers RuntimeBridge | Full | `bridges/cloudflare.py` — agents on Workers + Durable Objects |
-| Workflow Bridge (durable execution) | Full | `bridges/cloudflare_workflow.py` — auto-retry, approval gates |
-| Sandbox Bridge (V8/container isolation) | Full | `bridges/cloudflare_sandbox.py` — isolated code execution |
-| Browser Rendering Bridge | Full | `bridges/browser_rendering.py` — screenshots, scraping, PDFs |
-| R2 Workspace Sync | Full | `bridges/r2_sync.py` — content-addressed delta sync |
-| Workers AI Provider (free LLMs) | Full | `core/routing/cloudflare_ai.py` — Llama, Mistral, Gemma, Qwen |
-| D1 Analytics & Billing | Full | `core/cost/d1_analytics.py` — usage metering, billing tiers |
-| MCP Remote Transport | Full | `mcp/remote_transport.py` — streamable HTTP for remote MCP |
-| Cloud CLI (`bernstein cloud`) | Full | `cli/commands/cloud_cmd.py` — login, run, status, cost, deploy |
-| Cloudflare Agents Adapter | Full | `adapters/cloudflare_agents.py` — wrangler dev integration |
-| Codex-on-Cloudflare Adapter | Full | `adapters/codex_cloudflare.py` — Codex in CF sandboxes |
+| Workers RuntimeBridge | Full | `bridges/cloudflare.py` - agents on Workers + Durable Objects |
+| Workflow Bridge (durable execution) | Full | `bridges/cloudflare_workflow.py` - auto-retry, approval gates |
+| Sandbox Bridge (V8/container isolation) | Full | `bridges/cloudflare_sandbox.py` - isolated code execution |
+| Browser Rendering Bridge | Full | `bridges/browser_rendering.py` - screenshots, scraping, PDFs |
+| R2 Workspace Sync | Full | `bridges/r2_sync.py` - content-addressed delta sync |
+| Workers AI Provider (free LLMs) | Full | `core/routing/cloudflare_ai.py` - Llama, Mistral, Gemma, Qwen |
+| D1 Analytics & Billing | Full | `core/cost/d1_analytics.py` - usage metering, billing tiers |
+| MCP Remote Transport | Full | `mcp/remote_transport.py` - streamable HTTP for remote MCP |
+| Cloud CLI (`bernstein cloud`) | Full | `cli/commands/cloud_cmd.py` - login, run, status, cost, deploy |
+| Cloudflare Agents Adapter | Full | `adapters/cloudflare_agents.py` - wrangler dev integration |
+| Codex-on-Cloudflare Adapter | Full | `adapters/codex_cloudflare.py` - Codex in CF sandboxes |

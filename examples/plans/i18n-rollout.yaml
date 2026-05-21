@@ -1,4 +1,4 @@
-# Bernstein Plan — Internationalization (i18n) Rollout
+# Bernstein Plan - Internationalization (i18n) Rollout
 #
 # A three-stage plan for full i18n support:
 #   1. Framework:   install i18n library, configure locales, set up translation pipeline
@@ -100,7 +100,7 @@ stages:
           Add the English source string to src/locales/en.json under the proposed
           key. Handle plurals (ICU format: {count, plural, one {# item} other
           {# items}}), named interpolations, and HTML-safe strings. Do not change
-          any business logic — string replacement only.
+          any business logic - string replacement only.
         files:
           - "src/locales/en.json"
         completion_signals:
@@ -169,7 +169,7 @@ stages:
         description: >
           Replace all manual date/number formatting with Intl.DateTimeFormat,
           Intl.NumberFormat, and Intl.RelativeTimeFormat (or the backend
-          equivalent — babel's format_datetime, Java's NumberFormat, etc.).
+          equivalent - babel's format_datetime, Java's NumberFormat, etc.).
           Wrap these in utility functions (formatDate, formatCurrency, formatNumber)
           in src/utils/format.ts. Write unit tests for each formatter across
           all five supported locales.

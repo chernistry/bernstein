@@ -1,4 +1,4 @@
-// Motion ladder — used by Framer Motion or any Tailwind-driven transition wrapper.
+// Motion ladder - used by Framer Motion or any Tailwind-driven transition wrapper.
 // Every animated component MUST reference these tokens, not invent its own.
 //
 // Per Bernstein design north star + v1/v2 UX research:

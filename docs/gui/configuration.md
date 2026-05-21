@@ -39,16 +39,16 @@ localStorage.setItem("bernstein_token", "<value of BERNSTEIN_AUTH_TOKEN>")
 ## Theme
 
 - The SPA uses Tailwind 3 with shadcn/ui CSS variables. Light + dark are toggled by the `.dark` class on `<html>`.
-- Tokens are defined in `web/src/index.css` (Variant A — Decision-Grade Quiet Command). See `.sdd/backlog/open/frontend/design_handoff_bernstein_phase1/README.md` §3.
+- Tokens are defined in `web/src/index.css` (Variant A - Decision-Grade Quiet Command). See `.sdd/backlog/open/frontend/design_handoff_bernstein_phase1/README.md` §3.
 - The theme respects `prefers-color-scheme` on first load and persists the operator's explicit choice via `localStorage`.
 - `prefers-reduced-motion: reduce` disables non-essential transitions (motion spec in `web/src/lib/motion.ts`).
 
 ## Fleet mode toggle
 
 - The topbar contains a `Single / Fleet` segmented control (defined in `web/src/components/AppShell.tsx`).
-- **Single** — current process only. Reads `/api/v1/*` from one server.
-- **Fleet** — multi-project view, backed by the fleet dashboard subsystem (`src/bernstein/core/fleet/`). Requires a fleet-enabled server.
-- The toggle is a UI affordance only; it does not change auth or routing on its own. Configure the fleet endpoint upstream — see [Fleet (multi-project)](../operations/fleet.md).
+- **Single** - current process only. Reads `/api/v1/*` from one server.
+- **Fleet** - multi-project view, backed by the fleet dashboard subsystem (`src/bernstein/core/fleet/`). Requires a fleet-enabled server.
+- The toggle is a UI affordance only; it does not change auth or routing on its own. Configure the fleet endpoint upstream - see [Fleet (multi-project)](../operations/fleet.md).
 
 ## Build chip and `/health/deps`
 

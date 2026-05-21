@@ -5,13 +5,13 @@ This Helm chart deploys a complete Bernstein multi-agent orchestration system on
 ## Chart Contents
 
 The chart sets up:
-- **Task Server** — FastAPI server managing task lifecycle and orchestration
-- **Orchestrator** — Spawner/janitor responsible for task execution and cleanup
-- **Workers** — Stateful agents running tasks (scalable via HPA)
-- **PostgreSQL** — State database (optional, bitnami/postgresql sub-chart)
-- **Redis** — Task queue and caching (optional, bitnami/redis sub-chart)
-- **Monitoring** — ServiceMonitor and PrometheusRules for Prometheus integration (optional)
-- **Ingress** — HTTP access to task server (optional)
+- **Task Server** - FastAPI server managing task lifecycle and orchestration
+- **Orchestrator** - Spawner/janitor responsible for task execution and cleanup
+- **Workers** - Stateful agents running tasks (scalable via HPA)
+- **PostgreSQL** - State database (optional, bitnami/postgresql sub-chart)
+- **Redis** - Task queue and caching (optional, bitnami/redis sub-chart)
+- **Monitoring** - ServiceMonitor and PrometheusRules for Prometheus integration (optional)
+- **Ingress** - HTTP access to task server (optional)
 
 ## Prerequisites
 
@@ -56,27 +56,27 @@ curl http://localhost:8052/status
 All configuration is in `values.yaml`. Key sections:
 
 ### Task Server (`server`)
-- `replicaCount` — Number of server replicas
-- `resources` — CPU/memory limits and requests
-- `persistence` — PVC for `.sdd/` state directory
-- `service.port` — Task server port (default: 8052)
+- `replicaCount` - Number of server replicas
+- `resources` - CPU/memory limits and requests
+- `persistence` - PVC for `.sdd/` state directory
+- `service.port` - Task server port (default: 8052)
 
 ### Workers (`worker`)
-- `replicaCount` — Initial worker count (actual count controlled by HPA)
-- `resources` — CPU/memory per worker
-- `persistence` — PVC for git worktree state
-- `autoscaling` — HPA configuration
-  - `targetQueueDepth` — Tasks per replica before scaling (default: "2")
-  - `targetCPUUtilizationPercentage` — CPU threshold for scaling
+- `replicaCount` - Initial worker count (actual count controlled by HPA)
+- `resources` - CPU/memory per worker
+- `persistence` - PVC for git worktree state
+- `autoscaling` - HPA configuration
+  - `targetQueueDepth` - Tasks per replica before scaling (default: "2")
+  - `targetCPUUtilizationPercentage` - CPU threshold for scaling
 
 ### Auth (`auth`)
-- `existingSecret` — Reference an existing K8s Secret with auth token
-- `secretKey` — Key name in the secret (default: "auth-token")
+- `existingSecret` - Reference an existing K8s Secret with auth token
+- `secretKey` - Key name in the secret (default: "auth-token")
 
 If `existingSecret` is empty, a random token is generated at install time.
 
 ### LLM Provider Keys (`providerKeys`)
-- `existingSecret` — Reference a Secret containing:
+- `existingSecret` - Reference a Secret containing:
   - `ANTHROPIC_API_KEY`
   - `OPENAI_API_KEY`
   - `GOOGLE_API_KEY`

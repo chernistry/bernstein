@@ -1,4 +1,4 @@
-# Lint stage — cheap stylistic / formatting checks.
+# Lint stage - cheap stylistic / formatting checks.
 # Reusable as a stage entry inside a larger pipeline.
 name: lint
 parallelism: 1

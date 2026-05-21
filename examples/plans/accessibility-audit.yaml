@@ -1,4 +1,4 @@
-# Bernstein Plan — Accessibility Audit and Remediation
+# Bernstein Plan - Accessibility Audit and Remediation
 #
 # A three-stage plan that brings a web app to WCAG 2.1 AA compliance:
 #   1. Automated Audit:    axe-core scan, contrast check, and violation report
@@ -20,7 +20,7 @@ budget: "$15"
 max_agents: 3
 constraints:
   - "Target: WCAG 2.1 Level AA"
-  - "No third-party component library changes — fix in CSS/HTML overrides only"
+  - "No third-party component library changes - fix in CSS/HTML overrides only"
   - "All fixes must be tested against Chrome and Firefox"
   - "Playwright for automated browser tests"
 
@@ -142,7 +142,7 @@ stages:
           Fix issues found:
           - Ensure all interactive elements are reachable via Tab in logical order
           - Add visible focus styles (:focus-visible outline) for every interactive
-            element — remove any outline: none without a replacement
+            element - remove any outline: none without a replacement
           - Implement focus trapping for modal dialogs (focus-trap-react or
             equivalent vanilla JS)
           - Ensure modal close returns focus to the trigger element

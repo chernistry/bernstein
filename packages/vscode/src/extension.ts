@@ -49,7 +49,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!hasShownCostStop) {
           hasShownCostStop = true;
           vscode.window.showErrorMessage(
-            `Bernstein: Cost budget exceeded — $${data.live_costs.spent_usd.toFixed(2)} / $${data.live_costs.budget_usd.toFixed(2)} (${data.live_costs.percentage_used.toFixed(0)}%). Agents should be stopped.`,
+            `Bernstein: Cost budget exceeded - $${data.live_costs.spent_usd.toFixed(2)} / $${data.live_costs.budget_usd.toFixed(2)} (${data.live_costs.percentage_used.toFixed(0)}%). Agents should be stopped.`,
           );
         }
       } else {
@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!hasShownCostWarning) {
           hasShownCostWarning = true;
           vscode.window.showWarningMessage(
-            `Bernstein: Cost budget warning — $${data.live_costs.spent_usd.toFixed(2)} / $${data.live_costs.budget_usd.toFixed(2)} (${data.live_costs.percentage_used.toFixed(0)}% used).`,
+            `Bernstein: Cost budget warning - $${data.live_costs.spent_usd.toFixed(2)} / $${data.live_costs.budget_usd.toFixed(2)} (${data.live_costs.percentage_used.toFixed(0)}% used).`,
           );
         }
       } else {
@@ -76,7 +76,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const timer = setInterval(() => { refresh().catch(() => { /* handled in refresh() */ }); }, refreshIntervalSecs * 1000);
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
 
-  // Debounced refresh — max 2 updates per second from SSE events
+  // Debounced refresh - max 2 updates per second from SSE events
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   const debouncedRefresh = (): void => {
     clearTimeout(debounceTimer);
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
             outputManager.appendLine(parsed.agent_id, parsed.line);
           }
         } catch {
-          // Malformed SSE data — ignore
+          // Malformed SSE data - ignore
         }
       }
     },
@@ -107,7 +107,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   registerCommands(context, client, outputManager, () => { refresh().catch(() => { /* handled in refresh() */ }); });
 
-  // @bernstein chat participant — guarded for older VS Code versions
+  // @bernstein chat participant - guarded for older VS Code versions
   const vscodeAny = vscode as unknown as {
     chat?: {
       createChatParticipant: (

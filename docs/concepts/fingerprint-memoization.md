@@ -3,7 +3,7 @@
 Bernstein recomputes several expensive things on every tick: cross-model
 verification, knowledge-graph extraction, RAG re-embedding. Each call
 site historically invented its own cache key, and most of those keys
-hashed only the *inputs* — never the *function body*. A bug fix that
+hashed only the *inputs* - never the *function body*. A bug fix that
 should re-derive the cache silently kept serving stale entries.
 
 The `fingerprint` module replaces the ad-hoc keys with a single
@@ -14,9 +14,9 @@ xor hash(function_AST)`. Change the function body, the key changes.
 
 Two failure modes drove this:
 
-1. **Stale cache after refactor** — fix a bug, re-run, get the buggy
+1. **Stale cache after refactor** - fix a bug, re-run, get the buggy
    result back because the cache key didn't include the source.
-2. **Per-site key duplication** — cross-model verifier, knowledge
+2. **Per-site key duplication** - cross-model verifier, knowledge
    graph, and RAG each rolled their own; they all needed the same
    invariant and none had it consistently.
 
@@ -67,13 +67,13 @@ Metrics exposed on `/metrics`:
 ## Limitations
 
 - Single host. The store is on-disk and not shared across machines.
-- The fingerprint hashes the *immediate* function body only — not the
+- The fingerprint hashes the *immediate* function body only - not the
   transitive closure of called helpers. If you rely on a helper that
   changed, decorate that helper too, or invalidate manually.
 - Functions with hidden state (env vars read at call time, file IO,
   network calls) are unsafe to memoize. Restrict use to pure
   functions.
-- The decorator does not replace `semantic_cache.py` — that's a
+- The decorator does not replace `semantic_cache.py` - that's a
   vector cache for semantic-similarity lookup, a different concern.
 
 ## Related

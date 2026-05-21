@@ -1,7 +1,7 @@
 # ACP native bridge
 
 Bernstein speaks the [Agent Client Protocol](https://agentclientprotocol.org)
-natively — editors that ship ACP support can plug Bernstein in as their
+natively - editors that ship ACP support can plug Bernstein in as their
 backend with zero per-IDE plumbing.
 
 The bridge is a protocol adapter: ACP `prompt` opens a Bernstein task,
@@ -68,12 +68,12 @@ and set `Accept: text/event-stream` to receive streaming
 
 Two Prometheus metrics ship with the bridge:
 
-- `bernstein_acp_messages_total{method, outcome}` — JSON-RPC message
+- `bernstein_acp_messages_total{method, outcome}` - JSON-RPC message
   count partitioned by method and outcome (`ok`, `error`, `rejected`,
   `cancelled`, `permission_denied`).
-- `bernstein_acp_active_sessions` — gauge of live ACP sessions.
+- `bernstein_acp_active_sessions` - gauge of live ACP sessions.
 
-Both are exported via the existing observability stack — the running
+Both are exported via the existing observability stack - the running
 task server's `/metrics` endpoint scrapes them automatically.
 
 ## Audit
@@ -85,7 +85,7 @@ surface emits for the same operation. See
 
 ## Out of scope
 
-- Windows named-pipe transport — POSIX stdio + HTTP only.
+- Windows named-pipe transport - POSIX stdio + HTTP only.
 - File-edit primitives that are not in the ratified ACP spec.
-- ACP authentication beyond loopback — remote HTTP usage rides the
+- ACP authentication beyond loopback - remote HTTP usage rides the
   existing tunnel wrapper.

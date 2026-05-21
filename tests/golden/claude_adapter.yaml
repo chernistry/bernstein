@@ -38,7 +38,7 @@ steps:
       - "-p"
       - "fix the bug in main.py"
     # Flags that must appear with a JSON payload argument (JSON content
-    # may churn across versions — only the flag is checked here).
+    # may churn across versions - only the flag is checked here).
     required_json_flags:
       - "--agents"
       - "--json-schema"

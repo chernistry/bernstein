@@ -4,7 +4,7 @@
 # src/bernstein/adapters/claude.py::_build_command. Flags added only
 # conditionally (e.g. --fallback-model, --allowedTools, --add-dir,
 # --agents, --max-budget-usd, --json-schema, --mcp-config) are NOT
-# part of the hard contract — they are covered by the unit suite at
+# part of the hard contract - they are covered by the unit suite at
 # tests/unit/adapters/.
 adapter: claude
 binary: claude

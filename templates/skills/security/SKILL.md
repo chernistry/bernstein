@@ -1,6 +1,6 @@
 ---
 name: security
-description: Security review — OWASP, auth, secrets, input validation.
+description: Security review - OWASP, auth, secrets, input validation.
 trigger_keywords:
   - security
   - auth

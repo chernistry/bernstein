@@ -89,29 +89,29 @@ Symptoms: navigation succeeds, page renders blank, no obvious error in the termi
 
     Then re-set `bernstein_token`.
 
-4. **Build artifact mismatch.** `bernstein gui serve --minimal` and watch DevTools Network. If `/api/v1/gui-meta` returns a build_time older than your last `npm run build`, you're serving a stale wheel — reinstall.
+4. **Build artifact mismatch.** `bernstein gui serve --minimal` and watch DevTools Network. If `/api/v1/gui-meta` returns a build_time older than your last `npm run build`, you're serving a stale wheel - reinstall.
 
 ## Theme not switching
 
 - The dark/light toggle flips the `.dark` class on `<html>`. Verify in DevTools Elements that `<html class="dark">` is present (or absent) when you click the toggle.
-- If the class flips but colors stay light, `web/src/index.css` was not loaded — confirm `<link rel="stylesheet" …>` resolves to `/ui/assets/index-*.css`.
-- If the page never honors `prefers-color-scheme`, check that the operator hasn't pinned a theme via `localStorage.theme` — clear it to fall back to system.
+- If the class flips but colors stay light, `web/src/index.css` was not loaded - confirm `<link rel="stylesheet" …>` resolves to `/ui/assets/index-*.css`.
+- If the page never honors `prefers-color-scheme`, check that the operator hasn't pinned a theme via `localStorage.theme` - clear it to fall back to system.
 - Token definitions: `web/src/index.css`. Source: `.sdd/backlog/open/frontend/design_handoff_bernstein_phase1/README.md` §3.
 
 ## Sidebar Approvals badge stuck at zero
 
 - Badge count comes from `useQuery(['approvals','queue'])`. If the queue endpoint returns `[]` even when approvals exist, the SSE stream isn't hydrating the cache.
 - Verify `GET /api/v1/events` is open in DevTools Network (look for `EventStream` type).
-- If SSE is blocked by a corporate proxy that buffers responses, the live updates will not arrive — the page will only refresh on poll. Bypass the proxy or use `bernstein gui serve --dev` against a local dev session.
+- If SSE is blocked by a corporate proxy that buffers responses, the live updates will not arrive - the page will only refresh on poll. Bypass the proxy or use `bernstein gui serve --dev` against a local dev session.
 
 ## Auth disabled but warning floods the log
 
 `BERNSTEIN_AUTH_DISABLED=1` is intentionally noisy:
 
 ```text
-SECURITY: Bernstein auth is DISABLED — every request is accepted without
+SECURITY: Bernstein auth is DISABLED - every request is accepted without
 a Bearer token (opt-out via BERNSTEIN_AUTH_DISABLED or auth.enabled=false).
 Do NOT run this configuration on any network-exposed host.
 ```
 
-The warning fires once per process. If you see it repeatedly, multiple Bernstein processes are running — `ps aux | grep bernstein` and reconcile.
+The warning fires once per process. If you see it repeatedly, multiple Bernstein processes are running - `ps aux | grep bernstein` and reconcile.

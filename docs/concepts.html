@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Architecture & Concepts — Bernstein Multi-Agent Orchestration</title>
+  <title>Architecture & Concepts - Bernstein Multi-Agent Orchestration</title>
   <meta name="description" content="Bernstein architecture: task server, agent spawner, janitor verification, plan loader, and CLI adapters. Task lifecycle, agent roles, model routing, self-evolution, and file-based state." />
   <link rel="canonical" href="https://sipyourdrink-ltd.github.io/bernstein/concepts.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Concepts — Bernstein" />
+  <meta property="og:title" content="Concepts - Bernstein" />
   <meta property="og:description" content="Bernstein architecture: task server, agent spawner, janitor verification, plan loader, and CLI adapters. Task lifecycle, agent roles, model routing, self-evolution, and file-based state." />
   <meta property="og:url" content="https://sipyourdrink-ltd.github.io/bernstein/concepts.html" />
   <meta property="og:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Concepts — Bernstein" />
+  <meta name="twitter:title" content="Concepts - Bernstein" />
   <meta name="twitter:description" content="Bernstein architecture: task server, agent spawner, janitor verification, plan loader, and CLI adapters. Task lifecycle, agent roles, model routing, self-evolution, and file-based state." />
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Bernstein","item":"https://sipyourdrink-ltd.github.io/bernstein/"},{"@type":"ListItem","position":2,"name":"Architecture & Concepts","item":"https://sipyourdrink-ltd.github.io/bernstein/concepts.html"}]}
@@ -23,7 +23,7 @@
 {"@context":"https://schema.org","@type":"TechArticle","headline":"Bernstein Architecture & Concepts","description":"Task server, agent spawner, janitor verification, and deterministic orchestration","datePublished":"2025-03-01","dateModified":"2026-04-06","author":{"@type":"Person","name":"Alex Chernysh","url":"https://alexchernysh.com"},"publisher":{"@type":"Organization","name":"Bernstein","url":"https://sipyourdrink-ltd.github.io/bernstein/"}}
 </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is deterministic scheduling in AI orchestration?","acceptedAnswer":{"@type":"Answer","text":"Deterministic scheduling means Bernstein uses pure Python code, not LLM calls, to assign tasks to agents. This makes scheduling auditable, reproducible, and costs zero tokens."}},{"@type":"Question","name":"How does Bernstein isolate agents?","acceptedAnswer":{"@type":"Answer","text":"Each agent runs in its own git worktree — an isolated copy of the repository. The main branch stays clean until work is verified and merged."}},{"@type":"Question","name":"What is the janitor in Bernstein?","acceptedAnswer":{"@type":"Answer","text":"The janitor is Bernstein's verification system. After an agent completes a task, the janitor checks concrete signals: tests pass, files exist, lint is clean, types are correct."}}]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is deterministic scheduling in AI orchestration?","acceptedAnswer":{"@type":"Answer","text":"Deterministic scheduling means Bernstein uses pure Python code, not LLM calls, to assign tasks to agents. This makes scheduling auditable, reproducible, and costs zero tokens."}},{"@type":"Question","name":"How does Bernstein isolate agents?","acceptedAnswer":{"@type":"Answer","text":"Each agent runs in its own git worktree - an isolated copy of the repository. The main branch stays clean until work is verified and merged."}},{"@type":"Question","name":"What is the janitor in Bernstein?","acceptedAnswer":{"@type":"Answer","text":"The janitor is Bernstein's verification system. After an agent completes a task, the janitor checks concrete signals: tests pass, files exist, lint is clean, types are correct."}}]}
 </script>
   <link rel="stylesheet" href="style.css" />
   <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" />
@@ -108,7 +108,7 @@
       </tbody>
     </table>
 
-    <p>The orchestrator is <strong>deterministic code</strong>, not an LLM. Scheduling, routing, and lifecycle management are pure Python — fast, testable, and auditable.</p>
+    <p>The orchestrator is <strong>deterministic code</strong>, not an LLM. Scheduling, routing, and lifecycle management are pure Python - fast, testable, and auditable.</p>
 
     <div class="code-block">
       <pre><code class="language-text">bernstein CLI
@@ -189,7 +189,7 @@ Janitor (completion signal verification)</code></pre>
     <p>See <a href="https://github.com/sipyourdrink-ltd/bernstein/blob/main/docs/LIFECYCLE.md" target="_blank" rel="noopener">LIFECYCLE.md</a> for the complete transition table and audit metadata reference.</p>
 
     <h2 id="agent-session-states">Agent session states</h2>
-    <p>The agent session FSM tracks the lifecycle of a <strong>process</strong> — from spawn to termination. One agent session can handle multiple sequential tasks.</p>
+    <p>The agent session FSM tracks the lifecycle of a <strong>process</strong> - from spawn to termination. One agent session can handle multiple sequential tasks.</p>
 
     <div class="code-block">
       <pre><code class="language-text">spawn() ──► starting ──► working ──► idle ──► working (next task)
@@ -207,12 +207,12 @@ Janitor (completion signal verification)</code></pre>
         <tr><td><code>starting</code></td><td>Process spawned; waiting for first heartbeat confirming it is alive.</td></tr>
         <tr><td><code>working</code></td><td>Actively executing a task.</td></tr>
         <tr><td><code>idle</code></td><td>Task complete; session is alive and can accept a new task.</td></tr>
-        <tr><td><code>dead</code></td><td>Process exited — crash, SIGKILL, timeout watchdog, or idle recycling. Terminal.</td></tr>
+        <tr><td><code>dead</code></td><td>Process exited - crash, SIGKILL, timeout watchdog, or idle recycling. Terminal.</td></tr>
       </tbody>
     </table>
 
     <h2 id="agent-turn-states">Agent turn states</h2>
-    <p>The agent turn FSM operates at a finer granularity than the session FSM. It tracks the lifecycle of a <strong>single task-handling turn</strong> within an agent process — from task claim through to cleanup.</p>
+    <p>The agent turn FSM operates at a finer granularity than the session FSM. It tracks the lifecycle of a <strong>single task-handling turn</strong> within an agent process - from task claim through to cleanup.</p>
 
     <div class="code-block">
       <pre><code class="language-text">IDLE ──task_claimed──► CLAIMING ──agent_spawned──► SPAWNING ──agent_spawned──► RUNNING
@@ -239,7 +239,7 @@ Janitor (completion signal verification)</code></pre>
         <tr><th>State</th><th>Meaning</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>IDLE</code></td><td>No active turn — between tasks or not yet assigned.</td></tr>
+        <tr><td><code>IDLE</code></td><td>No active turn - between tasks or not yet assigned.</td></tr>
         <tr><td><code>CLAIMING</code></td><td>Task claimed; worktree is being prepared.</td></tr>
         <tr><td><code>SPAWNING</code></td><td>CLI process launched but not yet executing.</td></tr>
         <tr><td><code>RUNNING</code></td><td>Agent is actively working on the task.</td></tr>
@@ -248,7 +248,7 @@ Janitor (completion signal verification)</code></pre>
         <tr><td><code>VERIFYING</code></td><td>Work done; janitor or LLM verification pending.</td></tr>
         <tr><td><code>COMPLETING</code></td><td>Verification passed; task being marked done, metrics emitted.</td></tr>
         <tr><td><code>FAILED</code></td><td>Error, crash, or verification failure. Awaiting cleanup.</td></tr>
-        <tr><td><code>REAPED</code></td><td>Cleanup complete — worktree removed, metrics flushed. Terminal.</td></tr>
+        <tr><td><code>REAPED</code></td><td>Cleanup complete - worktree removed, metrics flushed. Terminal.</td></tr>
       </tbody>
     </table>
 
@@ -276,9 +276,9 @@ files:
     <h2 id="agent-roles">Agent roles</h2>
     <p>Roles are defined in <code>templates/roles/{role}/</code>. Each role directory contains:</p>
     <ul>
-      <li><code>system_prompt.md</code> — Role description, rules, and style guidelines</li>
-      <li><code>task_prompt.md</code> — Per-task prompt template with <code>&#123;&#123;TASK_TITLE&#125;&#125;</code>, <code>&#123;&#123;TASK_DESCRIPTION&#125;&#125;</code>, <code>&#123;&#123;FILES&#125;&#125;</code></li>
-      <li><code>config.yaml</code> — Default model, effort, and max tasks per session</li>
+      <li><code>system_prompt.md</code> - Role description, rules, and style guidelines</li>
+      <li><code>task_prompt.md</code> - Per-task prompt template with <code>&#123;&#123;TASK_TITLE&#125;&#125;</code>, <code>&#123;&#123;TASK_DESCRIPTION&#125;&#125;</code>, <code>&#123;&#123;FILES&#125;&#125;</code></li>
+      <li><code>config.yaml</code> - Default model, effort, and max tasks per session</li>
     </ul>
 
     <table>
@@ -299,7 +299,7 @@ files:
     <p>Add custom roles by creating a new directory in <code>templates/roles/</code>. The spawner picks them up automatically.</p>
 
     <h2 id="model-routing">Model routing</h2>
-    <p>The spawner's router is deterministic — it inspects task metadata and returns a <code>(model, effort)</code> pair. No LLM involved:</p>
+    <p>The spawner's router is deterministic - it inspects task metadata and returns a <code>(model, effort)</code> pair. No LLM involved:</p>
 
     <table>
       <thead>
@@ -377,7 +377,7 @@ files:
     </div>
 
     <h2 id="agent-catalogs">Agent catalogs</h2>
-    <p>Agent catalogs let you load specialist role definitions from YAML or Markdown files — locally or from a remote marketplace.</p>
+    <p>Agent catalogs let you load specialist role definitions from YAML or Markdown files - locally or from a remote marketplace.</p>
 
     <div class="code-block">
       <pre><code class="language-bash"># List available agents in loaded catalogs
@@ -469,15 +469,15 @@ stages:
     <p>When you run <code>bernstein run plan.yaml</code>:</p>
     <ol>
       <li>Bernstein parses the plan and creates one backlog task per step.</li>
-      <li>Stage dependencies are wired into task <code>depends_on</code> fields — all steps in a dependent stage wait for all steps in the prerequisite stage.</li>
+      <li>Stage dependencies are wired into task <code>depends_on</code> fields - all steps in a dependent stage wait for all steps in the prerequisite stage.</li>
       <li>A synthetic seed is generated from the plan's config (cli, budget, constraints).</li>
-      <li>The normal bootstrap starts: task server, spawner, janitor. No manager agent is needed — the plan <em>is</em> the decomposition.</li>
+      <li>The normal bootstrap starts: task server, spawner, janitor. No manager agent is needed - the plan <em>is</em> the decomposition.</li>
     </ol>
 
     <p>See <a href="https://github.com/sipyourdrink-ltd/bernstein/tree/main/templates/plan.yaml"><code>templates/plan.yaml</code></a> for the full format spec and <a href="https://github.com/sipyourdrink-ltd/bernstein/tree/main/examples/plans/flask-api.yaml"><code>examples/plans/flask-api.yaml</code></a> for a working example.</p>
 
     <h2 id="file-state">File-based state</h2>
-    <p>All state lives in <code>.sdd/</code> — structured files that can be committed, diffed, and read by any tool. There is no hidden database.</p>
+    <p>All state lives in <code>.sdd/</code> - structured files that can be committed, diffed, and read by any tool. There is no hidden database.</p>
 
     <table>
       <thead>
@@ -495,7 +495,7 @@ stages:
       </tbody>
     </table>
 
-    <p>Agents communicate with the task server over HTTP — they never write to <code>.sdd/</code> directly (except their own heartbeat file).</p>
+    <p>Agents communicate with the task server over HTTP - they never write to <code>.sdd/</code> directly (except their own heartbeat file).</p>
 
   </main>
 </div>
@@ -504,21 +504,21 @@ stages:
   <h2>Architecture FAQ</h2>
   <details>
     <summary>Why does Bernstein use short-lived agents instead of long-running ones?</summary>
-    <p>Long-running agents accumulate context rot — their context windows fill with stale information, leading to degraded output quality. Bernstein spawns fresh agents per task: clean context, no idle resource consumption, and no "sleep" problem. Each agent does 1-3 tasks and exits. State persists in <code>.sdd/</code> files, not in agent memory. <a href="getting-started/getting-started.html">Try it yourself</a></p>
+    <p>Long-running agents accumulate context rot - their context windows fill with stale information, leading to degraded output quality. Bernstein spawns fresh agents per task: clean context, no idle resource consumption, and no "sleep" problem. Each agent does 1-3 tasks and exits. State persists in <code>.sdd/</code> files, not in agent memory. <a href="getting-started/getting-started.html">Try it yourself</a></p>
   </details>
   <details>
     <summary>How does Bernstein prevent agents from conflicting with each other?</summary>
-    <p>Each agent works in its own git worktree — an isolated copy of the repository. The file overlap checker blocks conflicting spawns. The janitor verifies output before merging, and the merge queue serializes integration. Tasks can declare <code>owned_files</code> for explicit file-level isolation. <a href="limitations.html">Known constraints and workarounds</a></p>
+    <p>Each agent works in its own git worktree - an isolated copy of the repository. The file overlap checker blocks conflicting spawns. The janitor verifies output before merging, and the merge queue serializes integration. Tasks can declare <code>owned_files</code> for explicit file-level isolation. <a href="limitations.html">Known constraints and workarounds</a></p>
   </details>
   <details>
     <summary>What makes the orchestrator deterministic?</summary>
-    <p>The orchestrator is pure Python — no LLM calls for scheduling, routing, or coordination decisions. Given the same task graph and configuration, it produces identical execution plans. <code>bernstein verify --determinism</code> proves this with hash comparisons. The execution WAL provides crash recovery without non-determinism. <a href="adapters/adapters.html">See which agents are supported</a></p>
+    <p>The orchestrator is pure Python - no LLM calls for scheduling, routing, or coordination decisions. Given the same task graph and configuration, it produces identical execution plans. <code>bernstein verify --determinism</code> proves this with hash comparisons. The execution WAL provides crash recovery without non-determinism. <a href="adapters/adapters.html">See which agents are supported</a></p>
   </details>
 </section>
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 

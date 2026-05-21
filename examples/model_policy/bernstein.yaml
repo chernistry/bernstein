@@ -7,7 +7,7 @@ goal: >
 
 cli: auto
 
-# Model Policy — CISO-level provider constraints
+# Model Policy - CISO-level provider constraints
 model_policy:
   # Explicit allow-list: only these providers are available
   allowed_providers:

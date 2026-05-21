@@ -1,4 +1,4 @@
-// useEventStream — SSE wrapper with auto-reconnect and per-event-type listeners.
+// useEventStream - SSE wrapper with auto-reconnect and per-event-type listeners.
 import { useEffect, useRef } from 'react';
 
 type EventHandler = (data: unknown) => void;
@@ -30,7 +30,7 @@ export interface UseEventStreamOptions {
  *
  * Reconnect / handler-mount ordering note: `EventSource` does not deliver any
  * events synchronously during construction, so registering listeners on the
- * line after `new EventSource(url)` is race-free — the first event lands on a
+ * line after `new EventSource(url)` is race-free - the first event lands on a
  * future task tick after the browser opens the connection.
  */
 export function useEventStream(url: string, opts: UseEventStreamOptions): void {
@@ -74,7 +74,7 @@ export function useEventStream(url: string, opts: UseEventStreamOptions): void {
       es.onmessage = dispatch('message');
       // Snapshot handler keys at connect time. Adding a new key after mount
       // requires the caller to remount (changing url or enabled), which is the
-      // intended escape hatch — `EventSource.addEventListener` is sticky.
+      // intended escape hatch - `EventSource.addEventListener` is sticky.
       for (const t of Object.keys(handlersRef.current)) {
         if (t !== 'message') es.addEventListener(t, dispatch(t));
       }

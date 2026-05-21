@@ -52,7 +52,7 @@ URL after launch: `http://127.0.0.1:8052/ui/`.
 
     Then refresh `/ui/`. The SPA reads `localStorage.bernstein_token` on every API request.
 
-2. **Disable auth (dev only).** `BERNSTEIN_AUTH_DISABLED=1 bernstein gui serve` — middleware logs a loud warning. Never expose this on a network-reachable host.
+2. **Disable auth (dev only).** `BERNSTEIN_AUTH_DISABLED=1 bernstein gui serve` - middleware logs a loud warning. Never expose this on a network-reachable host.
 
 3. **Port collision.** If `:8052` is taken, pass `--port`. The launcher does not auto-fallback.
 

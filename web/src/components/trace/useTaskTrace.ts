@@ -7,7 +7,7 @@
 //      a fixed interval (`TRACE_POLL_INTERVAL_MS`) so the timeline streams in
 //      new events without the user reloading.
 //   3. As soon as the trace closes (every embedded trace has `end_ts`), the
-//      poller stops — we treat traces as append-only, so the last successful
+//      poller stops - we treat traces as append-only, so the last successful
 //      snapshot is the final one.
 //   4. Honours an `enabled` flag so we don't burn cycles when the user
 //      switches to a different tab.
@@ -34,7 +34,7 @@ export interface UseTaskTraceState {
   lastFetchedAt: number | null;
   /** Increments every successful fetch so panels can flash "live" indicators. */
   generation: number;
-  /** Imperative refresh button — also clears prior errors before retrying. */
+  /** Imperative refresh button - also clears prior errors before retrying. */
   refresh: () => void;
 }
 
@@ -79,7 +79,7 @@ export function useTaskTrace(taskId: string, enabled: boolean): UseTaskTraceStat
         // Defensive ceiling: refuse to spin forever on a misbehaving backend.
         if (all.length >= TRACE_PAGE_LIMIT * 20) break;
       }
-      // A newer fetch already wrote — drop this stale result.
+      // A newer fetch already wrote - drop this stale result.
       if (mySeq !== requestSeq.current) return;
       setEvents(all);
       setTotal(firstResponse?.total ?? all.length);

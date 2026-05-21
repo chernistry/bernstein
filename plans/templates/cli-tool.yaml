@@ -40,7 +40,7 @@ stages:
       - title: "Add configuration file support"
         description: >
           Load configuration from ~/.config/<tool>/config.toml (or equivalent).
-          Merge file config with CLI flags — flags take precedence.
+          Merge file config with CLI flags - flags take precedence.
           Add --config PATH override for non-default config locations.
         role: backend
         scope: small

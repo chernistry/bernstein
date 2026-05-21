@@ -3,7 +3,7 @@
 Bernstein isolates every spawned agent in a sandbox so multiple agents
 running against the same repository cannot stomp on each other's
 files, processes, or secrets. Historically the only sandbox type was
-a local git worktree. The choice of sandbox is now pluggable — agents
+a local git worktree. The choice of sandbox is now pluggable - agents
 can run inside worktrees, Docker containers, E2B microVMs, Modal
 sandboxes, or any backend a plugin author registers.
 
@@ -38,14 +38,14 @@ from bernstein.core.sandbox import (
 
 A `runtime_checkable` `Protocol`. Every backend exposes:
 
-- `name: str` — canonical identifier referenced from `plan.yaml`.
-- `capabilities: frozenset[SandboxCapability]` — feature flags.
-- `async def create(manifest, options=None) -> SandboxSession` —
+- `name: str` - canonical identifier referenced from `plan.yaml`.
+- `capabilities: frozenset[SandboxCapability]` - feature flags.
+- `async def create(manifest, options=None) -> SandboxSession` -
   provision a fresh sandbox.
-- `async def resume(snapshot_id) -> SandboxSession` — restore a
+- `async def resume(snapshot_id) -> SandboxSession` - restore a
   snapshot; raises `NotImplementedError` if the backend does not
   declare `SandboxCapability.SNAPSHOT`.
-- `async def destroy(session) -> None` — tear down a session.
+- `async def destroy(session) -> None` - tear down a session.
 
 ### `SandboxSession`
 
@@ -131,7 +131,7 @@ stages:
 ```
 
 `sandbox:` is entirely optional. When omitted the stage runs in the
-worktree backend — byte-identical to the pre-pluggable-sandbox
+worktree backend - byte-identical to the pre-pluggable-sandbox
 behaviour.
 
 ## Registering a custom backend

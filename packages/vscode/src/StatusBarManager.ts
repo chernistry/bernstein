@@ -11,7 +11,7 @@ export class StatusBarManager {
     );
     this.item.command = 'bernstein.showDashboard';
     this.item.text = '🎼 Bernstein';
-    this.item.tooltip = 'Bernstein Orchestrator — click to open dashboard (connecting…)';
+    this.item.tooltip = 'Bernstein Orchestrator - click to open dashboard (connecting…)';
     this.item.show();
   }
 
@@ -23,7 +23,7 @@ export class StatusBarManager {
     const tasks = `${stats.done}/${total}`;
     this.item.text = `🎼 ${agents} agents · ${tasks} tasks · ${cost}`;
     this.item.tooltip =
-      `Bernstein — ${agents} active agents | ${tasks} tasks done | ${cost} total cost`;
+      `Bernstein - ${agents} active agents | ${tasks} tasks done | ${cost} total cost`;
   }
 
   setError(message: string): void {

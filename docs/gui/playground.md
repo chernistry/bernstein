@@ -29,7 +29,7 @@ The playground is a separate working tree so the mock orchestration writes to it
 
 Two terminals.
 
-### Terminal 1 — mock orchestration
+### Terminal 1 - mock orchestration
 
 ```bash
 cd ~/IdeaProjects/personal_projects/bernstein_playground
@@ -43,7 +43,7 @@ Effect:
 - Mutually exclusive with `--dry-run`. Defined in `src/bernstein/cli/run_bootstrap.py` (`--idle` option, lines ~842–1030).
 - Cost: zero. No LLM calls.
 
-### Terminal 2 — Vite dev server with HMR
+### Terminal 2 - Vite dev server with HMR
 
 ```bash
 cd ~/IdeaProjects/personal_projects/bernstein/web
@@ -74,4 +74,4 @@ BERNSTEIN_MOCK_IDLE_MIN_S=2 BERNSTEIN_MOCK_IDLE_MAX_S=8 bernstein run --idle
 - Tasks page populated with rotating running / queued / done rows.
 - Agents page shows live token meters from the mock adapter's synthetic counters.
 - Approvals page exercises the queue + diff layout (mock approval requests if the playground seed includes them).
-- Costs page reads zeros — mock adapter records no spend. To exercise the cost layout, switch one task off `--idle` and run a real adapter briefly.
+- Costs page reads zeros - mock adapter records no spend. To exercise the cost layout, switch one task off `--idle` and run a real adapter briefly.

@@ -3,8 +3,8 @@
 // Fetches ``/tasks/{id}/gates`` on a 6s poll while the task is live, renders
 // per-gate rows sorted failing-first, and exposes status-bucket chips +
 // sort-direction toggle. The visual language deliberately mirrors the Logs
-// panel — same drawer height envelope, same pill vocabulary, same monospaced
-// metadata strip — so operators don't context-switch when flipping tabs.
+// panel - same drawer height envelope, same pill vocabulary, same monospaced
+// metadata strip - so operators don't context-switch when flipping tabs.
 
 import { ScrollText, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -51,7 +51,7 @@ function savePrefs(p: Prefs): void {
   try {
     window.localStorage.setItem(PREF_KEY, JSON.stringify(p));
   } catch {
-    /* private-mode localStorage — ignore */
+    /* private-mode localStorage - ignore */
   }
 }
 
@@ -75,7 +75,7 @@ export function TaskGatesPanel({ taskId, active = true, className }: TaskGatesPa
     return () => window.clearInterval(id);
   }, [active]);
 
-  // Reset row-expansion state when the task changes — gate names are scoped
+  // Reset row-expansion state when the task changes - gate names are scoped
   // per task and stale entries would otherwise leak across drawers.
   useEffect(() => {
     setExpanded(new Set());
@@ -302,7 +302,7 @@ function GatesEmptyState({ variant }: EmptyProps) {
       case 'empty-results':
         return {
           title: 'No gate results recorded',
-          body: 'The orchestrator wrote an empty report — this task finished without executing any gates.',
+          body: 'The orchestrator wrote an empty report - this task finished without executing any gates.',
           Icon: ScrollText,
         };
       case 'filtered-out':

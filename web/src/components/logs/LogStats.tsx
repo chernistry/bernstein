@@ -1,4 +1,4 @@
-// Inline stats row — lines + bytes + throughput. Sits in the toolbar so the
+// Inline stats row - lines + bytes + throughput. Sits in the toolbar so the
 // operator can sanity-check whether the agent is actually producing output.
 
 import { cn } from '@/lib/utils';

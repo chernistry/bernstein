@@ -6,14 +6,14 @@ Audience: SREs wiring Bernstein into an existing observability stack.
 
 Bernstein emits four classes of signal:
 
-- **Metrics** — Prometheus-format counters, gauges, and histograms exposed at
+- **Metrics** - Prometheus-format counters, gauges, and histograms exposed at
   `/metrics`. Native Datadog APM and OpenTelemetry/OTLP export are also
   available out of the box.
-- **Traces** — task and agent execution spans via OpenTelemetry, with built-in
+- **Traces** - task and agent execution spans via OpenTelemetry, with built-in
   presets for Jaeger, Grafana Tempo, Datadog, Zipkin, and console.
-- **Events** — structured JSON events on a Server-Sent-Events bus
+- **Events** - structured JSON events on a Server-Sent-Events bus
   (`/events`), per-task progress streams, and per-agent log streams.
-- **Anomaly signals** — `core/observability/behavior_anomaly.py` runs both
+- **Anomaly signals** - `core/observability/behavior_anomaly.py` runs both
   post-completion and real-time detectors over agent state and emits
   signals from `LOG` (informational) all the way to `KILL_AGENT` (terminate
   the agent on the next tick).
@@ -25,7 +25,7 @@ one dashboard import; adding Datadog or OTLP export is one config block.
 ## Endpoints catalogue
 
 All HTTP. Authentication rules follow the standard middleware
-([Security and identity](security-and-identity.md)) — `/metrics` is
+([Security and identity](security-and-identity.md)) - `/metrics` is
 gated by viewer permissions when an auth backend is configured.
 
 ### Prometheus / Grafana / SLOs
@@ -179,7 +179,7 @@ configure_datadog()
 
 What gets sent: task and agent spans (start/end, status,
 role, model, complexity), gate execution spans, cascade-router
-escalations, and exception traces. Logs are not piped directly — use the
+escalations, and exception traces. Logs are not piped directly - use the
 Datadog Agent's log file collection on `.sdd/runtime/*.log` if you need
 log correlation.
 
@@ -249,14 +249,14 @@ in-process actions, watch `GET /slo/budget` for `is_depleted: true`
 Source: `core/observability/behavior_anomaly.py`. Covers two distinct
 detection modes (`behavior_anomaly.py:1-20`):
 
-1. **Post-completion** — `BehaviorAnomalyDetector` analyses metrics from
+1. **Post-completion** - `BehaviorAnomalyDetector` analyses metrics from
    `.sdd/metrics/tasks.jsonl` after a task finishes and emits
    `AnomalySignal` values.
-2. **Real-time** — `RealtimeBehaviorMonitor` tracks in-flight session
+2. **Real-time** - `RealtimeBehaviorMonitor` tracks in-flight session
    state on every progress update and fires immediately on suspicious
    activity. On `KILL_AGENT` severity it writes a structured kill-signal
    file (`.sdd/runtime/{session_id}.kill`) so the orchestrator
-   terminates the agent on the next tick — the same mechanism the
+   terminates the agent on the next tick - the same mechanism the
    circuit breaker uses.
 
 Real-time detection dimensions (`behavior_anomaly.py:11-19`):
@@ -275,11 +275,11 @@ Allow-list patterns counter false positives: `*.env.example`,
 
 How to interpret alerts:
 
-- **`LOG`** — informational. Often noise during refactors that touch
+- **`LOG`** - informational. Often noise during refactors that touch
   many files at once.
-- **`WARN`** — investigate the agent log; the agent is misbehaving but
+- **`WARN`** - investigate the agent log; the agent is misbehaving but
   not necessarily compromised.
-- **`KILL_AGENT`** — the runtime has already written a kill signal. The
+- **`KILL_AGENT`** - the runtime has already written a kill signal. The
   orchestrator will terminate the agent on its next tick and the
   agent's branch is preserved for human review under
   `.sdd/quarantine/{session_id}.json` (see [Circuit breakers](#circuit-breakers)
@@ -299,9 +299,9 @@ Two distinct breakers, both producing structured signals.
 Real-time breaker that auto-terminates misbehaving agents
 (`circuit_breaker.py:1-15`). Triggers:
 
-- **Scope violation** — agent edited files outside the task's
+- **Scope violation** - agent edited files outside the task's
   `owned_files`.
-- **Budget violation** — agent exceeded a per-session token limit.
+- **Budget violation** - agent exceeded a per-session token limit.
 
 On trigger:
 
@@ -317,7 +317,7 @@ the `agent_lifecycle` module on the next tick.
 **Service-level cascading-failure circuit breaker**
 (`core/observability/cascading_failure_circuit_breaker.py`):
 
-Three-state breaker per service (CLOSED / OPEN / HALF_OPEN —
+Three-state breaker per service (CLOSED / OPEN / HALF_OPEN -
 `cascading_failure_circuit_breaker.py:39-44`). Wraps calls to upstream
 services (LLM providers, task server, git) with independent failure and
 latency thresholds. Configuration

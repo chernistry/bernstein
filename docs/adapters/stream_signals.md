@@ -44,7 +44,7 @@ ignored by the parser.
 
 Conformance checks expect at least one terminal signal (`COMPLETED` or
 `FAILED`) per adapter run. Missing terminals surface as a
-`MissingTerminalSignal` warning in the conformance report — not a
+`MissingTerminalSignal` warning in the conformance report - not a
 failure, so adapters that have not yet adopted the vocabulary keep
 passing while the gap stays visible.
 
@@ -66,7 +66,7 @@ else
 fi
 ```
 
-### Bash — ask a question mid-run
+### Bash - ask a question mid-run
 
 ```bash
 # Emit before blocking on operator input. The orchestrator routes the
@@ -86,7 +86,7 @@ print(format_signal(SignalKind.COMPLETED))
 
 `format_signal` produces the same wire format as the shell snippet
 above. The grammar is intentionally small enough that producers don't
-need to share a library — Python adapters can use the helper, shell
+need to share a library - Python adapters can use the helper, shell
 wrappers can `printf` directly.
 
 ## Mapping a native protocol onto the canonical vocabulary

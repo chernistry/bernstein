@@ -5,7 +5,7 @@
 
 ---
 
-Most multi-agent frameworks make a quiet assumption: the LLM should decide who does what. The scheduler is a prompt. The coordinator is a model call. This feels natural — LLMs are good at reasoning, so use them to reason about task allocation.
+Most multi-agent frameworks make a quiet assumption: the LLM should decide who does what. The scheduler is a prompt. The coordinator is a model call. This feels natural - LLMs are good at reasoning, so use them to reason about task allocation.
 
 I built Bernstein differently, and this post explains why.
 
@@ -19,11 +19,11 @@ It was also the most unreliable part of the system.
 
 Failure modes I saw in three weeks of testing:
 
-**Hallucinated dependencies.** The scheduling LLM would decide that task B depended on task A even when the task graph said otherwise. This wasn't a bug — the LLM was making a plausible inference. But it was wrong, and it blocked execution.
+**Hallucinated dependencies.** The scheduling LLM would decide that task B depended on task A even when the task graph said otherwise. This wasn't a bug - the LLM was making a plausible inference. But it was wrong, and it blocked execution.
 
 **Inconsistent re-assignments.** The same task, presented in the same context twice, would get assigned to different agents. This made runs non-reproducible. Debugging a failure required reading LLM reasoning traces, not stack traces.
 
-**Token overhead.** With 10 tasks in flight, each scheduling step made an LLM call. At $0.003/1K tokens with 1000-token context, each run spent $0.05–0.15 just on coordination — before any agent did any actual work.
+**Token overhead.** With 10 tasks in flight, each scheduling step made an LLM call. At $0.003/1K tokens with 1000-token context, each run spent $0.05–0.15 just on coordination - before any agent did any actual work.
 
 ---
 
@@ -57,9 +57,9 @@ Removing the LLM from coordination doesn't mean removing LLMs from the system. I
 
 **Goal decomposition (once, at start).** When a user provides a natural-language goal (`bernstein -g "Add JWT auth, tests, and docs"`), an LLM breaks it into a typed task graph: roles, priorities, dependencies, effort estimates. This happens once. The output is a structured JSON object that the rest of the system treats as ground truth.
 
-**Inside each agent.** This is where the real work happens. Each spawned agent (Claude Code, Codex, Gemini — whatever you configure) uses its full context window on a single, bounded task. No coordination overhead. The agent only thinks about the work in front of it.
+**Inside each agent.** This is where the real work happens. Each spawned agent (Claude Code, Codex, Gemini - whatever you configure) uses its full context window on a single, bounded task. No coordination overhead. The agent only thinks about the work in front of it.
 
-**Verification summaries.** After a task completes, the janitor runs deterministic checks (tests, linter, file existence). If verification needs a human-readable summary, that's a cheap model call against structured data — not a reasoning-heavy orchestration decision.
+**Verification summaries.** After a task completes, the janitor runs deterministic checks (tests, linter, file existence). If verification needs a human-readable summary, that's a cheap model call against structured data - not a reasoning-heavy orchestration decision.
 
 The heuristic: LLMs do thinking. Python does coordination.
 
@@ -67,7 +67,7 @@ The heuristic: LLMs do thinking. Python does coordination.
 
 ## The agent isolation model
 
-Each agent runs in its own git worktree — a separate checkout of the repository in a temp directory. This has a few consequences:
+Each agent runs in its own git worktree - a separate checkout of the repository in a temp directory. This has a few consequences:
 
 1. **No file conflicts.** Agents genuinely run in parallel without stepping on each other.
 2. **Clean rollback.** A failed agent's worktree gets deleted. The main branch is never touched until verification passes.
@@ -88,7 +88,7 @@ Not all tasks need the same model. Bernstein routes based on task complexity:
 | Tests | Claude Haiku | Repetitive structure, cheap |
 | Documentation | Claude Haiku | Structured output, low reasoning |
 
-This is configurable. The routing rules live in `src/bernstein/core/router.py` — a plain Python function, not a model call.
+This is configurable. The routing rules live in `src/bernstein/core/router.py` - a plain Python function, not a model call.
 
 On a representative pilot (JWT auth + tests + docs), this routing reduced token cost meaningfully compared to sending all tasks to Sonnet, with no measurable quality difference on the test and docs tasks. Exact savings vary by workload; your mileage will differ.
 
@@ -99,14 +99,14 @@ On a representative pilot (JWT auth + tests + docs), this routing reduced token 
 Agents make mistakes. The janitor is Bernstein's answer to this.
 
 After each agent completes, a verification pass runs:
-1. `pytest` — does the test suite still pass?
-2. `ruff check` — is the linter clean?
-3. File existence checks — did the agent actually create what was requested?
-4. No regressions — does the baseline suite pass against this branch?
+1. `pytest` - does the test suite still pass?
+2. `ruff check` - is the linter clean?
+3. File existence checks - did the agent actually create what was requested?
+4. No regressions - does the baseline suite pass against this branch?
 
 If any check fails, the task is marked failed and optionally retried. The merge to main only happens when all checks pass.
 
-In practice, the verification pass catches a meaningful fraction of failures — cases where an agent produced code that passed its own tests but broke something elsewhere. That is exactly the class of bugs that reviews catch. We haven't run a controlled benchmark with enough sample size to publish pass-rate numbers, but the directional effect is real.
+In practice, the verification pass catches a meaningful fraction of failures - cases where an agent produced code that passed its own tests but broke something elsewhere. That is exactly the class of bugs that reviews catch. We haven't run a controlled benchmark with enough sample size to publish pass-rate numbers, but the directional effect is real.
 
 ---
 
@@ -116,7 +116,7 @@ This architecture makes real sacrifices.
 
 **No dynamic re-prioritization.** If mid-run context changes (an agent discovers a subtask, the user changes the goal), Bernstein doesn't adapt. You'd need to stop the run and re-plan.
 
-**No emergent agent collaboration.** Agents don't communicate. They can't ask each other questions. This is a feature in most cases — agent-to-agent communication is a common source of cascading failures in other frameworks — but it means you can't build certain patterns.
+**No emergent agent collaboration.** Agents don't communicate. They can't ask each other questions. This is a feature in most cases - agent-to-agent communication is a common source of cascading failures in other frameworks - but it means you can't build certain patterns.
 
 **Task decomposition quality matters.** The initial goal decomposition is load-bearing. If the LLM produces a bad task graph (wrong dependencies, ambiguous deliverables), the orchestrator faithfully executes it, badly. We've put most of our prompt engineering into this step.
 
@@ -126,7 +126,7 @@ If your use case needs dynamic re-planning or agent collaboration, Bernstein is 
 
 ## The numbers
 
-Scheduling overhead is genuinely zero. The orchestrator spends no tokens on coordination — it's pure Python. Agent work costs more when you run three agents in parallel than one sequentially, because you're doing more work concurrently. The scheduling cost stays at $0 regardless of scale.
+Scheduling overhead is genuinely zero. The orchestrator spends no tokens on coordination - it's pure Python. Agent work costs more when you run three agents in parallel than one sequentially, because you're doing more work concurrently. The scheduling cost stays at $0 regardless of scale.
 
 We haven't published a controlled benchmark yet. The `benchmarks/` directory has infrastructure for reproducible runs if you want to measure against your own workloads.
 

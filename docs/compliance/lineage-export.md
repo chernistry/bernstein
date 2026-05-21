@@ -1,4 +1,4 @@
-# Regulatory lineage export — operator guide
+# Regulatory lineage export - operator guide
 
 A practical walk-through for a compliance officer or platform operator
 who needs to take a Bernstein run and hand it to an auditor. Covers the
@@ -56,19 +56,19 @@ Source: `src/bernstein/core/persistence/lineage.py:96`.
 ## The `regulatory_class` field
 
 Free-text label, operator-supplied. Bernstein does not enforce a
-vocabulary — the same record might be DORA evidence in one tenant and
+vocabulary - the same record might be DORA evidence in one tenant and
 SOC 2 CC7 evidence in another. Three places set the class, in priority
 order:
 
-1. **Per-step in code** — the writer that emits the record passes an
+1. **Per-step in code** - the writer that emits the record passes an
    explicit `regulatory_class=` value.
-2. **Per-task in `bernstein.yaml`** — set
+2. **Per-task in `bernstein.yaml`** - set
    `tuning.lineage.regulatory_class_default` for the whole run; the
    `LineageWriter` falls back to this when a record has no explicit
    class
    (`src/bernstein/core/persistence/lineage.py:374`).
-3. **Unset (`null`)** — the record is still written; the export shows
-   `—` (HTML) or an empty cell (CSV).
+3. **Unset (`null`)** - the record is still written; the export shows
+   `-` (HTML) or an empty cell (CSV).
 
 There is no gate that blocks writes when the class is missing. If your
 auditor needs every record classified, set the run-level default and
@@ -159,7 +159,7 @@ The HTML form is suitable for direct inclusion in an evidence package
 
 ## Verifying the chain
 
-### `bernstein lineage verify` — operator path
+### `bernstein lineage verify` - operator path
 
 ```bash
 bernstein lineage verify <run_id> [--workdir .] \
@@ -181,7 +181,7 @@ Exit codes:
 The command prints a per-error list capped at 50 entries; the rest are
 summarised. Pipe to a file for the full set on a noisy chain.
 
-### Auditor path — verify without Bernstein in the loop
+### Auditor path - verify without Bernstein in the loop
 
 A customer auditor with only the public key and the WAL files can
 re-verify every signature without any Bernstein machinery in the
@@ -211,7 +211,7 @@ every cycle. On verification failure it (a) emits an `audit.jsonl`
 entry of type `lineage_tamper_detected`, (b) increments the
 `bernstein_lineage_tamper_total{run_id=...}` Prometheus counter, and
 (c) POSTs to the configured SIEM webhook with exponential back-off on
-5xx. The janitor never blocks on a bad webhook — it records the event
+5xx. The janitor never blocks on a bad webhook - it records the event
 and lets the operator decide response policy. Source:
 `src/bernstein/core/quality/janitor.py:187`. Webhook configuration:
 [Regulator-class lineage § SIEM webhook](regulatory-lineage.md#configuring-the-siem-webhook).
@@ -232,7 +232,7 @@ janitor's retention policy:
 Two operational rules:
 
 1. The active `<run_id>.wal.jsonl` is never compressed by the janitor
-   while writes are still happening — a live verifier never races the
+   while writes are still happening - a live verifier never races the
    compactor.
 2. Rotated `<run_id>.wal.jsonl.<N>` segments are gzipped to `<...>.gz`
    on the next janitor cycle. The reader handles both forms
@@ -358,7 +358,7 @@ evidence.
   operator. The schema accommodates a key id prefix in the signature
   blob; no registry is shipped.
 - The signature covers full canonical record bytes. Edits to any
-  field — including downstream-derived fields — invalidate the
+  field - including downstream-derived fields - invalidate the
   signature. This is intentional; operators who need finer-grained
   signing can plug in a custom canonicaliser.
 - `regulatory_class` is unconstrained free text. Recommended labels
@@ -366,19 +366,19 @@ evidence.
 - No backfill: writes from before v1.10 have no lineage records.
 - Single-run scope: cross-run chain stitching is out of scope today.
 - Direct integration with specific GRC vendor APIs (ServiceNow GRC,
-  Archer, etc.) is out of scope — the exporter formats are generic.
+  Archer, etc.) is out of scope - the exporter formats are generic.
 
 ---
 
 ## Related
 
-- [Regulator-class lineage](regulatory-lineage.md) — schema reference,
+- [Regulator-class lineage](regulatory-lineage.md) - schema reference,
   customer-signing configuration, tamper-loud SIEM webhook setup.
-- [Artifact lineage trail](../concepts/artifact-lineage.md) — base
+- [Artifact lineage trail](../concepts/artifact-lineage.md) - base
   schema and chain-walking concepts.
-- [Compliance](../operations/compliance.md) — `bernstein compliance`
+- [Compliance](../operations/compliance.md) - `bernstein compliance`
   CLI for EU AI Act, SOC 2, ISO 27001, PCI-DSS, NIST 800-53, HIPAA.
-- `security/AUDIT.md` — HMAC-chained audit log.
+- `security/AUDIT.md` - HMAC-chained audit log.
 - Source: `src/bernstein/core/persistence/lineage.py`,
   `lineage_signer.py`, `core/observability/lineage_alert.py`,
   `cli/commands/{lineage_cmd,lineage_export_cmd,lineage_verify_cmd}.py`.

@@ -27,24 +27,24 @@ needs in one shippable unit (issue #1321). Horizontally-phased plans
 ("DB → DB → DB → API → API → tests at the end") are rejected by the
 shape-checker and will be sent back to you for re-planning.
 
-Hard caps per task — exceed them and your plan will be rejected:
+Hard caps per task - exceed them and your plan will be rejected:
 - ≤200 LOC ideal, ≤400 LOC absolute hard cap
 - ≤10 files touched
 - ≤2 modules (top-level subpackages) touched
 - Each slice should include the route/handler **and** the test **and**
-  any UI hook it needs — one user-visible behaviour per slice.
+  any UI hook it needs - one user-visible behaviour per slice.
 
 Rules:
-1. Never assign two tasks to the same files — prevent merge conflicts.
+1. Never assign two tasks to the same files - prevent merge conflicts.
 2. Include test-writing **inside** the same task as the production code
    it covers, not as a separate phase at the end.
-3. Order tasks by dependency — foundational work first.
+3. Order tasks by dependency - foundational work first.
 4. Use the most appropriate role for each task.
 5. Keep tasks focused: one user-visible behaviour per task.
 6. If existing tasks already cover part of the goal, do not duplicate them.
 7. Every task must have at least one completion signal so the janitor can verify it.
 8. No two consecutive tasks should live entirely in the same layer of
-   the same subpackage tree with no tests/UI work — that is the
+   the same subpackage tree with no tests/UI work - that is the
    "horizontally phased" anti-pattern.
 
 Output a JSON array of tasks. Each task object must have exactly these fields:
@@ -70,10 +70,10 @@ Output a JSON array of tasks. Each task object must have exactly these fields:
 ```
 
 Completion signal types:
-- `path_exists` — a file or directory must exist
-- `glob_exists` — at least one file matching a glob must exist
-- `test_passes` — a shell command must exit 0
-- `file_contains` — a file must contain a given string
-- `llm_review` — requires LLM review (use sparingly)
+- `path_exists` - a file or directory must exist
+- `glob_exists` - at least one file matching a glob must exist
+- `test_passes` - a shell command must exit 0
+- `file_contains` - a file must contain a given string
+- `llm_review` - requires LLM review (use sparingly)
 
 Output ONLY the JSON array. No markdown fences, no explanation before or after.

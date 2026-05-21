@@ -13,7 +13,7 @@ agent to assign it to, whether a completed task is good enough, when to retry
 versus abandon. Should those decisions be made by deterministic code, or by
 an LLM?
 
-The seductive answer is "LLM" — it can understand task semantics, resolve
+The seductive answer is "LLM" - it can understand task semantics, resolve
 ambiguity, adapt to unexpected situations. The practical answer, learned through
 painful experience, is more nuanced.
 
@@ -21,19 +21,19 @@ painful experience, is more nuanced.
 
 ## Decision
 
-**The Bernstein orchestrator core — scheduling, task assignment, lifecycle
-management, retry logic — is deterministic Python code. Zero LLM tokens are
+**The Bernstein orchestrator core - scheduling, task assignment, lifecycle
+management, retry logic - is deterministic Python code. Zero LLM tokens are
 spent on coordination.**
 
 LLMs are used only at the explicit leaf nodes of the system:
-- `core/manager.py` — task decomposition from high-level goals (optional, only
+- `core/manager.py` - task decomposition from high-level goals (optional, only
   when a plan file is not provided)
-- `core/reviewer.py` — post-completion quality review (optional, off by default)
-- `core/cross_model_verifier.py` — independent verification of completed diffs
+- `core/reviewer.py` - post-completion quality review (optional, off by default)
+- `core/cross_model_verifier.py` - independent verification of completed diffs
   (optional, for high-stakes work)
 
-Everything else — tick loop, task state machine, agent spawning, heartbeat
-monitoring, quality gate execution, metrics recording — is deterministic code
+Everything else - tick loop, task state machine, agent spawning, heartbeat
+monitoring, quality gate execution, metrics recording - is deterministic code
 with no LLM calls.
 
 ---
@@ -62,7 +62,7 @@ the bug is reproducible and fixable.
 
 ### 2. Token cost of coordination
 
-Every scheduling decision by an LLM costs tokens. In a system running hundreds of tasks over days (the pilot experience), LLM-based scheduling would have spent tens of thousands of tokens on coordination overhead — tokens that produce no code, no tests, no value.
+Every scheduling decision by an LLM costs tokens. In a system running hundreds of tasks over days (the pilot experience), LLM-based scheduling would have spent tens of thousands of tokens on coordination overhead - tokens that produce no code, no tests, no value.
 
 The deterministic orchestrator spends zero tokens on scheduling. The only tokens
 spent are on actual task execution.
@@ -86,7 +86,7 @@ issuing instructions has a context window proportional to the number of agents
 and tasks. At 12 agents with a large task backlog, the pilot's manager context was enormous and
 expensive. At 30 agents, it would be unmanageable.
 
-A deterministic scheduler's coordination cost is O(1) per agent per tick — a
+A deterministic scheduler's coordination cost is O(1) per agent per tick - a
 hash lookup and a queue pop. It scales linearly.
 
 ---
@@ -151,7 +151,7 @@ be clarified before entering the queue.
 **No dynamic re-planning.** If a task reveals that the original plan was wrong,
 the deterministic scheduler cannot adapt the plan. The manager LLM must be
 invoked explicitly to create a new plan. In practice, the `bernstein add-task`
-command handles this — users or agents can add tasks to the queue at any time.
+command handles this - users or agents can add tasks to the queue at any time.
 
 **Requires explicit task definitions.** The LLM-orchestrated approach can infer
 task boundaries from a vague goal. Bernstein requires tasks with clear acceptance

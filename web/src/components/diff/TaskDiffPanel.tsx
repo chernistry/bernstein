@@ -56,7 +56,7 @@ function savePrefs(prefs: Prefs): void {
   try {
     window.localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
   } catch {
-    /* private mode — ignore */
+    /* private mode - ignore */
   }
 }
 
@@ -89,7 +89,7 @@ export function TaskDiffPanel({ taskId, active = true, className }: TaskDiffPane
     setActivePath(path);
     const el = fileRefs.current.get(path);
     if (el) {
-      // Scroll inside the right pane only — don't move the whole drawer.
+      // Scroll inside the right pane only - don't move the whole drawer.
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
@@ -121,7 +121,7 @@ export function TaskDiffPanel({ taskId, active = true, className }: TaskDiffPane
   }, [data, taskId]);
 
   // Sync the highlighted file in the left pane with whichever file is
-  // currently in view in the right pane. Cheap IntersectionObserver — only
+  // currently in view in the right pane. Cheap IntersectionObserver - only
   // active while the panel is mounted.
   useEffect(() => {
     if (!filePanelRef.current || !data || data.files.length === 0) return;

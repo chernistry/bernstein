@@ -1,4 +1,4 @@
-# Senior synthesis stage — one strong reviewer reads cheap-stage findings
+# Senior synthesis stage - one strong reviewer reads cheap-stage findings
 # and emits a single high-level verdict.
 name: senior_synthesis
 parallelism: 1

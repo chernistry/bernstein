@@ -1,4 +1,4 @@
-# Bernstein Plan — Data Pipeline
+# Bernstein Plan - Data Pipeline
 #
 # A three-stage plan that builds a robust ETL data pipeline:
 #   1. Ingestion:       connectors, schema validation, dead-letter queuing

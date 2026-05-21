@@ -1790,6 +1790,17 @@ jobs:
           # the diff is macos_sensitive or the PR carries the
           # `macos-needed` label. Always run on push events.
           MACOS_GATED = {"test-macos", "adapter-integration-macos"}
+          # Events under which a macOS-gated skip is intentional. PRs and
+          # manual dispatch already gate macOS behind macos_sensitive /
+          # label. merge_group must be included too: a merge queue runs CI
+          # on a synthetic merge_group ref where `github.event.pull_request`
+          # is null, so the `macos-needed` label and `push`-only branches of
+          # the job `if:` can never be true and these jobs always skip. The
+          # merged commit still triggers a native `push` to main that runs
+          # the full macOS suite un-gated, and ci-macos-nightly.yml covers
+          # regression -- so tolerating the skip here is what keeps the queue
+          # from wedging without losing macOS coverage on what actually lands.
+          MACOS_SKIP_EVENTS = ("pull_request", "workflow_dispatch", "merge_group")
 
           docs_only = plan.get("docs_only") == "true"
           macos_sensitive = plan.get("macos_sensitive") == "true"
@@ -1827,11 +1838,14 @@ jobs:
                   #    `macos-needed` label.
                   #  - workflow_dispatch (manual re-runs from hotfix
                   #    agents) when diff is not macos_sensitive.
+                  #  - merge_group (merge-queue ref) where the label/push
+                  #    branches of the job `if:` cannot be true; the
+                  #    post-merge push to main runs macOS un-gated.
                   # On native push events macOS must run.
                   # Nightly ci-macos-nightly.yml covers regression.
                   if (
                       name in MACOS_GATED
-                      and event in ("pull_request", "workflow_dispatch")
+                      and event in MACOS_SKIP_EVENTS
                       and not macos_sensitive
                       and not macos_labelled
                   ):

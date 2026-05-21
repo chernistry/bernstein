@@ -294,11 +294,14 @@ class SkillCatalogService:
         if entry.content_digest != install_result.content_digest:
             # On mismatch, roll back the install so the operator's
             # skill directory is not left in a half-baked state.
-            installed_dir = scope_root(
-                self._config.scope,
-                workdir=self._config.workdir,
-                home=self._config.home,
-            ) / entry.name
+            installed_dir = (
+                scope_root(
+                    self._config.scope,
+                    workdir=self._config.workdir,
+                    home=self._config.home,
+                )
+                / entry.name
+            )
             if installed_dir.is_dir():
                 remove_catalog_install(
                     entry.name,
@@ -470,11 +473,14 @@ class SkillCatalogService:
         state = read_state(self.lockfile_path)
         installed_digests: dict[str, str] = {}
         for row in state.catalog:
-            install_dir = scope_root(
-                self._config.scope,
-                workdir=self._config.workdir,
-                home=self._config.home,
-            ) / row.id
+            install_dir = (
+                scope_root(
+                    self._config.scope,
+                    workdir=self._config.workdir,
+                    home=self._config.home,
+                )
+                / row.id
+            )
             if not install_dir.is_dir():
                 installed_digests[row.id] = ""
                 continue
@@ -533,9 +539,7 @@ class SkillCatalogService:
         if self._last_fetch is not None and self._fetcher is not None:
             last_fetch_at = "available"
         cache_path = self._fetcher.cache_path if self._fetcher is not None else Path("(no fetcher)")
-        revalidate_seconds = (
-            self._fetcher.revalidate_seconds if self._fetcher is not None else 0
-        )
+        revalidate_seconds = self._fetcher.revalidate_seconds if self._fetcher is not None else 0
         return CatalogStatus(
             cache_path=cache_path,
             last_fetch_at=last_fetch_at,

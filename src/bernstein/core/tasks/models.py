@@ -316,6 +316,27 @@ class ApprovalSpec:
         )
 
 
+def _normalize_attachments(raw: object) -> list[str]:
+    """Coerce an ``attachments`` payload into a ``list[str]``.
+
+    Rejects scalar values (e.g. ``"diagram.png"``) so a malformed
+    payload does not silently turn into one-character paths via
+    iteration. Accepts ``None`` (empty list) and any list-like
+    sequence whose elements coerce to strings.
+    (bot-ack: 3284182800 -- CodeRabbit minor.)
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, str | bytes):
+        raise TypeError(
+            "Task.attachments must be a list of paths, got a "
+            f"{type(raw).__name__}; pass [path] for a single attachment."
+        )
+    if not isinstance(raw, list | tuple):
+        raise TypeError(f"Task.attachments must be a list of paths, got {type(raw).__name__}")
+    return [str(a) for a in raw]
+
+
 @dataclass
 class Task:
     """A unit of work for an agent."""
@@ -509,7 +530,7 @@ class Task:
             agent_restart_between_retries=bool(raw.get("agent_restart_between_retries", False)),
             parallel_safe=bool(raw.get("parallel_safe", False)),
             story_id=(str(raw["story_id"]) if raw.get("story_id") else None),
-            attachments=[str(a) for a in raw.get("attachments", [])],
+            attachments=_normalize_attachments(raw.get("attachments")),
         )
 
 

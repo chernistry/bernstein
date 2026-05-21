@@ -25,6 +25,7 @@ is treated as the stable surface. Helpers MUST:
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -82,6 +83,13 @@ class AuditChainStore:
         key_path: Path | None = None,
     ) -> None:
         self._log = AuditLog(audit_dir=audit_dir, key=key, key_path=key_path)
+        # Serialise read-prev-then-append so two concurrent attaches
+        # never embed the same predecessor in their details payload.
+        # The underlying AuditLog also writes to disk under this same
+        # lock, keeping the on-disk chain order consistent with the
+        # ``prev_chain_digest`` each event embedded.
+        # (bot-ack: 3284182792 -- CodeRabbit major.)
+        self._append_lock = threading.Lock()
 
     # -- public surface -----------------------------------------------------
 
@@ -105,19 +113,21 @@ class AuditChainStore:
     ) -> AuditEvent:
         """Embed the prior chain digest into *details* and append the event.
 
-        The key ``prev_chain_digest`` is overwritten with the current
-        chain head before delegation, so callers may either omit the key
-        or rely on this method to fill it consistently.
+        The read-and-append is performed under a per-store lock so
+        two concurrent calls always see distinct ``prev_chain_digest``
+        values and the underlying chain stays linear.
+        (bot-ack: 3284182792 -- CodeRabbit major.)
         """
-        merged: dict[str, Any] = dict(details)
-        merged["prev_chain_digest"] = self.prev_chain_digest
-        return self._log.log(
-            event_type=event_type,
-            actor=actor,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            details=merged,
-        )
+        with self._append_lock:
+            merged: dict[str, Any] = dict(details)
+            merged["prev_chain_digest"] = self.prev_chain_digest
+            return self._log.log(
+                event_type=event_type,
+                actor=actor,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                details=merged,
+            )
 
     def log(
         self,

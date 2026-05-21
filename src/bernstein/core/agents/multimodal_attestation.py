@@ -36,6 +36,7 @@ attempt.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import logging
 from dataclasses import dataclass
@@ -218,12 +219,28 @@ def build_attachment_context(
     resolutions: list[AttachmentResolution] = []
     operator_sig = _operator_install_id_sig()
     for inp in context.inputs:
-        if inp.content_path is None:
-            # build_multimodal_context skipped a missing file; nothing to
-            # anchor in CAS / the chain. Skip provenance recording so
-            # downstream callers see no resolution for it.
+        if inp.content_path is None or not inp.content_base64:
+            # build_multimodal_context skipped a missing file or could
+            # not produce a base64 payload; nothing to anchor in CAS /
+            # the chain. Skip provenance recording so downstream
+            # callers see no resolution for it.
             continue
-        raw_bytes = inp.content_path.read_bytes()
+        # Hash the bytes that will actually travel to the model API,
+        # not a separate re-read of the source file. The base64
+        # payload in ``content_base64`` IS what the adapter inlines in
+        # the request body; decoding it here gives us the identical
+        # bytes for CAS + the audit-chain digest, eliminating the race
+        # where the on-disk file changes between encode time and
+        # attest time. (bot-ack: 3284182756 -- CodeRabbit critical.)
+        try:
+            raw_bytes = base64.b64decode(inp.content_base64, validate=True)
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "Skipping attachment %s: invalid base64 payload (%s)",
+                inp.content_path,
+                exc,
+            )
+            continue
         digest = hashlib.sha256(raw_bytes).hexdigest()
         cas.put(
             raw_bytes,
@@ -326,13 +343,21 @@ def resolve_attachment_for_worker(
     matches = [e for e in entries if e.details.get("sha256") == sha256]
     if not matches:
         raise FileNotFoundError(f"No multimodal.attach event for {sha256[:12]}...")
-    # Use the most recent event (chronological order).
-    event = matches[-1]
-    attached_worktree = str(event.details.get("worktree_id", ""))
-    if attached_worktree != requesting_worktree_id:
+    # Resolve by (sha256, worktree_id) so concurrent attaches in
+    # different worktrees of the same bytes do not poison each other.
+    # If any historical attach in the requesting worktree exists for
+    # this digest, allow the resolve; otherwise refuse. The list of
+    # attaching worktrees (for the structured error) is built from
+    # every historical event so the operator sees the full picture.
+    # (bot-ack: 3284182761 -- CodeRabbit major.)
+    in_worktree = [e for e in matches if str(e.details.get("worktree_id", "")) == requesting_worktree_id]
+    if not in_worktree:
+        seen_worktrees = sorted(
+            {str(e.details.get("worktree_id", "")) for e in matches if e.details.get("worktree_id")}
+        )
         raise WorktreeAccessDenied(
             sha256=sha256,
-            attached_worktree=attached_worktree,
+            attached_worktree=", ".join(seen_worktrees) or "<unknown>",
             requesting_worktree=requesting_worktree_id,
         )
     blob = cas.get(sha256)

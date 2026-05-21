@@ -77,6 +77,13 @@ def _inject_multimodal_attachments(prompt: str, multimodal_context: Any) -> str:
     prompt so the model API receives the bytes inline. Tests assert the
     exact format so downstream replay can reconstruct what was sent.
 
+    The ``sha256`` attribute is computed over the *decoded* base64
+    payload -- i.e. the exact bytes the model API receives -- not a
+    fresh read of ``content_path``. That ensures the announced digest
+    matches the inlined bytes even if the source file changes between
+    context construction and spawn time.
+    (bot-ack: 3284182744 -- CodeRabbit major.)
+
     Args:
         prompt: The agent prompt that will be passed to the CLI.
         multimodal_context: A
@@ -90,18 +97,18 @@ def _inject_multimodal_attachments(prompt: str, multimodal_context: Any) -> str:
     if not inputs:
         return prompt
 
+    import base64 as _base64
     import hashlib as _hashlib
 
     blocks: list[str] = []
     for inp in inputs:
         b64 = getattr(inp, "content_base64", None) or ""
         mime = getattr(inp, "mime_type", "application/octet-stream")
-        path = getattr(inp, "content_path", None)
-        if path is not None:
+        if b64:
             try:
-                raw = Path(path).read_bytes()
+                raw = _base64.b64decode(b64, validate=True)
                 digest = _hashlib.sha256(raw).hexdigest()
-            except OSError:
+            except (ValueError, TypeError):
                 digest = ""
         else:
             digest = ""

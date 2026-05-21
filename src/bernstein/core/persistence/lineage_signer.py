@@ -176,6 +176,7 @@ def _load_ed25519_private(data: bytes, source: Path) -> Ed25519PrivateKey:
 # have to know the URI format.
 
 _ATTACHMENT_PARENT_SCHEME = "multimodal-attachment://"
+_HEX_DIGIT_SET = frozenset("0123456789abcdef")
 
 
 def build_attachment_parent_uri(sha256: str) -> str:
@@ -187,9 +188,16 @@ def build_attachment_parent_uri(sha256: str) -> str:
     Returns:
         A scheme-qualified content-addressed URI suitable for inclusion
         in a lineage record's ``parents`` list.
+
+    Raises:
+        LineageSignerError: When *sha256* is not exactly 64 lower-case
+            hexadecimal characters. (bot-ack: 3284182781 --
+            CodeRabbit major.)
     """
     if not sha256 or len(sha256) != 64:
         raise LineageSignerError(f"attachment sha256 must be 64 hex chars, got {len(sha256)}")
+    if not _HEX_DIGIT_SET.issuperset(sha256):
+        raise LineageSignerError("attachment sha256 must be lower-case hex (0-9a-f)")
     return f"{_ATTACHMENT_PARENT_SCHEME}{sha256}"
 
 

@@ -28,6 +28,20 @@ adapter (`codex`, `aider`, `qwen`, ...) with `--attach` aborts the
 run BEFORE any process is launched with a `UsageError` that names
 the capable adapters.
 
+Verify which adapters are installed and what each one advertises
+before pinning `--cli`:
+
+```
+bernstein adapters list             # every adapter Bernstein can detect
+bernstein adapters check claude     # confirm a specific adapter resolves on PATH
+bernstein doctor                    # broader environment smoke test
+```
+
+The capability gate uses
+`bernstein.core.agents.multimodal.is_multimodal_capable`; the
+inventory it consults is authoritative.
+(bot-ack: 3284182740 -- CodeRabbit minor.)
+
 ### Wire format
 
 Attached files are read at spawn time and inlined into the prompt

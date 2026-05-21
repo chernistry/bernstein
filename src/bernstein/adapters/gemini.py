@@ -165,24 +165,29 @@ def _inject_multimodal_attachments(prompt: str, multimodal_context: Any) -> str:
     ``<attachment>`` XML-ish blocks that the CLI's prompt processor
     inlines verbatim. This matches the Claude adapter wire format so
     downstream replay can verify exact bytes for both providers.
+
+    The ``sha256`` attribute is computed over the *decoded* base64
+    payload -- the bytes the API receives -- so the announced digest
+    matches the inlined content even if the source file changes
+    between context construction and spawn time.
+    (bot-ack: 3284182752 -- CodeRabbit major.)
     """
     inputs = getattr(multimodal_context, "inputs", ())
     if not inputs:
         return prompt
 
+    import base64 as _base64
     import hashlib as _hashlib
-    from pathlib import Path as _Path
 
     blocks: list[str] = []
     for inp in inputs:
         b64 = getattr(inp, "content_base64", None) or ""
         mime = getattr(inp, "mime_type", "application/octet-stream")
-        path = getattr(inp, "content_path", None)
-        if path is not None:
+        if b64:
             try:
-                raw = _Path(path).read_bytes()
+                raw = _base64.b64decode(b64, validate=True)
                 digest = _hashlib.sha256(raw).hexdigest()
-            except OSError:
+            except (ValueError, TypeError):
                 digest = ""
         else:
             digest = ""

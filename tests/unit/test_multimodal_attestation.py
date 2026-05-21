@@ -519,3 +519,224 @@ class TestPlanLoaderAttachments:
         tasks = load_plan_from_yaml(plan_yaml)
         assert len(tasks) == 1
         assert tasks[0].attachments == [str(img)]
+
+    def test_yaml_plan_rejects_scalar_attachments(self, tmp_path: Path) -> None:
+        """A scalar attachments value MUST surface a PlanLoadError."""
+        img = _make_image(tmp_path / "img.png")
+        plan_yaml = tmp_path / "plan.yaml"
+        plan_yaml.write_text(
+            "name: test\n"
+            "stages:\n"
+            "  - name: phase1\n"
+            "    steps:\n"
+            "      - title: With attachment\n"
+            "        role: backend\n"
+            f"        attachments: {img}\n"  # SCALAR (typo)
+        )
+        from bernstein.core.planning.plan_loader import PlanLoadError, load_plan_from_yaml
+
+        with pytest.raises(PlanLoadError, match="attachments"):
+            load_plan_from_yaml(plan_yaml)
+
+
+# ---------------------------------------------------------------------------
+# Hash-matches-base64 invariant (bot-ack: 3284182756)
+# ---------------------------------------------------------------------------
+
+
+class TestHashMatchesBase64:
+    def test_digest_matches_decoded_base64_not_disk(self, tmp_path: Path) -> None:
+        """If the file changes after encode, the digest still matches what we sent."""
+        import base64 as _b64
+        import hashlib as _h
+
+        original_payload = PNG_MAGIC + b"original-bytes"
+        img = _make_image(tmp_path / "shot.png", payload=original_payload)
+        chain = _audit_chain(tmp_path)
+        cas = CASStore(tmp_path / "cas")
+
+        result = build_attachment_context(
+            attachments=[str(img)],
+            worker_id="wkr-1",
+            turn_seq=0,
+            worktree_id="wt-a",
+            cas=cas,
+            audit_chain=chain,
+        )
+        digest = result.resolutions[0].sha256
+
+        # Simulate file changing on disk after encode.
+        img.write_bytes(b"different-bytes-on-disk")
+
+        # The recorded digest equals SHA-256 of the bytes the adapter
+        # inlines (the base64 payload), not the new on-disk bytes.
+        b64 = result.context.inputs[0].content_base64 or ""
+        adapter_bytes = _b64.b64decode(b64)
+        assert digest == _h.sha256(adapter_bytes).hexdigest()
+        assert adapter_bytes == original_payload
+
+
+# ---------------------------------------------------------------------------
+# Cross-worktree collision (bot-ack: 3284182761)
+# ---------------------------------------------------------------------------
+
+
+class TestCrossWorktreeCollision:
+    def test_dual_attach_same_bytes_resolves_per_worktree(self, tmp_path: Path) -> None:
+        """Same bytes attached in wt-a and wt-b both resolve in their worktree."""
+        payload = PNG_MAGIC + b"shared-bytes"
+        img_a = _make_image(tmp_path / "a.png", payload=payload)
+        img_b = _make_image(tmp_path / "b.png", payload=payload)
+        chain = _audit_chain(tmp_path)
+        cas = CASStore(tmp_path / "cas")
+
+        ra = build_attachment_context(
+            attachments=[str(img_a)],
+            worker_id="wkr-a",
+            turn_seq=0,
+            worktree_id="wt-a",
+            cas=cas,
+            audit_chain=chain,
+        )
+        rb = build_attachment_context(
+            attachments=[str(img_b)],
+            worker_id="wkr-b",
+            turn_seq=0,
+            worktree_id="wt-b",
+            cas=cas,
+            audit_chain=chain,
+        )
+        assert ra.resolutions[0].sha256 == rb.resolutions[0].sha256
+        digest = ra.resolutions[0].sha256
+
+        # wt-a can resolve.
+        assert (
+            resolve_attachment_for_worker(
+                sha256=digest,
+                requesting_worktree_id="wt-a",
+                cas=cas,
+                audit_chain=chain,
+            )
+            == payload
+        )
+        # wt-b can ALSO resolve (it has its own attach event).
+        assert (
+            resolve_attachment_for_worker(
+                sha256=digest,
+                requesting_worktree_id="wt-b",
+                cas=cas,
+                audit_chain=chain,
+            )
+            == payload
+        )
+        # wt-c cannot.
+        with pytest.raises(WorktreeAccessDenied):
+            resolve_attachment_for_worker(
+                sha256=digest,
+                requesting_worktree_id="wt-c",
+                cas=cas,
+                audit_chain=chain,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Non-hex digest rejection (bot-ack: 3284182781)
+# ---------------------------------------------------------------------------
+
+
+class TestParentUriRejectsNonHex:
+    def test_rejects_non_hex_chars(self) -> None:
+        from bernstein.core.persistence.lineage_signer import (
+            LineageSignerError,
+            build_attachment_parent_uri,
+        )
+
+        with pytest.raises(LineageSignerError, match="hex"):
+            build_attachment_parent_uri("x" * 64)
+
+    def test_rejects_uppercase(self) -> None:
+        from bernstein.core.persistence.lineage_signer import (
+            LineageSignerError,
+            build_attachment_parent_uri,
+        )
+
+        with pytest.raises(LineageSignerError, match="hex"):
+            build_attachment_parent_uri("A" * 64)
+
+    def test_accepts_valid_hex(self) -> None:
+        from bernstein.core.persistence.lineage_signer import build_attachment_parent_uri
+
+        uri = build_attachment_parent_uri("0" * 64)
+        assert uri.startswith("multimodal-attachment://")
+
+
+# ---------------------------------------------------------------------------
+# Atomic prev_chain_digest (bot-ack: 3284182792)
+# ---------------------------------------------------------------------------
+
+
+class TestAtomicPrevDigest:
+    def test_concurrent_log_with_prev_digest_remains_linear(self, tmp_path: Path) -> None:
+        """Two threads logging concurrently must not embed the same predecessor."""
+        import threading
+
+        chain = _audit_chain(tmp_path)
+        N = 16
+
+        def _writer(i: int) -> None:
+            record_multimodal_attach(
+                chain=chain,
+                sha256=f"{i:064d}",
+                mime="image/png",
+                operator_install_id_sig="sig",
+                worker_id=f"w-{i}",
+                turn_seq=i,
+                worktree_id="wt-a",
+            )
+
+        threads = [threading.Thread(target=_writer, args=(i,)) for i in range(N)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # The chain must remain verifiable after concurrent appends.
+        valid, errors = chain.verify()
+        assert valid, f"chain broken under concurrency: {errors}"
+
+        # All N events landed.
+        entries = chain.query(event_type=EVENT_MULTIMODAL_ATTACH)
+        assert len(entries) == N
+
+        # No two events share the same prev_chain_digest (linearity).
+        prevs = [e.details["prev_chain_digest"] for e in entries]
+        assert len(set(prevs)) == N
+
+
+# ---------------------------------------------------------------------------
+# Task.from_dict rejects scalar attachments (bot-ack: 3284182800)
+# ---------------------------------------------------------------------------
+
+
+class TestTaskFromDictAttachmentsType:
+    def test_string_payload_rejected(self) -> None:
+        raw = {
+            "id": "t-1",
+            "title": "x",
+            "description": "y",
+            "role": "backend",
+            "attachments": "diagram.png",  # malformed scalar
+        }
+        with pytest.raises(TypeError, match="list of paths"):
+            Task.from_dict(raw)
+
+    def test_list_payload_accepted(self) -> None:
+        raw = {
+            "id": "t-1",
+            "title": "x",
+            "description": "y",
+            "role": "backend",
+            "attachments": ["a.png", "b.png"],
+        }
+        task = Task.from_dict(raw)
+        assert task.attachments == ["a.png", "b.png"]

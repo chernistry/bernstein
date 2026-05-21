@@ -91,7 +91,7 @@ If you nodded at two of those bullets, this fits.
 
 ## how it compares
 
-Closest neighbours in this category live in [docs/compare/README.md](docs/compare/README.md). Bernstein's wedge is the auditability column: HMAC-chained audit, signed agent cards, per-artefact lineage, air-gap deploy profile, plus the widest CLI adapter coverage.
+Closest neighbours in this category live in [docs/compare/README.md](docs/compare/README.md). What Bernstein does well is the auditability surface: HMAC-chained audit, signed agent cards, per-artefact lineage, air-gap deploy profile, plus the widest CLI adapter coverage.
 
 ---
 

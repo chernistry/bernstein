@@ -6,11 +6,11 @@ Vite + React + Tailwind + shadcn/ui SPA. Built artifacts ship inside the wheel u
 
 Two terminals.
 
-**Terminal 1** — Bernstein API server with mock orchestration:
+**Terminal 1** - Bernstein API server with mock orchestration:
 
 ```bash
 # from repo root
-cd /Users/sasha/IdeaProjects/personal_projects/bernstein_playground
+cd /path/to/bernstein
 bernstein run --idle    # spawns mock agents continuously
 ```
 

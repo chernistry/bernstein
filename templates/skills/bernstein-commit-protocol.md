@@ -10,9 +10,9 @@ whenToUse: When committing changes, creating branches, or opening pull requests
 
 ```
 <type>: <short description>
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
+
+Do not add AI attribution lines (`Co-Authored-By: Claude ...`, `Generated with Claude Code`, etc.) to commit messages.
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`
 

@@ -1,6 +1,6 @@
 """Unit tests for scripts/trunk_andon_gate_decision.py.
 
-Refs: edge-hardening EDGE-5 (premortem p=0.25).
+Regression guard for the trunk-andon merge-gate override logic.
 """
 
 from __future__ import annotations

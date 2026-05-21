@@ -1,10 +1,9 @@
 """Unit tests for scripts/pr_push_lock.sh - advisory parallel-agent PR lock.
 
-Refs: edge-hardening EDGE-6 (premortem p=0.30).
+Regression guard for the advisory push-lock that prevents two agents
+from pushing to the same PR head ref concurrently.
 
-Tests cover the cooperative contract documented in
-personal_core_services/.sdd/docs/playbooks/multi_pr_landing_wave.md
-under "Advisory push-lock for parallel agents":
+Tests cover the cooperative contract:
   * free file -> status 'free'
   * acquire creates an active record; status -> 'held'
   * release appends a release record; status -> 'free'

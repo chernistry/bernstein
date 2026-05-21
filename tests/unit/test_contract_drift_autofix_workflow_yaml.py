@@ -10,8 +10,6 @@ instead.
 If a refactor accidentally removes the fork-detect step or the comment
 fallback, drift on fork PRs would silently fail with no operator signal.
 Lock the structural shape so that regression is caught at unit-test time.
-
-Refs: edge-hardening EDGE-2 (premortem p=0.40).
 """
 
 from __future__ import annotations

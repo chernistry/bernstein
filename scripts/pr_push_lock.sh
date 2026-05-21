@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Advisory PR push-lock for parallel-agent waves.
 #
-# Refs: edge-hardening EDGE-6 (premortem p=0.30). See
-# personal_core_services/.sdd/docs/playbooks/multi_pr_landing_wave.md
-# (section "Advisory push-lock for parallel agents") for the full
-# convention.
+# Prevents two agents from pushing to the same PR head ref
+# concurrently. Cooperative; not enforced by GitHub.
 #
 # Usage:
 #   pr_push_lock.sh acquire <pr-number> <agent-id> [ttl-seconds]

@@ -1,12 +1,12 @@
 # Bernstein Plugin for Cursor
 
-Orchestrate parallel AI coding agents from Cursor. Monitor tasks, agents, costs, approve plans — all from the chat.
+Orchestrate parallel AI coding agents from Cursor. Monitor tasks, agents, costs, approve plans - all from the chat.
 
 ## Skills
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| `/bernstein-status` | "what's the status?" | Dashboard overview — agents, tasks, costs, alerts |
+| `/bernstein-status` | "what's the status?" | Dashboard overview - agents, tasks, costs, alerts |
 | `/bernstein-create-task` | "create a task for..." | Queue work for an agent |
 | `/bernstein-agents` | "what agents are running?" | List, inspect, kill agents |
 | `/bernstein-approve` | "any pending approvals?" | Review and approve/reject tasks and plans |

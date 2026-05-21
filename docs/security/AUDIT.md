@@ -113,7 +113,7 @@ Audit mode is controlled by:
 2. **Config file**: Set `audit_mode: true` in `bernstein.yaml`
 3. **Compliance preset**: `bernstein conduct --compliance development` (includes audit)
 
-The HMAC key is automatically generated on first use and stored in `.sdd/audit/.hmac_key`. Protect this file—it's required for verification.
+The HMAC key is automatically generated on first use and stored in `.sdd/audit/.hmac_key`. Protect this file-it's required for verification.
 
 ## SOC 2 Evidence Export
 
@@ -143,11 +143,11 @@ The package includes:
 
 ## Related
 
-- [Audit-log operator guide](audit-log.md) — key management, rotation,
+- [Audit-log operator guide](audit-log.md) - key management, rotation,
   verify, SIEM, recovery.
-- [Multi-tenant audit-chain export](audit-multitenant.md) — per-tenant
+- [Multi-tenant audit-chain export](audit-multitenant.md) - per-tenant
   slice with optional RFC 3161 timestamping.
-- [DSSE / in-toto envelope](audit-dsse-envelope.md) —
+- [DSSE / in-toto envelope](audit-dsse-envelope.md) -
   third-party-verifiable wrapper over the bundle.
 - [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
-  — operator guide for the bundle this page references.
+  - operator guide for the bundle this page references.

@@ -1,7 +1,7 @@
 ---
 name: bernstein-agents
 description: >
-  Manage Bernstein agents — list active agents, inspect their output,
+  Manage Bernstein agents - list active agents, inspect their output,
   kill stalled agents, or stream live logs. Use when the user asks about
   agents, wants to see what an agent is doing, or needs to kill one.
 ---

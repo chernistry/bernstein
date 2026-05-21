@@ -1,6 +1,6 @@
 name: Auto-release
 
-# Triggers after CI passes on main — bumps patch version and publishes
+# Triggers after CI passes on main - bumps patch version and publishes
 # Only releases when meaningful source/test/template files changed.
 #
 # This workflow is invoked by `post-ci-dispatcher.yml` via workflow_call.
@@ -43,7 +43,7 @@ on:
 permissions: {}
 
 jobs:
-  # Sibling alert job — fires when the triggering CI run did NOT succeed
+  # Sibling alert job - fires when the triggering CI run did NOT succeed
   # (cancelled / failure / timed_out / action_required). Without this,
   # auto-release silently skipped the v2.0.0 publish because the gate
   # job below short-circuits on anything other than 'success' (#1273).
@@ -70,7 +70,7 @@ jobs:
           STATUS: ${{ inputs.conclusion }}
           SHA: ${{ inputs.head_sha }}
         run: |
-          echo "::error::release skipped — CI conclusion was ${STATUS} on ${SHA}"
+          echo "::error::release skipped - CI conclusion was ${STATUS} on ${SHA}"
 
       - name: Telegram alert
         env:
@@ -125,7 +125,7 @@ jobs:
               | head -1)
             if [ -n "${STALE}" ]; then
               gh issue close "${STALE}" --repo "${REPO}" \
-                --comment "Auto-closing — commit ${SHORT_SHA} is no longer main HEAD; main has moved to \`${MAIN_SHA:0:7}\`. The cancelled / failed CI was superseded by a later push, and the alert is no longer actionable."
+                --comment "Auto-closing - commit ${SHORT_SHA} is no longer main HEAD; main has moved to \`${MAIN_SHA:0:7}\`. The cancelled / failed CI was superseded by a later push, and the alert is no longer actionable."
             fi
             exit 0
           fi
@@ -292,22 +292,22 @@ jobs:
             --jq '.tag_name' 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "No previous release — proceeding"
+            echo "No previous release - proceeding"
             exit 0
           fi
 
           # Count changed files that matter for a release:
-          #   src/         — Python source code
-          #   tests/       — test suite
-          #   templates/   — role/prompt templates
-          #   scripts/     — build/test scripts
-          #   packaging/   — npm/docker packaging
-          #   infra/       — infrastructure configs
-          #   sdk/         — SDK code
-          #   services/    — service code
-          #   Dockerfile*  — container builds
-          #   requirements*— dependency pins
-          #   pyproject.toml — version, deps, config
+          #   src/         - Python source code
+          #   tests/       - test suite
+          #   templates/   - role/prompt templates
+          #   scripts/     - build/test scripts
+          #   packaging/   - npm/docker packaging
+          #   infra/       - infrastructure configs
+          #   sdk/         - SDK code
+          #   services/    - service code
+          #   Dockerfile*  - container builds
+          #   requirements*- dependency pins
+          #   pyproject.toml - version, deps, config
           CHANGED=$(gh api "repos/${REPO}/compare/${PREV_TAG}...${HEAD_SHA}" \
             --jq '[.files[].filename | select(
               test("^src/") or
@@ -326,7 +326,7 @@ jobs:
           echo "Meaningful files changed since $PREV_TAG: ${CHANGED:-0}"
           if [ "${CHANGED:-0}" = "0" ]; then
             echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "No source/test/template changes — skipping release"
+            echo "No source/test/template changes - skipping release"
           else
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           fi
@@ -338,8 +338,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Distribution is split across two workflows that both fire from this job:
-    #   - `publish.yml`        — runs on tag push; owns PyPI, npm, GitHub Release
-    #   - `publish-docker.yml` — runs on `release: published`; owns GHCR image
+    #   - `publish.yml`        - runs on tag push; owns PyPI, npm, GitHub Release
+    #   - `publish-docker.yml` - runs on `release: published`; owns GHCR image
     # The tag push emitted by the `Tag` step below triggers `publish.yml`,
     # which then creates the GitHub Release that triggers `publish-docker.yml`.
     # This job's responsibility is now narrowed to:
@@ -386,7 +386,7 @@ jobs:
       # The `sipyourdrink-ltd` org blocks GitHub Actions from creating pull
       # requests (`GraphQL: GitHub Actions is not permitted to create or
       # approve pull requests`), so every CI run on main after a release tag
-      # has shipped failed at this step — painting the pypi deployment red
+      # has shipped failed at this step - painting the pypi deployment red
       # weekly even when nothing was wrong with the code.
       #
       # New behaviour: when the current pyproject.toml version is already
@@ -402,13 +402,13 @@ jobs:
         run: |
           IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT_VERSION}"
           NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          echo "::notice::v${CURRENT_VERSION} is already tagged. Skipping auto-release. To ship the next patch, manually bump pyproject.toml to v${NEXT} (or higher) in any PR — auto-release will pick it up on merge."
+          echo "::notice::v${CURRENT_VERSION} is already tagged. Skipping auto-release. To ship the next patch, manually bump pyproject.toml to v${NEXT} (or higher) in any PR - auto-release will pick it up on merge."
           echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "deferred=true" >> "$GITHUB_OUTPUT"
 
       # Final version (bumped or current). When the bump was deferred to a
       # PR, every subsequent step short-circuits via the ``deferred`` output
-      # below — the actual tag will happen on the next workflow run after
+      # below - the actual tag will happen on the next workflow run after
       # the PR's CI passes and auto-merge fires.
       - name: Set version
         id: final
@@ -419,7 +419,7 @@ jobs:
           CURRENT_VERSION: ${{ steps.ver.outputs.current }}
         run: |
           if [ "${BUMP_DEFERRED}" = "true" ]; then
-            echo "::notice::Auto-release deferred — bump PR for v${BUMP_VERSION} will trigger the publish run on merge."
+            echo "::notice::Auto-release deferred - bump PR for v${BUMP_VERSION} will trigger the publish run on merge."
             echo "deferred=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -451,7 +451,7 @@ jobs:
         run: |
           # Delete any pre-existing *draft* release with the same tag
           # (release-drafter often has one queued). Skip if it's a real
-          # published release — never touch cleanup-tag on a real tag.
+          # published release - never touch cleanup-tag on a real tag.
           IS_DRAFT=$(gh release view "v${VERSION}" --json isDraft --jq '.isDraft' 2>/dev/null || echo "none")
           if [ "$IS_DRAFT" = "true" ]; then
             gh release delete "v${VERSION}" --yes
@@ -460,7 +460,7 @@ jobs:
           # Build human-readable notes from conventional-commit messages
           # since the previous release tag. Commits are grouped by prefix
           # (feat/fix/refactor/perf/docs/ci/chore/test); their subject
-          # lines — not raw hashes — become bullet points.
+          # lines - not raw hashes - become bullet points.
           PREV_TAG=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
             git log --no-merges --pretty='%s' -20 > /tmp/commits.txt
@@ -475,7 +475,7 @@ jobs:
             --commits /tmp/commits.txt \
             > RELEASE_NOTES.md
 
-          # Create the release without uploading dist artefacts — those are
+          # Create the release without uploading dist artefacts - those are
           # uploaded by `publish.yml::github-release` once the tag-push
           # workflow finishes its build step. If publish.yml ran first
           # (race), this `gh release create` will exit non-zero and we

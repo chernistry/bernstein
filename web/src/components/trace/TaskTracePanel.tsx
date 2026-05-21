@@ -1,10 +1,10 @@
-// Trace tab — a real timeline of orchestration events for the selected task.
+// Trace tab - a real timeline of orchestration events for the selected task.
 //
 // Reads the per-task JSONL trace via /dashboard/tasks/{id}/trace, flattens it
 // into individual `TraceTimelineEvent` records on the server, and renders them
 // as a vertical timeline with kind-chip filters and free-text search.
 //
-// Polling is driven by the `useTaskTrace` hook — it keeps refetching every
+// Polling is driven by the `useTaskTrace` hook - it keeps refetching every
 // ~7s while any captured trace still has a null `end_ts`. Once every trace
 // is terminal we stop polling and the live indicator disappears.
 
@@ -30,7 +30,7 @@ export function TaskTracePanel({ taskId, active = true }: TaskTracePanelProps) {
   const [query, setQuery] = useState('');
   const [activeKinds, setActiveKinds] = useState<Set<string>>(() => new Set());
 
-  // Live clock for relative-time labels — ticks every second while polling is
+  // Live clock for relative-time labels - ticks every second while polling is
   // active. Stopped once the trace is closed so we don't burn cycles on a
   // background tab waiting forever.
   const [now, setNow] = useState(() => Date.now() / 1000);
@@ -160,7 +160,7 @@ export function TaskTracePanel({ taskId, active = true }: TaskTracePanelProps) {
             No events match the current filters.
           </div>
         ) : (
-          // Left rail visualised by a 1px column behind the cards — the dots
+          // Left rail visualised by a 1px column behind the cards - the dots
           // come from each card's absolutely-positioned ring.
           <div className="relative">
             <div

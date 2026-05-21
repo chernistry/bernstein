@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bernstein health monitor — prints compact status line every tick.
+# Bernstein health monitor - prints compact status line every tick.
 # Exits with non-zero + diagnostic message if something is wrong.
 # Designed to be called by Claude Code in a loop.
 

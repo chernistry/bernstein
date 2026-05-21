@@ -4,7 +4,7 @@ Thank you to the following researchers who have responsibly disclosed vulnerabil
 
 | Researcher | Platform | Date | Severity | Summary |
 |-----------|----------|------|----------|---------|
-| — | — | — | — | No reports yet — be the first! |
+| - | - | - | - | No reports yet - be the first! |
 
 ---
 

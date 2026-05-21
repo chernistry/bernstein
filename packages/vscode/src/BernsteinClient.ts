@@ -162,7 +162,7 @@ export class BernsteinClient {
 
   /**
    * Subscribe to the SSE /events stream.
-   * Returns a stop function — call it to disconnect.
+   * Returns a stop function - call it to disconnect.
    * Automatically reconnects on error/close.
    */
   subscribeToEvents(onEvent: SseCallback, onError?: (err: Error) => void): () => void {

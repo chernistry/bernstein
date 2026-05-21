@@ -9,7 +9,7 @@ name: Reconcile release drift
 
 on:
   schedule:
-    # 04:11 UTC — off-hour, off-pattern so it doesn't collide with
+    # 04:11 UTC - off-hour, off-pattern so it doesn't collide with
     # the rest of the nightly cron herd at :00.
     - cron: "11 4 * * *"
   workflow_dispatch:
@@ -146,7 +146,7 @@ jobs:
             | head -1)
 
           if [ -n "${EXISTING}" ]; then
-            echo "Existing issue #${EXISTING} already tracks this drift — skipping comment to avoid spam."
+            echo "Existing issue #${EXISTING} already tracks this drift - skipping comment to avoid spam."
           else
             gh issue create --repo "${REPO}" \
               --title "${TITLE}" \

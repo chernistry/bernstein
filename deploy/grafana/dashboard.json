@@ -11,7 +11,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Bernstein multi-agent orchestrator — agent throughput, cost rate, error rate, queue depth, success rate.",
+  "description": "Bernstein multi-agent orchestrator - agent throughput, cost rate, error rate, queue depth, success rate.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -243,7 +243,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "All task states over time — open, claimed, done, failed.",
+      "description": "All task states over time - open, claimed, done, failed.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -326,7 +326,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Task completion duration histogram — p50, p90, p99.",
+      "description": "Task completion duration histogram - p50, p90, p99.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },

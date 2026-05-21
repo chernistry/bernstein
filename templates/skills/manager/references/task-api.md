@@ -24,17 +24,17 @@ curl -s -X POST http://127.0.0.1:8052/tasks \
 
 ## Completion-signal types
 
-- `path_exists` — file / directory must exist.
-- `test_passes` — shell command must exit 0.
-- `file_contains` — file must contain the string. Format: `path :: needle`.
-- `glob_exists` — at least one file matching the glob must exist.
+- `path_exists` - file / directory must exist.
+- `test_passes` - shell command must exit 0.
+- `file_contains` - file must contain the string. Format: `path :: needle`.
+- `glob_exists` - at least one file matching the glob must exist.
 
 ## Other endpoints
 
-- `GET  /tasks?status=open` — list by status.
-- `POST /tasks/{id}/complete` — mark done.
-- `POST /tasks/{id}/fail` — mark failed.
-- `POST /tasks/{id}/progress` — report progress (files_changed,
+- `GET  /tasks?status=open` - list by status.
+- `POST /tasks/{id}/complete` - mark done.
+- `POST /tasks/{id}/fail` - mark failed.
+- `POST /tasks/{id}/progress` - report progress (files_changed,
   tests_passing, errors).
-- `POST /bulletin` — cross-agent finding / blocker.
-- `GET  /bulletin?since={ts}` — recent bulletins.
+- `POST /bulletin` - cross-agent finding / blocker.
+- `GET  /bulletin?since={ts}` - recent bulletins.

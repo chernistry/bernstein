@@ -8,7 +8,7 @@ what its own UI changes actually rendered.
 
 ## Module
 
-`src/bernstein/core/sandbox/playwright_runner.py` —
+`src/bernstein/core/sandbox/playwright_runner.py` -
 `PlaywrightRunner`, `PlaywrightScenario`, `PlaywrightStep`,
 `PlaywrightRunResult`, plus the `load_scenarios` YAML helper.
 

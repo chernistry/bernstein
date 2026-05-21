@@ -96,7 +96,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
       }
     );
 
-    // Step 3: Execute — poll until the agent completes.
+    // Step 3: Execute - poll until the agent completes.
     await step.do(
       "execute",
       { timeout: "2 hours" },
@@ -131,7 +131,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
       }
     );
 
-    // Step 4: Verify — run quality gates.
+    // Step 4: Verify - run quality gates.
     await step.do(
       "verify",
       {

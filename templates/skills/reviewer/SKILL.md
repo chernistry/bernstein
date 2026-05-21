@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Code review — correctness, tests, merge-readiness.
+description: Code review - correctness, tests, merge-readiness.
 trigger_keywords:
   - review
   - pr

@@ -1,4 +1,4 @@
-# Fintech demo — `src/payments/flow.py`
+# Fintech demo - `src/payments/flow.py`
 
 ## TL;DR
 
@@ -27,7 +27,7 @@ The flow:
    `acme-q1-payments-evidence.zip` back to compliance.
 4. **External auditor** (SOC2 Type II reviewer) takes the bundle to an
    air-gapped laptop, runs `bernstein-verify pack`, and the tool prints
-   `PASS — 30 entries, 4 agents, 0 unresolved forks`.
+   `PASS - 30 entries, 4 agents, 0 unresolved forks`.
 5. The **rogue-agent fixture** is the demo of failure mode: when a parallel
    edit lands without a merge, `bernstein-verify forks` flags it and the CI
    gate blocks the PR. The auditor sees: *the system catches what we asked
@@ -65,8 +65,8 @@ make -C examples/lineage demo-fintech
 
 This invokes the real CLIs (built by parallel agents B + C + D):
 
-1. `bernstein compliance pack` — bundle the fixtures into an Article 12 zip.
-2. `bernstein-verify pack` — third-party verification of the bundle.
+1. `bernstein compliance pack` - bundle the fixtures into an Article 12 zip.
+2. `bernstein-verify pack` - third-party verification of the bundle.
 
 Expected exit code: `0`. Expected stdout: `PASS`.
 

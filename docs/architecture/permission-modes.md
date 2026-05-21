@@ -27,7 +27,7 @@ restrictive. Critical rules are **never** relaxed in any mode.
 | `auto`    | 2   | Enforce critical+high+medium rules. The non-interactive default.    |
 | `default` | 3   | Enforce every rule, ask on anything ambiguous. The interactive default. |
 
-### `bypass` — most permissive
+### `bypass` - most permissive
 
 Only critical-severity rules are enforced. High/medium/low rules are
 relaxed to `allow`. The approval gate is **skipped** at task completion
@@ -39,7 +39,7 @@ the goal, and you want to see what it does without prompts. Do **not**
 use in CI, on shared machines, or against repos that contain secrets
 your agent shouldn't touch.
 
-### `plan` — review-friendly
+### `plan` - review-friendly
 
 Enforces critical and high rules, relaxes medium and low. Most
 destructive things are still gated, but quality-of-life prompts get out
@@ -49,17 +49,17 @@ Use when: you want to see an agent's plan and a small amount of
 exploratory tool use without the full approval ceremony. The legacy
 `--plan` flag and `plan_mode: true` config both map to this mode.
 
-### `auto` — the headless default
+### `auto` - the headless default
 
 Enforces critical, high, and medium rules; only low-severity rules are
-relaxed. No legacy flag — this is what an orchestrator picks by default
+relaxed. No legacy flag - this is what an orchestrator picks by default
 when no operator is at the keyboard.
 
 Use when: a scheduled job, CI runner, or automation harness drives the
 orchestrator. The mode protects against the most common destructive
 mistakes while keeping prompts to a minimum.
 
-### `default` — the interactive default
+### `default` - the interactive default
 
 Every rule is enforced as written. Tool calls that match no rule fall
 through to `ask`, escalating to a human prompt. Approval gates run as
@@ -71,7 +71,7 @@ and what new users should start on.
 
 ---
 
-## When to use which — decision matrix
+## When to use which - decision matrix
 
 | Situation                                              | Recommended mode |
 |--------------------------------------------------------|------------------|
@@ -213,17 +213,17 @@ rule 1 still denies, rule 2 relaxes to `allow`, rule 3 relaxes to
 | File                                                    | What it does |
 |---------------------------------------------------------|--------------|
 | `src/bernstein/core/security/permission_mode.py`        | Canonical `PermissionMode` enum, `resolve_mode()`, compatibility matrix |
-| `src/bernstein/core/security/permission_rules.py`       | `PermissionRuleEngine` — matches rules, applies mode relaxation |
-| `src/bernstein/core/security/permission_matrix.py`      | `PermissionResolutionMatrix` — combines rule outcome with hook outcome |
-| `src/bernstein/core/security/approval.py`               | Approval gate — honours `bypass_enabled` when mode is `bypass` |
+| `src/bernstein/core/security/permission_rules.py`       | `PermissionRuleEngine` - matches rules, applies mode relaxation |
+| `src/bernstein/core/security/permission_matrix.py`      | `PermissionResolutionMatrix` - combines rule outcome with hook outcome |
+| `src/bernstein/core/security/approval.py`               | Approval gate - honours `bypass_enabled` when mode is `bypass` |
 | `tests/unit/test_permission_mode.py`                    | 62 tests covering every cell of the matrix |
 
 ---
 
 ## Related
 
-- [Sandbox backends](sandbox.md) — what an agent can reach even when
+- [Sandbox backends](sandbox.md) - what an agent can reach even when
   permissions allow a call.
-- [`operations/runbooks.md`](../operations/runbooks.md) — automated
+- [`operations/runbooks.md`](../operations/runbooks.md) - automated
   remediation for the kinds of failures permissions are meant to
   prevent in the first place.

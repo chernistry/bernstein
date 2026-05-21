@@ -11,7 +11,7 @@ on:
 permissions: {}
 
 jobs:
-  # Protocol compatibility gate — blocks release if breaking changes found
+  # Protocol compatibility gate - blocks release if breaking changes found
   protocol-gate:
     name: Protocol Compatibility Gate
     runs-on: ubuntu-latest
@@ -85,10 +85,10 @@ jobs:
           fi
 
           if grep -q '"breaking_changes": \[\]' gate-check.log; then
-            echo "✅ Gate passed — no breaking changes detected"
+            echo "✅ Gate passed - no breaking changes detected"
             exit 0
           else
-            echo "❌ Release blocked — breaking changes detected"
+            echo "❌ Release blocked - breaking changes detected"
             echo "To proceed: include 'ACKNOWLEDGE_BREAKING_CHANGES' in commit message"
             exit 1
           fi
@@ -273,6 +273,6 @@ jobs:
         run: |
           cd packaging/npm
           if ! npm publish --access public; then
-            echo "::warning::npm publish failed — continuing release. Likely cause: NPM_TOKEN needs to be re-issued with publish rights for bernstein-orchestrator."
+            echo "::warning::npm publish failed - continuing release. Likely cause: NPM_TOKEN needs to be re-issued with publish rights for bernstein-orchestrator."
           fi
 

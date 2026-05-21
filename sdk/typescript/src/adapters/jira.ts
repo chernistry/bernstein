@@ -1,5 +1,5 @@
 /**
- * Jira Cloud adapter — parse webhook payloads and map states.
+ * Jira Cloud adapter - parse webhook payloads and map states.
  *
  * This module is intentionally lightweight: it does not bundle the Jira
  * REST API client.  Use it to parse incoming webhook payloads and generate

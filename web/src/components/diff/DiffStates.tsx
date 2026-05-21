@@ -21,7 +21,7 @@ export function DiffLoadingState({ className }: { className?: string }) {
       <div className="text-[13px] font-medium text-foreground">Loading diff…</div>
       <div className="w-full max-w-xs">
         <div className="flex flex-col gap-1 font-mono text-[10.5px] text-meta-foreground">
-          {['—— ——', '—— ———— ——', '——— —— ————', '—— ——'].map((row, i) => (
+          {['-- --', '-- ---- --', '--- -- ----', '-- --'].map((row, i) => (
             <div key={i} className="truncate">
               {row}
             </div>

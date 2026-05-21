@@ -1,4 +1,4 @@
-# Skills — progressive-disclosure capability packs
+# Skills - progressive-disclosure capability packs
 
 Status: active (April 2026).
 Applies to: all CLI adapters spawned by Bernstein.
@@ -43,7 +43,7 @@ templates/
     …
 ```
 
-Empty buckets (``references/``, ``scripts/``, ``assets/``) are omitted —
+Empty buckets (``references/``, ``scripts/``, ``assets/``) are omitted -
 the manifest's corresponding field is just an empty list.
 
 ## ``SKILL.md`` format
@@ -95,12 +95,12 @@ path baked into the message.
 ``bernstein.core.planning.role_resolver.resolve_role_prompt`` is called
 once per spawn. It tries three things in order:
 
-1. **Skill pack** — ``templates/skills/<role>/SKILL.md`` exists → inject
+1. **Skill pack** - ``templates/skills/<role>/SKILL.md`` exists → inject
    the compact index **plus** the matched skill body.
-2. **Legacy role template** — no skill pack, but
+2. **Legacy role template** - no skill pack, but
    ``templates/roles/<role>/system_prompt.md`` exists → render via the
    existing Jinja-style engine and inject that.
-3. **Fallback stub** — neither path found → ``"You are a <role> specialist."``
+3. **Fallback stub** - neither path found → ``"You are a <role> specialist."``
 
 The resolver is cached per ``(templates_dir, skills/ mtime)`` so dev
 reloads pick up edits but production spawns do not re-parse 17 manifests
@@ -120,13 +120,13 @@ async def load_skill(
 
 Returns JSON with:
 
-- ``name`` — echoed back.
-- ``body`` — ``SKILL.md`` body when ``reference`` and ``script`` are unset.
-- ``available_references`` / ``available_scripts`` — always populated.
-- ``reference_content`` — the requested reference's raw text (only when
+- ``name`` - echoed back.
+- ``body`` - ``SKILL.md`` body when ``reference`` and ``script`` are unset.
+- ``available_references`` / ``available_scripts`` - always populated.
+- ``reference_content`` - the requested reference's raw text (only when
   ``reference`` was passed).
-- ``script_content`` — the requested script's raw text.
-- ``error`` — populated when the skill / file could not be loaded.
+- ``script_content`` - the requested script's raw text.
+- ``error`` - populated when the skill / file could not be loaded.
 
 Every invocation emits a ``skill_loaded`` WAL event (best-effort) with
 ``name``, ``reference``, ``script``, ``source``, ``duration_s``, and
@@ -136,7 +136,7 @@ Every invocation emits a ``skill_loaded`` WAL event (best-effort) with
 
 Skills are aggregated from multiple sources into a single
 :class:`SkillLoader`. Name collisions abort startup with
-:class:`DuplicateSkillError` — duplicate names across sources are never
+:class:`DuplicateSkillError` - duplicate names across sources are never
 silently shadowed.
 
 ### First-party
@@ -171,7 +171,7 @@ def source() -> SkillSource:
 
 :func:`bernstein.core.skills.sources.load_plugin_sources` enumerates the
 group at loader construction time. Broken factories log a warning and
-are skipped rather than aborting startup — a noisy third-party bug
+are skipped rather than aborting startup - a noisy third-party bug
 should not take down the orchestrator.
 
 ## CLI
@@ -215,11 +215,11 @@ All 17 roles migrated to skill packs:
 | ``reviewer``      | review-rubric, feedback-tone                                | full split                     |
 | ``manager``       | task-api, planning-rules                                    | full split                     |
 | ``vp``            | pivot-evaluation, cell-decomposition                        | full split                     |
-| ``prompt-engineer`` | —                                                         | body small, no references      |
-| ``visionary``     | —                                                           | body is the output schema      |
-| ``analyst``       | —                                                           | body is the scoring rubric     |
-| ``resolver``      | —                                                           | single-purpose skill           |
-| ``ci-fixer``      | —                                                           | single-purpose skill           |
+| ``prompt-engineer`` | -                                                         | body small, no references      |
+| ``visionary``     | -                                                           | body is the output schema      |
+| ``analyst``       | -                                                           | body is the scoring rubric     |
+| ``resolver``      | -                                                           | single-purpose skill           |
+| ``ci-fixer``      | -                                                           | single-purpose skill           |
 
 Legacy ``templates/roles/<role>/system_prompt.md`` files remain on disk
 for backwards compat.

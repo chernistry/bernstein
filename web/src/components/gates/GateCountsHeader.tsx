@@ -19,7 +19,7 @@ interface Entry {
   symbol: string;
 }
 
-// Visual ordering of the pill strip — failing first to draw the eye, skipped
+// Visual ordering of the pill strip - failing first to draw the eye, skipped
 // last because it's the least actionable bucket.
 const ORDER: Entry[] = [
   { bucket: 'failing', kind: 'danger', symbol: '✗' },
@@ -30,7 +30,7 @@ const ORDER: Entry[] = [
 
 export function GateCountsHeader({ counts, className }: Props) {
   const total = ORDER.reduce((acc, e) => acc + counts[e.bucket], 0);
-  // Nothing useful to show when there are zero results — the panel-level
+  // Nothing useful to show when there are zero results - the panel-level
   // empty state takes over instead.
   if (total === 0) return null;
   return (

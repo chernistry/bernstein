@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Documentation — Bernstein</title>
+  <title>Documentation - Bernstein</title>
   <link rel="stylesheet" href="style.css" />
   <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -83,7 +83,7 @@
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 
@@ -164,12 +164,12 @@ function renderMermaidBlocks(blocks) {
       // Extract title from first h1
       var firstH1 = document.getElementById('doc-content').querySelector('h1');
       if (firstH1) {
-        document.title = firstH1.textContent + ' — Bernstein';
+        document.title = firstH1.textContent + ' - Bernstein';
         document.getElementById('page-title').textContent = firstH1.textContent;
         firstH1.remove();
       } else {
         var name = path.split('/').pop().replace(/\.md$/, '').replaceAll(/[-_]/g, ' ');
-        document.title = name + ' — Bernstein';
+        document.title = name + ' - Bernstein';
         document.getElementById('page-title').textContent = name;
       }
 

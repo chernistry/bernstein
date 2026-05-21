@@ -19,7 +19,7 @@ path to "no auth" is an explicit opt-out (`BERNSTEIN_AUTH_DISABLED=1` or
 `auth.enabled: false` in `bernstein.yaml`), which logs a loud warning on
 startup. SSO providers, RBAC route mapping, identity issuance, audit
 integrity, drain/export endpoints, and SBOM generation are all in-tree
-features — there is no separate "enterprise edition" toggle.
+features - there is no separate "enterprise edition" toggle.
 
 ## Auth providers
 
@@ -38,7 +38,7 @@ modified by admins via `PUT /auth/group-mappings`
 (`routes/auth.py:443-491`). They map IdP group claims (e.g.
 `bernstein-admins`) to one of the three Bernstein roles.
 
-A fourth path — **legacy bearer tokens** — exists for backwards
+A fourth path - **legacy bearer tokens** - exists for backwards
 compatibility (`auth_middleware.py:7`). It accepts a single shared secret
 configured by `BERNSTEIN_AUTH_TOKEN`. Treat it as a transitional
 mechanism; SSO + JWT is the supported deployment.
@@ -55,15 +55,15 @@ Default algorithm: `HS256` with a 24-hour expiry; both knobs live on
 **Issuance.** Tokens are minted by `JWTManager.create_token(session_id,
 user_id, scopes)`. Three issuers exist:
 
-- **Operator login** — OIDC/SAML callback (`routes/auth.py:212-261`,
+- **Operator login** - OIDC/SAML callback (`routes/auth.py:212-261`,
   `:269-308`) returns an HTML page that stores the token in
   `localStorage`. Device flow (`/auth/cli/device`, `/auth/cli/token`)
   issues the same token via polling for CLI-based logins
   (`routes/auth.py:324-372`).
-- **Agent identity** — `core/agent_identity.py` issues task-scoped JWTs
+- **Agent identity** - `core/agent_identity.py` issues task-scoped JWTs
   with claims `{session_id, user_id=identity_id, task_ids: [...],
   permissions: [...]}`. Stored in `.sdd/auth/identities/`.
-- **Cluster nodes** — `ClusterAuthenticator.issue_node_token(node_id)`
+- **Cluster nodes** - `ClusterAuthenticator.issue_node_token(node_id)`
   (`core/protocols/cluster/cluster_auth.py:70-93`); see
   [Cluster mode](cluster-mode.md).
 
@@ -76,7 +76,7 @@ rejected.
 **Validation.** Every protected request goes through
 `AuthMiddleware.dispatch()` (`auth_middleware.py:160+`), which:
 
-1. Skips `AUTH_PUBLIC_PATHS` (`auth_middleware.py:67-89`) — `/health`,
+1. Skips `AUTH_PUBLIC_PATHS` (`auth_middleware.py:67-89`) - `/health`,
    `/.well-known/...`, the login flow itself.
 2. Decodes the bearer token via `JWTManager.verify_token()`
    (`jwt_tokens.py:78-93`) which returns `None` on bad signature or
@@ -105,11 +105,11 @@ users via `DELETE /auth/users/{id}` (`routes/auth.py:499-520`).
 Three built-in roles in strict privilege order
 (`core/security/auth.py:81-87`):
 
-- **admin** — full access, including `auth:manage`, `config:write`,
+- **admin** - full access, including `auth:manage`, `config:write`,
   `admin:manage` (which gates shutdown/broadcast/drain), `agents:kill`.
-- **operator** — task and agent management, no config or user changes.
+- **operator** - task and agent management, no config or user changes.
   Can write tasks, kill agents, manage cluster nodes, post to bulletin.
-- **viewer** — read-only access to tasks, agents, status, costs,
+- **viewer** - read-only access to tasks, agents, status, costs,
   bulletin.
 
 Per-role permission table
@@ -143,7 +143,7 @@ RBAC is enforced at the route level by `RBACEnforcer`
 methods to required permissions. Default rules
 (`core/security/rbac.py:79-115`) cover `/auth/users`, `/config`,
 `/webhooks`, `/cluster`, `/agents`, `/tasks`, `/bulletin`, `/costs`,
-`/status`, `/health`. Order matters — first match wins — and additional
+`/status`, `/health`. Order matters - first match wins - and additional
 rules can be passed in via `RBACEnforcer(extra_rules=...)`.
 
 To add a custom rule, append a `RoutePermission(path_prefix, method,
@@ -153,17 +153,17 @@ roles should hold it; otherwise it is denied by default.
 
 ### Policy engine
 
-For decisions that go beyond simple route-level RBAC — for example "ask
+For decisions that go beyond simple route-level RBAC - for example "ask
 human before letting an agent edit `migrations/`", or "deny secret-file
-edits regardless of role" — Bernstein has a layered policy engine
+edits regardless of role" - Bernstein has a layered policy engine
 (`core/security/policy_engine.py`). It evaluates `PermissionDecision`
 records in this precedence order (`policy_engine.py:29-36`):
 
-1. **DENY** — mandatory block, bypass-immune.
-2. **IMMUNE** — safety-critical paths (e.g. `.git`, key files), bypass-immune.
-3. **SAFETY** — secret detection, bypass-immune.
-4. **ASK** — requires human approval (surfaces in `/approvals/queue`).
-5. **ALLOW** — permitted to proceed.
+1. **DENY** - mandatory block, bypass-immune.
+2. **IMMUNE** - safety-critical paths (e.g. `.git`, key files), bypass-immune.
+3. **SAFETY** - secret detection, bypass-immune.
+4. **ASK** - requires human approval (surfaces in `/approvals/queue`).
+5. **ALLOW** - permitted to proceed.
 
 YAML rules live under `policy:` in `bernstein.yaml` and are loaded by
 `PolicyEngine`; optional Rego rules can be merged in via the OPA
@@ -221,7 +221,7 @@ preserves at least one of them.
 The seed is operator-controlled and never ships to end users; the
 nonce is a random 80-bit value persisted at `~/.bernstein/install_nonce`.
 Without the seed, an end-user install cannot mint tokens that match
-the operator's verifier. There is no telemetry — bernstein never
+the operator's verifier. There is no telemetry - bernstein never
 opens a network connection to phone home install state.
 
 Kill switch: `BERNSTEIN_DISABLE_IDENTITY=1` short-circuits every
@@ -282,7 +282,7 @@ agents finish without picking up new work. Three endpoints:
 
 The orchestrator's task-claim path checks `app.state.draining` and
 refuses to assign new work while it is set. Combine with
-`/cluster/nodes/{id}/drain` for a multi-node graceful shutdown — see
+`/cluster/nodes/{id}/drain` for a multi-node graceful shutdown - see
 [Cluster mode](cluster-mode.md).
 
 **Export** (`core/routes/export.py`):
@@ -300,13 +300,13 @@ safe to bookmark from a browser.
 `core/routes/sbom.py` exposes on-demand Software Bill of Materials
 generation for supply-chain compliance.
 
-- `POST /sbom/generate` — produce a CycloneDX or SPDX JSON SBOM from
+- `POST /sbom/generate` - produce a CycloneDX or SPDX JSON SBOM from
   installed packages, optionally run vulnerability scanning via
   `osv-scanner` or `grype`, and gate the response on critical findings
   (`sbom.py:122-214`). Body fields: `sbom_format`, `source`, `run_scan`,
   `block_on_critical`. Response 422 when `block_on_critical=true` and
   any CRITICAL vulnerability is present.
-- `GET /sbom/artifacts` — list previously generated SBOM JSON artifacts
+- `GET /sbom/artifacts` - list previously generated SBOM JSON artifacts
   from `.sdd/artifacts/sbom/` (`sbom.py:217-247`).
 
 Generator implementation: `core/security/sbom.py` (`SBOMGenerator`,
@@ -319,21 +319,21 @@ gates inside the [Quality pipeline](../architecture/quality-pipeline.md).
 Bernstein's compliance posture is a composition of the above primitives
 plus configurable policy. Rather than duplicate it here, see:
 
-- [Model policy](MODEL_POLICY.md) — model allowlist/denylist, residency,
+- [Model policy](MODEL_POLICY.md) - model allowlist/denylist, residency,
   cost ceilings, and the cascade-router escalation rules that interact
   with regulated workloads.
-- [Audit and SOC 2 evidence](../security/AUDIT.md) — the canonical
+- [Audit and SOC 2 evidence](../security/AUDIT.md) - the canonical
   walkthrough of the audit log, integrity proofs, and SOC 2 control
   mapping.
-- [Security hardening](../security/security-hardening.md) — sandbox
+- [Security hardening](../security/security-hardening.md) - sandbox
   hardening, allow-listed commands, and DLP scanning.
 
 Compliance modules in code (`core/security/`):
 
-- `eu_ai_act.py` — EU AI Act risk assessment helpers.
-- `hipaa.py` — HIPAA PHI gates.
-- `soc2_report.py` — SOC 2 evidence packaging.
-- `compliance.py`, `compliance_policies.py`, `compliance_report.py` —
+- `eu_ai_act.py` - EU AI Act risk assessment helpers.
+- `hipaa.py` - HIPAA PHI gates.
+- `soc2_report.py` - SOC 2 evidence packaging.
+- `compliance.py`, `compliance_policies.py`, `compliance_report.py` -
   shared policy engine surfaced by the `bernstein compliance` CLI group
   (`cli/commands/compliance_cmd.py`).
 

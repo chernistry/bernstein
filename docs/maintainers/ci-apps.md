@@ -1,4 +1,4 @@
-# CI apps & integrations — one-time operator playbook
+# CI apps & integrations - one-time operator playbook
 
 Forward-looking install guide for free OSS-tier GitHub Apps and platform features
 that benefit the `sipyourdrink-ltd/bernstein` repo. Each section is a single
@@ -20,7 +20,7 @@ Steps:
 - Confirm.
 
 Risk: CodeQL produces some false positives on first scan. Autofix proposes
-patches as PR suggestions — it never auto-merges. Triage as normal review work.
+patches as PR suggestions - it never auto-merges. Triage as normal review work.
 
 ---
 
@@ -63,7 +63,7 @@ degrades.
 Free, no install. Path: **Repo → Insights → Actions**.
 
 Use as a 30-day "main CI green/red" gauge and per-workflow runtime trend. No
-configuration needed — the tab populates from existing workflow runs.
+configuration needed - the tab populates from existing workflow runs.
 
 ---
 
@@ -92,12 +92,12 @@ Steps: **Repo → Settings → Branches** → edit `main` branch protection rule
 enable **Merge queue**.
 
 Caveats:
-- Pair with `required_status_checks.strict: false` — merge queue is
+- Pair with `required_status_checks.strict: false` - merge queue is
   incompatible with "require branches to be up to date".
 - Required workflows must trigger on `merge_group`:
   `on: merge_group: types: [checks_requested]`.
 - Verify after [#1277](https://github.com/sipyourdrink-ltd/bernstein/pull/1277)
-  lands — that PR adds the `merge_group` trigger to required workflows.
+  lands - that PR adds the `merge_group` trigger to required workflows.
 
 ---
 
@@ -125,7 +125,7 @@ Dependabot PR noise becomes a problem. No action required now.
 
 ---
 
-## 9. Homebrew tap — wire up `HOMEBREW_TAP_TOKEN`
+## 9. Homebrew tap - wire up `HOMEBREW_TAP_TOKEN`
 
 **Status:** ⚠️ tap stuck at `1.4.1`. `publish-homebrew.yml` runs on every
 release but the "Push to homebrew-tap repo" step silently no-ops because the
@@ -181,7 +181,7 @@ gh api repos/chernistry/homebrew-tap/contents/Formula/bernstein.rb \
 
 ### Risk
 
-- PAT scope is repo-narrow and Contents-only — minimum needed for `git push`
+- PAT scope is repo-narrow and Contents-only - minimum needed for `git push`
   to `homebrew-tap`. Don't broaden it.
 - 90-day rotation reminder: add to the operator's calendar; expired PAT
   silently regresses to the same broken state.
@@ -191,10 +191,10 @@ gh api repos/chernistry/homebrew-tap/contents/Formula/bernstein.rb \
 
 ---
 
-## 10. COPR / RPM — kill or fix decision
+## 10. COPR / RPM - kill or fix decision
 
 **Status:** ❌ broken since March 2026. Last successful build was `1.4.11`.
-Every build since fails in Fedora chroots — `copr-cli buildpypi` cannot
+Every build since fails in Fedora chroots - `copr-cli buildpypi` cannot
 resolve 30+ Python `python3dist(...)` dependencies (`beartype >= 0.21`,
 `crosshair-tool`, `openai-agents`, etc.) because they are not packaged for
 Fedora.
@@ -205,17 +205,17 @@ which **ignores** the in-repo spec and synthesizes its own from PyPI
 metadata. That regenerated spec is what pulls in the missing
 `python3dist(...)` BuildRequires.
 
-The operator has to pick one of two paths. Both are docs-only here — the
+The operator has to pick one of two paths. Both are docs-only here - the
 actual workflow / docs edits land in a follow-up PR.
 
-### Option A — Kill the channel
+### Option A - Kill the channel
 
 Lowest-effort, recommended if COPR install volume is < 5% of downloads.
 
 Diff for `.github/workflows/publish.yml`:
 
 ```diff
--  # COPR RPM rebuild — triggers a new build from the updated PyPI release.
+-  # COPR RPM rebuild - triggers a new build from the updated PyPI release.
 -  trigger-copr:
 -    name: Trigger COPR rebuild
 -    runs-on: ubuntu-latest
@@ -252,9 +252,9 @@ Then strip the COPR install path from:
 - Repo secrets: delete `COPR_LOGIN` and `COPR_TOKEN`.
 
 Recommend a redirect notice: point Fedora users at `pipx install bernstein`
-or `uv tool install bernstein` — both work on Fedora 41/42 out of the box.
+or `uv tool install bernstein` - both work on Fedora 41/42 out of the box.
 
-### Option B — Fix the spec
+### Option B - Fix the spec
 
 Keep COPR alive. Stop relying on `buildpypi`'s auto-generated spec; ship the
 in-repo spec and let `%pyproject_buildrequires --generate-extras` discover
@@ -352,7 +352,7 @@ Expect 2–3 iterations: each rebuild reveals the next missing
 
 - `pipx`/`uv tool install` covers Fedora natively and is the upstream
   Python recommendation; COPR is duplicate surface.
-- Option B's "2–3 iterations" is optimistic — `crosshair-tool` and
+- Option B's "2–3 iterations" is optimistic - `crosshair-tool` and
   `openai-agents` have transitive deps that Fedora has historically taken
   6+ months to package. Realistic timeline is months of maintenance for
   marginal install volume.

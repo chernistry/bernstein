@@ -8,7 +8,7 @@
 # Schema:
 #   schema_version: monotonic integer (bump on breaking shape changes).
 #   regulation: human label of the source regulation.
-#   article: int — the article number this map covers.
+#   article: int - the article number this map covers.
 #   mappings: list of {clause, requirement, subsystem, evidence_artefact}.
 #     subsystem.module: dotted Python path or relative path inside the repo.
 #     subsystem.role: short label describing what the module provides.
@@ -26,7 +26,7 @@ mappings:
     requirement: "Automatic recording of events ('logs') over the lifetime of the system."
     subsystem:
       module: "src/bernstein/core/security/audit.py"
-      role: "AuditLog — HMAC-chained append-only event log with daily rotation."
+      role: "AuditLog - HMAC-chained append-only event log with daily rotation."
     evidence_artefact: "events.jsonl"
 
   - clause: "12(2)(a)"
@@ -69,7 +69,7 @@ mappings:
       are transmitted to the conformity assessment body without compromise.
     subsystem:
       module: "src/bernstein/core/protocols/cluster/cluster_tls.py"
-      role: "Native mTLS for cluster transport — secure transmission of records."
+      role: "Native mTLS for cluster transport - secure transmission of records."
     evidence_artefact: "manifest.json (transmission_security note)"
 
 deferred:

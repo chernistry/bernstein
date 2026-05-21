@@ -40,7 +40,7 @@ body:
     id: checklist
     attributes:
       label: Implementation checklist
-      description: Start from `templates/adapters/TEMPLATE.py` — it walks you through each step.
+      description: Start from `templates/adapters/TEMPLATE.py` - it walks you through each step.
       options:
         - label: "Created `src/bernstein/adapters/<name>.py` from the template"
         - label: "Mapped Bernstein model names to CLI-specific model IDs"

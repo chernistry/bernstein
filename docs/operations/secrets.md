@@ -18,22 +18,22 @@ it is loaded in the first place*.
 Bernstein recognises four distinct ways a secret can reach the
 orchestrator:
 
-1. **The credential vault** — third-party developer credentials
+1. **The credential vault** - third-party developer credentials
    (GitHub, Linear, Jira, Slack, Telegram) the user `bernstein
    connect`-ed once. Stored in the OS keychain by default; AES-GCM
    file blob on headless boxes. This is the canonical place for
    *human-supplied* tokens.
-2. **External secret managers** — HashiCorp Vault, AWS Secrets
+2. **External secret managers** - HashiCorp Vault, AWS Secrets
    Manager, or 1Password CLI. Used when the operator already runs a
    secrets manager and wants Bernstein to *read* from it at startup
    (`secrets.py`) or *inject* short-lived credentials at agent spawn
    time (`vault_injector.py`).
-3. **Provider env vars** — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+3. **Provider env vars** - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
    `CLOUDFLARE_API_TOKEN`, `GOOGLE_API_KEY`, etc. Read directly from
    the orchestrator's environment by individual adapters and bridges.
    This is the path most operators start with, and is still the
    supported way to feed LLM-provider keys.
-4. **`.env` files** — Bernstein does **not** auto-load `.env` files.
+4. **`.env` files** - Bernstein does **not** auto-load `.env` files.
    If you keep your provider keys in a `.env`, your shell or process
    manager (`direnv`, `systemd`, `docker compose env_file`, etc.) is
    responsible for sourcing them before launching `bernstein`. See
@@ -92,11 +92,11 @@ vault is for *developer-tool* credentials, not model API keys.)
 
 The vault has two top-level CLI commands:
 
-- `bernstein connect <provider>` — guided paste or OAuth-device-code
+- `bernstein connect <provider>` - guided paste or OAuth-device-code
   flow that validates the credential against the provider's whoami
   endpoint and stores it. (Lives at
   `cli/commands/creds_cmd.py:95`.)
-- `bernstein creds <list|revoke|test>` — inspect and manage what is
+- `bernstein creds <list|revoke|test>` - inspect and manage what is
   already stored. (Lives at `cli/commands/creds_cmd.py:214`.)
 
 ### `bernstein connect`
@@ -118,7 +118,7 @@ Behaviour:
 2. The supplied secret is sent to the provider's whoami endpoint. On
    success, the user's account label (e.g. GitHub login,
    Atlassian email) is recorded. On failure the secret is **not**
-   stored — you see the masked token and the error.
+   stored - you see the masked token and the error.
 3. The validated secret + metadata is written to the vault, and an
    audit event of type `vault.connect` is appended to
    `.sdd/audit/YYYY-MM-DD.jsonl`.
@@ -156,8 +156,8 @@ revoked upstream, or as a smoke test in CI.
 
 Both `connect` and the `creds` subcommands accept:
 
-- `--backend keyring` (default) — store in the OS keychain.
-- `--backend file --passphrase-env VAR` — store in
+- `--backend keyring` (default) - store in the OS keychain.
+- `--backend file --passphrase-env VAR` - store in
   `~/.config/bernstein/vault.enc`, encrypted with a passphrase read
   from `$VAR`.
 
@@ -201,7 +201,7 @@ Each provider gets a separate account string under the service name
 ```
 
 The keychain handles encryption-at-rest; the backend is a thin
-serialiser. Who can decrypt is whoever holds the OS user session —
+serialiser. Who can decrypt is whoever holds the OS user session -
 unlock the keychain, you read the secret. There is no Bernstein-level
 master key.
 
@@ -227,7 +227,7 @@ Crypto details:
 
 The passphrase is **always** read from an env var named by
 `--passphrase-env` (or `$BERNSTEIN_VAULT_PASSPHRASE_ENV`). The backend
-refuses to start if that env var is unset or empty — booting with no
+refuses to start if that env var is unset or empty - booting with no
 protection would silently downgrade security versus the keyring
 backend.
 
@@ -241,7 +241,7 @@ secrets the vault protects.
 Every connect, read, revoke, and test writes a `vault.{action}` entry
 into `.sdd/audit/YYYY-MM-DD.jsonl` via
 `bernstein.core.security.audit.AuditLog`. Entries record provider id,
-account label, fingerprint, and backend — **never** the secret
+account label, fingerprint, and backend - **never** the secret
 material itself. The audit log is HMAC-chained so tampering is
 detectable.
 
@@ -290,10 +290,10 @@ the TTL so spawned agents do not stall on a sync re-fetch.
 
 Supported providers:
 
-- **HashiCorp Vault** — KV v2 API, `VAULT_ADDR` + `VAULT_TOKEN`.
-- **AWS Secrets Manager** — boto3, picks up the standard AWS auth
+- **HashiCorp Vault** - KV v2 API, `VAULT_ADDR` + `VAULT_TOKEN`.
+- **AWS Secrets Manager** - boto3, picks up the standard AWS auth
   chain (env / profile / IAM role).
-- **1Password** — shells out to the `op` CLI (`op item get`); requires
+- **1Password** - shells out to the `op` CLI (`op item get`); requires
   the user to have `op signin`-ed.
 
 If the provider is unreachable, Bernstein falls back to env-var values
@@ -320,7 +320,7 @@ or a cloud role for the lifetime of one task and never see it again.
 
 ## `.env` file conventions
 
-Bernstein does not call `dotenv.load_dotenv()` itself — there is no
+Bernstein does not call `dotenv.load_dotenv()` itself - there is no
 implicit `.env` discovery, no `python-dotenv` dependency in the
 runtime, and no `--env-file` flag on `bernstein` or `bernstein run`.
 
@@ -345,7 +345,7 @@ key:
    inherited env when the agent subprocess is spawned, but only for
    the keys named in `env_map`.
 4. The credential vault is consulted last via `resolver.py`, and only
-   for the five providers it manages — the vault never overrides an
+   for the five providers it manages - the vault never overrides an
    already-set legacy env var, only fills in when the env var is
    missing or empty.
 
@@ -373,7 +373,7 @@ subprocess:
   through?"
 
 Even if the orchestrator has `STRIPE_SECRET_KEY` and `DATABASE_URL`
-loaded, a spawned agent does **not** see them — `build_filtered_env()`
+loaded, a spawned agent does **not** see them - `build_filtered_env()`
 returns a fresh dict containing only the base allowlist plus a small
 per-adapter set of provider keys. See `env-isolation.md` for the
 allowlist, the per-adapter extras, and the verification recipe.
@@ -418,7 +418,7 @@ blast radius.
    to a different env-var name per environment, and pointing
    `~/.config/bernstein/vault.enc` at a per-environment path with
    `--file-path` (or a different home directory). Do **not** share a
-   single vault across environments — a leaked dev passphrase should
+   single vault across environments - a leaked dev passphrase should
    never give access to production credentials.
 
 7. **Mask, don't print.** Any custom code that touches secrets should
@@ -449,11 +449,11 @@ blast radius.
 
 ## Related
 
-- [Environment variable isolation](env-isolation.md) — what gets
+- [Environment variable isolation](env-isolation.md) - what gets
   filtered when Bernstein spawns an agent.
-- [Security & identity](security-and-identity.md) — JWT/OIDC/SAML,
+- [Security & identity](security-and-identity.md) - JWT/OIDC/SAML,
   RBAC, audit log integrity at the API layer.
-- [Configuration](CONFIG.md) — full list of `bernstein.yaml` keys
+- [Configuration](CONFIG.md) - full list of `bernstein.yaml` keys
   including `secrets.*`.
-- [Cloudflare setup](../cloudflare/cloudflare-setup.md) — where the
+- [Cloudflare setup](../cloudflare/cloudflare-setup.md) - where the
   Cloudflare provider env vars are consumed.

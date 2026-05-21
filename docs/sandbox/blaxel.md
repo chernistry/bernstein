@@ -6,7 +6,7 @@ Bernstein's `blaxel` sandbox backend talks to the Blaxel control plane
 
 ## Module
 
-`src/bernstein/core/sandbox/backends/blaxel.py` —
+`src/bernstein/core/sandbox/backends/blaxel.py` -
 class `BlaxelSandboxBackend`, registered under the name `blaxel` in
 `bernstein.core.sandbox.registry`.
 

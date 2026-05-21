@@ -8,11 +8,11 @@
   mocking a network stack.
 
 ## Package layout (Bernstein)
-- `src/bernstein/core/<domain>/` — one domain per sub-package (orchestration,
+- `src/bernstein/core/<domain>/` - one domain per sub-package (orchestration,
   agents, tasks, quality, server, …).
 - Cross-package imports travel through explicit public interfaces, not
   internal helpers.
-- Circular imports are a design smell — refactor, don't paper over with
+- Circular imports are a design smell - refactor, don't paper over with
   lazy imports.
 
 ## Interface design

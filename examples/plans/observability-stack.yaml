@@ -1,4 +1,4 @@
-# Bernstein Plan — Observability Stack
+# Bernstein Plan - Observability Stack
 #
 # A three-stage plan that adds full observability to an existing service:
 #   1. Logging:  structured JSON logs with correlation IDs

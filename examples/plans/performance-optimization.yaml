@@ -1,4 +1,4 @@
-# Bernstein Plan — Performance Optimization Campaign
+# Bernstein Plan - Performance Optimization Campaign
 #
 # A three-stage plan for data-driven performance improvement:
 #   1. Profiling:    establish baselines, identify bottlenecks with real workloads
@@ -21,7 +21,7 @@ cli: auto
 budget: "$15"
 max_agents: 4
 constraints:
-  - "Every optimization must be validated by a before/after benchmark — no blind changes"
+  - "Every optimization must be validated by a before/after benchmark - no blind changes"
   - "Target: p99 API latency < 500ms under 200 concurrent users"
   - "Target: zero N+1 query patterns in any list endpoint"
   - "No caching of user-specific data in a shared cache without key namespacing"
@@ -37,7 +37,7 @@ stages:
         complexity: low
         description: >
           Add or enable query logging and slow query detection (Django Debug Toolbar,
-          SQLAlchemy query logger, pg_stat_statements, or EXPLAIN ANALYZE — match
+          SQLAlchemy query logger, pg_stat_statements, or EXPLAIN ANALYZE - match
           stack). Add OpenTelemetry spans to the top 10 most-used API endpoints
           if not already instrumented. Enable slow log threshold at 100ms. Record
           all findings in perf/baseline-findings.md.
@@ -111,7 +111,7 @@ stages:
         description: >
           Add Redis or Memcached caching for: expensive aggregation queries
           (cache for 60s with user/org-namespaced keys), reference data lookups
-          (e.g. categories, settings — cache for 5 min with cache invalidation
+          (e.g. categories, settings - cache for 5 min with cache invalidation
           on write), and rendered HTML fragments or serialized API responses
           for public endpoints. Add cache hit/miss metrics. Ensure cache keys
           include all parameters that affect the result.

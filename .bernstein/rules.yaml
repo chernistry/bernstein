@@ -1,16 +1,16 @@
-# .bernstein/rules.yaml — Organizational Rule Enforcement
+# .bernstein/rules.yaml - Organizational Rule Enforcement
 #
 # Define standards all agents must follow before their work can be merged.
 # If this file is absent, rule enforcement is silently skipped.
 #
 # Rule types:
-#   forbidden_pattern  — regex matched against diff additions; violation = match found
-#   required_file      — file must exist in the project root
-#   command            — shell command must exit 0
+#   forbidden_pattern  - regex matched against diff additions; violation = match found
+#   required_file      - file must exist in the project root
+#   command            - shell command must exit 0
 #
 # Severity:
-#   error    — hard block: merge cannot proceed until fixed
-#   warning  — soft flag: recorded in metrics, does not block merge
+#   error    - hard block: merge cannot proceed until fixed
+#   warning  - soft flag: recorded in metrics, does not block merge
 #
 # --- Schema reference ---
 # version: 1
@@ -67,7 +67,7 @@ rules:
 
   - id: no-bare-except
     type: forbidden_pattern
-    description: "No bare 'except:' clauses — always catch a specific exception"
+    description: "No bare 'except:' clauses - always catch a specific exception"
     pattern: '^\s*except\s*:'
     files: "*.py"
     exclude:
@@ -119,7 +119,7 @@ rules:
     message: "Create CHANGELOG.md to track user-facing changes."
 
   # ---------------------------------------------------------------------------
-  # Custom command checks (examples — uncomment and adapt as needed)
+  # Custom command checks (examples - uncomment and adapt as needed)
   # ---------------------------------------------------------------------------
 
   # Run Ruff on changed Python files (requires ruff in PATH)
@@ -133,7 +133,7 @@ rules:
   # Ensure no TODO comments were introduced (example of a team convention)
   # - id: no-new-todos
   #   type: forbidden_pattern
-  #   description: "Do not introduce new TODO comments — open a ticket instead"
+  #   description: "Do not introduce new TODO comments - open a ticket instead"
   #   pattern: '#\s*TODO'
   #   files: "*.py"
   #   severity: warning

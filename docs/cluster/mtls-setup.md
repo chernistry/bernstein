@@ -7,7 +7,7 @@ between the central server and worker nodes goes over `https://` and the
 TLS handshake validates the peer certificate before any HTTP byte is read.
 
 mTLS authenticates the *channel*. The existing JWT bearer token still
-authorises the *action* — both layers compose.
+authorises the *action* - both layers compose.
 
 ## When to turn it on
 
@@ -49,8 +49,8 @@ chmod 0600. Pass `--out-dir` to override the destination, `--server-san`
 
 > **This is a self-signed CA.** It's appropriate for self-hosted
 > internal clusters on infrastructure you control. For production
-> deployments — anything customer-facing, anything regulated, anything
-> where cert rotation needs to be automated — use your own CA.
+> deployments - anything customer-facing, anything regulated, anything
+> where cert rotation needs to be automated - use your own CA.
 
 ## Wiring TLS into ClusterConfig
 
@@ -75,18 +75,18 @@ assert config.cluster_url_scheme == "https"
 
 `verify_mode` accepts:
 
-- `"required"` — full mTLS. Workers without a valid client cert are
+- `"required"` - full mTLS. Workers without a valid client cert are
   rejected at the TLS handshake. **Use this in production.**
-- `"optional"` — TLS server auth is mandatory; client cert is requested
+- `"optional"` - TLS server auth is mandatory; client cert is requested
   but accepted if absent. Useful for staged rollouts.
-- `"disabled"` — TLS is on, but no client cert verification. The cert
+- `"disabled"` - TLS is on, but no client cert verification. The cert
   chain is loaded for the encryption-in-transit guarantee only.
 
 ## Distributing keys to workers
 
 `bootstrap-ca` writes both `server.*` and `node.*` to a single directory
 on the operator's machine. Distribute the worker artifacts out-of-band
-(scp, your secret manager, a config-management tool, K8s secret) — never
+(scp, your secret manager, a config-management tool, K8s secret) - never
 commit them to git, never push them through the cluster API itself.
 
 A worker only needs `ca.crt`, `node.crt`, `node.key`. Drop them into the
@@ -98,14 +98,14 @@ its `ClusterConfig.tls` at them.
 Rotation is manual. Steps:
 
 1. Generate a new server cert + key from the same CA. Replace the files
-   on the central node. Restart the central server — the new cert is
+   on the central node. Restart the central server - the new cert is
    loaded at uvicorn boot.
 2. For each worker, generate a new node cert + key from the same CA,
    replace the files, restart the worker. Workers pick up the new cert
    on the next heartbeat cycle.
 3. To rotate the CA itself: cross-sign the old and new CA, distribute
    the bundle, then phase out the old root. This is operator
-   responsibility — Bernstein loads whatever CA bundle you point it at.
+   responsibility - Bernstein loads whatever CA bundle you point it at.
 
 For automated rotation (cert-manager hooks, ACME, etc.), run a sidecar
 that writes the cert files into place and SIGHUP/restart the Bernstein
@@ -137,7 +137,7 @@ curl --cacert ~/.bernstein/cluster/ca.crt https://localhost:8052/cluster/health
   the central node: a worker is presenting a cert signed by a different
   CA. Re-issue it from the cluster CA.
 - **`PermissionError` on `*.key`**: keys must be readable by the
-  Bernstein process user. `bootstrap-ca` writes 0600 — adjust ownership,
+  Bernstein process user. `bootstrap-ca` writes 0600 - adjust ownership,
   not permissions.
 - **Plain HTTP traffic is being rejected after enabling TLS**: this is
   expected. Workers built before TLS rollout have to be updated to set
@@ -161,7 +161,7 @@ curl --cacert ~/.bernstein/cluster/ca.crt https://localhost:8052/cluster/health
 
 - Source: `src/bernstein/core/protocols/cluster/cluster_tls.py`
 - CLI: `bernstein cluster bootstrap-ca`
-- [Cluster deployment patterns](deployment-patterns.md) — Cloudflare Tunnel + Tailscale + same-VPC
-- [Cluster observability](../observability/cluster.md) — metrics + audit events for cert validation
-- [Cluster end-to-end harness](../testing/cluster-e2e-harness.md) — mTLS-on parameterised scenarios
+- [Cluster deployment patterns](deployment-patterns.md) - Cloudflare Tunnel + Tailscale + same-VPC
+- [Cluster observability](../observability/cluster.md) - metrics + audit events for cert validation
+- [Cluster end-to-end harness](../testing/cluster-e2e-harness.md) - mTLS-on parameterised scenarios
 - PR #1019, ticket `2026-05-05-feat-cluster-mtls-transport.md`

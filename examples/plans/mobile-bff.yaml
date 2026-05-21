@@ -1,4 +1,4 @@
-# Bernstein Plan — Mobile Backend-for-Frontend (BFF)
+# Bernstein Plan - Mobile Backend-for-Frontend (BFF)
 #
 # A three-stage plan that builds a mobile BFF layer:
 #   1. API Design:        OpenAPI spec, auth, and data contracts
@@ -35,13 +35,13 @@ stages:
         scope: medium
         complexity: medium
         description: >
-          Create api/openapi.yaml — an OpenAPI 3.1 spec covering all BFF
+          Create api/openapi.yaml - an OpenAPI 3.1 spec covering all BFF
           endpoints. Define mobile-optimized response schemas that flatten
           nested upstream data. Include:
-          - /auth/refresh (POST) — token refresh
-          - /me (GET) — user profile + notification count in one call
-          - /feed (GET) — paginated activity feed
-          - /search (GET) — unified search across upstream services
+          - /auth/refresh (POST) - token refresh
+          - /me (GET) - user profile + notification count in one call
+          - /feed (GET) - paginated activity feed
+          - /search (GET) - unified search across upstream services
           Use components/schemas for reusable types. Add x-mobile-ttl extension
           hints for client-side cache durations.
         files:

@@ -1,10 +1,10 @@
 ---
 title: What's New
 description: >-
-  User-facing summary of the major features that landed in Bernstein 1.9.x —
+  User-facing summary of the major features that landed in Bernstein 1.9.x -
   OpenAI Agents SDK v2 adapter, pluggable sandbox backends, cloud artifact
   storage sinks, and progressive-disclosure skill packs.
-  Current release is 1.10.x — see CHANGELOG for 1.10 features.
+  Current release is 1.10.x - see CHANGELOG for 1.10 features.
 ---
 
 # What's New in 1.9.x
@@ -41,7 +41,7 @@ steps:
 
 - Structured JSONL event stream (`start`, `tool_call`, `tool_result`,
   `usage`, `completion`).
-- MCP bridging — Bernstein-managed MCP servers are forwarded into the
+- MCP bridging - Bernstein-managed MCP servers are forwarded into the
   SDK's `RunConfig` so tool calls show up in the central audit log.
 - Rate-limit handling maps SDK exception classes onto
   `COST.rate_limit_cooldown_s`.
@@ -131,7 +131,7 @@ Plugin authors can ship additional skill packs via the
 `bernstein.skill_sources` entry-point group. 17 built-in role packs
 (backend, qa, security, frontend, devops, architect, docs, retrieval,
 ml-engineer, reviewer, manager, vp, prompt-engineer, visionary,
-analyst, resolver, ci-fixer) are migrated — the legacy
+analyst, resolver, ci-fixer) are migrated - the legacy
 `templates/roles/` tree remains on disk for backwards compat for two
 more minor versions.
 
@@ -139,7 +139,7 @@ Full detail: [architecture/skills.md](architecture/skills.md).
 
 ## Installing the new extras
 
-All four features are additive — `pip install bernstein` continues to
+All four features are additive - `pip install bernstein` continues to
 pull a minimal core. Combine extras to opt into just what you use:
 
 ```bash
@@ -153,7 +153,7 @@ pip install 'bernstein[openai,docker,e2b,modal,s3,gcs,azure,r2]'
 See the [install section in the README](https://github.com/sipyourdrink-ltd/bernstein#install)
 for the full extras matrix.
 
-## ACP native bridge — `bernstein acp serve`
+## ACP native bridge - `bernstein acp serve`
 
 Bernstein speaks [Agent Client Protocol](https://agentclientprotocol.org)
 natively. Editors that ship ACP support can plug Bernstein in as their backend
@@ -166,7 +166,7 @@ bernstein acp serve --http :8062     # remote / CI / debugging
 
 Full detail: [reference/acp-bridge.md](reference/acp-bridge.md).
 
-## Autofix CI daemon — `bernstein autofix`
+## Autofix CI daemon - `bernstein autofix`
 
 A long-running daemon that watches Bernstein-opened PRs, pulls failing CI logs
 via `gh run view --log-failed`, and dispatches a scoped repair run. Each
@@ -180,7 +180,7 @@ bernstein autofix attach             # tail the daemon log live
 bernstein autofix stop               # graceful stop
 ```
 
-## Credential vault — `bernstein connect`
+## Credential vault - `bernstein connect`
 
 API tokens now live in the OS keychain, not in `.env` files. `bernstein
 connect <provider>` runs the OAuth / API-key flow for the named provider and
@@ -198,7 +198,7 @@ bernstein creds revoke github        # delete from keychain
 This is now the recommended first step before `bernstein init` when you are
 setting up Bernstein for the first time with external providers.
 
-## Dev preview — `bernstein preview`
+## Dev preview - `bernstein preview`
 
 After an agent runs a dev server, `bernstein preview start` captures the bound
 port, tunnels it, and returns a shareable HTTPS link with configurable expiry
@@ -211,7 +211,7 @@ bernstein preview status             # check tunnel health
 bernstein preview stop               # tear down all tunnels
 ```
 
-## Fleet dashboard — `bernstein fleet`
+## Fleet dashboard - `bernstein fleet`
 
 A cross-session view of all Bernstein instances running on the same host (or
 reachable via the configured server URL). Useful for teams running parallel
@@ -222,7 +222,7 @@ bernstein fleet                      # TUI fleet view
 bernstein fleet --web localhost:9000 # browser fleet dashboard
 ```
 
-## MCP catalog client — `bernstein mcp catalog`
+## MCP catalog client - `bernstein mcp catalog`
 
 Browse and install MCP servers from the community catalog without leaving the
 terminal. The catalog schema lives at
@@ -234,17 +234,17 @@ bernstein mcp catalog search pytest  # search by name/tag
 bernstein mcp catalog install <name> # install and register a server
 ```
 
-## Notification sinks — `bernstein notify`
+## Notification sinks - `bernstein notify`
 
 Bernstein events (task complete, budget threshold, quality gate failure) can
-now fan out to pluggable notification sinks — Slack, email, webhooks, and more.
+now fan out to pluggable notification sinks - Slack, email, webhooks, and more.
 Configure sinks in `.sdd/config.yaml` under `notifications:`.
 
 ```bash
 bernstein notify test --sink slack   # send a test notification to a named sink
 ```
 
-## Plan archival — `bernstein plan ls/show`
+## Plan archival - `bernstein plan ls/show`
 
 Completed plan runs are now archived and inspectable after the fact.
 
@@ -253,7 +253,7 @@ bernstein plan ls                    # list all plan runs with status and cost
 bernstein plan show <id>             # show task breakdown for a specific run
 ```
 
-## PR review responder — `bernstein review-responder`
+## PR review responder - `bernstein review-responder`
 
 A persistent daemon that monitors open PRs for new review comments and
 auto-dispatches an agent to address each comment, committing a follow-up and
@@ -265,7 +265,7 @@ bernstein review-responder status    # show watched PRs and response queue
 bernstein review-responder tick      # manual single-pass (useful in CI)
 ```
 
-## Review pipeline DSL — `bernstein review --pipeline`
+## Review pipeline DSL - `bernstein review --pipeline`
 
 Quality-review flows can now be expressed as YAML pipelines. Starter templates
 live in `templates/review/*.yaml`.

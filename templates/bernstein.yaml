@@ -1,4 +1,4 @@
-## bernstein.yaml — project seed file
+## bernstein.yaml - project seed file
 ## Copy to your project root and edit before running `bernstein run`.
 ##
 ## The top-level `cli:` and `model:` keys below apply to every step
@@ -75,14 +75,14 @@ max_agents: 4
 #
 # Default (no catalogs section): Agency remote catalog only, priority 100.
 catalogs:
-  # Agency catalog — pulls role definitions from a GitHub repo.
+  # Agency catalog - pulls role definitions from a GitHub repo.
   - name: agency
     type: agency
     enabled: true
     source: https://github.com/msitarzewski/agency-agents
     priority: 100
 
-  # Generic local catalog — YAML files with a custom field mapping.
+  # Generic local catalog - YAML files with a custom field mapping.
   # - name: internal-agents
   #   type: generic
   #   enabled: true
@@ -131,7 +131,7 @@ catalogs:
 #   # setup_command: "uv sync"
 
 # ---------------------------------------------------------------------------
-# Formal verification gateway (Wave 5 — optional)
+# Formal verification gateway (Wave 5 - optional)
 # ---------------------------------------------------------------------------
 # When set, agent outputs pass through Z3 (SMT solver) or Lean4 (theorem
 # prover) checks before merge. The gateway is skipped when this section is
@@ -144,10 +144,10 @@ catalogs:
 #   timeout_s: 60              # per-property solver timeout
 #   properties:
 #     # Z3 example: property expression references task context variables:
-#     #   files_modified  (int)  — files changed by agent
-#     #   test_passed     (bool) — whether tests passed
-#     #   has_result      (bool) — result_summary is non-empty
-#     #   result_length   (int)  — len(result_summary)
+#     #   files_modified  (int)  - files changed by agent
+#     #   test_passed     (bool) - whether tests passed
+#     #   has_result      (bool) - result_summary is non-empty
+#     #   result_length   (int)  - len(result_summary)
 #     - name: output_non_empty
 #       invariant: "result_length > 0"
 #       checker: z3

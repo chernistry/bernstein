@@ -12,8 +12,8 @@ agent-specific consumers that stay in sync via one command.
 ## What it generates
 
 The canonical IR is the
-[`AGENTS.md`](https://agents.md/) document — AAIF-aligned, plain
-markdown, no frontmatter — derived from the repository:
+[`AGENTS.md`](https://agents.md/) document - AAIF-aligned, plain
+markdown, no frontmatter - derived from the repository:
 
 | Source                       | Drives                                  |
 | ---------------------------- | --------------------------------------- |
@@ -36,7 +36,7 @@ reads on disk in 2026:
 | Aider       | `CONVENTIONS.md` + `.aider.conf.yml` (`read:` entry) |
 | Goose       | `.goosehints` at repo root                          |
 
-The legacy `.cursorrules` is intentionally not emitted — Cursor's docs
+The legacy `.cursorrules` is intentionally not emitted - Cursor's docs
 no longer document it; `.cursor/rules/*.mdc` is the supported surface.
 Devin's `.devin.yaml` is deferred until the schema stabilises.
 
@@ -111,7 +111,7 @@ $ bernstein agents-md diff --target claude
 +| Tests | `uv run pytest` |
 ```
 
-`diff` exits 0 either way — it is informational.
+`diff` exits 0 either way - it is informational.
 
 ### 4. `sync` rewrites every target from the canonical source
 
@@ -137,9 +137,9 @@ loop is one command.
 
 ## Authoring overlays
 
-Auto-derivation handles ~80% of any real repo. The remaining 20% —
+Auto-derivation handles ~80% of any real repo. The remaining 20% -
 team-specific gotchas, project conventions that aren't pulled from
-`pyproject.toml` — lives under `.sdd/agents-md/`:
+`pyproject.toml` - lives under `.sdd/agents-md/`:
 
 ```
 .sdd/agents-md/
@@ -177,18 +177,18 @@ section's existing fields, never invented.
 
 Modules:
 
-- `src/bernstein/core/knowledge/agents_md_generator.py` — section
+- `src/bernstein/core/knowledge/agents_md_generator.py` - section
   builders + canonical render.
-- `src/bernstein/core/knowledge/agents_md_bridge.py` — per-target
+- `src/bernstein/core/knowledge/agents_md_bridge.py` - per-target
   translators.
-- `src/bernstein/cli/commands/agents_md_cmd.py` — Click group with
+- `src/bernstein/cli/commands/agents_md_cmd.py` - Click group with
   `generate`, `write`, `sync`, `verify`, `diff`.
 
 References:
 
-- AGENTS.md canonical site — <https://agents.md/>
-- AAIF AGENTS.md project page — <https://aaif.io/projects/agents-md/>
-- Cursor rules — <https://cursor.com/docs/context/rules>
-- Claude Code memory — <https://code.claude.com/docs/en/memory>
-- Aider conventions — <https://aider.chat/docs/usage/conventions.html>
-- Goose hints — <https://github.com/block/goose>
+- AGENTS.md canonical site - <https://agents.md/>
+- AAIF AGENTS.md project page - <https://aaif.io/projects/agents-md/>
+- Cursor rules - <https://cursor.com/docs/context/rules>
+- Claude Code memory - <https://code.claude.com/docs/en/memory>
+- Aider conventions - <https://aider.chat/docs/usage/conventions.html>
+- Goose hints - <https://github.com/block/goose>

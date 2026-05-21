@@ -54,10 +54,10 @@ jobs:
           set -euo pipefail
           if [[ -n "${EVAL_ENABLED:-}" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "EVAL_ENABLED secret detected — running full eval path."
+            echo "EVAL_ENABLED secret detected - running full eval path."
           elif [[ "${FORCE_RUN:-}" == "true" ]]; then
             echo "enabled=smoke" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch with force_run=true — running smoke path."
+            echo "Manual dispatch with force_run=true - running smoke path."
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "EVAL_ENABLED unset; nothing to do. Set the secret to enable."
@@ -85,7 +85,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Sync dependencies
-        # Smoke path needs no extras — synthetic entry, no HuggingFace fetch.
+        # Smoke path needs no extras - synthetic entry, no HuggingFace fetch.
         run: uv sync --frozen
 
       - name: Produce synthetic leaderboard entry

@@ -23,7 +23,7 @@
 # single comment with the per-module table.
 #
 # `continue-on-error: true` is set on the matrix jobs while thresholds
-# stabilise — this PR sets up the gate, humans tighten it in follow-ups.
+# stabilise - this PR sets up the gate, humans tighten it in follow-ups.
 name: Mutation (fixed critical paths)
 
 on:
@@ -205,7 +205,7 @@ jobs:
                 if (!r.baseline_ok) notes.push('baseline tests failed');
                 if (r.budget_exceeded) notes.push('budget exceeded');
                 if (r.survivors && r.survivors.length) notes.push(`${r.survivors.length} survivors`);
-                body += `| ${r.module} | ${rate} | ${thr} | ${counts} | ${icon(r)} | ${notes.join('; ') || '—'} |\n`;
+                body += `| ${r.module} | ${rate} | ${thr} | ${counts} | ${icon(r)} | ${notes.join('; ') || '-'} |\n`;
               }
               const failing = rows.filter(r => !r.passed);
               if (failing.length) {

@@ -1,4 +1,4 @@
-/* Bernstein Docs — Stylesheet
+/* Bernstein Docs - Stylesheet
    Design system: Decision-Grade Quiet Command
    Inspired by Linear, Vercel, and Stripe's restraint. */
 
@@ -398,7 +398,7 @@ section {
 }
 
 /* ================================================================
-   Orbs — intentionally suppressed
+   Orbs - intentionally suppressed
    The orbs remain structurally present in HTML but are hidden.
    Premium silence: no floating decorations.
    ================================================================ */
@@ -445,7 +445,7 @@ section {
 .hero h1 {
   margin-bottom: var(--space-5);
   color: var(--text);
-  /* No gradient text — let the type speak plainly */
+  /* No gradient text - let the type speak plainly */
 }
 
 .hero-sub {
@@ -462,7 +462,7 @@ section {
   gap: var(--space-3);
 }
 
-/* Entry animation — single controlled reveal */
+/* Entry animation - single controlled reveal */
 .hero-enter {
   animation: hero-enter 0.5s var(--ease) both;
 }
@@ -1225,7 +1225,7 @@ footer a { color: var(--text-4); }
 footer a:hover { color: var(--text-2); }
 
 /* ================================================================
-   Scroll animations — reduced and respectful
+   Scroll animations - reduced and respectful
    ================================================================ */
 .animate {
   opacity: 0;

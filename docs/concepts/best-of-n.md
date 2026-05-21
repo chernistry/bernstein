@@ -45,13 +45,13 @@ When the orchestrator picks up a task with `best_of_n=K`, it:
 
 1. Spawns K agents into K isolated worktrees.
 2. Awaits all K to finish (or hit the per-candidate timeout).
-3. Computes `score_candidate(result)` for each — weighted sum of
+3. Computes `score_candidate(result)` for each - weighted sum of
    tests-passing, lint-score, diff size, runtime.
 4. Asks a cheap-tier LLM judge to rank candidates against a rubric.
 5. Merges the highest combined score; deletes the other worktrees.
 
 The cross-model verifier still runs **on the winner** before merge.
-Best-of-N does not replace verification — it picks a candidate to
+Best-of-N does not replace verification - it picks a candidate to
 verify.
 
 ## Configuration
@@ -69,7 +69,7 @@ it per run by passing `rubric=` to `BestOfNRunner`.
 Metrics:
 
 - `best_of_n_judge_score` (histogram)
-- `best_of_n_candidates_total{outcome}` — `winner` / `loser` /
+- `best_of_n_candidates_total{outcome}` - `winner` / `loser` /
   `error`.
 
 ## Limitations

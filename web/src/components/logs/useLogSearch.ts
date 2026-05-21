@@ -12,7 +12,7 @@ import { escapeRegex } from './utils';
 
 interface UseLogSearchOptions {
   lines: LogLine[];
-  /** Optional pre-filter (e.g. level filter) — search runs over its output. */
+  /** Optional pre-filter (e.g. level filter) - search runs over its output. */
   filterIds?: ReadonlySet<number>;
 }
 
@@ -44,7 +44,7 @@ function buildMatcher(
     const src = regex ? query : escapeRegex(query);
     return new RegExp(src, caseSensitive ? 'g' : 'gi');
   } catch {
-    // Malformed user-typed regex — surface as "no matches" rather than throw.
+    // Malformed user-typed regex - surface as "no matches" rather than throw.
     return null;
   }
 }
@@ -65,7 +65,7 @@ export function useLogSearch({ lines, filterIds }: UseLogSearchOptions): LogSear
       let m: RegExpExecArray | null;
       while ((m = matcher.exec(line.plain)) !== null) {
         out.push({ lineId: line.id, start: m.index, end: m.index + m[0].length });
-        // Guard against zero-width matches (e.g. `.*`) — skip ahead manually.
+        // Guard against zero-width matches (e.g. `.*`) - skip ahead manually.
         if (m[0].length === 0) matcher.lastIndex += 1;
       }
     }

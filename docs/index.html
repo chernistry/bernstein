@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bernstein — Agent-Independent Orchestration</title>
+  <title>Bernstein - Agent-Independent Orchestration</title>
   <meta name="description" content="Bernstein is an open-source multi-agent orchestration platform for AI coding agents. Supports Claude Code, Codex, Gemini, and 41 CLI tools. Deterministic scheduling, SOC 2 audit trails, and cost optimization." />
   <link rel="canonical" href="https://sipyourdrink-ltd.github.io/bernstein/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Bernstein — Agent-Independent Orchestration" />
+  <meta property="og:title" content="Bernstein - Agent-Independent Orchestration" />
   <meta property="og:description" content="Bernstein is an open-source multi-agent orchestration platform for AI coding agents. Supports Claude Code, Codex, Gemini, and 41 CLI tools. Deterministic scheduling, SOC 2 audit trails, and cost optimization." />
   <meta property="og:url" content="https://sipyourdrink-ltd.github.io/bernstein/" />
   <meta property="og:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Bernstein — Agent-Independent Orchestration" />
+  <meta name="twitter:title" content="Bernstein - Agent-Independent Orchestration" />
   <meta name="twitter:description" content="Bernstein is an open-source multi-agent orchestration platform for AI coding agents. Supports Claude Code, Codex, Gemini, and 41 CLI tools. Deterministic scheduling, SOC 2 audit trails, and cost optimization." />
   <meta name="twitter:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <link rel="stylesheet" href="style.css" />
@@ -82,11 +82,11 @@
       <div id="dashboard-gallery" style="display:flex;flex-direction:column;gap:0.6rem;">
         <figure style="margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--border,#2a2a2a);transition:transform 200ms ease,box-shadow 200ms ease;">
           <img src="assets/tui.svg" alt="TUI terminal dashboard screenshot" style="width:100%;display:block;" />
-          <figcaption style="padding:0.3rem 0.5rem;font-size:0.65rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">TUI — terminal dashboard</figcaption>
+          <figcaption style="padding:0.3rem 0.5rem;font-size:0.65rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">TUI - terminal dashboard</figcaption>
         </figure>
         <figure style="margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--border,#2a2a2a);transition:transform 200ms ease,box-shadow 200ms ease;">
           <img src="assets/web-dashboard.png" alt="Web browser dashboard screenshot" style="width:100%;display:block;" />
-          <figcaption style="padding:0.3rem 0.5rem;font-size:0.65rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">Web — browser dashboard</figcaption>
+          <figcaption style="padding:0.3rem 0.5rem;font-size:0.65rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">Web - browser dashboard</figcaption>
         </figure>
       </div>
     </div>
@@ -114,7 +114,7 @@
       </div>
       <div class="card card-quiet">
         <h3>Enterprise teams</h3>
-        <p>HMAC-chained audit trails, SOC 2 evidence export, PII gates, EU AI Act risk tagging, multi-tenant isolation, SSO/SAML/OIDC auth. Mix Claude, Codex, Gemini, or Qwen in the same run — the orchestrator is deterministic Python, not an LLM.</p>
+        <p>HMAC-chained audit trails, SOC 2 evidence export, PII gates, EU AI Act risk tagging, multi-tenant isolation, SSO/SAML/OIDC auth. Mix Claude, Codex, Gemini, or Qwen in the same run - the orchestrator is deterministic Python, not an LLM.</p>
       </div>
     </div>
   </div>
@@ -128,7 +128,7 @@
         <div class="section-label">How it works</div>
         <h2 class="section-title">Short-lived agents, file-based state, deterministic orchestration</h2>
         <p class="section-desc">
-          Agents aren't long-lived workers. They spawn fresh, do 1-3 tasks, and exit. No idle loops, no context rot. All state lives in <code>.sdd/</code> files — git-native, inspectable, reproducible. Tasks transition through OPEN &rarr; IN_PROGRESS &rarr; DONE &rarr; CLOSED, with the final CLOSED state applied only after janitor verification. <a href="concepts.html">Explore the full architecture and concepts</a>
+          Agents aren't long-lived workers. They spawn fresh, do 1-3 tasks, and exit. No idle loops, no context rot. All state lives in <code>.sdd/</code> files - git-native, inspectable, reproducible. Tasks transition through OPEN &rarr; IN_PROGRESS &rarr; DONE &rarr; CLOSED, with the final CLOSED state applied only after janitor verification. <a href="concepts.html">Explore the full architecture and concepts</a>
         </p>
         <ol class="flow-list">
           <li>
@@ -198,15 +198,15 @@
         <div class="feature-group-items">
           <div class="feature-item">
             <h4>Parallel agents</h4>
-            <p>Multiple agents run simultaneously on independent tasks in isolated git worktrees. Dependencies resolve automatically — no manual coordination.</p>
+            <p>Multiple agents run simultaneously on independent tasks in isolated git worktrees. Dependencies resolve automatically - no manual coordination.</p>
           </div>
           <div class="feature-item">
             <h4>Smart model routing</h4>
-            <p>Opus for architecture and security. Sonnet for implementation. Free-tier for formatting. The router picks based on task scope, complexity, and role — not a flat config.</p>
+            <p>Opus for architecture and security. Sonnet for implementation. Free-tier for formatting. The router picks based on task scope, complexity, and role - not a flat config.</p>
           </div>
           <div class="feature-item">
             <h4>Multi-cell orchestration</h4>
-            <p>Organise agents into cells — self-contained teams with a manager and workers. A VP agent coordinates across cells for large-scale projects.</p>
+            <p>Organise agents into cells - self-contained teams with a manager and workers. A VP agent coordinates across cells for large-scale projects.</p>
           </div>
           <div class="feature-item">
             <h4>A/B model testing</h4>
@@ -224,7 +224,7 @@
         <div class="feature-group-items">
           <div class="feature-item">
             <h4>Built-in verification</h4>
-            <p>Tasks define completion signals (<code>path_exists</code>, <code>test_passes</code>, <code>api_responds</code>). The janitor verifies them — agents can't self-report done.</p>
+            <p>Tasks define completion signals (<code>path_exists</code>, <code>test_passes</code>, <code>api_responds</code>). The janitor verifies them - agents can't self-report done.</p>
           </div>
           <div class="feature-item">
             <h4>File-based state</h4>
@@ -244,7 +244,7 @@
           </div>
           <div class="feature-item">
             <h4>Agent cache</h4>
-            <p>Caches agent outputs keyed by task hash. Identical re-runs skip spawning entirely. Cache entries are verified before reuse — stale or failed entries are evicted automatically.</p>
+            <p>Caches agent outputs keyed by task hash. Identical re-runs skip spawning entirely. Cache entries are verified before reuse - stale or failed entries are evicted automatically.</p>
           </div>
         </div>
       </div>
@@ -262,7 +262,7 @@
           </div>
           <div class="feature-item">
             <h4>MCP tool access</h4>
-            <p>Agents can use MCP servers (stdio/SSE) for external tools — GitHub, filesystem, web search. The orchestrator manages MCP server lifecycle automatically.</p>
+            <p>Agents can use MCP servers (stdio/SSE) for external tools - GitHub, filesystem, web search. The orchestrator manages MCP server lifecycle automatically.</p>
           </div>
           <div class="feature-item">
             <h4>Plan templates</h4>
@@ -310,7 +310,7 @@
           </div>
           <div class="feature-item">
             <h4>Knowledge graph</h4>
-            <p>Builds a dependency graph of your codebase — files, functions, imports, test coverage. Tasks are routed to agents with relevant context. <code>bernstein impact-analysis</code> shows what breaks if you change a file.</p>
+            <p>Builds a dependency graph of your codebase - files, functions, imports, test coverage. Tasks are routed to agents with relevant context. <code>bernstein impact-analysis</code> shows what breaks if you change a file.</p>
           </div>
           <div class="feature-item">
             <h4>Cost anomaly detection &amp; forecasting</h4>
@@ -362,7 +362,7 @@
           </div>
           <div class="feature-item">
             <h4>Chaos testing</h4>
-            <p>Inject failures — kill agents mid-task, simulate API timeouts, corrupt worktrees. Validates that the orchestrator recovers gracefully and no work is silently lost.</p>
+            <p>Inject failures - kill agents mid-task, simulate API timeouts, corrupt worktrees. Validates that the orchestrator recovers gracefully and no work is silently lost.</p>
           </div>
         </div>
       </div>
@@ -434,7 +434,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
       <div class="card trust-card">
         <div class="trust-icon"><i data-lucide="fingerprint"></i></div>
         <h3>Deterministic</h3>
-        <p>Zero LLM tokens spent on coordination — the orchestrator is pure Python. Reproducible execution with hashable workflow specs and determinism proofs.</p>
+        <p>Zero LLM tokens spent on coordination - the orchestrator is pure Python. Reproducible execution with hashable workflow specs and determinism proofs.</p>
       </div>
       <div class="card trust-card">
         <div class="trust-icon"><i data-lucide="file-check"></i></div>
@@ -444,12 +444,12 @@ bernstein run --evolve --max-cycles 10</code></pre>
       <div class="card trust-card">
         <div class="trust-icon"><i data-lucide="plug"></i></div>
         <h3>Protocol standards</h3>
-        <p>MCP 1.0/1.1 and A2A 0.2/0.3 compatible. CI-enforced protocol conformance tests. Zero vendor lock-in — swap providers without code changes.</p>
+        <p>MCP 1.0/1.1 and A2A 0.2/0.3 compatible. CI-enforced protocol conformance tests. Zero vendor lock-in - swap providers without code changes.</p>
       </div>
       <div class="card trust-card">
         <div class="trust-icon"><i data-lucide="server"></i></div>
         <h3>Self-hosted</h3>
-        <p>Runs entirely on your infrastructure. File-based state in <code>.sdd/</code> — no external database, no cloud dependency, no telemetry. Air-gapped deployments supported.</p>
+        <p>Runs entirely on your infrastructure. File-based state in <code>.sdd/</code> - no external database, no cloud dependency, no telemetry. Air-gapped deployments supported.</p>
       </div>
     </div>
   </div>
@@ -477,7 +477,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
   </details>
   <details>
     <summary>Can you run multiple AI agents on the same codebase at once?</summary>
-    <p>Yes. Bernstein spawns each agent in its own git worktree — an isolated copy of your repository. Agents work simultaneously without conflicts. The orchestrator merges verified results back to main. A single run can coordinate 17 different AI coding agents. <a href="getting-started/getting-started.html">Get started</a></p>
+    <p>Yes. Bernstein spawns each agent in its own git worktree - an isolated copy of your repository. Agents work simultaneously without conflicts. The orchestrator merges verified results back to main. A single run can coordinate 17 different AI coding agents. <a href="getting-started/getting-started.html">Get started</a></p>
   </details>
   <details>
     <summary>How much does AI agent orchestration cost?</summary>
@@ -487,7 +487,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 

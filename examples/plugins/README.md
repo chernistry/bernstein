@@ -2,11 +2,11 @@
 
 two flavours of example live here:
 
-* **single-file plugins** (`adapter_plugin.py`, `slack_notifier.py`, ...) —
+* **single-file plugins** (`adapter_plugin.py`, `slack_notifier.py`, ...) -
   quick demos meant to be copied into your own project. minimal
   scaffolding, no `pyproject.toml`, no entry-point declaration.
 * **installable example packages** (`custom-guardrail/`,
-  `custom-adapter/`, `custom-audit-sink/`) — full `pyproject.toml` +
+  `custom-adapter/`, `custom-audit-sink/`) - full `pyproject.toml` +
   entry-point + tests, ready to `pip install -e <dir>` so bernstein
   auto-discovers them via the `bernstein.plugins` /
   `bernstein.adapters` entry-point groups.
@@ -41,7 +41,7 @@ siem (splunk, datadog, elastic, ...) can ingest them. implements the
 `on_audit_event` hookspec which lives in
 `src/bernstein/plugins/hookspecs.py` (background-execution: a slow
 broker can never stall the orchestrator's tick loop). dormant by
-default — set `BERNSTEIN_AUDIT_MQTT_ENABLED=1` to turn it on.
+default - set `BERNSTEIN_AUDIT_MQTT_ENABLED=1` to turn it on.
 
 ## install + run
 

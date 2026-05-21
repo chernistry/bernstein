@@ -1,4 +1,4 @@
-# Bernstein Security Contact — RFC 9116
+# Bernstein Security Contact - RFC 9116
 # https://securitytxt.org/
 
 Contact: mailto:security@bernstein.dev

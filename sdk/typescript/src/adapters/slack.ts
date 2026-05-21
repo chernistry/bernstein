@@ -1,5 +1,5 @@
 /**
- * Slack adapter — send Bernstein task notifications via Incoming Webhooks or Web API.
+ * Slack adapter - send Bernstein task notifications via Incoming Webhooks or Web API.
  *
  * Uses the built-in `fetch` API (Node.js 18+). No extra dependencies.
  *
@@ -136,7 +136,7 @@ function taskCompletedBlocks(
     fields.push({ type: 'mrkdwn', text: `*Result:*\n${summary.slice(0, 300)}` });
   }
   return [
-    { type: 'section', text: { type: 'mrkdwn', text: `:white_check_mark: *Task completed* — \`${taskId}\`` } },
+    { type: 'section', text: { type: 'mrkdwn', text: `:white_check_mark: *Task completed* - \`${taskId}\`` } },
     { type: 'section', fields },
   ];
 }
@@ -148,7 +148,7 @@ function taskFailedBlocks(
   error: string,
   mention: string,
 ): SlackBlock[] {
-  let header = `:x: *Task failed* — \`${taskId}\``;
+  let header = `:x: *Task failed* - \`${taskId}\``;
   if (mention) header = `${mention} ${header}`;
   const blocks: SlackBlock[] = [
     { type: 'section', text: { type: 'mrkdwn', text: header } },
@@ -186,7 +186,7 @@ function taskCreatedBlocks(
   return [
     {
       type: 'section',
-      text: { type: 'mrkdwn', text: `${emoji} *New task* — \`${taskId}\`` },
+      text: { type: 'mrkdwn', text: `${emoji} *New task* - \`${taskId}\`` },
       fields: [
         { type: 'mrkdwn', text: `*Title:*\n${title}` },
         { type: 'mrkdwn', text: `*Role:*\n\`${role}\`` },

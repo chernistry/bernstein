@@ -28,4 +28,4 @@ Name each alternative and the reason it was not chosen.
 ```
 
 Store ADRs under `docs/adr/NNNN-short-title.md`, numbered in the order
-they were accepted. Immutable once accepted — supersede instead of edit.
+they were accepted. Immutable once accepted - supersede instead of edit.

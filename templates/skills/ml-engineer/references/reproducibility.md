@@ -5,7 +5,7 @@
 - Capture hardware (GPU model, CUDA, cuDNN) in the run metadata.
 - Log the input data checksum, not the data.
 - Save optimizer state + scheduler state with every checkpoint.
-- Evaluation runs are their own commits — never "re-run to reproduce".
+- Evaluation runs are their own commits - never "re-run to reproduce".
 
 ## Experiment tracking
 - One run = one config file + one result file.

@@ -59,7 +59,7 @@ function savePrefs(p: Prefs): void {
   try {
     window.localStorage.setItem(PREF_KEY, JSON.stringify(p));
   } catch {
-    /* localStorage may be disabled in private mode — ignore */
+    /* localStorage may be disabled in private mode - ignore */
   }
 }
 

@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: weekly
     # Wait a few days after upstream release before opening a bump PR
-    # so a fast-follow patch can catch up — and longer for majors
+    # so a fast-follow patch can catch up - and longer for majors
     # (zizmor dependabot-cooldown).
     cooldown:
       default-days: 7

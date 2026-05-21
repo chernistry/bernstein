@@ -1,11 +1,11 @@
-# Cold-storage round-trip — 10-year retention path
+# Cold-storage round-trip - 10-year retention path
 
 ## Why this matters
 
 EU AI Act Article 12(3) requires the event log to be retained for a period
 appropriate to the intended purpose, at least 6 months. For high-risk
 machinery (Annex III §1(a)), notified bodies typically expect retention for
-the lifetime of the equipment — 10+ years.
+the lifetime of the equipment - 10+ years.
 
 Hot storage (the live `.sdd/lineage/` directory) is unsuitable for that
 horizon. The lineage v1 design exports a self-contained, signed bundle that
@@ -55,7 +55,7 @@ bernstein-verify pack examples/lineage/eu-manufacturer/expected-pack.zip
 ## What round-tripping does NOT prove
 
 - That the original operator HMAC key is still trusted. (Key rotation is a
-  separate procedure — `bernstein lineage rotate-hmac`.)
+  separate procedure - `bernstein lineage rotate-hmac`.)
 - That the agent identities are still in use. Cards are historical evidence,
   not active credentials.
 - That the underlying source code in `src/` still compiles. Lineage anchors
@@ -73,4 +73,4 @@ diff <(zipinfo -1 expected-pack.zip | sort) \
 A clean diff is the success criterion: the live `bernstein compliance pack`
 command (built by Agent C) reproduces the committed reference bundle
 byte-for-byte. The retention key shipped to the notified body is the
-sha256 of either zip — they are identical.
+sha256 of either zip - they are identical.

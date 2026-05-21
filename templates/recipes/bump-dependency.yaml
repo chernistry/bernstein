@@ -39,7 +39,7 @@ nodes:
       Tests broke after upgrading `{package}` to `{version}`. Read the
       failures, classify each one (API change, deprecation, edge case,
       unrelated flake), and land the minimum fixes. Keep the bump itself
-      intact — do not pin back.
+      intact - do not pin back.
     fresh_context: true
     timeout_seconds: 3600
 

@@ -9,12 +9,12 @@ without a human re-running the orchestrator.
 
 The CLI lives in `cli/commands/review_responder_cmd.py:46`
 (`@click.group("review-responder")`). Heavy logic lives in
-`core/review_responder/` (10 files). The CLI is intentionally thin —
+`core/review_responder/` (10 files). The CLI is intentionally thin -
 it just glues click flags to the responder primitives and prints a
 status summary (`review_responder_cmd.py:1-16`).
 
-A sibling daemon — [`operations/autofix.md`](autofix.md) once
-published — handles the "CI failed, retry" path. The two are designed
+A sibling daemon - [`operations/autofix.md`](autofix.md) once
+published - handles the "CI failed, retry" path. The two are designed
 to compose: autofix repairs the PR, review-responder closes out the
 remaining review comments.
 
@@ -47,7 +47,7 @@ The responder:
 
 ## `bernstein review-responder` group
 
-### `start` — print config and (optionally) serve the listener
+### `start` - print config and (optionally) serve the listener
 
 ```
 bernstein review-responder start --repo owner/repo
@@ -65,20 +65,20 @@ boots a uvicorn server hosting the webhook listener
 
 Flags:
 
-- `--repo owner/repo` *(required)* — GitHub slug to listen on.
-- `--tunnel` — hint that you want to expose the local port via
+- `--repo owner/repo` *(required)* - GitHub slug to listen on.
+- `--tunnel` - hint that you want to expose the local port via
   `bernstein tunnel start`. The CLI prints the suggested follow-up
   command but does **not** open the tunnel itself
   (`review_responder_cmd.py:109-113`).
-- `--port` (default `8053`) — local TCP port for the webhook listener.
-- `--quiet-window` (default `90` seconds) — silence period before a
+- `--port` (default `8053`) - local TCP port for the webhook listener.
+- `--quiet-window` (default `90` seconds) - silence period before a
   round is sealed. Lower = more rounds, higher = more comments per
   round.
-- `--cost-cap` (default `$2.50`) — per-round cost ceiling. A breach
+- `--cost-cap` (default `$2.50`) - per-round cost ceiling. A breach
   posts a `needs-human` reply and aborts the round
   (`review_responder_cmd.py:74-80`,
   `core/review_responder/models.py:111-113`).
-- `--foreground` — actually serve the listener; without this, only
+- `--foreground` - actually serve the listener; without this, only
   the config is printed (useful for verification before installing as
   a daemon).
 
@@ -88,7 +88,7 @@ Flags:
 `core/review_responder/models.py:130`). Without the secret the CLI
 exits with a clear error (`review_responder_cmd.py:118-119`).
 
-### `status` — show persisted dedup state
+### `status` - show persisted dedup state
 
 ```
 bernstein review-responder status [--pr <pr_number>]
@@ -104,7 +104,7 @@ Use this to confirm which comments the daemon has already replied to.
 numbers, so the option is accepted but not used as a filter
 (`review_responder_cmd.py:158-161`).
 
-### `tick` — single polling pass
+### `tick` - single polling pass
 
 ```
 bernstein review-responder tick --repo owner/repo [--pr N ...]
@@ -112,7 +112,7 @@ bernstein review-responder tick --repo owner/repo [--pr N ...]
 
 Runs one synchronous pass of the polling listener and prints the
 count of new comments observed (`review_responder_cmd.py:168-186`).
-This bypasses the quiet-window bundler entirely — it only counts
+This bypasses the quiet-window bundler entirely - it only counts
 comments fetched from the GitHub API.
 
 `tick` is meant for tests, troubleshooting, and as a last-resort
@@ -124,29 +124,29 @@ launchd unit, see `daemon (group)` in the CLI catalog).
 
 ## Trigger model
 
-The responder reacts to **inline** review comments — comments anchored
+The responder reacts to **inline** review comments - comments anchored
 to specific lines of a diff, not the top-level PR conversation. The
 trigger is timestamp-based, not label-based: every new inline comment
 on a PR that the daemon is watching is considered.
 
 Two listeners feed the bundler:
 
-- **`WebhookListener`** — verifies an `X-Hub-Signature-256` HMAC
+- **`WebhookListener`** - verifies an `X-Hub-Signature-256` HMAC
   signature against the secret in `BERNSTEIN_REVIEW_WEBHOOK_SECRET`,
   normalises the payload, and queues it
   (`core/review_responder/webhook.py`).
-- **`PollingListener`** — falls back to `gh api` when no tunnel is
+- **`PollingListener`** - falls back to `gh api` when no tunnel is
   available. Same normaliser, same queue
   (`core/review_responder/polling.py`).
 
 Per-comment decisions made before dispatch
 (`models.py:147-161`):
 
-- **`address`** — the comment is actionable; include in the round.
-- **`dismiss_stale`** — the comment is anchored to a line that no
+- **`address`** - the comment is actionable; include in the round.
+- **`dismiss_stale`** - the comment is anchored to a line that no
   longer exists (anchor SHA mismatch). The responder skips it with a
   reason logged to the audit entry.
-- **`dismiss_question`** — the comment matches one of the
+- **`dismiss_question`** - the comment matches one of the
   `question_markers` ("can you explain", "why does", "how does this",
   etc., `models.py:132-140`). The responder posts an apology reply and
   does not dispatch a task.
@@ -219,7 +219,7 @@ Choosing the model:
   `architecture/model-routing.md` for routing details.
 - `per_round_cost_cap_usd` is enforced by the cost tracker shared with
   the rest of Bernstein. There is no separate review-responder budget.
-  A cap breach is final for that round — there is no auto-retry on a
+  A cap breach is final for that round - there is no auto-retry on a
   larger budget.
 
 GitHub auth: webhook delivery is HMAC-verified using the env-secret
@@ -237,8 +237,8 @@ have already been processed (that is the dedup queue's job).
 ## Cross-link: autofix daemon
 
 The review responder handles the "review comments left on a PR" half
-of the maintenance loop. The complementary half — "CI failed on the
-PR, retry the failure" — lives in the
+of the maintenance loop. The complementary half - "CI failed on the
+PR, retry the failure" - lives in the
 [autofix daemon](autofix.md) (when published; sources:
 `core/autofix/`, `cli/commands/autofix_cmd.py`).
 
@@ -256,32 +256,32 @@ away. The next round closes them out.
 
 ## Code pointers
 
-- `cli/commands/review_responder_cmd.py:46` — `@click.group("review-responder")`.
-- `cli/commands/review_responder_cmd.py:51-137` — `start` (config print
+- `cli/commands/review_responder_cmd.py:46` - `@click.group("review-responder")`.
+- `cli/commands/review_responder_cmd.py:51-137` - `start` (config print
   + `--foreground` uvicorn boot).
-- `cli/commands/review_responder_cmd.py:140-165` — `status` (dedup
+- `cli/commands/review_responder_cmd.py:140-165` - `status` (dedup
   queue dump).
-- `cli/commands/review_responder_cmd.py:168-186` — `tick` (one
+- `cli/commands/review_responder_cmd.py:168-186` - `tick` (one
   polling pass).
-- `core/review_responder/__init__.py:1` — public surface (re-exports).
-- `core/review_responder/models.py:14` — `RoundOutcome` enum.
-- `core/review_responder/models.py:30` — `ReviewComment` dataclass.
-- `core/review_responder/models.py:74` — `ReviewRound` dataclass.
-- `core/review_responder/models.py:104-145` — `ResponderConfig`
+- `core/review_responder/__init__.py:1` - public surface (re-exports).
+- `core/review_responder/models.py:14` - `RoundOutcome` enum.
+- `core/review_responder/models.py:30` - `ReviewComment` dataclass.
+- `core/review_responder/models.py:74` - `ReviewRound` dataclass.
+- `core/review_responder/models.py:104-145` - `ResponderConfig`
   dataclass (all tunables).
-- `core/review_responder/models.py:147-161` — `CommentDecision`.
-- `core/review_responder/webhook.py` — `WebhookListener` (HMAC verify
+- `core/review_responder/models.py:147-161` - `CommentDecision`.
+- `core/review_responder/webhook.py` - `WebhookListener` (HMAC verify
   + normalise + queue).
-- `core/review_responder/polling.py` — `PollingListener` (gh-api
+- `core/review_responder/polling.py` - `PollingListener` (gh-api
   fallback).
-- `core/review_responder/normaliser.py` — `normalise_webhook_payload`,
+- `core/review_responder/normaliser.py` - `normalise_webhook_payload`,
   `normalise_polling_payload`.
-- `core/review_responder/bundling.py` — `RoundBundler` (quiet-window
+- `core/review_responder/bundling.py` - `RoundBundler` (quiet-window
   collapsing).
-- `core/review_responder/dedup.py` — `DedupQueue`,
+- `core/review_responder/dedup.py` - `DedupQueue`,
   `DEFAULT_STATE_PATH`.
-- `core/review_responder/responder.py` — `ReviewResponder` (round
+- `core/review_responder/responder.py` - `ReviewResponder` (round
   dispatch + commit + reply).
-- `core/review_responder/metrics.py` —
+- `core/review_responder/metrics.py` -
   `review_responder_comments_addressed_total`,
   `review_responder_rounds_total`.

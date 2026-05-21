@@ -1,6 +1,6 @@
 # Docstring style (Google)
 
-- Only where non-obvious — a typed, well-named helper does not need a
+- Only where non-obvious - a typed, well-named helper does not need a
   docstring that restates its signature.
 - Google style:
 

@@ -1,6 +1,6 @@
 ---
 name: docs
-description: Documentation — README, API docs, ADRs, tutorials.
+description: Documentation - README, API docs, ADRs, tutorials.
 trigger_keywords:
   - docs
   - documentation

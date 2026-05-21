@@ -1,4 +1,4 @@
-# Lineage v1 — user reference
+# Lineage v1 - user reference
 
 Lineage v1 is Bernstein's per-artefact transparency log. Every agent write
 to a tracked file produces an append-only, content-addressed, Ed25519-signed
@@ -15,7 +15,7 @@ This page is the **user-facing** reference. For the design rationale see
 | Where does it live? | `.sdd/lineage/log.jsonl` (append-only) + per-entry detached JWS sidecars. |
 | Who signs? | The agent itself, with an Ed25519 key issued at spawn time. |
 | Who verifies? | Anyone with `bernstein-verify` (a standalone PyPI wheel). No Bernstein install required. |
-| What gets shipped to auditors? | `bernstein compliance pack` — a single self-contained ZIP. |
+| What gets shipped to auditors? | `bernstein compliance pack` - a single self-contained ZIP. |
 
 ## Quickstart
 
@@ -105,7 +105,7 @@ Sub-commands:
 | `bernstein-verify chain <path> --lineage-dir DIR` | Single artefact chain. |
 | `bernstein-verify forks <path> --lineage-dir DIR` | Report unresolved forks (CI use). |
 
-The verifier is air-gap-safe — no network calls, no remote registry
+The verifier is air-gap-safe - no network calls, no remote registry
 lookups. Every public key it needs is in `agent-cards/` inside the pack.
 
 ## Article 12 paragraph mapping reference
@@ -155,11 +155,11 @@ make -C examples/lineage demo-eu-mfg
 | `bernstein-verify pack` exits 1 with "fork detected" | Two agents wrote the same artefact in parallel without a Steward merge. | Run `bernstein lineage merge <path>` to record a merge entry; re-pack. |
 | `verify` exits 1 with "invalid signature" | The log was edited after the fact, or the Agent Card was swapped. | Treat as a security incident; do not ship the pack. |
 | `verify` exits 1 with "HMAC mismatch" | Operator HMAC key rotated mid-window. | Re-pack with the correct key context; consult ADR-009 §6. |
-| Genesis entry shows up with `parent_hashes: []` | First-time write of a file that existed before lineage was enabled. | Expected — see ADR-009 §11 on bootstrap. |
+| Genesis entry shows up with `parent_hashes: []` | First-time write of a file that existed before lineage was enabled. | Expected - see ADR-009 §11 on bootstrap. |
 
 ## See also
 
-- [ADR-009: Lineage v1](decisions/009-lineage-v1.md) — design rationale, schema, threat model.
-- [Compliance — EU AI Act Article 12 bundle](compliance/eu-ai-act-article-12-bundle.md) — the bundle format detail.
-- [Regulatory lineage export](compliance/lineage-export.md) — operator export guide.
+- [ADR-009: Lineage v1](decisions/009-lineage-v1.md) - design rationale, schema, threat model.
+- [Compliance - EU AI Act Article 12 bundle](compliance/eu-ai-act-article-12-bundle.md) - the bundle format detail.
+- [Regulatory lineage export](compliance/lineage-export.md) - operator export guide.
 - A2A v1.0 Agent Card spec; RFC 7515 JWS; RFC 8785 JCS.

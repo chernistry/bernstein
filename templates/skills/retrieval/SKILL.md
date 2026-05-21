@@ -1,6 +1,6 @@
 ---
 name: retrieval
-description: Retrieval — vector DBs, embeddings, hybrid search, reranking.
+description: Retrieval - vector DBs, embeddings, hybrid search, reranking.
 trigger_keywords:
   - retrieval
   - rag

@@ -3,8 +3,8 @@
 Bernstein persists its working state under `.sdd/`: the WAL, HMAC
 audit logs, runtime state, task outputs, cost ledger, and metrics
 dumps. On a developer laptop that directory lives on a local disk
-and the story is simple. On ephemeral compute — CI runners, Kubernetes
-pods, cloud sandboxes — the host can disappear between orchestrator
+and the story is simple. On ephemeral compute - CI runners, Kubernetes
+pods, cloud sandboxes - the host can disappear between orchestrator
 restarts, taking the recovery state with it.
 
 The storage package decouples `.sdd/` persistence from the local
@@ -49,7 +49,7 @@ path.
 
 | Name         | Extra         | SDK                        | Ships in                      |
 | ------------ | ------------- | -------------------------- | ----------------------------- |
-| `local_fs`   | — (always on) | stdlib                     | `bernstein` core              |
+| `local_fs`   | - (always on) | stdlib                     | `bernstein` core              |
 | `s3`         | `bernstein[s3]`    | `boto3`                    | optional extra                |
 | `gcs`        | `bernstein[gcs]`   | `google-cloud-storage`     | optional extra                |
 | `azure_blob` | `bernstein[azure]` | `azure-storage-blob`       | optional extra                |
@@ -89,7 +89,7 @@ WAL.append() ──▶ LocalFsSink.write(durable=True)   ← synchronous fsync
    has ACKed or failed. The orchestrator calls this on normal exit so
    nothing is lost.
 
-Reads prefer the remote sink — that's the crash-recovery path where
+Reads prefer the remote sink - that's the crash-recovery path where
 the ephemeral local disk may be empty. They fall back to local when
 the remote is unreachable or doesn't have the key (e.g. the mirror is
 still pending).
@@ -103,7 +103,7 @@ filesystem bindings
 (`rclone mount` for S3/R2, `gcsfuse` for GCS, `blobfuse2` for Azure)
 so agent writes to the mount path stream straight into the
 orchestrator's artifact sink. The `worktree` backend ignores the
-field — everything already lives on the host filesystem.
+field - everything already lives on the host filesystem.
 
 ## Credential handling
 

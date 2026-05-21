@@ -13,16 +13,16 @@ Source: `src/bernstein/core/security/owasp_asi_detectors.py`.
 
 | Code | Risk class | Status |
 |------|------------|--------|
-| ASI01 | Goal Hijack — lexical scan for "ignore previous instructions" patterns | heuristic |
-| ASI02 | Tool Misuse — args contain shell tokens for non-shell tools | heuristic |
-| ASI03 | Identity & Privilege Abuse — capability-matrix delegation | delegating |
-| ASI04 | Agentic Supply Chain — unsigned MCP / plugin / skill load | delegating |
-| ASI05 | Unexpected Code Execution — `eval`/`exec`/shell-shaped tool args | heuristic |
-| ASI06 | Memory Poisoning — append-only log integrity drift | heuristic |
-| ASI07 | Insecure A2A — unsigned agent cards in A2A traffic | delegating |
-| ASI08 | Unbounded Consumption — token / cost / loop budget breach | heuristic |
-| ASI09 | Observability Gap — missing audit-chain entry for a tool call | heuristic |
-| ASI10 | Misalignment Drift — stated intent vs imminent action | deferred |
+| ASI01 | Goal Hijack - lexical scan for "ignore previous instructions" patterns | heuristic |
+| ASI02 | Tool Misuse - args contain shell tokens for non-shell tools | heuristic |
+| ASI03 | Identity & Privilege Abuse - capability-matrix delegation | delegating |
+| ASI04 | Agentic Supply Chain - unsigned MCP / plugin / skill load | delegating |
+| ASI05 | Unexpected Code Execution - `eval`/`exec`/shell-shaped tool args | heuristic |
+| ASI06 | Memory Poisoning - append-only log integrity drift | heuristic |
+| ASI07 | Insecure A2A - unsigned agent cards in A2A traffic | delegating |
+| ASI08 | Unbounded Consumption - token / cost / loop budget breach | heuristic |
+| ASI09 | Observability Gap - missing audit-chain entry for a tool call | heuristic |
+| ASI10 | Misalignment Drift - stated intent vs imminent action | deferred |
 
 The `status` field is honest: `heuristic` is a working pattern check,
 `delegating` defers to a deeper module when the caller populates the
@@ -41,11 +41,11 @@ threshold (default: `warning`).
 
 The pack is on by default. Resolution order (highest priority first):
 
-1. `BERNSTEIN_DISABLE_OWASP_ASI=1` — pack disabled.
-2. `BERNSTEIN_ENABLE_OWASP_ASI=0` (or `false`/`no`/`off`) — pack
+1. `BERNSTEIN_DISABLE_OWASP_ASI=1` - pack disabled.
+2. `BERNSTEIN_ENABLE_OWASP_ASI=0` (or `false`/`no`/`off`) - pack
    disabled. The legacy opt-in flag stays honoured so a falsy value
    suppresses the pack for operators who scripted the older semantics.
-3. Otherwise — pack enabled.
+3. Otherwise - pack enabled.
 
 The toggle is read by `is_owasp_asi_enabled()` and consulted by
 `GuardrailPipeline.default()`:
@@ -80,8 +80,8 @@ populates today:
 | `loaded_components` | List of `{name, signed}` dicts (for ASI04) |
 | `capability_violation` / `capability_violation_reason` | ASI03 delegation |
 | `code_safe_tools` | Whitelist for ASI05 (lint / format tools) |
-| `audit_log_present` | ASI09 — whether the call landed in the chain |
-| `stated_intent` / `planned_action` | ASI10 — text comparison |
+| `audit_log_present` | ASI09 - whether the call landed in the chain |
+| `stated_intent` / `planned_action` | ASI10 - text comparison |
 
 Detectors that don't see their keys return `INFO` (passed). The
 heuristic surface is wide on purpose so a caller that only populates
@@ -109,7 +109,7 @@ false positive:
 
 The pack is intended to **complement** the deeper modules already
 shipped in `core.security` (capability matrix, sandbox-escape detector,
-permission graph, audit chain) — it is not a replacement for them.
+permission graph, audit chain) - it is not a replacement for them.
 
 ---
 
@@ -139,11 +139,11 @@ keeps running with one bad detector temporarily out.
 
 - Source: `src/bernstein/core/security/owasp_asi_detectors.py`
 - Pipeline integration: `src/bernstein/core/security/guardrail_pipeline.py`
-- [Lethal-trifecta security model](lethal-trifecta.md) — the structural
+- [Lethal-trifecta security model](lethal-trifecta.md) - the structural
   capability gate that runs before any guardrail check
-- [Capability matrix](capability-matrix.md) — the tool-tag registry
+- [Capability matrix](capability-matrix.md) - the tool-tag registry
   ASI03 delegates to
-- [MCP server signing + supply-chain scan](mcp-signing.md) — the
+- [MCP server signing + supply-chain scan](mcp-signing.md) - the
   deeper signature gate ASI04 delegates to
-- OWASP Top 10 for Agentic Apps (December 2025) — upstream framework
+- OWASP Top 10 for Agentic Apps (December 2025) - upstream framework
   the detector pack tracks

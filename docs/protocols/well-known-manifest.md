@@ -67,7 +67,7 @@ templates under `templates/well_known/` and rebuild.
 ## Limitations
 
 - One global manifest per server.
-- Plugin / adapter manifests are **not** aggregated — only the
+- Plugin / adapter manifests are **not** aggregated - only the
   task-server's own surface is published.
 - The manifest is static at boot. Endpoints added by hot-loaded
   plugins after startup do not appear until restart.

@@ -1,4 +1,4 @@
-# Bernstein Plan — REST to GraphQL Migration
+# Bernstein Plan - REST to GraphQL Migration
 #
 # A three-stage plan that migrates an existing REST API to GraphQL:
 #   1. Schema:    design and implement the GraphQL schema and resolver skeleton
@@ -22,7 +22,7 @@ cli: auto
 budget: "$16"
 max_agents: 4
 constraints:
-  - "REST API remains fully functional throughout migration — no breaking changes"
+  - "REST API remains fully functional throughout migration - no breaking changes"
   - "Use DataLoader for all database relations to prevent N+1 queries"
   - "Schema-first design: SDL file is the source of truth"
   - "All resolvers must have unit tests with mocked data loaders"
@@ -63,7 +63,7 @@ stages:
           Integrate a GraphQL server (e.g., Apollo Server, Strawberry, or
           graphql-go) into the existing web framework. Mount at /graphql with
           GraphiQL enabled in development only. Wire schema.graphql as the type
-          definitions. Add stub resolvers that return null for every field —
+          definitions. Add stub resolvers that return null for every field -
           sufficient to make the server start and respond to introspection.
           Add /graphql to the health check endpoint.
         files:
@@ -103,7 +103,7 @@ stages:
         complexity: medium
         description: >
           Implement all Query resolvers in src/graphql/resolvers/queries.py.
-          Port business logic from the corresponding REST GET handlers — do not
+          Port business logic from the corresponding REST GET handlers - do not
           duplicate, extract shared logic into src/services/ if not already
           there. Use DataLoaders for all relation lookups. Implement cursor-based
           pagination for list queries (first, after args; edges + pageInfo
@@ -121,7 +121,7 @@ stages:
         description: >
           Implement all Mutation resolvers in src/graphql/resolvers/mutations.py.
           Port business logic from REST POST/PUT/DELETE handlers. Input validation
-          via Pydantic or equivalent — surface validation errors as GraphQL errors
+          via Pydantic or equivalent - surface validation errors as GraphQL errors
           with extensions.code = "VALIDATION_ERROR" and a details array. Wrap
           each mutation in a database transaction. Return the affected object on
           success so clients can update their cache.
@@ -137,7 +137,7 @@ stages:
         complexity: medium
         description: >
           Write pytest tests for every resolver in tests/graphql/. Use
-          graphql-core's execute() function directly — no HTTP layer needed.
+          graphql-core's execute() function directly - no HTTP layer needed.
           Mock data loaders and service calls. Cover: happy path, not-found
           errors, permission denied, validation errors, and pagination (first
           page, second page, empty page). Run with: pytest tests/graphql/ -x -q.

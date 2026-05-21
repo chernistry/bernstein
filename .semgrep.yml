@@ -15,7 +15,7 @@
 
 rules:
   # ----------------------------------------------------------------------
-  # Hard bans (ERROR — fails PR)
+  # Hard bans (ERROR - fails PR)
   # ----------------------------------------------------------------------
   - id: no-exec-in-production
     message: >-
@@ -32,7 +32,7 @@ rules:
     pattern: exec(...)
 
   # ----------------------------------------------------------------------
-  # Strong-warning candidates — currently advisory because main has known
+  # Strong-warning candidates - currently advisory because main has known
   # accepted usages. Promote to ERROR after the refactor PRs land:
   # - cache_cmd.py / fingerprint.py / duration_predictor.py: pickle on
   #   HMAC-verified local files (trust-boundary documented inline)
@@ -60,7 +60,7 @@ rules:
       pickle.loads / pickle.load is unsafe on untrusted input. Bernstein
       uses JSON or msgpack with explicit schemas for cross-process state.
       Local-file pickle (replay cache, memo cache, duration predictor)
-      is acceptable when the file is HMAC-verified or operator-managed —
+      is acceptable when the file is HMAC-verified or operator-managed -
       add a `# noqa: pickle-trust` comment with a justification.
     severity: WARNING
     languages: [python]
@@ -74,7 +74,7 @@ rules:
       - pattern: pickle.load(...)
 
   # ----------------------------------------------------------------------
-  # Hygiene (WARNING — advisory; promote to ERROR once main is clean)
+  # Hygiene (WARNING - advisory; promote to ERROR once main is clean)
   # ----------------------------------------------------------------------
   - id: subprocess-popen-without-env-in-spawn-helpers
     message: >-

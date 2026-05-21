@@ -1,4 +1,4 @@
-# Bernstein Plan — Monorepo Multi-Service Feature
+# Bernstein Plan - Monorepo Multi-Service Feature
 #
 # A four-stage plan for shipping a cross-cutting feature in a monorepo:
 #   1. Shared:    define shared library types and contracts
@@ -23,7 +23,7 @@ budget: "$20"
 max_agents: 4
 constraints:
   - "TypeScript strict mode throughout"
-  - "Shared types in packages/shared — no duplication across services"
+  - "Shared types in packages/shared - no duplication across services"
   - "Services communicate only through defined interfaces, not internal imports"
   - "All new code requires unit tests; integration tests for cross-service flows"
   - "Do not break existing API contracts"

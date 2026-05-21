@@ -6,7 +6,7 @@ conforms to the `SandboxBackend` protocol.
 
 ## Module
 
-`src/bernstein/core/sandbox/backends/daytona.py` —
+`src/bernstein/core/sandbox/backends/daytona.py` -
 class `DaytonaSandboxBackend`, registered under the name `daytona` in
 `bernstein.core.sandbox.registry`.
 

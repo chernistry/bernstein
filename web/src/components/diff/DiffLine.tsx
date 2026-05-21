@@ -1,4 +1,4 @@
-// A single diff line — either unified (one gutter column) or split (two).
+// A single diff line - either unified (one gutter column) or split (two).
 // Tokenisation is delegated to `./highlight.ts`. Trailing whitespace is
 // rendered with a faint marker so reviewers spot it.
 

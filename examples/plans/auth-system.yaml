@@ -1,4 +1,4 @@
-# Bernstein Plan — Authentication System Overhaul
+# Bernstein Plan - Authentication System Overhaul
 #
 # A three-stage plan that replaces a legacy session-based auth system with a
 # modern, hardened authentication stack:

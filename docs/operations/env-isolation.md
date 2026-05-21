@@ -2,8 +2,8 @@
 
 When Bernstein spawns a CLI coding agent, the agent subprocess only
 receives the environment variables it actually needs. Without this
-filter, every agent would inherit the full orchestrator environment —
-database URLs, CI tokens, every API key the operator has loaded — and
+filter, every agent would inherit the full orchestrator environment -
+database URLs, CI tokens, every API key the operator has loaded - and
 any of those could leak into a tool call, a prompt, an HTTP request,
 or worst of all, a commit message.
 
@@ -43,7 +43,7 @@ adapter passes this dict explicitly to `subprocess.Popen(env=...)`.
 filtered_env = _BASE_ALLOWLIST ∪ {adapter_specific_keys} ∩ os.environ
 ```
 
-The set is the intersection with `os.environ` — keys you don't
+The set is the intersection with `os.environ` - keys you don't
 actually have set don't appear in the result, and missing keys never
 raise.
 
@@ -65,7 +65,7 @@ function in a Unix-like environment:
 | Node                | `NVM_DIR`, `NVM_BIN`, `NVM_PATH`, `NODE_PATH` |
 
 There is no built-in proxy entry. If you run behind a corporate proxy
-you probably want `HTTPS_PROXY`, `HTTP_PROXY`, and `NO_PROXY` —
+you probably want `HTTPS_PROXY`, `HTTP_PROXY`, and `NO_PROXY` -
 currently you have to add these as extras (see open question A4 in the
 spec).
 
@@ -82,7 +82,7 @@ Each adapter passes its own allowlist of API-key-style variables to
 | Qwen         | `OPENAI_API_KEY`, `OPENAI_BASE_URL` |
 | Aider        | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY` |
 | Amp          | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SRC_ENDPOINT`, `SRC_ACCESS_TOKEN` |
-| Generic      | (base only — no API keys) |
+| Generic      | (base only - no API keys) |
 | Manager      | `ANTHROPIC_API_KEY` |
 
 Anything not in the base allowlist or the per-adapter list is
@@ -102,7 +102,7 @@ harmlessly so a single env build serves both spawns.
 
 The `bernstein-worker` subprocess itself is launched with the
 filtered env. When it then spawns the agent CLI, it does so with no
-explicit `env=` parameter — the agent CLI inherits the already-filtered
+explicit `env=` parameter - the agent CLI inherits the already-filtered
 env via OS-level process inheritance. This is the intended design,
 not a leak.
 
@@ -113,7 +113,7 @@ not a leak.
 ### YAML
 
 There is **no** YAML or CLI flag to disable the filter at the
-orchestrator level — `build_filtered_env()` is called unconditionally
+orchestrator level - `build_filtered_env()` is called unconditionally
 by every adapter. This is deliberate: the cost of an accidental
 "filter off" toggle outweighs any operator convenience.
 
@@ -202,7 +202,7 @@ def test_my_adapter_filters_env(monkeypatch):
 ```
 
 If you want a single command that asserts *all* adapters pass `env=`,
-look for the parametrised test that walks the adapter registry — it
+look for the parametrised test that walks the adapter registry - it
 fails loudly when a new adapter forgets the filter.
 
 ---
@@ -220,7 +220,7 @@ fails loudly when a new adapter forgets the filter.
 
 ## Related
 
-- [Permission modes](../architecture/permission-modes.md) — gates
+- [Permission modes](../architecture/permission-modes.md) - gates
   *what* a tool can do; env isolation gates *what it can read*.
-- [Sandbox backends](../architecture/sandbox.md) — adds filesystem and
+- [Sandbox backends](../architecture/sandbox.md) - adds filesystem and
   network isolation on top of the env filter.

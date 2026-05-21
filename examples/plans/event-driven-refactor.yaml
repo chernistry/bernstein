@@ -1,4 +1,4 @@
-# Bernstein Plan — Event-Driven Architecture Refactor
+# Bernstein Plan - Event-Driven Architecture Refactor
 #
 # A three-stage plan that refactors a synchronous monolith into an event-driven
 # system:
@@ -24,7 +24,7 @@ max_agents: 4
 constraints:
   - "Kafka for event bus (docker-compose for local dev, MSK for production)"
   - "Avro schemas with Confluent Schema Registry for all event payloads"
-  - "Consumers must be idempotent — event IDs deduplicated in Redis (TTL 7 days)"
+  - "Consumers must be idempotent - event IDs deduplicated in Redis (TTL 7 days)"
   - "No synchronous HTTP calls between services for business-critical paths"
   - "Outbox pattern for reliable event emission (events written to DB first)"
   - "Dead-letter topics for all consumer groups (suffix .DLT)"
@@ -126,11 +126,11 @@ stages:
         complexity: medium
         description: >
           Implement consumers for each downstream service:
-          src/consumers/inventory_consumer.py — handles OrderCreated to reserve
+          src/consumers/inventory_consumer.py - handles OrderCreated to reserve
           stock, OrderCancelled to release stock.
-          src/consumers/notification_consumer.py — sends email/push on
+          src/consumers/notification_consumer.py - sends email/push on
           OrderCreated and OrderCancelled.
-          src/consumers/billing_consumer.py — creates invoice on OrderCreated.
+          src/consumers/billing_consumer.py - creates invoice on OrderCreated.
           Each consumer extends the base consumer class and registers with the
           consumer group appropriate to its service. Write unit tests for each.
         files:

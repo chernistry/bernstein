@@ -1,4 +1,4 @@
-// Costs screen — KPI cards, 24h sparkline, by-adapter breakdown, top tasks.
+// Costs screen - KPI cards, 24h sparkline, by-adapter breakdown, top tasks.
 // Per Variant A handoff §6.05. All numbers mono tabular-nums.
 
 import { useMemo } from 'react';
@@ -19,7 +19,7 @@ import { EmptyState, ErrorState, LoadingState, Pill, SectionLabel } from '@/lib/
 import { cn } from '@/lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types — match server contract documented in handoff §6.05.
+// Types - match server contract documented in handoff §6.05.
 // The live backend (release ≤1.9) uses a slightly different shape than the
 // Variant A spec; we tolerate both via `normalizeCurrent` / `normalizeHistory`.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ interface CostsTopTask {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Normalisers — defend against live-backend shape drift (BUG #6, #11, #12).
+// Normalisers - defend against live-backend shape drift (BUG #6, #11, #12).
 // ─────────────────────────────────────────────────────────────────────────────
 
 function normalizeCurrent(raw: unknown): CostsCurrent | undefined {
@@ -142,7 +142,7 @@ export default function Costs() {
     queryKey: ['costs', 'breakdown'],
     queryFn: async () => normalizeRows<CostsAdapterRow>(await apiGet<unknown>('/costs/by-tag')),
     refetchInterval: 120_000,
-    retry: false, // live backend can 500 when no data — show EmptyState fast (BUG #3)
+    retry: false, // live backend can 500 when no data - show EmptyState fast (BUG #3)
   });
 
   const topTasks = useQuery<CostsTopTask[]>({
@@ -164,7 +164,7 @@ export default function Costs() {
     retry: false,
   });
 
-  // Live tick channel — invalidate current + history on each tick.
+  // Live tick channel - invalidate current + history on each tick.
   useEventStream('/api/v1/events/cost', {
     on: {
       cost_tick: () => {
@@ -284,7 +284,7 @@ function formatSyncRelative(iso: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Top KPI row — 4 cards
+// Top KPI row - 4 cards
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface KpiRowProps {
@@ -314,7 +314,7 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
         {KPI_LABELS.map((l) => (
           <KpiCardShell key={l} label={l}>
             <div className="text-stat-lg font-mono tabular-nums text-meta-foreground">
-              —
+              -
             </div>
             <div className="mt-1 font-mono text-[11px] tabular-nums text-meta-foreground">
               no spend yet
@@ -325,7 +325,7 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
     );
   }
 
-  // BUG #2: budget gauge NaN% when budget_usd is null → render `—` and grey bar.
+  // BUG #2: budget gauge NaN% when budget_usd is null → render `-` and grey bar.
   const hasBudget =
     data.budget_usd != null && Number.isFinite(data.budget_usd) && data.budget_usd > 0;
   const usedPct = hasBudget ? clampPct(data.used_pct) : 0;
@@ -401,7 +401,7 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
         <div className="text-stat-lg font-mono tabular-nums text-accent">
           {formatUSD(data.today_usd)}{' '}
           <span className="text-meta-foreground">
-            / {hasBudget ? formatUSD(data.budget_usd) : '—'}
+            / {hasBudget ? formatUSD(data.budget_usd) : '-'}
           </span>
         </div>
         <div className="mt-2 h-[5px] w-full overflow-hidden rounded-sm bg-border-subtle">
@@ -411,7 +411,7 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
           />
         </div>
         <div className="mt-1.5 font-mono text-[11px] tabular-nums text-meta-foreground">
-          {hasBudget ? `${usedPct.toFixed(0)}% used` : '— used'} · {resets}
+          {hasBudget ? `${usedPct.toFixed(0)}% used` : '- used'} · {resets}
         </div>
       </KpiCardShell>
     </div>
@@ -449,7 +449,7 @@ function formatResetsAt(iso: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 24h sparkline — recharts BarChart
+// 24h sparkline - recharts BarChart
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SparklineCardProps {
@@ -500,7 +500,7 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
                 {formatUSD(total)}
               </span>
               {peak && peak.usd > 0 && (
-                // BUG #14: peak is informational, not a "good" event — neutral colour.
+                // BUG #14: peak is informational, not a "good" event - neutral colour.
                 <span className="font-mono text-[11px] tabular-nums text-meta-foreground">
                   ↑ peak {peakLabel} · {formatUSD(peak.usd)}/hr
                 </span>
@@ -578,7 +578,7 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          {/* BUG #9: middle hour markers overlap on small viewports — hide them <sm. */}
+          {/* BUG #9: middle hour markers overlap on small viewports - hide them <sm. */}
           <div className="mt-1 flex justify-between font-mono text-[10px] tabular-nums text-meta-foreground">
             <span>−24h</span>
             <span className="hidden sm:inline">−18h</span>
@@ -684,7 +684,7 @@ function AdapterRow({ row }: { row: CostsAdapterRow }) {
   const delta = Number.isFinite(row.delta_7d_pct) ? row.delta_7d_pct : 0;
   const deltaLabel =
     delta === 0 ? '±0%' : `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(0)}%`;
-  // BUG #4: spec — drop = green, rose >+20% = warning, rose >+50% = destructive.
+  // BUG #4: spec - drop = green, rose >+20% = warning, rose >+50% = destructive.
   // Original code matched the inversion direction but lacked the upper destructive
   // band; without it a runaway adapter looks indistinguishable from "minor uptick".
   const deltaColor =

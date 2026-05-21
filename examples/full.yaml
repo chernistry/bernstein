@@ -1,4 +1,4 @@
-# bernstein.yaml — full example with all fields documented.
+# bernstein.yaml - full example with all fields documented.
 #
 # Drop this file in your project root and run `bernstein` (or `bernstein run`).
 # Bernstein reads it, creates the workspace, starts the server, and begins work.
@@ -8,11 +8,11 @@
 # ---------------------------------------------------------------------------
 
 # The high-level project objective. This becomes the manager agent's initial
-# task. Be specific — the manager will decompose this into concrete subtasks.
+# task. Be specific - the manager will decompose this into concrete subtasks.
 goal: "Build a REST API for user management with registration, login, profile CRUD, and role-based access control"
 
 # ---------------------------------------------------------------------------
-# Optional — agent configuration
+# Optional - agent configuration
 # ---------------------------------------------------------------------------
 
 # Which CLI agent backend to use. One of: auto, claude, codex, gemini, qwen.
@@ -36,7 +36,7 @@ max_agents: 6
 budget: "$20"
 
 # ---------------------------------------------------------------------------
-# Optional — project constraints
+# Optional - project constraints
 # ---------------------------------------------------------------------------
 
 # Constraints are passed to the manager agent and enforced during planning.
@@ -46,10 +46,10 @@ constraints:
   - "PostgreSQL for persistence"
   - "Alembic for migrations"
   - "pytest for all tests"
-  - "No ORM — use raw SQL with asyncpg"
+  - "No ORM - use raw SQL with asyncpg"
 
 # ---------------------------------------------------------------------------
-# Optional — context files
+# Optional - context files
 # ---------------------------------------------------------------------------
 
 # Additional files to include in the manager's context. Paths are relative

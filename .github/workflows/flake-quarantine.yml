@@ -17,7 +17,7 @@ name: Flake quarantine
 
 on:
   schedule:
-    # 04:00 UTC — one hour after nightly-deep-tests so we don't fight
+    # 04:00 UTC - one hour after nightly-deep-tests so we don't fight
     # for hosted-runner minutes during the global 03:00 cron burst.
     - cron: "0 4 * * *"
   workflow_dispatch:
@@ -172,9 +172,9 @@ jobs:
             ### Why these tests were flagged
 
             See the attached `xflaky-reports` workflow artifact for:
-            - `.xflaky_report.txt` — human-readable summary
-            - `.xflaky_report_github.json` — per-test blame data
-            - `.reports/*.json` — raw per-run pytest-json-report output
+            - `.xflaky_report.txt` - human-readable summary
+            - `.xflaky_report_github.json` - per-test blame data
+            - `.reports/*.json` - raw per-run pytest-json-report output
 
             ### How to investigate a flagged test
 
@@ -201,4 +201,4 @@ jobs:
 
             Review the diff. Land if the markers look reasonable;
             close if the run was infra noise (DNS, hosted-runner GC,
-            etc.) — the next nightly run will redetect any true flake.
+            etc.) - the next nightly run will redetect any true flake.

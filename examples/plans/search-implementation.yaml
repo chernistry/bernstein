@@ -1,4 +1,4 @@
-# Bernstein Plan — Full-Text Search Implementation
+# Bernstein Plan - Full-Text Search Implementation
 #
 # A three-stage plan that adds full-text search to an existing application:
 #   1. Index Setup:     Meilisearch cluster, index config, and auth

@@ -1,4 +1,4 @@
-# Bernstein Plan — CI/CD Pipeline Setup
+# Bernstein Plan - CI/CD Pipeline Setup
 #
 # A three-stage plan that builds a complete CI/CD pipeline from scratch:
 #   1. Build & Test:    CI pipeline with lint, test, and build gates
@@ -24,7 +24,7 @@ constraints:
   - "GitHub Actions for CI/CD"
   - "Docker for all build artifacts"
   - "Semantic versioning for releases (vMAJOR.MINOR.PATCH)"
-  - "All secrets via GitHub Secrets — never in workflow files"
+  - "All secrets via GitHub Secrets - never in workflow files"
   - "Staging auto-deploys on merge to main; production requires tag push"
   - "Test failures block merge; deployment failures trigger rollback"
 
@@ -40,10 +40,10 @@ stages:
         description: >
           Create .github/workflows/ci.yaml that triggers on pull_request to main.
           Jobs (each runs in parallel where possible):
-          1. lint — run project linter, fail on any error
-          2. test — run unit and integration tests, upload coverage to Codecov
-          3. build — docker build, push to GHCR with PR number tag
-          4. security — run Trivy on the built image, fail on CRITICAL CVEs
+          1. lint - run project linter, fail on any error
+          2. test - run unit and integration tests, upload coverage to Codecov
+          3. build - docker build, push to GHCR with PR number tag
+          4. security - run Trivy on the built image, fail on CRITICAL CVEs
           Cache dependencies between runs using actions/cache. Each job uses
           a minimal Docker image. Total pipeline target: under 5 minutes.
         files:

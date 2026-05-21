@@ -10,9 +10,9 @@ agents cannot quietly add, remove, or weaken entries.
 
 Two failure modes show up in long-running self-evolution runs:
 
-1. **Premature victory** — agent completes 6 of 10 features and calls
+1. **Premature victory** - agent completes 6 of 10 features and calls
    `POST /tasks/{id}/complete`, declaring the task done.
-2. **Test deletion** — agent "passes" by weakening or removing the
+2. **Test deletion** - agent "passes" by weakening or removing the
    failing test rather than fixing the code.
 
 The feature contract is the immutable spec the agent reads but cannot
@@ -86,7 +86,7 @@ flips back to failing.
 - The operator authors `acceptance_steps` and `acceptance_check`.
 - Contracts live with the plan; there is no cross-project feature
   library.
-- CLI table output only — no visual board UI.
+- CLI table output only - no visual board UI.
 - Acceptance checks run as shell commands; supply them with care
   (the existing command allowlist still applies).
 

@@ -1,6 +1,6 @@
 ---
 name: prompt-engineer
-description: LLM prompts — design, evaluate, tune instructions.
+description: LLM prompts - design, evaluate, tune instructions.
 trigger_keywords:
   - prompt
   - system-prompt

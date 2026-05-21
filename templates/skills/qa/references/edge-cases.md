@@ -7,11 +7,11 @@ relevant:
 - Single-element collections.
 - Boundary values (off-by-one, `0`, `-1`, `MAX_INT`).
 - Unicode, non-ASCII, and RTL scripts in text fields.
-- Timezones — naive datetimes vs. aware UTC.
+- Timezones - naive datetimes vs. aware UTC.
 - Paths with spaces, unicode, and traversal (`../`) attempts.
-- Concurrent access — two calls racing on the same resource.
-- Large inputs — 1 MB strings, 10 000-item lists.
-- Network errors — timeout, refused, partial read, malformed JSON.
-- Partial failures — half the batch succeeds, half fails.
-- Idempotency — retrying the same operation twice.
-- Permissions — the caller is missing one specific scope.
+- Concurrent access - two calls racing on the same resource.
+- Large inputs - 1 MB strings, 10 000-item lists.
+- Network errors - timeout, refused, partial read, malformed JSON.
+- Partial failures - half the batch succeeds, half fails.
+- Idempotency - retrying the same operation twice.
+- Permissions - the caller is missing one specific scope.

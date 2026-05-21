@@ -91,7 +91,7 @@ For self-managed installs:
 * Use a project / group access token (with `api` scope) instead of a
   personal access token if you want least-privilege.
 * The same `/webhooks/gitlab` endpoint and `X-Gitlab-Token` header
-  apply — GitLab's webhook surface is identical between gitlab.com and
+  apply - GitLab's webhook surface is identical between gitlab.com and
   self-managed.
 
 ## Secret rotation

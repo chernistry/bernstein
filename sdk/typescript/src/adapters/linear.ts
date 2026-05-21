@@ -1,5 +1,5 @@
 /**
- * Linear adapter — parse webhook payloads and map states.
+ * Linear adapter - parse webhook payloads and map states.
  *
  * @example
  * ```ts

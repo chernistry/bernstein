@@ -3,10 +3,10 @@
 // Backend SSE event vocabulary lives in
 // `src/bernstein/core/routes/task_detail.py`:
 //
-//   event: log       — data is one line of agent stdout/stderr (plain text).
-//   event: ping      — keepalive while idle (data is JSON `{ ts }`).
-//   event: complete  — terminal status (data is JSON `{ status: done|failed|cancelled }`).
-//   event: close     — server closed after `_MAX_IDLE_TICKS` of no new data.
+//   event: log       - data is one line of agent stdout/stderr (plain text).
+//   event: ping      - keepalive while idle (data is JSON `{ ts }`).
+//   event: complete  - terminal status (data is JSON `{ status: done|failed|cancelled }`).
+//   event: close     - server closed after `_MAX_IDLE_TICKS` of no new data.
 //
 // Everything below is the front-end's normalised representation.
 
@@ -70,7 +70,7 @@ export const LOG_LEVELS_ORDER: readonly LogLevel[] = [
   'trace',
 ] as const;
 
-/** Hard cap on the live buffer — older lines are evicted FIFO. */
+/** Hard cap on the live buffer - older lines are evicted FIFO. */
 export const LOG_BUFFER_CAP = 10_000;
 
 /** Max number of lines to virtualise-render at a time (overscan). */

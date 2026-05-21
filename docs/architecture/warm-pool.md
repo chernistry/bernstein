@@ -5,8 +5,8 @@
 Spawning an agent is not free: Bernstein has to create a git worktree
 (5–15 s on a non-trivial repo), optionally start an MCP server process,
 and warm up the adapter's CLI. The **warm pool** pays that cost ahead of
-time. A small number of "ready" slots — each backed by a pre-created
-worktree and (optionally) a pre-started MCP process — sit idle until a
+time. A small number of "ready" slots - each backed by a pre-created
+worktree and (optionally) a pre-started MCP process - sit idle until a
 task arrives, at which point the spawner claims a slot instead of
 provisioning from scratch.
 
@@ -68,7 +68,7 @@ else:
 Source: `core/agents/spawner_core.py:1591-1616`.
 
 On a miss, the spawner falls back to the cold path (`worktree_mgr.create`)
-and the agent eats the 5–15 s — but the cold path remains the safe
+and the agent eats the 5–15 s - but the cold path remains the safe
 default, so the warm pool only ever speeds things up.
 
 Slot fill is **external** to the pool itself: a background task or the
@@ -98,7 +98,7 @@ warm_pool:
 | `roles` | `[]` | Roles to pre-provision. The spawner only finds a hit if `claim_slot(role)` matches one of these. |
 
 Source: `WarmPoolConfig` at `warm_pool.py:54-66`; loader at
-`warm_pool.py:235-303`. Defaults are conservative — three slots covers
+`warm_pool.py:235-303`. Defaults are conservative - three slots covers
 most projects without doubling your worktree footprint.
 
 Rule of thumb: `max_slots ≈ peak concurrent spawns of one role`.
@@ -125,20 +125,20 @@ paths fall back to cold spawns.
 
 The transitions are the methods on `WarmPool`:
 
-- **`add_slot(slot)`** — append a freshly-built `PoolSlot` to the pool.
+- **`add_slot(slot)`** - append a freshly-built `PoolSlot` to the pool.
   Beyond `max_slots`, additions are silently ignored
   (`warm_pool.py:93-116`).
-- **`claim_slot(role)`** — return the oldest `ready` slot matching
+- **`claim_slot(role)`** - return the oldest `ready` slot matching
   `role`, marking it `claimed`. Returns `None` if no match exists; the
   spawner falls back to the cold path (`warm_pool.py:118-148`).
-- **`release_slot(slot_id)`** — mark a slot `expired` once the agent
+- **`release_slot(slot_id)`** - mark a slot `expired` once the agent
   releases its worktree. Called from `Spawner._release_warm_pool_slot`
   during agent reaping (`spawner_core.py:1038-1043`, `:1947`).
-- **`expire_stale(now=None)`** — sweep ready slots older than
+- **`expire_stale(now=None)`** - sweep ready slots older than
   `slot_ttl_seconds` and move them to `expired`. Run periodically by the
   spawner on its tick loop (`warm_pool.py:170-197`).
 
-The pool itself never **creates** slots — that's the spawner / refiller
+The pool itself never **creates** slots - that's the spawner / refiller
 agent's job. The pool just tracks state and serves claims FIFO. This
 keeps `WarmPool` synchronous, lock-free, and easy to test (every state
 transition produces a new immutable `PoolSlot`).
@@ -175,7 +175,7 @@ server process**. Concrete costs:
   produces, not the repo size itself.
 - **Inodes**: significant on shallow filesystems with low inode budgets
   (CI runners). Watch this on Alpine-based images.
-- **Memory / processes**: only if you start MCP servers per slot —
+- **Memory / processes**: only if you start MCP servers per slot -
   otherwise zero RAM cost while idle.
 - **Branch state**: each worktree owns a checked-out branch; you may
   see extra entries in `git worktree list`. Reaping stale slots prunes
@@ -193,7 +193,7 @@ The pool is opt-in. Skip the `warm_pool:` config block (or set
 
 - **Every spawn already eats hours.** The 5–15 s saving is rounding
   error in long agentic runs.
-- **You are debugging the spawner.** Determinism beats speed here —
+- **You are debugging the spawner.** Determinism beats speed here -
   cold-path spawns are easier to reason about under a debugger.
 - **CI / ephemeral envs.** On a fresh runner you'll never amortise the
   pool fill. Run cold.

@@ -38,7 +38,7 @@ jobs:
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping Bernstein review — no ANTHROPIC_API_KEY secret"
+            echo "::notice::Skipping Bernstein review - no ANTHROPIC_API_KEY secret"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi

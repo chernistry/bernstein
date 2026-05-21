@@ -1,17 +1,17 @@
-# Bernstein — Multi-Agent Orchestration for VS Code
+# Bernstein - Multi-Agent Orchestration for VS Code
 
 VS Code extension for monitoring and controlling [Bernstein](https://github.com/sipyourdrink-ltd/bernstein), a multi-agent orchestration system that runs parallel AI coding agents. Gives you real-time visibility into tasks, agents, and costs without leaving your editor.
 
 ## Features
 
-- **Sidebar views** — dedicated activity bar panel with Agents, Tasks, and Overview views
-- **Agent tree with delegation hierarchy** — see active agents, their roles, models, and parent/child relationships
-- **Task grouping** — tasks organized by status (open, in progress, done, failed) with inline actions
-- **Dashboard webview** — at-a-glance stats: task breakdown, agent count, cost totals, alerts
-- **SSE real-time updates** — live streaming from the orchestrator, no manual refresh needed
-- **`@bernstein` chat participant** — query orchestrator status and costs from VS Code Chat
-- **Cost tracking** — per-agent and per-model spend, budget warnings when thresholds are exceeded
-- **Status bar** — persistent summary of agents, task progress, and total cost
+- **Sidebar views** - dedicated activity bar panel with Agents, Tasks, and Overview views
+- **Agent tree with delegation hierarchy** - see active agents, their roles, models, and parent/child relationships
+- **Task grouping** - tasks organized by status (open, in progress, done, failed) with inline actions
+- **Dashboard webview** - at-a-glance stats: task breakdown, agent count, cost totals, alerts
+- **SSE real-time updates** - live streaming from the orchestrator, no manual refresh needed
+- **`@bernstein` chat participant** - query orchestrator status and costs from VS Code Chat
+- **Cost tracking** - per-agent and per-model spend, budget warnings when thresholds are exceeded
+- **Status bar** - persistent summary of agents, task progress, and total cost
 
 ## Commands
 
@@ -41,7 +41,7 @@ VS Code extension for monitoring and controlling [Bernstein](https://github.com/
 ## Requirements
 
 - VS Code 1.100+ (or compatible forks: Cursor, VSCodium)
-- Bernstein orchestrator running locally — install from [github.com/sipyourdrink-ltd/bernstein](https://github.com/sipyourdrink-ltd/bernstein)
+- Bernstein orchestrator running locally - install from [github.com/sipyourdrink-ltd/bernstein](https://github.com/sipyourdrink-ltd/bernstein)
 
 ## Quick Start
 

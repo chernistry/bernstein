@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Known Limitations — Bernstein</title>
+  <title>Known Limitations - Bernstein</title>
   <meta name="description" content="Honest documentation of Bernstein's known constraints: agent communication latency, single-machine limits, rate detection, context windows. Each with impact assessment and workarounds." />
   <link rel="stylesheet" href="style.css" />
   <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" />
@@ -11,12 +11,12 @@
   <script src="script.js"></script>
   <link rel="canonical" href="https://sipyourdrink-ltd.github.io/bernstein/limitations.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Known Limitations — Bernstein" />
+  <meta property="og:title" content="Known Limitations - Bernstein" />
   <meta property="og:description" content="Honest documentation of Bernstein's known constraints: agent communication latency, single-machine limits, rate detection, context windows. Each with impact assessment and workarounds." />
   <meta property="og:url" content="https://sipyourdrink-ltd.github.io/bernstein/limitations.html" />
   <meta property="og:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Known Limitations — Bernstein" />
+  <meta name="twitter:title" content="Known Limitations - Bernstein" />
   <meta name="twitter:description" content="Honest documentation of Bernstein's known constraints: agent communication latency, single-machine limits, rate detection, context windows. Each with impact assessment and workarounds." />
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Bernstein","item":"https://sipyourdrink-ltd.github.io/bernstein/"},{"@type":"ListItem","position":2,"name":"Known Limitations","item":"https://sipyourdrink-ltd.github.io/bernstein/limitations.html"}]}
@@ -149,7 +149,7 @@
         <tbody>
         <tr><td><strong>What</strong></td><td>All state lives in <code>.sdd/</code> as flat files. No database.</td></tr>
         <tr><td><strong>Impact</strong></td><td>Concurrent access is coordinated via file locks but is less robust than a database. Very large backlogs (1000+ tasks) may experience slower reads.</td></tr>
-        <tr><td><strong>Workaround</strong></td><td>This is deliberate — simpler, more portable, no infrastructure. Works well for most projects.</td></tr>
+        <tr><td><strong>Workaround</strong></td><td>This is deliberate - simpler, more portable, no infrastructure. Works well for most projects.</td></tr>
         </tbody>
       </table>
     </section>
@@ -162,7 +162,7 @@
         <tbody>
         <tr><td><strong>What</strong></td><td>Cost estimates are based on token count projections, which can vary 2-3x from actual usage.</td></tr>
         <tr><td><strong>Impact</strong></td><td>Pre-execution cost projections may be significantly off for complex tasks where agents iterate.</td></tr>
-        <tr><td><strong>Workaround</strong></td><td>Always set a <code>--budget</code> cap. Budget enforcement is exact — it tracks actual spend and stops at the limit.</td></tr>
+        <tr><td><strong>Workaround</strong></td><td>Always set a <code>--budget</code> cap. Budget enforcement is exact - it tracks actual spend and stops at the limit.</td></tr>
         </tbody>
       </table>
     </section>
@@ -239,7 +239,7 @@
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 

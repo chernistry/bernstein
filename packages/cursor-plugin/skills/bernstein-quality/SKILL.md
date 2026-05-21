@@ -1,7 +1,7 @@
 ---
 name: bernstein-quality
 description: >
-  Show quality metrics for Bernstein runs — success rates per model,
+  Show quality metrics for Bernstein runs - success rates per model,
   lint/test pass rates, completion time distributions. Use when the user
   asks about quality, reliability, which model performs best, or pass rates.
 ---

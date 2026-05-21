@@ -24,7 +24,7 @@ import Fleet from './routes/Fleet';
 import Settings from './routes/Settings';
 
 // ── QueryClient ────────────────────────────────────────────────────────────
-// - retry: skip 4xx (operator error / unauth — never recovers); only retry on
+// - retry: skip 4xx (operator error / unauth - never recovers); only retry on
 //   transport / 5xx, and cap at 2 attempts.
 // - refetchOnWindowFocus: keep the React Query default of `true` so screens
 //   that observe live state (Approvals, Tasks) refresh when the operator
@@ -62,7 +62,7 @@ function RouteEffects() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Title — fall back to the bare app name on unknown routes.
+    // Title - fall back to the bare app name on unknown routes.
     const root = `/${pathname.split('/').filter(Boolean)[0] ?? ''}`;
     const label = ROUTE_TITLES[root];
     document.title = label ? `${label} · Bernstein` : 'Bernstein';
@@ -134,7 +134,7 @@ function RouteCrashFallback({
       >
         <h2 className="text-h3 text-foreground">Screen crashed</h2>
         <p className="mt-2 text-body text-muted-foreground">
-          A runtime error broke this view. The rest of the app is still up —
+          A runtime error broke this view. The rest of the app is still up -
           retry to remount the screen, or reload the page if it keeps failing.
         </p>
         <pre className="mt-3 max-h-40 overflow-auto rounded-sm border border-border-subtle bg-card p-2 font-mono text-[11px] text-muted-foreground">
@@ -192,7 +192,7 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="bernstein-theme">
       <QueryClientProvider client={queryClient}>
-        {/* basename normalizes both `/ui` and `/ui/` — RR strips the prefix
+        {/* basename normalizes both `/ui` and `/ui/` - RR strips the prefix
             internally before matching, so the index route fires exactly once
             in either case. */}
         <BrowserRouter basename="/ui">

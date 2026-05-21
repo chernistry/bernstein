@@ -1,6 +1,6 @@
 ---
 name: devops
-description: DevOps — Docker, CI/CD, cloud infra, monitoring.
+description: DevOps - Docker, CI/CD, cloud infra, monitoring.
 trigger_keywords:
   - devops
   - docker

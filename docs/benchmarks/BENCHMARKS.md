@@ -8,7 +8,7 @@ Simulated DAG scheduling, not measured runs. Clear methodology, reproducible res
 
 Across 10 tasks with realistic dependency graphs, Bernstein with 3 agents completes **1.78× faster** on average than a single agent working sequentially. With 5 agents: **2.18× faster**. Model mixing (Haiku for QA/docs, Sonnet for backend) reduces cost by **23%**.
 
-This is a **simulation** — it models scheduling behavior on realistic DAGs, not real agent execution. Treat it as a capacity planning estimate, not a leaderboard claim.
+This is a **simulation** - it models scheduling behavior on realistic DAGs, not real agent execution. Treat it as a capacity planning estimate, not a leaderboard claim.
 
 ### Results table
 
@@ -25,7 +25,7 @@ This is a **simulation** — it models scheduling behavior on realistic DAGs, no
 | Add logging and monitoring hooks | observability | 8 | 68 | 32 | 30 | **2.12×** | **2.27×** | 17% | +20pp |
 | Security audit + fixes | security | 10 | 97 | 49 | 43 | **1.98×** | **2.26×** | 8% | +26pp |
 
-**What this means for you:** a task that takes one agent 67 minutes (auth middleware + tests + docs) drops to 39 minutes with 3 agents — saving 28 minutes of your day. The lint-fix task (20 min → 8 min) saves 12 minutes. Across 10 tasks, you save roughly 40% of your wait time.
+**What this means for you:** a task that takes one agent 67 minutes (auth middleware + tests + docs) drops to 39 minutes with 3 agents - saving 28 minutes of your day. The lint-fix task (20 min → 8 min) saves 12 minutes. Across 10 tasks, you save roughly 40% of your wait time.
 
 ### Methodology
 
@@ -53,7 +53,7 @@ SWE-Bench is the standard benchmark for autonomous code understanding and genera
 
 ### Current status: **preview artifacts**
 
-The results in `benchmarks/swe_bench/results/` are **mock preview artifacts** — not verified eval runs. They demonstrate the harness format and output structure but should not be used for public benchmark claims.
+The results in `benchmarks/swe_bench/results/` are **mock preview artifacts** - not verified eval runs. They demonstrate the harness format and output structure but should not be used for public benchmark claims.
 
 | Scenario | Source type | Verified | Sample size |
 |---|---|---|---:|
@@ -72,7 +72,7 @@ uv run python benchmarks/swe_bench/run.py eval \
 uv run python benchmarks/swe_bench/run.py report
 ```
 
-Only artifacts marked `verified=true` from `benchmarks/swe_bench/run.py eval` are eligible for public benchmark claims. Public comparisons are kept narrow — Bernstein versus solo-agent baselines on SWE-Bench Lite. Cross-framework numbers belong only on harnesses we run end-to-end.
+Only artifacts marked `verified=true` from `benchmarks/swe_bench/run.py eval` are eligible for public benchmark claims. Public comparisons are kept narrow - Bernstein versus solo-agent baselines on SWE-Bench Lite. Cross-framework numbers belong only on harnesses we run end-to-end.
 
 ---
 
@@ -126,6 +126,6 @@ uv run python benchmarks/bench_startup.py
 
 ## What these numbers don't tell you
 
-Benchmarks measure scheduling efficiency, not code quality. A fast wrong answer is still wrong. Bernstein's janitor and quality gates ensure the output is correct before it lands — which adds overhead but saves you from debugging agent mistakes.
+Benchmarks measure scheduling efficiency, not code quality. A fast wrong answer is still wrong. Bernstein's janitor and quality gates ensure the output is correct before it lands - which adds overhead but saves you from debugging agent mistakes.
 
 The real metric that matters: **how much of your day do you save?** If a single agent would take 4 hours on your backlog and Bernstein finishes it in 2.5 hours with verified output, you got back 1.5 hours. That compounds across every run.

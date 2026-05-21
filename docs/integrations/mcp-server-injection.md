@@ -2,7 +2,7 @@
 
 A Bernstein plugin can inject Model Context Protocol (MCP) server
 definitions into every spawned agent's MCP config. The `provide_mcp_servers`
-plugin hook lets your distribution ship — for example — a Postgres MCP
+plugin hook lets your distribution ship - for example - a Postgres MCP
 server, an internal-knowledge-base MCP, a credentials vault MCP, or a
 filesystem MCP scoped to the agent's worktree, **without** asking each
 operator to edit `bernstein.yaml`.
@@ -32,7 +32,7 @@ def provide_mcp_servers(self) -> list[dict[str, Any]] | None:
     """Return MCP server definitions to inject into agent configs."""
 ```
 
-A plugin that raises is logged and skipped — it does not crash
+A plugin that raises is logged and skipped - it does not crash
 collection (`plugins/manager.py:973-975`).
 
 ### Server-dict fields
@@ -156,15 +156,15 @@ even when the operator did not list it in `task.mcp_servers`.
   pass `/` or the operator's home dir.
 - **Env-var hygiene.** List every secret your server consumes in
   `env_required`; the orchestrator copies only listed vars into the
-  agent's env (`MCPServerEntry.to_mcp_config()` —
+  agent's env (`MCPServerEntry.to_mcp_config()` -
   `core/protocols/mcp/mcp_registry.py:79-86`).
 - **Fail closed.** A raise in `provide_mcp_servers()` is logged and
   skipped (`plugins/manager.py:973-975`). A server that does not start
   is caught by `validate_mcp_readiness()` at spawn
-  (`spawner_core.py:1646-1654`) — the spawn warns but does not crash.
+  (`spawner_core.py:1646-1654`) - the spawn warns but does not crash.
 - **Plugin policy gates registration.** Bernstein's enterprise plugin
   policy (`plugins_core.policy`) can deny-list your plugin; MCP injection
-  requires a registered, allowed plugin — there is no side-channel.
+  requires a registered, allowed plugin - there is no side-channel.
 - **Document capabilities.** An MCP server that can run shell commands
   is effectively an RCE vector for the LLM. Be explicit.
 
@@ -172,7 +172,7 @@ even when the operator did not list it in `task.mcp_servers`.
 
 ## Testing your plugin
 
-### Unit test — namespacing
+### Unit test - namespacing
 
 `tests/unit/test_plugins.py:491-504` shows the established pattern:
 
@@ -188,7 +188,7 @@ def test_plugin_servers_are_namespaced():
     assert "acme__shared-fs" in config["mcpServers"]
 ```
 
-### Integration check — observe the merged config
+### Integration check - observe the merged config
 
 Spawn one task in dry-run mode, then ripgrep the merged MCP config the
 spawner emitted into the worktree:
@@ -221,7 +221,7 @@ spawn-time write all line up.
 
 ## Related
 
-- `integrations/plugin-sdk.md` — full plugin authoring guide.
-- `integrations/hook-system.md` — wider hook lifecycle.
-- `architecture/state-persistence.md` — where the merged MCP config
+- `integrations/plugin-sdk.md` - full plugin authoring guide.
+- `integrations/hook-system.md` - wider hook lifecycle.
+- `architecture/state-persistence.md` - where the merged MCP config
   lands on disk.

@@ -82,10 +82,10 @@ sources, while MCP servers ship in Python, Node, Go, and Rust.
 
 | Rule | Lineage |
 |------|---------|
-| Path traversal — `Path.resolve` missing in tool handlers | Anthropic Git MCP CVE-2025-68145 |
-| Shell injection — `subprocess` with `shell=True` or unsanitised concatenation | OpenClaw CVE-2026-25253 |
-| OAuth callback RCE — callback handlers without redirect-URI allowlist | mcp-remote CVE-2025-6514 |
-| Scope escalation — token re-use with widened `scope=` | OpenClaw CVE-2026-32922 (CVSS 9.9) |
+| Path traversal - `Path.resolve` missing in tool handlers | Anthropic Git MCP CVE-2025-68145 |
+| Shell injection - `subprocess` with `shell=True` or unsanitised concatenation | OpenClaw CVE-2026-25253 |
+| OAuth callback RCE - callback handlers without redirect-URI allowlist | mcp-remote CVE-2025-6514 |
+| Scope escalation - token re-use with widened `scope=` | OpenClaw CVE-2026-32922 (CVSS 9.9) |
 
 Each finding carries a `severity` (`info` / `low` / `medium` / `high`
 / `critical`), a `path:line` pointer, a CWE tag, and a remediation hint.
@@ -166,7 +166,7 @@ The remediation message names:
 - up to three CRITICAL scanner findings with their CWE tags and
   source location.
 
-The message stays log-friendly even when many findings fire — only
+The message stays log-friendly even when many findings fire - only
 the first three show up in the head; the full list is on the
 returned `MCPLoadDecision.scanner_findings`.
 
@@ -187,12 +187,12 @@ metrics exporter and tests share one accessor.
 
 - Source: `src/bernstein/core/protocols/mcp/mcp_signing_policy.py`,
   `mcp_verifier.py`, `mcp_scanner.py`
-- [Capability matrix](capability-matrix.md) — the upstream gate that
+- [Capability matrix](capability-matrix.md) - the upstream gate that
   pins which MCP tool calls a role may dispatch
-- [OWASP ASI04 — Agentic Supply Chain](owasp-asi.md) — the heuristic
+- [OWASP ASI04 - Agentic Supply Chain](owasp-asi.md) - the heuristic
   detector that delegates to this signature gate when callers
   populate `loaded_components` with `{name, signed}` entries
-- [Lethal-trifecta security model](lethal-trifecta.md) — the structural
+- [Lethal-trifecta security model](lethal-trifecta.md) - the structural
   exfiltration gate that runs alongside MCP signing
-- RFC 8785 (JCS), RFC 8037 (Ed25519) — the canonicalisation and signing
+- RFC 8785 (JCS), RFC 8037 (Ed25519) - the canonicalisation and signing
   primitives the verifier reuses

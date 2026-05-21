@@ -11,7 +11,7 @@ prometheus:
   url: http://prometheus-kube-prometheus-prometheus.monitoring.svc
   port: 9090
 
-# Custom metrics rules — convert Prometheus metrics to Kubernetes custom metrics
+# Custom metrics rules - convert Prometheus metrics to Kubernetes custom metrics
 rules:
   custom:
     # Queue depth metric for HPA scaling

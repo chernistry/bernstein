@@ -5,10 +5,10 @@ Working examples showing how to use Bernstein for multi-agent orchestration.
 ## Quick Start
 
 ```bash
-# Simplest possible — one goal, Bernstein figures out the rest
+# Simplest possible - one goal, Bernstein figures out the rest
 bernstein run examples/simple.yaml
 
-# Full config — all knobs exposed
+# Full config - all knobs exposed
 bernstein run examples/full.yaml
 ```
 
@@ -75,24 +75,24 @@ bernstein run examples/plans/<plan>.yaml
 
 ### Goal-based (no stages)
 
-- **[simple.yaml](simple.yaml)** — Minimal: one goal, Bernstein plans everything
-- **[full.yaml](full.yaml)** — All configuration fields documented
-- **[rag-system.yaml](rag-system.yaml)** — RAG system with constraints and context files
+- **[simple.yaml](simple.yaml)** - Minimal: one goal, Bernstein plans everything
+- **[full.yaml](full.yaml)** - All configuration fields documented
+- **[rag-system.yaml](rag-system.yaml)** - RAG system with constraints and context files
 
 ### Working Projects
 
-- **[quickstart/](quickstart/)** — Flask TODO API that Bernstein fixes (validation, errors, tests)
-- **[todo-app/](todo-app/)** — Sample target project for running plans against
-- **[cli-tool/](cli-tool/)** — Sample CLI project skeleton
+- **[quickstart/](quickstart/)** - Flask TODO API that Bernstein fixes (validation, errors, tests)
+- **[todo-app/](todo-app/)** - Sample target project for running plans against
+- **[cli-tool/](cli-tool/)** - Sample CLI project skeleton
 
 ### Configuration Examples
 
-- **[multi-model/](multi-model/)** — Using multiple agents with different models
-- **[model_policy/](model_policy/)** — Model routing and cost policies
+- **[multi-model/](multi-model/)** - Using multiple agents with different models
+- **[model_policy/](model_policy/)** - Model routing and cost policies
 
 ### Plugin Examples
 
-- **[plugins/](plugins/)** — Custom plugins: Slack/Discord notifiers, Jira/Linear integration, custom routers, quality gates, metrics, and more
+- **[plugins/](plugins/)** - Custom plugins: Slack/Discord notifiers, Jira/Linear integration, custom routers, quality gates, metrics, and more
 
 ## Plan Anatomy
 

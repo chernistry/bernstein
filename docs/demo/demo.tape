@@ -1,6 +1,6 @@
 # Bernstein README top-section demo (closes #1112)
 #
-# Generates docs/demo/demo.gif — the 60-second clip that anchors the
+# Generates docs/demo/demo.gif - the 60-second clip that anchors the
 # README's first screen.
 #
 # Regenerate with:

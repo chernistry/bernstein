@@ -21,7 +21,7 @@ export function useTaskDiff({ taskId, enabled }: UseTaskDiffOptions) {
         `/dashboard/tasks/${encodeURIComponent(taskId)}/diff`,
       ),
     enabled: enabled && taskId !== '',
-    // The diff doesn't update on its own — refetching is operator-driven via
+    // The diff doesn't update on its own - refetching is operator-driven via
     // the Refresh button. Stale immediately so a refetch always hits the
     // server.
     staleTime: 0,

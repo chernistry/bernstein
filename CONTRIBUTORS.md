@@ -4,7 +4,7 @@ We are grateful to everyone who has contributed to Bernstein.
 
 ## Core team
 
-- **Alex Chernysh** ([@chernistry](https://github.com/chernistry), [alexchernysh.com](https://alexchernysh.com), [@alex_chernysh on X](https://x.com/alex_chernysh)) — Creator and maintainer. Project home: [bernstein.run](https://bernstein.run).
+- **Alex Chernysh** ([@chernistry](https://github.com/chernistry), [alexchernysh.com](https://alexchernysh.com), [@alex_chernysh on X](https://x.com/alex_chernysh)) - Creator and maintainer. Project home: [bernstein.run](https://bernstein.run).
 
 ## Contributors
 
@@ -29,6 +29,6 @@ We are grateful to everyone who has contributed to Bernstein.
 
 ## Community
 
-Bernstein is open-source under the Apache 2.0 license. We welcome all contributions — bug fixes, docs improvements, new adapters, features, and bug reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
+Bernstein is open-source under the Apache 2.0 license. We welcome all contributions - bug fixes, docs improvements, new adapters, features, and bug reports. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
 The [full list of contributors](https://github.com/sipyourdrink-ltd/bernstein/graphs/contributors) is maintained by GitHub.

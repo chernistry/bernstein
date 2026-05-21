@@ -9,11 +9,11 @@ Bernstein ships **163 CLI commands** registered in `cli/main.py`. This page is t
 
 ## Root command flags
 
-`bernstein` itself accepts these flags (defined at `cli/main.py:482-572`). Most of them only matter when invoked **without** a subcommand — i.e. when you run `bernstein` to start orchestration from `bernstein.yaml` or an inline `--goal`.
+`bernstein` itself accepts these flags (defined at `cli/main.py:482-572`). Most of them only matter when invoked **without** a subcommand - i.e. when you run `bernstein` to start orchestration from `bernstein.yaml` or an inline `--goal`.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--version` | — | Print version and exit. |
+| `--version` | - | Print version and exit. |
 | `-g, --goal TEXT` | none | Inline goal; bypasses the seed file. |
 | `--json` | off | Emit machine-readable JSON for any subcommand that supports it. |
 | `--output {json|text}` | text | Same effect as `--json` when set to `json`. |
@@ -434,7 +434,7 @@ Show what changed between two task states.
 | `sync` | Pull the latest agent catalog. |
 | `validate` | Validate the local catalog. |
 | `showcase` | Print example invocations for each agent. |
-| `match` | `--role X` `--task TEXT` — show which agent best matches. |
+| `match` | `--role X` `--task TEXT` - show which agent best matches. |
 | `sandbox-backends` | List available sandbox backends. |
 | `discover` | Auto-detect installed CLI agents. `--net` also searches GitHub/npm. |
 
@@ -469,7 +469,7 @@ See [`operations/cluster-mode.md`](../operations/cluster-mode.md) for the full s
 | `--github` | off | Sync proposals as GitHub Issues. |
 | `--yes` | off | Skip the safety confirmation. |
 
-`bernstein evolve` is hidden behind a confirmation prompt by default — see the safety guard at `cli/main.py:455`.
+`bernstein evolve` is hidden behind a confirmation prompt by default - see the safety guard at `cli/main.py:455`.
 
 ---
 
@@ -592,7 +592,7 @@ Lists plugins in `.bernstein/plugins/<name>/meta.json`.
 | Flag | Default | Meaning |
 |---|---|---|
 | `PROVIDER` | required | Provider ID (e.g. `bernstein-cloud`). |
-| Various `--*` | — | Provider-specific (see `cli/commands/creds_cmd.py:95-200`). |
+| Various `--*` | - | Provider-specific (see `cli/commands/creds_cmd.py:95-200`). |
 
 #### `bernstein fleet`
 
@@ -624,7 +624,7 @@ Multi-project dashboard.
 | `bernstein approve-tool` | Approve a tool-call request. | `cli/commands/approval_cmd.py:approve_tool_cmd` |
 | `bernstein reject-tool` | Reject a tool-call request. | `cli/commands/approval_cmd.py:reject_tool_cmd` |
 
-> Task-level `approve` / `reject` are different commands — see [Plan & tasks](#plan--tasks).
+> Task-level `approve` / `reject` are different commands - see [Plan & tasks](#plan--tasks).
 
 #### `bernstein login`
 
@@ -930,7 +930,7 @@ Print the path Bernstein would read config from. Useful for shell completion and
 
 #### `bernstein mcp`
 
-The root MCP command — runs Bernstein as an MCP server itself.
+The root MCP command - runs Bernstein as an MCP server itself.
 
 | Flag | Default | Meaning |
 |---|---|---|
@@ -1122,15 +1122,15 @@ Four task-related commands are wired but hidden from `--help`. They are stable a
 | `bernstein task notes` | `cli/commands/task_cmd.py:614` | Tail server / spawner logs. Prefer `bernstein logs tail`. |
 | `bernstein task parts` | `cli/commands/task_cmd.py:637` | Same as `bernstein list-tasks`. |
 
-To invoke any of them, just type the full path (`bernstein task compose ...`) — they accept the same flags as their visible siblings.
+To invoke any of them, just type the full path (`bernstein task compose ...`) - they accept the same flags as their visible siblings.
 
 ---
 
 ## See also
 
-- [`cli/task-lifecycle.md`](cli/task-lifecycle.md) — driving Bernstein from a script.
-- [`cli/replay.md`](cli/replay.md) — `replay` + `replay-filter` reference.
-- [`reference/mcp-catalog.md`](mcp-catalog.md) — MCP catalog walkthrough.
-- [`reference/openapi-reference.md`](openapi-reference.md) — REST + WebSocket + ACP/A2A endpoints.
-- [`reference/FEATURE_MATRIX.md`](FEATURE_MATRIX.md) — capability matrix.
-- [`operations/CONFIG.md`](../operations/CONFIG.md) — every config key Bernstein recognises.
+- [`cli/task-lifecycle.md`](cli/task-lifecycle.md) - driving Bernstein from a script.
+- [`cli/replay.md`](cli/replay.md) - `replay` + `replay-filter` reference.
+- [`reference/mcp-catalog.md`](mcp-catalog.md) - MCP catalog walkthrough.
+- [`reference/openapi-reference.md`](openapi-reference.md) - REST + WebSocket + ACP/A2A endpoints.
+- [`reference/FEATURE_MATRIX.md`](FEATURE_MATRIX.md) - capability matrix.
+- [`operations/CONFIG.md`](../operations/CONFIG.md) - every config key Bernstein recognises.

@@ -79,14 +79,14 @@ if not result.ok:
 
 `verify_envelope` runs four independent checks:
 
-1. **Envelope shape** — DSSE structural fields, payload type, signatures
+1. **Envelope shape** - DSSE structural fields, payload type, signatures
    array, base64 payload validity.
-2. **Statement type** — `_type` and `predicateType` match the constants
+2. **Statement type** - `_type` and `predicateType` match the constants
    above. Out-of-band envelopes from another producer fail this check.
-3. **Subject digest** — every artefact in the predicate's bundle manifest
+3. **Subject digest** - every artefact in the predicate's bundle manifest
    has a matching SHA-256 entry in the in-toto subject list. A digest
    mismatch surfaces here before any signature work.
-4. **Signature** — the DSSE PAE bytes verify against the supplied public
+4. **Signature** - the DSSE PAE bytes verify against the supplied public
    key. Wrong key, edited payload, edited signature, all fail.
 
 ## Verifying with the standalone verifier
@@ -94,7 +94,7 @@ if not result.ok:
 The standalone verifier exists for the auditor who does not want to
 install bernstein. It depends only on the Python standard library plus
 `cryptography` and refuses to import anything from the `bernstein.*`
-package — a subprocess-isolated test in CI asserts that
+package - a subprocess-isolated test in CI asserts that
 `import bernstein` raises `ModuleNotFoundError` from inside the
 verifier's venv.
 
@@ -107,7 +107,7 @@ python tools/verify_audit_dsse.py \
 Add `--bundle path/to/bundle.zip --hmac-key path/to/audit.key` and the
 verifier additionally re-walks the HMAC chain inside the bundle. Without
 the HMAC key, the verifier still validates the envelope's Ed25519
-signature and the in-toto subject digests — that is the regulator-class
+signature and the in-toto subject digests - that is the regulator-class
 property: the auditor confirms integrity without holding the operator's
 HMAC secret.
 
@@ -144,7 +144,7 @@ points at the layer that broke, not just "verification failed".
 ## Public-key distribution
 
 The operator publishes the Ed25519 public key alongside the bundle archive
-and the envelope — typically as a PEM file inside the same evidence pack
+and the envelope - typically as a PEM file inside the same evidence pack
 zip. For supply-chain hardening, pin the public key in the verifier
 harness rather than reading it from the bundle the auditor was handed:
 
@@ -159,29 +159,29 @@ verifying against itself.
 
 ## Compliance mapping (one-line)
 
-- **EU AI Act Art. 12(2)(c)** — third-party-verifiable monitoring of
+- **EU AI Act Art. 12(2)(c)** - third-party-verifiable monitoring of
   high-risk AI systems referred to in Art. 26(5). The envelope's Ed25519
   signature plus the standalone verifier together form the evidence the
   auditor can verify offline.
-- **EU AI Act Art. 19(1)** — automatically generated logs, retained ≥6
+- **EU AI Act Art. 19(1)** - automatically generated logs, retained ≥6
   months. The DSSE wrapping does not change retention; it makes the
   retained artefact verifiable years later under a key the operator can
   hand off.
-- **DORA Art. 9(3)** — integrity of ICT records. The DSSE envelope is the
+- **DORA Art. 9(3)** - integrity of ICT records. The DSSE envelope is the
   integrity proof; the operator pairs it with an immutable backend (S3
   Object Lock, WORM Postgres) for the storage-side guarantee.
-- **AIGF `CTRL-AUDIT-TRAIL`** — covered. See
+- **AIGF `CTRL-AUDIT-TRAIL`** - covered. See
   [FINOS AIGF mapping](../compliance/finos-aigf-mapping.md).
 
 ## Related
 
-- [Audit log](audit-log.md) — the HMAC chain the bundle slices.
-- [Multi-tenant audit-chain export](audit-multitenant.md) — same DSSE
+- [Audit log](audit-log.md) - the HMAC chain the bundle slices.
+- [Multi-tenant audit-chain export](audit-multitenant.md) - same DSSE
   primitives applied to a per-tenant slice with optional RFC 3161
   timestamping.
 - [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
-  — the bundle the envelope wraps.
-- [Regulatory lineage](../compliance/regulatory-lineage.md) — the
+  - the bundle the envelope wraps.
+- [Regulatory lineage](../compliance/regulatory-lineage.md) - the
   customer-key signing path that shares rotation plumbing with this
   envelope.
 - Source: `src/bernstein/core/security/audit_dsse.py`,

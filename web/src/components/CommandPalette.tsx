@@ -1,4 +1,4 @@
-// ⌘K palette — fuzzy across routes + recent tasks. Static for now;
+// ⌘K palette - fuzzy across routes + recent tasks. Static for now;
 // task screens can extend by hooking into a shared store later.
 
 import { useEffect, useMemo, useRef, useState } from 'react';

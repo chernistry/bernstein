@@ -25,7 +25,7 @@ import { LOG_BUFFER_CAP } from './types';
 export interface UseTaskLogStreamOptions {
   /** Resolved task identifier. Empty string disables the hook. */
   taskId: string;
-  /** Mount/unmount toggle — used to suspend SSE when the tab isn't active. */
+  /** Mount/unmount toggle - used to suspend SSE when the tab isn't active. */
   enabled: boolean;
   /** When true, new lines go into the pending queue instead of `lines`. */
   paused: boolean;
@@ -153,7 +153,7 @@ export function useTaskLogStream({
     onError: () => setPhase('failed'),
   });
 
-  // Reflect `paused` prop changes into the phase pill — but only when we're
+  // Reflect `paused` prop changes into the phase pill - but only when we're
   // currently live. Pausing a failed/completed stream does nothing.
   useEffect(() => {
     setPhase((p) => {
@@ -195,7 +195,7 @@ export function useTaskLogStream({
     };
   }, [phase, fallbackChecked, taskId, buffer.totalLines, ingestLine]);
 
-  // Reset state when `taskId` changes — otherwise the next task would start
+  // Reset state when `taskId` changes - otherwise the next task would start
   // with the previous one's buffer.
   const prevTaskRef = useRef(taskId);
   useEffect(() => {

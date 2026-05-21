@@ -1,4 +1,4 @@
-# EU manufacturer demo — robotic safety thresholds
+# EU manufacturer demo - robotic safety thresholds
 
 ## TL;DR
 
@@ -8,7 +8,7 @@
 | Window | 2026-03-02 → 2026-03-13 |
 | Primary artefact | `config/robotics/safety_thresholds.yaml` |
 | Secondary artefact | `docs/annex-iii/conformity_packet.md` |
-| Classification | EU AI Act Annex III §1(a) — high-risk machinery safety component |
+| Classification | EU AI Act Annex III §1(a) - high-risk machinery safety component |
 | Agents | safety-threshold-bot, hazard-review-bot, annex-iii-docs-bot |
 | Entries | 30 |
 | Output | `expected-pack.zip` + `cold-storage-roundtrip.md` |
@@ -22,7 +22,7 @@ machinery). The CE-marking notified body asks for:
 1. Article 11 technical documentation (Annex IV §1–9).
 2. Article 12 event log retained for the **lifetime of the equipment**
    (typically 10+ years for industrial machinery).
-3. Article 17 quality-management evidence — including who can change
+3. Article 17 quality-management evidence - including who can change
    safety thresholds and how those changes are reviewed.
 
 The four-eyes review model lives inside the lineage chain: every
@@ -51,7 +51,7 @@ uv run python examples/lineage/scripts/gen_demo_eu_mfg.py
 uv run python examples/lineage/scripts/build_expected_pack.py
 ```
 
-Deterministic — seed `20260301`, fixed UTC timestamps.
+Deterministic - seed `20260301`, fixed UTC timestamps.
 
 ## How to run the demo
 

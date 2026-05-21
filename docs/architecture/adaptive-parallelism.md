@@ -10,7 +10,7 @@ result is a moving `effective_max_agents` value visible in dashboards
 and metrics.
 
 If you only have time for one sentence: **set `max_agents` as a
-ceiling, not a target — the orchestrator will run fewer concurrent
+ceiling, not a target - the orchestrator will run fewer concurrent
 agents on its own when error rate or CPU spikes**. The rest of this page
 explains the rules, bounds, and how to opt out for deterministic runs.
 
@@ -21,11 +21,11 @@ explains the rules, bounds, and how to opt out for deterministic runs.
 A flat `max_agents: 8` works if every task is uniform. In real runs
 tasks mix:
 
-- A few **light** tasks (a 30 s docs edit) — eight in parallel is fine.
-- One **heavy** task (a long Opus call with a 90 s tool chain) — eight
+- A few **light** tasks (a 30 s docs edit) - eight in parallel is fine.
+- One **heavy** task (a long Opus call with a 90 s tool chain) - eight
   in parallel pin the CPU, the kernel starts swapping, every agent
   slows down.
-- A **bad** task that fails repeatedly — running it eight times in
+- A **bad** task that fails repeatedly - running it eight times in
   parallel just produces eight failures faster.
 
 Static caps either under-utilise (too low for light tasks) or thrash
@@ -37,7 +37,7 @@ Static caps either under-utilise (too low for light tasks) or thrash
 ## The solution: a feedback controller on `max_agents`
 
 `core/orchestration/adaptive_parallelism.py` (`AdaptiveParallelism`
-dataclass) tracks two windowed signals — task error rate and CPU load —
+dataclass) tracks two windowed signals - task error rate and CPU load -
 and re-evaluates `effective_max_agents` once per orchestrator tick. The
 controller mutates the orchestrator's working `max_agents` value before
 the spawner picks tasks for that tick:
@@ -51,7 +51,7 @@ self._config.max_agents = _effective_max
 
 Source: `core/orchestration/orchestrator.py:608`, `:1326-1327`.
 
-The controller is purely additive — if you don't read its outputs,
+The controller is purely additive - if you don't read its outputs,
 nothing changes about the orchestrator loop except that `max_agents`
 now drifts.
 
@@ -61,23 +61,23 @@ now drifts.
 
 Three live signals, one explicit override:
 
-1. **Task error rate** — `record_outcome(success: bool)` called by the
+1. **Task error rate** - `record_outcome(success: bool)` called by the
    orchestrator after every terminal task transition. The controller
    keeps a sliding window of `(timestamp, success)` outcomes
    (`adaptive_parallelism.py:63-69`).
-2. **CPU load** — read on every tick. On Unix, `os.getloadavg()[1]`
+2. **CPU load** - read on every tick. On Unix, `os.getloadavg()[1]`
    (5-minute load average, normalised by `os.cpu_count()`). On Windows,
    `psutil.cpu_percent()` if available, else `0.0` (the rule
    effectively disables itself there). Source: `_get_cpu_percent()` at
    `adaptive_parallelism.py:88-113`.
-3. **Time since startup** — used as a 120 s grace period during which
+3. **Time since startup** - used as a 120 s grace period during which
    CPU rules are skipped (boot-time spikes are normal).
-4. **SLO error-budget cap** — an external override. The SLO subsystem
+4. **SLO error-budget cap** - an external override. The SLO subsystem
    can call `set_slo_constraint(max_agents)` to pin the controller to a
    hard ceiling when the error budget is depleted; clearing the cap is
    `set_slo_constraint(None)` (`adaptive_parallelism.py:115-128`).
 
-Window size and thresholds are not magic numbers — they're declared
+Window size and thresholds are not magic numbers - they're declared
 once in `core/defaults.py:254-261` (`ParallelismDefaults`) and reused.
 
 ---
@@ -108,7 +108,7 @@ immediately so high-priority signals can't be cancelled by lower ones:
    at `configured_max`). Reason: `"cpu_recovered"`. Source:
    `_apply_cpu_recovery_rule` at `adaptive_parallelism.py:182-188`.
 5. **SLO hard cap.** After all adaptive rules, the SLO constraint is
-   enforced as a `min()` clamp — even if the controller wants more
+   enforced as a `min()` clamp - even if the controller wants more
    agents, the SLO budget can deny it (`adaptive_parallelism.py:215-217`).
 6. **Minimum floor.** Never drop below `max(1, configured_max // 2)`
    except via CPU overload (early-returned above) or the explicit SLO
@@ -133,7 +133,7 @@ trail is easy to read after a run.
 | Window size | `PARALLELISM.window_s` | `600 s` | `tuning.parallelism.window_s` |
 
 Source: `core/defaults.py:254-261`. Tunable via the `tuning.parallelism`
-config branch — leave them alone unless your workload is unusual.
+config branch - leave them alone unless your workload is unusual.
 
 ---
 
@@ -177,22 +177,22 @@ Two surfaces:
 
 Reach for "deterministic" mode when:
 
-- **Compliance / replay runs** — bit-for-bit reproducibility requires
+- **Compliance / replay runs** - bit-for-bit reproducibility requires
   a fixed `max_agents`. Drift breaks the WAL replay equivalence-check.
-- **Benchmarks / regressions** — you want to measure adapter latency,
+- **Benchmarks / regressions** - you want to measure adapter latency,
   not the controller.
-- **Tests that assert exact concurrency** — set the configured max
+- **Tests that assert exact concurrency** - set the configured max
   high so the floor pins the effective max to the same value (or hard-
   pin via `set_slo_constraint`).
 
-There is no `enabled: false` switch — the controller is always
+There is no `enabled: false` switch - the controller is always
 constructed by the orchestrator. To get static behaviour:
 
 1. Set both `error_rate_high` and `error_rate_low` to extreme values
    (`1.0` and `0.0`) so neither rule fires, and `cpu_pause_threshold`
    far above any real load.
 2. Or set `configured_max == floor` (i.e. tune `max_agents` so
-   `max_agents // 2` is your target) — the controller then has no
+   `max_agents // 2` is your target) - the controller then has no
    slack to play with.
 
 In practice, leaving the controller on with sensible defaults is the

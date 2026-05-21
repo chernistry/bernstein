@@ -1,7 +1,7 @@
 # Verification tracking
 
 Bernstein flags task completions that finish without any sign of
-verification — no tests, no quality gates, no completion-signal check —
+verification - no tests, no quality gates, no completion-signal check -
 and raises an alert when the rate of those unverified completions
 crosses a threshold. This page is the operator's guide to that signal:
 what counts as "verified", when the alert fires, how to configure it,
@@ -57,7 +57,7 @@ threshold_exceeded = total >= MIN_COMPLETIONS_FOR_NUDGE
                      AND unverified_ratio > nudge_threshold
 ```
 
-The comparison is strict (`>`, not `>=`) — exactly 30% does **not**
+The comparison is strict (`>`, not `>=`) - exactly 30% does **not**
 trigger. The `MIN_COMPLETIONS_FOR_NUDGE` floor exists so the very
 first unverified completion in a fresh session does not flip the
 alert (1/1 = 100%).
@@ -126,7 +126,7 @@ The in-memory tracker also resets at process exit.
 
 You see a red ALERT in `bernstein status`. What now?
 
-1. **Don't panic — and don't disable the alert.** The signal is a
+1. **Don't panic - and don't disable the alert.** The signal is a
    ratio, not an error. It only means more than `threshold` of recent
    completions had no verification evidence at all. The agent likely
    did real work; it just did not run tests or trip a quality gate.
@@ -140,7 +140,7 @@ You see a red ALERT in `bernstein status`. What now?
 3. **Spot-check one.** Pick a flagged task ID. Open its log summary
    and confirm: did it really skip tests, or is the agent's log
    summary missing the evidence Bernstein looks for? The latter is
-   a parsing miss — fix the adapter, not the threshold.
+   a parsing miss - fix the adapter, not the threshold.
 
 4. **If the agent is genuinely skipping verification**, look at:
    - The plan: did the YAML omit a `verify` step?
@@ -159,7 +159,7 @@ You see a red ALERT in `bernstein status`. What now?
    if you need a clean baseline for a release.
 
 The alert is **not** auto-clearing once you fix the underlying issue
-— it tracks completions in a window. If the window keeps including
+- it tracks completions in a window. If the window keeps including
 old unverified completions, the ratio stays high. Reset the ledger
 or wait for the unverified ones to age out.
 
@@ -171,7 +171,7 @@ or wait for the unverified ones to age out.
 |------------------------------------------------------------|--------------|
 | `src/bernstein/core/quality/verification_nudge.py`         | `VerificationNudgeTracker`, `VerificationRecord`, `NudgeSummary`, `load_nudge_summary()` |
 | `src/bernstein/core/models.py`                             | `Task.verification_count`, `Task.flagged_unverified` fields |
-| `src/bernstein/core/quality/janitor.py`                    | `verify_task()` — supplies the `completion_signals_checked` evidence |
+| `src/bernstein/core/quality/janitor.py`                    | `verify_task()` - supplies the `completion_signals_checked` evidence |
 | `tests/unit/test_verification_nudge.py`                    | 44 tests across 8 classes (record, persistence, summary, alert thresholds) |
 
 JSONL ledger schema (one object per line):
@@ -192,6 +192,6 @@ JSONL ledger schema (one object per line):
 
 ## Related
 
-- [Permission modes](../architecture/permission-modes.md) — how the
+- [Permission modes](../architecture/permission-modes.md) - how the
   approval gate decides whether a completion needs human signoff.
-- [Runbooks](runbooks.md) — automated remediation for failing tasks.
+- [Runbooks](runbooks.md) - automated remediation for failing tasks.

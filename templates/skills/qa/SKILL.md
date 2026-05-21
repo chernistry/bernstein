@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Test writing — pytest suites, edge cases, regressions.
+description: Test writing - pytest suites, edge cases, regressions.
 trigger_keywords:
   - pytest
   - qa

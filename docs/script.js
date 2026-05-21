@@ -1,4 +1,4 @@
-/* Bernstein Docs — script.js */
+/* Bernstein Docs - script.js */
 (function () {
   'use strict';
 

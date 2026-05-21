@@ -1,7 +1,7 @@
 # Disaster recovery
 
 **Audience:** SREs planning a DR runbook for a Bernstein-managed
-project — backups, restore drills, RPO/RTO targets, and the
+project - backups, restore drills, RPO/RTO targets, and the
 forward-looking cross-region replication plan.
 
 **What:** `bernstein dr` produces and consumes encrypted tarballs of the
@@ -11,7 +11,7 @@ recent consistent state without rebuilding from a remote git remote.
 
 **Why:** A Bernstein workspace is *the* source of truth for in-flight
 backlog, claim ownership, audit chain, WAL hashes, cost ledger, and
-cascade-router metrics. A lost workspace is not just lost code — it's
+cascade-router metrics. A lost workspace is not just lost code - it's
 lost determinism and lost audit. Cross-link:
 [State persistence](../architecture/state-persistence.md) for the durability
 model that makes restore safe.
@@ -22,7 +22,7 @@ model that makes restore safe.
 
 Two complementary mechanisms:
 
-1. **Write-Ahead Log (WAL)** — every orchestrator decision (claim,
+1. **Write-Ahead Log (WAL)** - every orchestrator decision (claim,
    spawn, complete, fail, merge) is appended to a hash-chained
    JSONL file with `fsync()` *before* the action runs.
    On startup, `wal_replay` finds entries marked uncommitted and
@@ -30,7 +30,7 @@ Two complementary mechanisms:
    crashed orchestrator wakes up consistent.
    Source: `src/bernstein/core/persistence/wal.py:1-15`,
    `src/bernstein/core/persistence/wal_replay.py:1-18`.
-2. **Checkpointing** — periodic atomic snapshots of full orchestrator
+2. **Checkpointing** - periodic atomic snapshots of full orchestrator
    state (task graph + agent sessions + cost accumulator + WAL
    sequence position) at
    `.sdd/runtime/checkpoints/checkpoint-<id>.json` plus
@@ -69,15 +69,15 @@ $ bernstein dr backup --to ./bk.tar.gz --encrypt --password "$DR_PASSPHRASE"
 
 Flags:
 
-- `--to <path>` — required destination. Encrypted output gets `.enc`
+- `--to <path>` - required destination. Encrypted output gets `.enc`
   suffix appended automatically.
-- `--encrypt` — wraps the tarball in Fernet ciphertext. Requires
+- `--encrypt` - wraps the tarball in Fernet ciphertext. Requires
   `--password` (a missing password is rejected because the random key
-  would be unrecoverable —
+  would be unrecoverable -
   `src/bernstein/core/persistence/disaster_recovery.py:200-201`).
-- `--password <str>` — passphrase fed through PBKDF2 with a fresh 16-byte
+- `--password <str>` - passphrase fed through PBKDF2 with a fresh 16-byte
   salt prepended to the ciphertext.
-- `--sdd <path>` — override the source `.sdd/` directory (defaults to
+- `--sdd <path>` - override the source `.sdd/` directory (defaults to
   `./.sdd`).
 
 ### `dr restore --from <path>`
@@ -88,7 +88,7 @@ destination directory.
 
 ```console
 $ bernstein dr restore --from ./bk.tar.gz --dry-run
-Dry run — listing contents of ./bk.tar.gz:
+Dry run - listing contents of ./bk.tar.gz:
   Files: 8421
   Source: ./bk.tar.gz
   SHA256: 2f9a17b8c4e3d501...
@@ -108,10 +108,10 @@ $ bernstein dr restore --from ./bk.tar.gz.enc --decrypt --password "$DR_PASSPHRA
 
 Flags:
 
-- `--from <path>` — required source (`.tar.gz` or `.tar.gz.enc`).
-- `--decrypt` + `--password` — only when the backup was encrypted.
-- `--dry-run` — list contents and report SHA256, no writes.
-- `--sdd <path>` — destination override.
+- `--from <path>` - required source (`.tar.gz` or `.tar.gz.enc`).
+- `--decrypt` + `--password` - only when the backup was encrypted.
+- `--dry-run` - list contents and report SHA256, no writes.
+- `--sdd <path>` - destination override.
 
 ### Verify
 
@@ -124,7 +124,7 @@ There is no dedicated `dr verify` subcommand today. The supported drill is:
 5. Optionally `bernstein dr restore --from ./drill.tar.gz --sdd /tmp/.sdd-restored`
    then `bernstein doctor --workspace /tmp` to revalidate.
 
-For ad-hoc integrity checks, the WAL itself is hash-chained — running
+For ad-hoc integrity checks, the WAL itself is hash-chained - running
 the orchestrator against a restored workspace will fail loudly if the
 chain is broken (`src/bernstein/core/persistence/wal.py:36-38`).
 
@@ -172,7 +172,7 @@ For a complete loss of the orchestrator host:
    versions can run, but tail your `bernstein doctor` output for
    compatibility warnings.
 2. **Copy** the latest backup tarball to the new host (encrypted on the
-   wire — these tarballs contain audit secrets and credential vault
+   wire - these tarballs contain audit secrets and credential vault
    blobs).
 3. **Decrypt** + extract:
    ```bash
@@ -185,13 +185,13 @@ For a complete loss of the orchestrator host:
    (see [env-isolation.md](env-isolation.md)). Re-export those out of
    band.
 5. **Start the orchestrator**: `bernstein start`. WAL replay runs
-   automatically — every uncommitted entry from the previous instance
+   automatically - every uncommitted entry from the previous instance
    replays through the idempotency store, so spawned-but-not-completed
    tasks finish correctly without duplicate side effects
    (`src/bernstein/core/persistence/wal_replay.py:1-18`).
 6. **Verify**:
-   - `bernstein status` — task counts match pre-incident.
-   - `bernstein audit verify` — hash chain intact.
+   - `bernstein status` - task counts match pre-incident.
+   - `bernstein audit verify` - hash chain intact.
    - `bernstein dr backup --to /tmp/drill.tar.gz --dry-run` (sanity).
 7. **Resume external triggers**: if any cron/CI/webhook was paused
    during failover, re-enable now.
@@ -209,9 +209,9 @@ For a partial loss (workspace corruption with the host alive):
 | Metric | Target                                                  | Notes |
 |--------|---------------------------------------------------------|-------|
 | **RPO** (Recovery Point Objective) | = backup cadence | Operator-set. Default cron: hourly snapshots in production, 6 h elsewhere. |
-| **RTO** (Recovery Time Objective)  | < 15 min for the dr-restore step itself, plus your provisioning | Restore is a `tar -xzf` plus `fsync` — IO-bound, not CPU-bound. |
+| **RTO** (Recovery Time Objective)  | < 15 min for the dr-restore step itself, plus your provisioning | Restore is a `tar -xzf` plus `fsync` - IO-bound, not CPU-bound. |
 
-WAL fsync per entry guarantees zero-loss for *committed* state — every
+WAL fsync per entry guarantees zero-loss for *committed* state - every
 decision is durable before it executes. The RPO gap is the time between
 your last `dr backup` and the incident: WAL itself is included in the
 backup, so a restored workspace replays uncommitted entries forward and
@@ -238,12 +238,12 @@ Treat backup cadence as your RPO floor.
 
 ## Code pointers
 
-- `src/bernstein/cli/commands/disaster_recovery_cmd.py` — CLI surface
-- `src/bernstein/core/persistence/disaster_recovery.py:1-22` — design rationale + usage
-- `src/bernstein/core/persistence/disaster_recovery.py:46-123` — included/excluded paths
-- `src/bernstein/core/persistence/disaster_recovery.py:139-174` — Fernet/PBKDF2 crypto
-- `src/bernstein/core/persistence/disaster_recovery.py:177-275` — `backup_sdd`
-- `src/bernstein/core/persistence/disaster_recovery.py:278-366` — `restore_sdd` (with `filter="data"` traversal guard)
-- `src/bernstein/core/persistence/wal.py:1-67` — WAL writer, hash-chain, fsync invariants
-- `src/bernstein/core/persistence/wal_replay.py:1-78` — replay pipeline + `IdempotencyStore`
-- `src/bernstein/core/persistence/checkpoint.py:1-79` — `Checkpoint` (atomic) + `PartialState` (operator)
+- `src/bernstein/cli/commands/disaster_recovery_cmd.py` - CLI surface
+- `src/bernstein/core/persistence/disaster_recovery.py:1-22` - design rationale + usage
+- `src/bernstein/core/persistence/disaster_recovery.py:46-123` - included/excluded paths
+- `src/bernstein/core/persistence/disaster_recovery.py:139-174` - Fernet/PBKDF2 crypto
+- `src/bernstein/core/persistence/disaster_recovery.py:177-275` - `backup_sdd`
+- `src/bernstein/core/persistence/disaster_recovery.py:278-366` - `restore_sdd` (with `filter="data"` traversal guard)
+- `src/bernstein/core/persistence/wal.py:1-67` - WAL writer, hash-chain, fsync invariants
+- `src/bernstein/core/persistence/wal_replay.py:1-78` - replay pipeline + `IdempotencyStore`
+- `src/bernstein/core/persistence/checkpoint.py:1-79` - `Checkpoint` (atomic) + `PartialState` (operator)

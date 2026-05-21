@@ -1,4 +1,4 @@
-# Bernstein — Kubernetes Service Manifests
+# Bernstein - Kubernetes Service Manifests
 # Standalone (non-Helm) service definitions for multi-instance deployments.
 # For Helm-managed deployments, see deploy/helm/bernstein/templates/service.yaml.
 #
@@ -6,7 +6,7 @@
 #   kubectl apply -f templates/service.yaml -n bernstein
 
 ---
-# Task Server ClusterIP service — primary entry point for workers and orchestrators
+# Task Server ClusterIP service - primary entry point for workers and orchestrators
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,12 +16,12 @@ metadata:
     app: bernstein
     component: server
   annotations:
-    # Istio — opt-in to service mesh traffic management
+    # Istio - opt-in to service mesh traffic management
     # Uncomment if Istio is installed:
     # service.istio.io/canonical-name: bernstein-server
     # service.istio.io/canonical-revision: latest
 
-    # Linkerd — opt-in annotation
+    # Linkerd - opt-in annotation
     # Uncomment if Linkerd is installed:
     # linkerd.io/inject: enabled
 spec:
@@ -36,7 +36,7 @@ spec:
       protocol: TCP
 
 ---
-# Headless service for worker StatefulSet — enables stable DNS per worker pod.
+# Headless service for worker StatefulSet - enables stable DNS per worker pod.
 # Workers are accessible at:
 #   bernstein-worker-0.bernstein-workers.bernstein.svc.cluster.local:8052
 # This is used by the orchestrator for direct pod addressing when needed.
@@ -49,7 +49,7 @@ metadata:
     app: bernstein
     component: worker
 spec:
-  clusterIP: None  # headless — no VIP, DNS returns pod IPs directly
+  clusterIP: None  # headless - no VIP, DNS returns pod IPs directly
   selector:
     app: bernstein
     component: worker
@@ -60,7 +60,7 @@ spec:
       protocol: TCP
 
 ---
-# Metrics service — exposes /metrics endpoint for Prometheus scraping.
+# Metrics service - exposes /metrics endpoint for Prometheus scraping.
 # Separate service allows finer-grained NetworkPolicy and ServiceMonitor config.
 apiVersion: v1
 kind: Service

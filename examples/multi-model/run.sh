@@ -3,7 +3,7 @@
 #
 # This script shows the key differentiator of Bernstein vs every other
 # agent framework: model-agnostic orchestration. Same task graph, same
-# file-based state, same verification — different CLI agents doing the work.
+# file-based state, same verification - different CLI agents doing the work.
 #
 # Prerequisites: bernstein installed (pipx install bernstein or uv tool install bernstein)
 # At least one CLI agent must be installed. The script detects what's available.
@@ -12,7 +12,7 @@ set -euo pipefail
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  Bernstein — Multi-model demo                        ║"
+echo "║  Bernstein - Multi-model demo                        ║"
 echo "║  Claude · Codex · Gemini · Qwen in a single run     ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bernstein-sdk"
 version = "0.1.0"
-description = "Integration SDK for Bernstein — connect CI/CD, issue trackers, and chat tools"
+description = "Integration SDK for Bernstein - connect CI/CD, issue trackers, and chat tools"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

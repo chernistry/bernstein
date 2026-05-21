@@ -1,4 +1,4 @@
-# Type-soundness stage — calls out untyped dicts, missing annotations,
+# Type-soundness stage - calls out untyped dicts, missing annotations,
 # Pyright-strict failures.
 name: types
 parallelism: 1

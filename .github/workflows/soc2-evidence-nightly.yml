@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
           if [[ -n "${SOC2_EVIDENCE_ENABLED:-}" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "SOC2_EVIDENCE_ENABLED detected — running pack generator."
+            echo "SOC2_EVIDENCE_ENABLED detected - running pack generator."
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "SOC2_EVIDENCE_ENABLED unset; nothing to do."

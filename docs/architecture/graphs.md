@@ -15,13 +15,13 @@ reads from it so future readers don't confuse them.
 
 ## When to use which
 
-- **Scheduling / critical-path analysis / detecting bottlenecks** — `task_graph`.
+- **Scheduling / critical-path analysis / detecting bottlenecks** - `task_graph`.
   Used by the orchestrator, spawner, workflow DSL, and dep-validator to decide
   what to run next and which tasks block the most downstream work.
-- **"What code does a file change impact?"** — `knowledge_graph`. Backs the
+- **"What code does a file change impact?"** - `knowledge_graph`. Backs the
   `GET /graph/impact` route and the `bernstein graph impact` CLI. Persists
   across runs, refreshed opportunistically.
-- **"Which symbols and neighbourhoods live in these files?"** — `ast_symbol_graph`.
+- **"Which symbols and neighbourhoods live in these files?"** - `ast_symbol_graph`.
   A pure-Python AST walk used as the ingestion stage for `knowledge_graph` and
   for token-efficient context extraction. Not intended as a standalone API.
 

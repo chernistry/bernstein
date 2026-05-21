@@ -18,7 +18,7 @@ Run a single test file:
 uv run pytest tests/unit/test_foo.py -x -q
 ```
 
-**NEVER** run `uv run pytest tests/ -x -q` — this leaks 100+ GB RAM across 2000+ tests.
+**NEVER** run `uv run pytest tests/ -x -q` - this leaks 100+ GB RAM across 2000+ tests.
 
 Check linting before completing:
 

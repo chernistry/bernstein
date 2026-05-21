@@ -37,7 +37,7 @@ on:
       # CI tool configs (don't re-run tests for codecov/sonar tweaks)
       - "codecov.yml"
       - "sonar-project.properties"
-      # GitHub meta (templates, labels, funding — not ci.yml)
+      # GitHub meta (templates, labels, funding - not ci.yml)
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/FUNDING.yml"
       - ".github/CODEOWNERS"
@@ -110,7 +110,7 @@ on:
       - "scripts/gen_roadmap_*.py"
       - "scripts/generate_benchmark_docs.py"
 
-# Concurrency policy (split PR vs main pushes — see #1273):
+# Concurrency policy (split PR vs main pushes - see #1273):
 #
 #   - Pull requests: per-PR group (keyed off pull_request.number, stable
 #     across pushes to the same PR), cancel-in-progress=true. New commits
@@ -121,7 +121,7 @@ on:
 #     group, cancel-in-progress=false. Each merged commit gets its own
 #     un-cancellable CI run so the `workflow_run` listener in
 #     auto-release.yml always observes a real success/failure conclusion
-#     for that SHA — never `cancelled`-by-newer-push. This is the v2-merge
+#     for that SHA - never `cancelled`-by-newer-push. This is the v2-merge
 #     unblocker: a tag/publish race that previously dropped the release
 #     when two merges landed in quick succession.
 #
@@ -183,7 +183,7 @@ jobs:
           #
           # NOTE: checkout above uses fetch-depth: 0, so HEAD has full history.
           # However, origin/${BASE_REF} is NOT fetched by default in the PR
-          # checkout (which is on the merge ref) — we must fetch it explicitly.
+          # checkout (which is on the merge ref) - we must fetch it explicitly.
           # Using --depth=1 here previously caused `...` (merge-base) diffs to
           # fail when the merge-base wasn't in the shallow window, especially
           # after parallel main merges. Fetch the base ref WITHOUT --depth.
@@ -196,7 +196,7 @@ jobs:
             if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
               git fetch --unshallow origin "${BASE_REF}" || git fetch origin "${BASE_REF}" || true
             fi
-            # Diagnostic output — keeps future flakes debuggable in the action log.
+            # Diagnostic output - keeps future flakes debuggable in the action log.
             echo "::group::git diagnostic"
             git remote -v || true
             git log --oneline -5 || true
@@ -219,7 +219,7 @@ jobs:
           fi
           # Fail-safe fallback: when diff fails for any reason, emit the safe
           # over-broad classification so downstream jobs run anyway. Correctness
-          # wins over efficiency — never fail this job for a clone-shape issue.
+          # wins over efficiency - never fail this job for a clone-shape issue.
           if [ "$diff_failed" = "true" ]; then
             {
               echo "python_changed=true"
@@ -233,7 +233,7 @@ jobs:
           echo "Changed files:"
           printf '%s\n' "$CHANGED" | sed 's/^/  /'
 
-          # Pure-shell classification — auditable in `actionlint`, no
+          # Pure-shell classification - auditable in `actionlint`, no
           # sub-shell variable round-tripping through python.
           python_changed=false
           tests_changed=false
@@ -453,7 +453,7 @@ jobs:
           # `fail_on_error` is deprecated; `fail_level: error` replaces it.
 
   lineage-gate:
-    # ADR-009 Lineage Gate — required check. Verifies the on-disk lineage
+    # ADR-009 Lineage Gate - required check. Verifies the on-disk lineage
     # log (.sdd/lineage/log.jsonl) is internally consistent: every entry
     # signature verifies, no unresolved forks, parent_hashes resolve.
     # No-op PASS when the log does not exist (pre-bootstrap state).
@@ -476,7 +476,7 @@ jobs:
           if [ -f .sdd/lineage/log.jsonl ]; then
             uv run python scripts/check_lineage.py
           else
-            echo "::notice::No .sdd/lineage/log.jsonl — lineage gate is a no-op PASS."
+            echo "::notice::No .sdd/lineage/log.jsonl - lineage gate is a no-op PASS."
           fi
 
   # ─── Medium checks (cancel old runs, 5-20 min) ────────────────────────
@@ -897,7 +897,7 @@ jobs:
           uv tool run semgrep --config .semgrep.yml --metrics off --severity ERROR --error src/
 
   bandit:
-    # Bandit static security analyzer. HIGH severity only — there are
+    # Bandit static security analyzer. HIGH severity only - there are
     # ~30 MEDIUM findings on main that are accepted patterns
     # (urlopen with timeout, hardcoded localhost in dev). Fails PR
     # only on new HIGH-severity introductions; pre-existing HIGHs are
@@ -991,7 +991,7 @@ jobs:
       - name: Run lineage-signer tests under beartype claw
         # The beartype-claw allow-list is in tests/_beartype_claw.py.
         # Today only ``bernstein.core.persistence.lineage_signer`` is
-        # in the strict zone — widen as more modules reach
+        # in the strict zone - widen as more modules reach
         # beartype-clean status.
         env:
           BEARTYPE_USE_CLAW: enable
@@ -1037,7 +1037,7 @@ jobs:
           echo "Mutating: $CHANGED"
       - name: Run mutmut on changed files
         if: steps.diff.outputs.skip != 'true'
-        continue-on-error: true  # advisory — score reported, not enforced
+        continue-on-error: true  # advisory - score reported, not enforced
         env:
           DIFF_PATHS: ${{ steps.diff.outputs.paths }}
         run: |
@@ -1095,7 +1095,7 @@ jobs:
               --markdown-report diff-coverage.md
             cat diff-coverage.md >> "$GITHUB_STEP_SUMMARY" || true
           else
-            echo "::warning::No coverage.xml found — skipping diff-cover"
+            echo "::warning::No coverage.xml found - skipping diff-cover"
           fi
 
   pyright-strict-zone:
@@ -1138,7 +1138,7 @@ jobs:
     # macOS coverage moved to the adapter-integration-macos job below
     # (gated by determine-changes.outputs.macos_sensitive, the
     # `macos-needed` label, or push events) to relieve the hosted macOS
-    # runner pool during burst-merge waves — see #1468. The
+    # runner pool during burst-merge waves - see #1468. The
     # ci-macos-nightly.yml workflow runs the full macOS matrix daily as
     # the safety-net for regressions that slip past the path gate.
     name: Adapter integration (fake-CLI)
@@ -1349,7 +1349,7 @@ jobs:
           fi
       - name: Publish JUnit + flake summary
         # Surfaces test results and flaky-test annotations in the PR check
-        # tab. `flaky_summary: true` lists tests that passed on a retry —
+        # tab. `flaky_summary: true` lists tests that passed on a retry -
         # pair with `pytest-rerunfailures` (separate PR) for full coverage.
         # `fail_on_failure: false` so we don't double-fail; the test job
         # already reports its own non-zero exit.
@@ -1521,7 +1521,7 @@ jobs:
         run: |
           RECENT=$(git log --oneline -3 --format='%s' | grep -c "style: auto-fix" || true)
           if [ "$RECENT" -ge 3 ]; then
-            echo "::warning::Autofix loop detected — last 3 commits are all auto-fix. Skipping."
+            echo "::warning::Autofix loop detected - last 3 commits are all auto-fix. Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -1672,19 +1672,19 @@ jobs:
   #
   # Why this exists:
   #   * `ci.yml` has 20+ jobs (incl. an OS x Python matrix that fans out
-  #     `test (ubuntu-latest, 3.12)` etc.) — listing every contextual name
+  #     `test (ubuntu-latest, 3.12)` etc.) - listing every contextual name
   #     in branch-protection is fragile because matrix names drift with
   #     each matrix change.
   #   * A `skipped` job auto-passes branch protection. So does a job that
   #     was never enqueued because an upstream `needs:` was `cancelled`.
   #     Either condition can let a red commit reach `main`.
   #
-  # This job fails on ANY non-success result — including `cancelled`,
+  # This job fails on ANY non-success result - including `cancelled`,
   # `timed_out`, `action_required`, or a job that never ran. `skipped`
   # passes ONLY when the planner job (``determine-changes``) classified
   # the diff in a way that makes the skip intentional (docs-only PRs,
   # event-gated jobs, etc.). A `skipped` result for a job that should
-  # have run is treated as a failure — pattern borrowed from pypa/pip's
+  # have run is treated as a failure - pattern borrowed from pypa/pip's
   # CI aggregator (see PR #1273 for the discussion).
   #
   # Operator: after this PR merges, replace every required check in
@@ -1692,9 +1692,9 @@ jobs:
   # ``CI gate``). The exact `gh api` invocation is in PR #1273's body.
   #
   # Excluded from `needs:`:
-  #   * `autofix`        — runs only on push to main, mutates the tree
-  #   * `pr-summary`     — cosmetic PR comment, must not gate merges
-  #   * `ci-gate` itself — would deadlock the dependency graph
+  #   * `autofix`        - runs only on push to main, mutates the tree
+  #   * `pr-summary`     - cosmetic PR comment, must not gate merges
+  #   * `ci-gate` itself - would deadlock the dependency graph
   ci-gate:
     name: CI gate
     runs-on: ubuntu-latest
@@ -1776,7 +1776,7 @@ jobs:
               "install-smoke-pipx",
               "install-smoke-uv",
           }
-          # Jobs intentionally gated by `if:` on event / branch — `skipped`
+          # Jobs intentionally gated by `if:` on event / branch - `skipped`
           # is the expected outcome under these conditions.
           ALWAYS_SKIPPABLE = {
               # Only on push to main.
@@ -1839,7 +1839,7 @@ jobs:
               bad.append((name, r))
 
           if bad:
-              print("::error::CI gate FAILED — these jobs were not success "
+              print("::error::CI gate FAILED - these jobs were not success "
                     "and not intentionally skipped:")
               for n, r in bad:
                   print(f"  - {n}: result={r}")

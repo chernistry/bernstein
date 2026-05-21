@@ -1,4 +1,4 @@
-# Bernstein Plan — CLI Tool with Click
+# Bernstein Plan - CLI Tool with Click
 #
 # A three-stage plan that builds a Python CLI tool:
 #   1. Bootstrap: project skeleton, Click dependency, config management

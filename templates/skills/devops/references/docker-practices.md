@@ -6,7 +6,7 @@
 - Use multi-stage builds; final image contains only runtime artefacts.
 - Copy `pyproject.toml` / `uv.lock` separately from source to maximise
   build-cache reuse.
-- Do NOT bake secrets — inject via runtime env or a mounted file.
+- Do NOT bake secrets - inject via runtime env or a mounted file.
 - Add `HEALTHCHECK` instructions for long-running services.
 - Scan the final image (`trivy image`, `grype`) in CI.
 

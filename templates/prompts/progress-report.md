@@ -30,8 +30,8 @@ Replace `{TASK_ID}` with your actual task ID (available in your task context).
 The orchestrator reads these snapshots and compares consecutive reports:
 
 - **3 identical reports** (~3 min of no progress): you receive a `WAKEUP` signal in
-  `.sdd/runtime/signals/{SESSION_ID}/WAKEUP` — read it and address the concern.
-- **5 identical reports** (~5 min): you receive a `SHUTDOWN` signal — save WIP and exit.
+  `.sdd/runtime/signals/{SESSION_ID}/WAKEUP` - read it and address the concern.
+- **5 identical reports** (~5 min): you receive a `SHUTDOWN` signal - save WIP and exit.
 - **7 identical reports** (~7 min): the orchestrator kills your process.
 
 Progress is measured by changes to `files_changed`, `tests_passing`, or `errors`.

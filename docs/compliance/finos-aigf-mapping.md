@@ -1,4 +1,4 @@
-# FINOS AI Governance Framework — bernstein controls map
+# FINOS AI Governance Framework - bernstein controls map
 
 Spec: [FINOS AI Governance Framework](https://github.com/finos/ai-governance-framework)
        (`CONTROLS.md` + the rendered site at <https://air-governance-framework.finos.org>),
@@ -59,9 +59,9 @@ Same exercise on the AIR-* risk side.
 | `AIR-DA-002` | Cross-border data transfer | Per-tenant data-residency policy + write-time enforcement. | Covered. |
 | `AIR-OP-001` | Tool-chain logic vulnerabilities | Lethal-trifecta capability matrix; refusal events emitted to the audit chain. | Covered. |
 | `AIR-OP-002` | Inadequate record-keeping for AI decisions | HMAC-chained audit + Article 12 bundle + DSSE envelope. | Covered. |
-| `AIR-OP-003` | Lack of explainability | Deterministic Python orchestration — coordination is zero-token, every decision is reproducible. The structural property that bernstein never delegates orchestration to an LLM is the basis for this mapping. | Covered (architectural). |
+| `AIR-OP-003` | Lack of explainability | Deterministic Python orchestration - coordination is zero-token, every decision is reproducible. The structural property that bernstein never delegates orchestration to an LLM is the basis for this mapping. | Covered (architectural). |
 | `AIR-OP-004` | Model supply-chain compromise | Per-task Sigstore + agent-card JWKS + GitHub `actions/attest-build-provenance@v2` build provenance on every released wheel + sdist + consumer-side `bernstein verify --sigstore`. | Covered. Both halves of the supply chain (runtime artefacts + release artefacts) carry Sigstore-backed provenance. |
-| `AIR-OP-005` | Hallucination in production | Out of scope — bernstein operates at task-level, not model-level. | Out of scope. |
+| `AIR-OP-005` | Hallucination in production | Out of scope - bernstein operates at task-level, not model-level. | Out of scope. |
 | `AIR-OP-006` | Inadequate human oversight | Approval, dual-approval, plan-approval, role-default deny. | Covered. |
 | `AIR-OP-007` | Regulatory-violation risk via missing audit trails | Same chain as `AIR-OP-002`; DSSE envelope provides third-party-verifiability. | Covered. |
 | `AIR-RC-001` | Bias amplification | Out of scope (model-level concern). | Out of scope. |
@@ -92,16 +92,16 @@ Same exercise on the AIR-* risk side.
 
 ## 5. References
 
-- FINOS AI Governance Framework — <https://github.com/finos/ai-governance-framework>,
+- FINOS AI Governance Framework - <https://github.com/finos/ai-governance-framework>,
   rendered at <https://air-governance-framework.finos.org>. Community
   Specification License v1.0.
-- bernstein source tree — every file path above is relative to repo root.
-- EU AI Act — Regulation (EU) 2024/1689,
+- bernstein source tree - every file path above is relative to repo root.
+- EU AI Act - Regulation (EU) 2024/1689,
   <https://eur-lex.europa.eu/eli/reg/2024/1689>.
-- DORA — Regulation (EU) 2022/2554,
+- DORA - Regulation (EU) 2022/2554,
   <https://eur-lex.europa.eu/eli/reg/2022/2554>.
 - US Federal Reserve SR 11-7, "Guidance on Model Risk Management".
 - ISO/IEC 42001:2023, AI Management System.
-- in-toto attestation v1.0 spec —
+- in-toto attestation v1.0 spec -
   <https://github.com/in-toto/attestation/blob/main/spec/v1/README.md>.
-- DSSE — <https://github.com/secure-systems-lab/dsse>.
+- DSSE - <https://github.com/secure-systems-lab/dsse>.

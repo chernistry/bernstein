@@ -28,7 +28,7 @@ uses) and writes the tree under the side ref namespace
 hash, so two snapshots between near-identical states cost a few
 hundred bytes each.
 
-Snapshots are never pushed by the default `git push` invocation — the
+Snapshots are never pushed by the default `git push` invocation - the
 ref namespace is local-only. If you want to share them, push the refs
 explicitly: `git push origin 'refs/bernstein/snapshots/*'`.
 
@@ -43,7 +43,7 @@ What is **not** captured:
 
 - Environment variables, secrets caches, or anything outside the work
   tree.
-- The agent's deliberate staging decisions — the real index is left
+- The agent's deliberate staging decisions - the real index is left
   untouched.
 
 ## Pre-tool-use hook
@@ -63,7 +63,7 @@ runs targeting the same base, Bernstein **stacks** them: run N+1's
 branch is created from the tip of run N's branch. This keeps the
 chronological order visible in the eventual PR review.
 
-The stack is recorded under `refs/bernstein/stacks/<task_id>/<n>` —
+The stack is recorded under `refs/bernstein/stacks/<task_id>/<n>` -
 one ref per run. `bernstein git stack --task <id>` enumerates the
 stack in ascending order.
 
@@ -112,10 +112,10 @@ bernstein git gc
 
 Module: `bernstein.core.git.snapshot`
 
-- `SnapshotStore(cwd)` — facade with `take`, `undo`, `list`, `diff`,
+- `SnapshotStore(cwd)` - facade with `take`, `undo`, `list`, `diff`,
   `get`, `delete`, `gc`.
-- `Snapshot` — frozen dataclass of captured metadata.
-- `stack_push(cwd, *, task_id, branch, parent_branch=None)` — record
+- `Snapshot` - frozen dataclass of captured metadata.
+- `stack_push(cwd, *, task_id, branch, parent_branch=None)` - record
   a stack entry.
-- `stack_list(cwd, *, task_id)` — enumerate stack entries.
-- `stack_clear(cwd, *, task_id)` — drop every stack entry for a task.
+- `stack_list(cwd, *, task_id)` - enumerate stack entries.
+- `stack_clear(cwd, *, task_id)` - drop every stack entry for a task.

@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getting Started — Bernstein</title>
+  <title>Getting Started - Bernstein</title>
   <meta name="description" content="Install Bernstein in 60 seconds. Run parallel AI coding agents with one YAML file. Covers configuration, plan files, task lifecycle, model routing, and 40+ CLI commands." />
   <link rel="canonical" href="https://sipyourdrink-ltd.github.io/bernstein/getting-started.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Getting Started — Bernstein" />
+  <meta property="og:title" content="Getting Started - Bernstein" />
   <meta property="og:description" content="Install Bernstein in 60 seconds. Run parallel AI coding agents with one YAML file. Covers configuration, plan files, task lifecycle, model routing, and 40+ CLI commands." />
   <meta property="og:url" content="https://sipyourdrink-ltd.github.io/bernstein/getting-started.html" />
   <meta property="og:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Getting Started — Bernstein" />
+  <meta name="twitter:title" content="Getting Started - Bernstein" />
   <meta name="twitter:description" content="Install Bernstein in 60 seconds. Run parallel AI coding agents with one YAML file. Covers configuration, plan files, task lifecycle, model routing, and 40+ CLI commands." />
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Bernstein","item":"https://sipyourdrink-ltd.github.io/bernstein/"},{"@type":"ListItem","position":2,"name":"Getting Started","item":"https://sipyourdrink-ltd.github.io/bernstein/getting-started.html"}]}
@@ -127,7 +127,7 @@ uv run python scripts/run_tests.py -x</code></pre>
     </div>
 
     <h2 id="first-run">First run</h2>
-    <p>The fastest path — pass a goal inline:</p>
+    <p>The fastest path - pass a goal inline:</p>
     <div class="code-block">
       <pre><code class="language-bash">cd my-project
 bernstein init
@@ -145,7 +145,7 @@ bernstein -g "Add pagination to the users API endpoint"</code></pre>
     </ol>
 
     <h2 id="init">Init &amp; workspace</h2>
-    <p>Run <code>bernstein init</code> once per project. It creates <code>.sdd/</code> — the file-based state directory:</p>
+    <p>Run <code>bernstein init</code> once per project. It creates <code>.sdd/</code> - the file-based state directory:</p>
     <div class="code-block">
       <pre><code class="language-bash">.sdd/
   backlog/
@@ -157,7 +157,7 @@ bernstein -g "Add pagination to the users API endpoint"</code></pre>
   decisions/    # architecture decision records
   config.yaml   # port, model defaults, worker limits</code></pre>
     </div>
-    <p>Nothing leaves your project directory. <code>.sdd/</code> is designed to be committed — it's your team's shared memory.</p>
+    <p>Nothing leaves your project directory. <code>.sdd/</code> is designed to be committed - it's your team's shared memory.</p>
 
     <h2 id="seed-file">Seed file</h2>
     <p>For repeatable orchestration sessions, use a <code>bernstein.yaml</code> seed file. Bernstein picks it up automatically if it exists in the project root.</p>
@@ -232,7 +232,7 @@ bernstein run plans/flask-api.yaml</code></pre>
         <tr><td><code>default_model</code></td><td><code>sonnet</code></td><td>Default model for workers</td></tr>
         <tr><td><code>default_effort</code></td><td><code>high</code></td><td>Default effort level</td></tr>
         <tr><td><code>batch</code></td><td><code>BatchConfig</code></td><td>Provider batch execution settings (enabled, cost reduction for non-urgent tasks)</td></tr>
-        <tr><td><code>quality_gates</code></td><td><code>{}</code></td><td>Quality gate definitions — run commands (lint, test, etc.) after task completion</td></tr>
+        <tr><td><code>quality_gates</code></td><td><code>{}</code></td><td>Quality gate definitions - run commands (lint, test, etc.) after task completion</td></tr>
         <tr><td><code>formal_verification</code></td><td><code>false</code></td><td>Enable formal verification checks on critical code paths</td></tr>
         <tr><td><code>sandbox</code></td><td><code>SandboxConfig</code></td><td>Container sandbox settings (network isolation, read-only rootfs, two-phase execution)</td></tr>
         <tr><td><code>rate_limit</code></td><td><code>null</code></td><td>Per-model API rate limiting (requests per minute/hour)</td></tr>
@@ -241,7 +241,7 @@ bernstein run plans/flask-api.yaml</code></pre>
     </table>
 
     <h3>Model routing</h3>
-    <p>The spawner selects model and effort automatically based on task metadata — you don't usually need to touch this:</p>
+    <p>The spawner selects model and effort automatically based on task metadata - you don't usually need to touch this:</p>
 
     <table>
       <thead>
@@ -326,7 +326,7 @@ bernstein --evolve --headless --max-cycles 20 --budget 10</code></pre>
         <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>--evolve</code></td><td>—</td><td>Enable continuous self-improvement mode</td></tr>
+        <tr><td><code>--evolve</code></td><td>-</td><td>Enable continuous self-improvement mode</td></tr>
         <tr><td><code>--max-cycles N</code></td><td><code>0</code> (unlimited)</td><td>Stop after N evolve cycles</td></tr>
         <tr><td><code>--budget N</code></td><td><code>0</code> (unlimited)</td><td>Stop after $N spent</td></tr>
         <tr><td><code>--interval N</code></td><td><code>300</code></td><td>Seconds between cycles</td></tr>
@@ -379,7 +379,7 @@ bernstein run --budget 5.00 -g "Add auth"</code></pre>
         <tr><td><code>done</code></td><td>Agent reported completion. Janitor will verify completion signals.</td></tr>
         <tr><td><code>closed</code></td><td>DONE &rarr; CLOSED after janitor verification. Terminal state for successful tasks.</td></tr>
         <tr><td><code>failed</code></td><td>Agent reported failure, or janitor found completion signals unmet after max retries.</td></tr>
-        <tr><td><code>orphaned</code></td><td>Agent crashed mid-task. Pending crash recovery — will be requeued or failed.</td></tr>
+        <tr><td><code>orphaned</code></td><td>Agent crashed mid-task. Pending crash recovery - will be requeued or failed.</td></tr>
         <tr><td><code>pending_approval</code></td><td>Completed but awaiting human approval before taking effect (e.g. evolve L2+ changes).</td></tr>
         <tr><td><code>waiting_for_subtasks</code></td><td>Task was split into subtasks. Resumes when all subtasks reach a terminal state.</td></tr>
         <tr><td><code>cancelled</code></td><td>Explicitly cancelled by a user or the orchestrator. Terminal state.</td></tr>
@@ -499,7 +499,7 @@ bernstein chaos slo --error-budget 0.1</code></pre>
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 

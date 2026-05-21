@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Adapters — Bernstein</title>
+  <title>Adapters - Bernstein</title>
   <meta name="description" content="Bernstein adapter reference: Claude Code, Codex CLI, Gemini CLI, Kiro, OpenCode, Qwen, and how to add your own. Feature matrix, install instructions, model mapping." />
   <link rel="canonical" href="https://sipyourdrink-ltd.github.io/bernstein/adapters.html" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Adapters — Bernstein" />
+  <meta property="og:title" content="Adapters - Bernstein" />
   <meta property="og:description" content="Bernstein adapter reference: Claude Code, Codex CLI, Gemini CLI, Kiro, OpenCode, Qwen, and how to add your own." />
   <meta property="og:url" content="https://sipyourdrink-ltd.github.io/bernstein/adapters.html" />
   <meta property="og:image" content="https://sipyourdrink-ltd.github.io/bernstein/assets/banner_one_command_1536x1024.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Adapters — Bernstein" />
+  <meta name="twitter:title" content="Adapters - Bernstein" />
   <meta name="twitter:description" content="Bernstein adapter reference: Claude Code, Codex CLI, Gemini CLI, Kiro, OpenCode, Qwen, and how to add your own." />
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Bernstein","item":"https://sipyourdrink-ltd.github.io/bernstein/"},{"@type":"ListItem","position":2,"name":"Adapters","item":"https://sipyourdrink-ltd.github.io/bernstein/adapters.html"}]}
@@ -20,7 +20,7 @@
   <link rel="author" href="https://alexchernysh.com" />
   <meta property="article:modified_time" content="2026-04-06T09:00:00+03:00" />
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"TechArticle","headline":"Bernstein Adapter Reference — 17 AI Coding Agents","description":"Feature matrix and configuration for Claude Code, Codex, Gemini, Cursor, and 13 more CLI coding agents","datePublished":"2025-03-01","dateModified":"2026-04-06","author":{"@type":"Person","name":"Alex Chernysh","url":"https://alexchernysh.com"}}
+{"@context":"https://schema.org","@type":"TechArticle","headline":"Bernstein Adapter Reference - 17 AI Coding Agents","description":"Feature matrix and configuration for Claude Code, Codex, Gemini, Cursor, and 13 more CLI coding agents","datePublished":"2025-03-01","dateModified":"2026-04-06","author":{"@type":"Person","name":"Alex Chernysh","url":"https://alexchernysh.com"}}
 </script>
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I use Claude Code with Bernstein?","acceptedAnswer":{"@type":"Answer","text":"Yes. Bernstein has a native Claude Code adapter supporting Opus 4, Sonnet 4, and Haiku models. Install Claude Code globally, then Bernstein auto-discovers it."}},{"@type":"Question","name":"How do I add a custom AI agent to Bernstein?","acceptedAnswer":{"@type":"Answer","text":"Use the generic adapter: any CLI tool that accepts a --prompt flag works with Bernstein. Configure it in bernstein.yaml."}},{"@type":"Question","name":"Can I mix cheap and expensive AI models?","acceptedAnswer":{"@type":"Answer","text":"Yes. Bernstein's model routing assigns cheap local models (Ollama) to boilerplate tasks and expensive cloud models (Opus, GPT-5) to architecture decisions."}}]}
@@ -63,7 +63,7 @@
 <div class="page-hero">
   <div class="container">
     <h1>Adapters</h1>
-    <p>Bernstein adapters let you orchestrate 17 AI coding agents from a single interface. Each adapter wraps an installed CLI tool — Claude Code, Codex, Gemini CLI, Cursor, Aider, Amp, and more — as a thin subprocess, so you can mix providers in one run and switch models without rewriting orchestration code.</p>
+    <p>Bernstein adapters let you orchestrate 17 AI coding agents from a single interface. Each adapter wraps an installed CLI tool - Claude Code, Codex, Gemini CLI, Cursor, Aider, Amp, and more - as a thin subprocess, so you can mix providers in one run and switch models without rewriting orchestration code.</p>
   </div>
 </div>
 
@@ -107,13 +107,13 @@
 
     <p>Every major AI lab now ships an agent framework that works best (or only) with their own models. That creates fragility: today's best model is rarely tomorrow's, and enterprise teams can't afford to rewrite orchestration every time they evaluate a new provider.</p>
 
-    <p>Bernstein decouples orchestration from model choice. The <strong>orchestrator is deterministic Python</strong> — it schedules tasks, routes models, and verifies results without talking to any LLM. Each CLI agent is a thin subprocess adapter. Swapping the adapter is a one-line config change.</p>
+    <p>Bernstein decouples orchestration from model choice. The <strong>orchestrator is deterministic Python</strong> - it schedules tasks, routes models, and verifies results without talking to any LLM. Each CLI agent is a thin subprocess adapter. Swapping the adapter is a one-line config change.</p>
 
     <p>Concrete benefits:</p>
     <ul>
-      <li><strong>Cost arbitrage</strong> — route simple formatting tasks to free-tier models, save expensive capacity for architecture and security work.</li>
-      <li><strong>Provider redundancy</strong> — hit a rate limit on one provider? Re-route open tasks to another without restarting the run.</li>
-      <li><strong>Future-proof</strong> — your task graph, roles, and prompts outlive any single model generation.</li>
+      <li><strong>Cost arbitrage</strong> - route simple formatting tasks to free-tier models, save expensive capacity for architecture and security work.</li>
+      <li><strong>Provider redundancy</strong> - hit a rate limit on one provider? Re-route open tasks to another without restarting the run.</li>
+      <li><strong>Future-proof</strong> - your task graph, roles, and prompts outlive any single model generation.</li>
     </ul>
 
     <h2 id="matrix">Adapter comparison matrix</h2>
@@ -145,7 +145,7 @@
           <td>Full (role-scoped)</td>
           <td>JSON schema enforced</td>
           <td>✓</td>
-          <td>Primary workhorse — architecture, features, tests, docs</td>
+          <td>Primary workhorse - architecture, features, tests, docs</td>
         </tr>
         <tr>
           <td><a href="#codex"><code>codex</code></a></td>
@@ -155,7 +155,7 @@
           <td>$$–$$$</td>
           <td>Full</td>
           <td>JSON (<code>--json</code>)</td>
-          <td>—</td>
+          <td>-</td>
           <td>Provider diversity; OpenAI reasoning models</td>
         </tr>
         <tr>
@@ -166,7 +166,7 @@
           <td>Free–$$$</td>
           <td>Full</td>
           <td>JSON (<code>--output-format</code>)</td>
-          <td>—</td>
+          <td>-</td>
           <td>Free-tier usage; cost-effective medium tasks</td>
         </tr>
         <tr>
@@ -176,8 +176,8 @@
           <td>Inherited from model</td>
           <td>$–$$$</td>
           <td>File editing</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Commit-per-change workflows; focused file edits</td>
         </tr>
         <tr>
@@ -187,8 +187,8 @@
           <td>★★★★★ opus/o3</td>
           <td>$$–$$$</td>
           <td>Full</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Sourcegraph-integrated teams; codebase-aware context</td>
         </tr>
         <tr>
@@ -198,8 +198,8 @@
           <td>★★★</td>
           <td>Free–$$</td>
           <td>Full</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Cost-sensitive; low-complexity tasks; free OpenRouter</td>
         </tr>
         <tr>
@@ -209,8 +209,8 @@
           <td>★★★ r1:70b · ★★ 7b</td>
           <td>Free</td>
           <td>File editing (Aider)</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Air-gapped; privacy-sensitive; zero API cost</td>
         </tr>
         <tr>
@@ -220,8 +220,8 @@
           <td>Inherited from model</td>
           <td>$$</td>
           <td>Chat</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Sourcegraph-integrated with codebase-level context</td>
         </tr>
         <tr>
@@ -231,7 +231,7 @@
           <td>★★★★</td>
           <td>$$</td>
           <td>Full</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (<code>--add-mcp</code>)</td>
           <td>Teams with Cursor subscriptions</td>
         </tr>
@@ -242,8 +242,8 @@
           <td>★★★★</td>
           <td>$$–$$$</td>
           <td>Full</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Teams already using Block's Goose</td>
         </tr>
         <tr>
@@ -254,7 +254,7 @@
           <td>$$–$$$</td>
           <td>Full</td>
           <td>JSON (<code>--output-format</code>)</td>
-          <td>—</td>
+          <td>-</td>
           <td>VS Code extension users wanting headless CLI</td>
         </tr>
         <tr>
@@ -264,7 +264,7 @@
           <td>Inherited from model</td>
           <td>$–$$$</td>
           <td>Full</td>
-          <td>—</td>
+          <td>-</td>
           <td>Via config</td>
           <td>Teams with existing Continue.dev configurations</td>
         </tr>
@@ -276,7 +276,7 @@
           <td>$–$$$</td>
           <td>Full</td>
           <td>JSON (<code>--format json</code>)</td>
-          <td>—</td>
+          <td>-</td>
           <td>Multi-provider setups; single CLI interface</td>
         </tr>
         <tr>
@@ -286,8 +286,8 @@
           <td>★★★</td>
           <td>$$</td>
           <td>Full</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>AWS-centric teams using AWS AI services</td>
         </tr>
         <tr>
@@ -297,7 +297,7 @@
           <td>Inherited from model</td>
           <td>$–$$$</td>
           <td>Full</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (<code>--mcp</code>)</td>
           <td>Web development; Stackblitz-integrated teams</td>
         </tr>
@@ -308,8 +308,8 @@
           <td>Varies</td>
           <td>Free</td>
           <td>Agent tasks</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Self-hosted; compliance-restricted; full model control</td>
         </tr>
         <tr>
@@ -319,9 +319,9 @@
           <td>N/A</td>
           <td>N/A</td>
           <td>IaC plan+apply</td>
-          <td>—</td>
-          <td>—</td>
-          <td>Infrastructure tasks — pair with LLM adapter for codegen</td>
+          <td>-</td>
+          <td>-</td>
+          <td>Infrastructure tasks - pair with LLM adapter for codegen</td>
         </tr>
         <tr>
           <td><a href="#generic"><code>generic</code></a></td>
@@ -330,8 +330,8 @@
           <td>Depends on CLI</td>
           <td>Varies</td>
           <td>Depends on CLI</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>Unlisted CLIs; prototyping new adapters</td>
         </tr>
       </tbody>
@@ -379,53 +379,53 @@
         </tr>
         <tr>
           <td>Effort levels</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>max / high / medium / low</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
         </tr>
         <tr>
           <td>MCP config injection</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>✓</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (--add-mcp)</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (--mcp)</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
         </tr>
         <tr>
           <td>Structured JSON output</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>✓ (stream-json)</td>
           <td>✓ (--json)</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (--output-format json)</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (--format json)</td>
           <td>✓ (--format json)</td>
-          <td>—</td>
+          <td>-</td>
           <td>✓ (--output-format json)</td>
-          <td>—</td>
+          <td>-</td>
         </tr>
         <tr>
           <td>Tier detection</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
           <td>✓ (API key prefix)</td>
           <td>✓ (org ID / key prefix)</td>
           <td>✓ (~/.cursor/ present)</td>
@@ -434,8 +434,8 @@
           <td>✓ (~/.kiro/ or API key)</td>
           <td>✓ (~/.config/opencode/ or provider env)</td>
           <td>✓ (provider env vars)</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
         </tr>
         <tr>
           <td>Auto-approval</td>
@@ -470,28 +470,28 @@
         <tr>
           <td>OpenAI-compatible backends</td>
           <td>✓</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
           <td>✓</td>
           <td>✓ (OpenRouter, Together, Oxen)</td>
           <td>✓</td>
-          <td>—</td>
+          <td>-</td>
         </tr>
         <tr>
           <td>Local / offline models</td>
           <td>✓ (via OpenAI-compat server)</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
           <td>Depends on configured backend</td>
           <td>✓ (via OpenAI-compatible server)</td>
           <td>✓</td>
@@ -563,13 +563,13 @@ export OPENAI_API_KEY=sk-proj-...</code></pre>
 
     <div class="code-block">
       <pre><code class="language-bash"># Install Cursor from https://www.cursor.com
-# Sign in via the Cursor app — auth is stored in ~/.cursor/
+# Sign in via the Cursor app - auth is stored in ~/.cursor/
 cursor agent --version</code></pre>
     </div>
 
     <p>Cursor is a VS Code fork with built-in AI. The <code>cursor agent</code> subcommand runs the agent headlessly in the terminal. Bernstein uses <code>--user-data-dir</code> to isolate each session's state, and <code>--add-mcp</code> to inject MCP server config. The adapter does not pass <code>--model</code> because Cursor selects the model from the user's subscription settings.</p>
 
-    <p>Authentication is via the Cursor app OAuth session — no separate API key is needed. Bernstein detects login by checking for <code>~/.cursor/</code>. Tier detection reports Pro when logged in.</p>
+    <p>Authentication is via the Cursor app OAuth session - no separate API key is needed. Bernstein detects login by checking for <code>~/.cursor/</code>. Tier detection reports Pro when logged in.</p>
 
     <h2 id="gemini">Gemini CLI</h2>
 
@@ -580,7 +580,7 @@ cursor agent --version</code></pre>
 export GOOGLE_API_KEY=AIza...</code></pre>
     </div>
 
-    <p>Runs headlessly via <code>gemini -p &lt;prompt&gt; -m &lt;model&gt; --output-format json --yolo</code>. Pass any Gemini model string — e.g. <code>gemini-pro</code> or <code>gemini-flash</code>. For Vertex AI / enterprise use, set <code>GOOGLE_CLOUD_PROJECT</code> — tier detection will pick this up and apply higher rate limits accordingly.</p>
+    <p>Runs headlessly via <code>gemini -p &lt;prompt&gt; -m &lt;model&gt; --output-format json --yolo</code>. Pass any Gemini model string - e.g. <code>gemini-pro</code> or <code>gemini-flash</code>. For Vertex AI / enterprise use, set <code>GOOGLE_CLOUD_PROJECT</code> - tier detection will pick this up and apply higher rate limits accordingly.</p>
 
     <h2 id="kilo">Kilo</h2>
 
@@ -592,7 +592,7 @@ export KILO_API_KEY=...
 kilo --version</code></pre>
     </div>
 
-    <p>Kilo is a multi-provider agent CLI from Stackblitz. It supports headless mode, ACP/MCP protocols, and session management. Bernstein invokes it as <code>kilo run --prompt "&lt;task&gt;" --model &lt;provider/model&gt; --yes</code>. Pass any <code>provider/model</code> string — e.g. <code>anthropic/claude-sonnet-4-6</code>, <code>openai/gpt-5</code>, or <code>google/gemini-pro</code>.</p>
+    <p>Kilo is a multi-provider agent CLI from Stackblitz. It supports headless mode, ACP/MCP protocols, and session management. Bernstein invokes it as <code>kilo run --prompt "&lt;task&gt;" --model &lt;provider/model&gt; --yes</code>. Pass any <code>provider/model</code> string - e.g. <code>anthropic/claude-sonnet-4-6</code>, <code>openai/gpt-5</code>, or <code>google/gemini-pro</code>.</p>
 
     <p>Authentication is via <code>KILO_API_KEY</code> (preferred) or OAuth session stored in <code>~/.kilo/</code>. MCP server config is injected via <code>--mcp</code>. Tier detection reports Pro when any auth is found.</p>
 
@@ -827,7 +827,7 @@ role_model_policy:
 
 <footer>
   <div class="container">
-    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh — Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
+    <p>Built by <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener author">Alex Chernysh - Staff AI Engineer</a> &middot; <a href="https://github.com/sipyourdrink-ltd/bernstein" target="_blank" rel="noopener">GitHub</a> &middot; Apache 2.0</p>
   </div>
 </footer>
 

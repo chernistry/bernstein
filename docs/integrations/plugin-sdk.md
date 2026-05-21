@@ -2,7 +2,7 @@
 
 Bernstein exposes a pluggy-based hook system that lets you extend the
 orchestrator without modifying core code.  Plugins are plain Python classes
-— no base class required, no registration boilerplate.
+- no base class required, no registration boilerplate.
 
 ## Contents
 
@@ -29,7 +29,7 @@ orchestrator without modifying core code.  Plugins are plain Python classes
 
 ## How it works
 
-Bernstein uses [pluggy](https://pluggy.readthedocs.io/) — the same hook
+Bernstein uses [pluggy](https://pluggy.readthedocs.io/) - the same hook
 machinery used by pytest.  The orchestrator fires named hooks at key points in
 the task and agent lifecycle.  Any installed plugin that implements a hook
 receives the call automatically.
@@ -64,11 +64,11 @@ class MyPlugin:
 
 Rules:
 
-- **Decorate with `@hookimpl`** — unmarked methods are ignored.
-- **Use keyword arguments** — hooks are always called with `**kwargs`, so you
+- **Decorate with `@hookimpl`** - unmarked methods are ignored.
+- **Use keyword arguments** - hooks are always called with `**kwargs`, so you
   may safely omit parameters you don't need.
-- **Return `None`** — return values from hook implementations are ignored.
-- **Don't block** — hooks run synchronously in the orchestrator's main loop.
+- **Return `None`** - return values from hook implementations are ignored.
+- **Don't block** - hooks run synchronously in the orchestrator's main loop.
   Offload slow I/O (HTTP, DB writes) to a background thread or queue.
 
 ---
@@ -161,7 +161,7 @@ startup.  The package must be importable in the Python environment where
 ### Option B: entry points (distributable plugins)
 
 Register a `bernstein.plugins` entry point in `pyproject.toml`.  This makes
-the plugin auto-load whenever it is installed alongside Bernstein — no
+the plugin auto-load whenever it is installed alongside Bernstein - no
 `bernstein.yaml` change required.
 
 ```toml
@@ -181,7 +181,7 @@ Every hook call is wrapped in a `try/except` inside `PluginManager._safe_call`.
 If your plugin raises an exception it will be:
 
 1. Logged at `WARNING` level.
-2. Silently discarded — the orchestrator continues normally.
+2. Silently discarded - the orchestrator continues normally.
 
 This means plugin authors can be liberal with exceptions; they won't take down
 the system.  However, it also means silent failures are possible, so log
@@ -193,7 +193,7 @@ liberally inside your plugins.
 
 ### Logging notifier
 
-`examples/plugins/logging_plugin.py` — ships with Bernstein.  Prints every
+`examples/plugins/logging_plugin.py` - ships with Bernstein.  Prints every
 lifecycle event to stdout; useful as a starting template.
 
 ```python
@@ -239,12 +239,12 @@ plugins:
 
 ### Slack notifier
 
-`examples/plugins/slack_notifier.py` — posts failure and completion alerts to
+`examples/plugins/slack_notifier.py` - posts failure and completion alerts to
 a Slack channel via an Incoming Webhook.
 
 The HTTP request is dispatched on a daemon thread so the hook never blocks the
 orchestrator loop.  Only implements the three highest-signal hooks; others are
-simply not defined (which is fine — pluggy ignores them).
+simply not defined (which is fine - pluggy ignores them).
 
 ```python
 from __future__ import annotations
@@ -272,13 +272,13 @@ class SlackNotifier:
         self._webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
         if not self._webhook_url:
             log.warning(
-                "SlackNotifier: no webhook URL configured — "
+                "SlackNotifier: no webhook URL configured - "
                 "set SLACK_WEBHOOK_URL or pass webhook_url= at construction time"
             )
 
     @hookimpl
     def on_task_failed(self, task_id: str, role: str, error: str) -> None:
-        """Alert on task failure — highest-signal event for on-call."""
+        """Alert on task failure - highest-signal event for on-call."""
         self._post({
             "text": f":red_circle: *Task failed* `{task_id}` (role: `{role}`)\n```{error[:500]}```",
         })
@@ -336,7 +336,7 @@ export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
 ### Discord notifier
 
-`examples/plugins/discord_notifier.py` — posts alerts to a Discord channel
+`examples/plugins/discord_notifier.py` - posts alerts to a Discord channel
 via a Webhook URL.  Uses Discord's embed format for color-coded messages.
 
 ```python
@@ -365,7 +365,7 @@ class DiscordNotifier:
         self._webhook_url = webhook_url or os.getenv("DISCORD_WEBHOOK_URL", "")
         if not self._webhook_url:
             log.warning(
-                "DiscordNotifier: no webhook URL configured — "
+                "DiscordNotifier: no webhook URL configured - "
                 "set DISCORD_WEBHOOK_URL or pass webhook_url= at construction time"
             )
 
@@ -433,7 +433,7 @@ export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/CHANNEL_ID/TOKEN
 
 ### Metrics collector
 
-`examples/plugins/metrics_plugin.py` — appends structured JSON events to
+`examples/plugins/metrics_plugin.py` - appends structured JSON events to
 `.sdd/metrics/plugin_events.jsonl` for every hook that fires.  Use it as a
 foundation for custom dashboards or feeding data into an observability platform.
 
@@ -527,11 +527,11 @@ Sample output in `.sdd/metrics/plugin_events.jsonl`:
 
 ### Custom quality gate
 
-`examples/plugins/quality_gate_plugin.py` — runs a security scan after every
+`examples/plugins/quality_gate_plugin.py` - runs a security scan after every
 task completes.
 
 The gate result is written to `.sdd/metrics/custom_gates.jsonl`.  A failed
-scan logs a warning but does **not** block the orchestrator — for hard
+scan logs a warning but does **not** block the orchestrator - for hard
 blocking, configure `quality_gates:` in `bernstein.yaml` instead.  The plugin
 pattern is useful for **soft gates**: record the result, alert on failure, but
 let the run continue.
@@ -631,7 +631,7 @@ export BERNSTEIN_SECURITY_CMD="trivy fs . --exit-code 1 --severity HIGH,CRITICAL
 
 ### Cost-aware router
 
-`examples/plugins/custom_router_plugin.py` — tracks cumulative model spend and
+`examples/plugins/custom_router_plugin.py` - tracks cumulative model spend and
 writes routing hints that the orchestrator reads on each scheduling tick.
 
 This is the plugin pattern for influencing **model selection** without touching
@@ -641,8 +641,8 @@ does not exist, routing falls back to the standard tier-aware algorithm.
 
 **How it works:**
 
-1. `on_agent_spawned` — record the model alias for the new session.
-2. `on_agent_reaped` — estimate token cost; accumulate against the daily budget.
+1. `on_agent_spawned` - record the model alias for the new session.
+2. `on_agent_reaped` - estimate token cost; accumulate against the daily budget.
 3. At 60% budget consumed → keep `sonnet` as preferred model.
 4. At 90% budget consumed → downgrade preferred model to `haiku`.
 5. Protected roles (`manager`, `architect`, `security`) are never downgraded.
@@ -680,7 +680,7 @@ See `examples/plugins/custom_router_plugin.py` for the full source (~250 lines).
 
 ### Jira sync
 
-`examples/plugins/jira_plugin.py` — keeps Jira issues and Bernstein tasks in
+`examples/plugins/jira_plugin.py` - keeps Jira issues and Bernstein tasks in
 sync.  When a task completes or fails, the linked Jira issue is transitioned
 accordingly and a comment is added on failure.
 
@@ -716,7 +716,7 @@ ref is absent or not prefixed with `jira:`, the plugin is a no-op for that task.
 | `on_task_failed` | Transition issue → Done (failed tag) + add error comment |
 | `on_task_created` | Debug log only (no Jira call) |
 
-All Jira API calls run on daemon threads — they never block the orchestrator.
+All Jira API calls run on daemon threads - they never block the orchestrator.
 
 **Custom status names:**
 
@@ -754,7 +754,7 @@ pm.register(JiraPlugin(default_role="backend"), name="jira-backend")
 
 ### Linear sync
 
-`examples/plugins/linear_plugin.py` — mirrors task state changes to Linear
+`examples/plugins/linear_plugin.py` - mirrors task state changes to Linear
 issues via the Linear GraphQL API.
 
 **Prerequisites:**
@@ -922,8 +922,8 @@ Use a plugin (like `CostAwareRouter` above) to observe lifecycle events and
 write routing hints.  Use `providers.yaml` to define which providers exist and
 what they cost.  The two systems complement each other:
 
-- `providers.yaml` — static configuration (endpoints, tiers, costs)
-- Plugin hints file — dynamic overrides (budget pressure, runtime preferences)
+- `providers.yaml` - static configuration (endpoints, tiers, costs)
+- Plugin hints file - dynamic overrides (budget pressure, runtime preferences)
 
 ---
 
@@ -996,7 +996,7 @@ build-backend = "hatchling.build"
 ```
 
 Once installed (`pip install bernstein-plugin-example`), the plugin loads
-automatically — no `bernstein.yaml` change required.
+automatically - no `bernstein.yaml` change required.
 
 ---
 

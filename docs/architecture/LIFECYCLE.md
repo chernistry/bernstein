@@ -82,7 +82,7 @@ stateDiagram-v2
     PENDING_APPROVAL --> [*]
 ```
 
-> **Note — `PENDING_APPROVAL`:** This state exists in the `TaskStatus` enum and is used by the approval subsystem (see `src/bernstein/core/security/approval.py`). It is set directly rather than through the `TASK_TRANSITIONS` table, so it has no FSM-managed entry or exit path. Tasks in this state await human review and cannot progress further without manual intervention.
+> **Note - `PENDING_APPROVAL`:** This state exists in the `TaskStatus` enum and is used by the approval subsystem (see `src/bernstein/core/security/approval.py`). It is set directly rather than through the `TASK_TRANSITIONS` table, so it has no FSM-managed entry or exit path. Tasks in this state await human review and cannot progress further without manual intervention.
 
 ### Task Transition Table (exhaustive)
 
@@ -232,7 +232,7 @@ These classify abnormal agent terminations:
 
 ## TUI Visual States (7 classifications)
 
-The Bernstein terminal dashboard classifies agents into **visual states** derived from session metadata — not from the FSM directly. These presentation-layer states help operators understand agent health at a glance.
+The Bernstein terminal dashboard classifies agents into **visual states** derived from session metadata - not from the FSM directly. These presentation-layer states help operators understand agent health at a glance.
 
 Source: `src/bernstein/tui/agent_states.py` (`AgentState`, `classify_agent_state`).
 
@@ -268,7 +268,7 @@ TUI visual states are derived from the core FSM state (`starting`, `working`, `i
 ## Agent Turn States (10 states)
 
 The agent turn FSM operates at a finer granularity than the agent session FSM above.
-It tracks the lifecycle of a **single task handling turn** within an agent process —
+It tracks the lifecycle of a **single task handling turn** within an agent process -
 from the moment a task is claimed through to cleanup.
 
 Source of truth: `src/bernstein/core/agents/agent_turn_state.py` (`AgentTurnState`,
@@ -276,7 +276,7 @@ Source of truth: `src/bernstein/core/agents/agent_turn_state.py` (`AgentTurnStat
 
 | State | Description |
 |-------|-------------|
-| `IDLE` | No active turn — agent is between tasks or not yet assigned. |
+| `IDLE` | No active turn - agent is between tasks or not yet assigned. |
 | `CLAIMING` | A task has been claimed; worktree is being prepared. |
 | `SPAWNING` | Agent process has been launched but hasn't started executing yet. |
 | `RUNNING` | Agent process is actively working on the task. |

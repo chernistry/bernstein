@@ -121,8 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     if soft_hits:
         print(f"::group::data-freshness soft warning (>= {SOFT_THRESHOLD_DAYS} days)")
         for rel_path, line_no, line_text, age_days in soft_hits:
-            print(f"::warning file={rel_path},line={line_no}::"
-                  f"{age_days} days old: {line_text}")
+            print(f"::warning file={rel_path},line={line_no}::{age_days} days old: {line_text}")
         print("::endgroup::")
 
     if not soft_hits and not hard_hits:

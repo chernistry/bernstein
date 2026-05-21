@@ -105,6 +105,5 @@ def test_no_hardcoded_observability_infra_in_public_artefacts() -> None:
         "Operator-private observability infrastructure must not appear in "
         "docs/ or in workflow files that render strings into PR comments "
         "or issue bodies. Use *.example.com placeholders in docs and "
-        "operator-configured vars.* references in workflows. Offenders:\n  "
-        + "\n  ".join(offenders)
+        "operator-configured vars.* references in workflows. Offenders:\n  " + "\n  ".join(offenders)
     )

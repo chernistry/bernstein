@@ -1,4 +1,4 @@
-"""In-process agent backend — run agents inside a thread of the same Python process.
+"""In-process agent backend - run agents inside a thread of the same Python process.
 
 Provides a subprocess-compatible interface for agents that run inside the
 orchestrator process (no separate OS process per agent).  Use with caution:
@@ -6,7 +6,7 @@ a crash (e.g. segfault, uncaught ``SystemExit``) can take down the task server.
 
 The ``InProcessAgent`` wraps a ``CLIAdapter`` and intercepts its ``spawn``
 call, running it inside a daemon thread.  The adapter spawns a subprocess
-internally — the "in-process" refers to how the *orchestrator* tracks the
+internally - the "in-process" refers to how the *orchestrator* tracks the
 agent lifecycle.
 
 Typical usage::
@@ -227,14 +227,14 @@ class InProcessAgent:
         if session.thread.is_alive():
             return None
 
-        # Thread finished — return exit_code if available
+        # Thread finished - return exit_code if available
         with self._lock:
             finished = self._sessions.get(session_id)
 
         if finished is not None and finished.exit_code is not None:
             return finished.exit_code
 
-        # Thread finished but exit_code not set — assume success
+        # Thread finished but exit_code not set - assume success
         with self._lock:
             if session_id in self._sessions and self._sessions[session_id].exit_code is None:
                 self._sessions[session_id].exit_code = 0
@@ -336,8 +336,8 @@ class InProcessAgent:
             else:
                 exit_code = 0  # adapter did not expose a handle
 
-        except SystemExit as exc:  # NOSONAR — intentionally trap adapter's sys.exit()
-            # Trap SystemExit — the adapter might call sys.exit().
+        except SystemExit as exc:  # NOSONAR - intentionally trap adapter's sys.exit()
+            # Trap SystemExit - the adapter might call sys.exit().
             if isinstance(exc.code, int):
                 exit_code = exc.code
             elif exc.code is not None:

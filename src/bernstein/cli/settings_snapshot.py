@@ -1,4 +1,4 @@
-"""Settings snapshot — capture and serialize effective settings for traces.
+"""Settings snapshot - capture and serialize effective settings for traces.
 
 Provides ``capture_settings_snapshot()`` that collects all settings
 sources (environment, config files, defaults) with provenance info,

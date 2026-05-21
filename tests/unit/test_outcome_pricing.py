@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.outcome_pricing — outcome-based pricing models."""
+"""Tests for bernstein.core.outcome_pricing - outcome-based pricing models."""
 
 from __future__ import annotations
 

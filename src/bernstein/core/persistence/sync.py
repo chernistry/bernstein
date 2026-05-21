@@ -57,7 +57,7 @@ def parse_backlog_file(path: Path) -> BacklogTask | None:
 
     Supports two formats:
     1. **YAML frontmatter** (``---`` delimited block at the top of the file).
-    2. **Markdown bold fields** — lines like ``**Role:** backend``.
+    2. **Markdown bold fields** - lines like ``**Role:** backend``.
 
     Args:
         path: Path to the backlog file.
@@ -182,7 +182,7 @@ def _build_existing_slugs(client: httpx.Client, server_url: str) -> set[str]:
         Set of normalised slugs.
     """
     slugs: set[str] = set()
-    # ``cancelled`` must be included — otherwise a YAML left in
+    # ``cancelled`` must be included - otherwise a YAML left in
     # backlog/open/ for a task the manager cancelled gets re-injected on
     # every startup sync and keeps failing forever.
     for status in ("open", "claimed", "in_progress", "done", "failed", "cancelled"):
@@ -326,7 +326,7 @@ def sync_backlog_to_server(
         try:
             existing_slugs = _build_existing_slugs(_client, server_url)
         except httpx.ConnectError:
-            result.errors.append("Cannot connect to task server — is it running?")
+            result.errors.append("Cannot connect to task server - is it running?")
             return result
 
         md_files = _collect_backlog_files(backlog_open, backlog_issues, task_filter)
@@ -383,7 +383,7 @@ def _prepare_batch_payloads(
             continue
         if _task_already_exists(task, existing_slugs):
             result.skipped.append(md_file.name)
-            logger.debug("Skipping %s — task already on server", md_file.name)
+            logger.debug("Skipping %s - task already on server", md_file.name)
             continue
         batch_payloads.append(_build_task_payload(task))
         batch_files.append(md_file)

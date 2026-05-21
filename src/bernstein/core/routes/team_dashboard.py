@@ -1,4 +1,4 @@
-"""Team adoption dashboard — aggregate usage metrics for engineering managers."""
+"""Team adoption dashboard - aggregate usage metrics for engineering managers."""
 
 from __future__ import annotations
 

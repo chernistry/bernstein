@@ -1,7 +1,7 @@
 """Cross-process A2A federation end-to-end tests.
 
-Spins up two FastAPI servers on different ports — peer A (caller) and peer B
-(callee) — and exercises the real HTTP path between them:
+Spins up two FastAPI servers on different ports - peer A (caller) and peer B
+(callee) - and exercises the real HTTP path between them:
 
 * happy-path delegation roundtrip with ledger consistency on both sides;
 * peer state machine: ACTIVE → UNREACHABLE on connect failures, refresh on
@@ -12,7 +12,7 @@ Spins up two FastAPI servers on different ports — peer A (caller) and peer B
   remains ACTIVE;
 * concurrent delegations from peer A → peer B all land, ledger consistent;
 * invalid sender Agent Card → 400 at the boundary, no inbound bookkeeping;
-* dedicated client injection — no httpx connection warnings on shutdown.
+* dedicated client injection - no httpx connection warnings on shutdown.
 
 Skipped on Windows: the asyncio + uvicorn fixture combo is fragile under
 the Windows ProactorEventLoop and the cluster-e2e/clm-fake-nim tests use
@@ -46,7 +46,7 @@ from fastapi import FastAPI
 
 from bernstein.core.server import create_app
 
-# Skip the whole module on Windows — uvicorn lifespan + asyncio fixtures
+# Skip the whole module on Windows - uvicorn lifespan + asyncio fixtures
 # wedge under ProactorEventLoop in CI. Same rationale as the cluster-e2e
 # and clm-fake-nim integration suites that share this scaffolding.
 pytestmark = pytest.mark.skipif(
@@ -56,7 +56,7 @@ pytestmark = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
-# Helpers — port allocation and uvicorn lifecycle
+# Helpers - port allocation and uvicorn lifecycle
 # ---------------------------------------------------------------------------
 
 
@@ -70,7 +70,7 @@ def _free_port() -> int:
 class _PeerServer:
     """A FastAPI application running uvicorn in a background thread.
 
-    Used as one side of the A2A federation — the test drives delegation
+    Used as one side of the A2A federation - the test drives delegation
     from a separate ``A2AFederation`` instance that POSTs into this
     server's ``/a2a/v0/tasks`` endpoint over real HTTP.
     """
@@ -118,7 +118,7 @@ def _build_peer_app(jsonl_path: Path) -> FastAPI:
 
 
 # ---------------------------------------------------------------------------
-# Fixtures — peer A (caller) and peer B (callee), each in its own server
+# Fixtures - peer A (caller) and peer B (callee), each in its own server
 # ---------------------------------------------------------------------------
 
 
@@ -171,7 +171,7 @@ def caller_federation(peer_b: _PeerServer) -> A2AFederation:
 
 
 # ---------------------------------------------------------------------------
-# 1. Happy path — real HTTP roundtrip, ledger consistent on both sides
+# 1. Happy path - real HTTP roundtrip, ledger consistent on both sides
 # ---------------------------------------------------------------------------
 
 
@@ -197,7 +197,7 @@ async def test_delegate_task_http_roundtrip(
     assert peer is not None
     assert peer.state == PeerState.ACTIVE
 
-    # Callee-side ledger — pulled from the real FastAPI app state.
+    # Callee-side ledger - pulled from the real FastAPI app state.
     callee_fed: A2AFederation = peer_b.app.state.a2a_federation  # type: ignore[attr-defined]
     inbound = callee_fed.list_tasks(direction="inbound")
     assert len(inbound) == 1
@@ -217,7 +217,7 @@ async def test_delegate_retries_on_5xx_then_succeeds(
     caller_federation: A2AFederation,
     caller_card: AgentCard,
 ) -> None:
-    """Peer B returns 503 once, then 202 — retry path delivers."""
+    """Peer B returns 503 once, then 202 - retry path delivers."""
     # Patch the route to fail the first call, succeed afterwards.
     state = {"calls": 0}
 
@@ -249,7 +249,7 @@ async def test_delegate_retries_on_5xx_then_succeeds(
 
 
 # ---------------------------------------------------------------------------
-# 3. All retries exhausted — peer marked UNREACHABLE
+# 3. All retries exhausted - peer marked UNREACHABLE
 # ---------------------------------------------------------------------------
 
 
@@ -287,7 +287,7 @@ async def test_delegate_unreachable_marks_peer(
 
 
 # ---------------------------------------------------------------------------
-# 4. Peer rejects validation — REJECTED, peer stays ACTIVE
+# 4. Peer rejects validation - REJECTED, peer stays ACTIVE
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +320,7 @@ async def test_delegate_rejected_keeps_peer_active(
 
 
 # ---------------------------------------------------------------------------
-# 5. Invalid sender card — peer rejects with 400, no ledger entry on B
+# 5. Invalid sender card - peer rejects with 400, no ledger entry on B
 # ---------------------------------------------------------------------------
 
 
@@ -344,7 +344,7 @@ async def test_invalid_sender_card_rejected_at_boundary(
 
 
 # ---------------------------------------------------------------------------
-# 6. Concurrent delegations from one caller to one callee — ledger consistent
+# 6. Concurrent delegations from one caller to one callee - ledger consistent
 # ---------------------------------------------------------------------------
 
 
@@ -383,7 +383,7 @@ async def test_concurrent_delegations_consistent_ledger(
 
 
 # ---------------------------------------------------------------------------
-# 7. Reusable httpx client — no un-closed connection warnings
+# 7. Reusable httpx client - no un-closed connection warnings
 # ---------------------------------------------------------------------------
 
 
@@ -409,7 +409,7 @@ async def test_external_httpx_client_reused_no_leak(
 
 
 # ---------------------------------------------------------------------------
-# 8. Bidirectional delegation — A→B then B→A round-trips both ledgers
+# 8. Bidirectional delegation - A→B then B→A round-trips both ledgers
 # ---------------------------------------------------------------------------
 
 
@@ -419,7 +419,7 @@ async def test_bidirectional_delegation_two_servers(
     peer_b: _PeerServer,
     caller_card: AgentCard,
 ) -> None:
-    """A delegates to B, then B delegates to A — both directions land."""
+    """A delegates to B, then B delegates to A - both directions land."""
     # Caller-side feds for each peer's outbound calls.
     fed_a_out = A2AFederation(local_endpoint=peer_a.endpoint)
     fed_a_out.register_peer("peer-b", peer_b.endpoint)
@@ -449,7 +449,7 @@ async def test_bidirectional_delegation_two_servers(
 
 
 # ---------------------------------------------------------------------------
-# 9. Inbound idempotency — duplicate POSTs from a retry don't double-book
+# 9. Inbound idempotency - duplicate POSTs from a retry don't double-book
 # ---------------------------------------------------------------------------
 
 
@@ -478,7 +478,7 @@ async def test_inbound_idempotent_on_duplicate_remote_task_id(
         second = await client.post(f"{peer_b.endpoint}{A2A_TASKS_PATH}", json=payload)
     assert first.status_code == 202
     assert second.status_code == 202
-    # Same local-id returned both times — proves the idempotent path.
+    # Same local-id returned both times - proves the idempotent path.
     assert first.json()["id"] == second.json()["id"]
     fed_b: A2AFederation = peer_b.app.state.a2a_federation  # type: ignore[attr-defined]
     inbound = fed_b.list_tasks(direction="inbound", peer_name="duplicate-peer")
@@ -486,7 +486,7 @@ async def test_inbound_idempotent_on_duplicate_remote_task_id(
 
 
 # ---------------------------------------------------------------------------
-# 10. Recovery — UNREACHABLE peer comes back, next delegate flips to ACTIVE
+# 10. Recovery - UNREACHABLE peer comes back, next delegate flips to ACTIVE
 # ---------------------------------------------------------------------------
 
 
@@ -503,7 +503,7 @@ async def test_unreachable_peer_recovers_to_active_on_success(
     peer.state = PeerState.UNREACHABLE
 
     # Real peer B is reachable, so the next delegation succeeds and the
-    # ledger must transition the peer back to ACTIVE — proves the state
+    # ledger must transition the peer back to ACTIVE - proves the state
     # machine isn't stuck in UNREACHABLE forever.
     task = await caller_federation.delegate_task_http(
         "peer-b",

@@ -5,7 +5,7 @@ server and optionally wait for completion.  The ``--json`` flag emits
 machine-readable output so callers can parse the task ID without screen-
 scraping Rich markup.
 """
-# Not yet wired into main.py CLI group. Ready to ship — add
+# Not yet wired into main.py CLI group. Ready to ship - add
 # `cli.add_command(delegate, "delegate")` in main.py when needed.
 
 from __future__ import annotations

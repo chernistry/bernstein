@@ -363,7 +363,7 @@ def test_type_check_command_includes_transitive_importers(tmp_path: Path) -> Non
     assert len(captured_commands) == 1
     cmd = captured_commands[0]
     assert "models.py" in cmd
-    # service.py imports models.py — it must be included in the type-check scope
+    # service.py imports models.py - it must be included in the type-check scope
     assert "service.py" in cmd
 
 
@@ -426,5 +426,5 @@ def test_type_check_command_no_extra_files_when_no_importers(tmp_path: Path) -> 
     assert len(captured_commands) == 1
     cmd = captured_commands[0]
     assert "utils.py" in cmd
-    # other.py does not import utils.py — it must not be included
+    # other.py does not import utils.py - it must not be included
     assert "other.py" not in cmd

@@ -1,4 +1,4 @@
-"""MCP server sandboxing — optional container isolation for untrusted servers.
+"""MCP server sandboxing - optional container isolation for untrusted servers.
 
 Provides configuration dataclasses and command-building helpers to wrap
 MCP server subprocesses in Docker/Podman containers with resource limits,
@@ -235,7 +235,7 @@ def load_sandbox_config(yaml_path: Path | None = None) -> SandboxConfig:
     if yaml_path is None:
         return SandboxConfig()
 
-    import yaml  # lazy import — only needed when a path is provided
+    import yaml  # lazy import - only needed when a path is provided
 
     try:
         with open(yaml_path) as fh:

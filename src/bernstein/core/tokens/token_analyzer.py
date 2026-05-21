@@ -177,7 +177,7 @@ class TokenUsageAnalyzer:
                         detail=(
                             f"Input:output ratio {ts.io_ratio:.1f}:1 "
                             f"({ts.tokens_prompt:,} in / {ts.tokens_completion:,} out) "
-                            f"— consider reducing context"
+                            f"- consider reducing context"
                         ),
                     )
                 )
@@ -189,7 +189,7 @@ class TokenUsageAnalyzer:
                         pattern="minimal_output",
                         detail=(
                             f"Only {ts.tokens_completion} output tokens for "
-                            f"{ts.tokens_prompt:,} input — task may have failed silently"
+                            f"{ts.tokens_prompt:,} input - task may have failed silently"
                         ),
                     )
                 )
@@ -201,7 +201,7 @@ class TokenUsageAnalyzer:
                         task_id=tids[0],
                         title=norm_title,
                         pattern="repeated_retry",
-                        detail=f"{len(tids)} attempts with same title — wasted tokens on retries",
+                        detail=f"{len(tids)} attempts with same title - wasted tokens on retries",
                     )
                 )
         return waste

@@ -1,6 +1,6 @@
 """Predictive alerting routes (ROAD-157).
 
-GET /metrics/predictions — evaluate all forecasts and return any active alerts.
+GET /metrics/predictions - evaluate all forecasts and return any active alerts.
 """
 
 from __future__ import annotations

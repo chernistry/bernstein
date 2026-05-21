@@ -182,7 +182,7 @@ def _binary_for_adapter(name: str) -> str:
 def _enumerate_adapters() -> list[dict[str, str]]:
     """Snapshot the live adapter registry as plain dicts.
 
-    The registry is the source of truth — we never enumerate by scanning
+    The registry is the source of truth - we never enumerate by scanning
     files. Includes the synthetic ``generic`` adapter, which is built
     on demand inside ``get_adapter`` and not present in the ``_ADAPTERS``
     dict.

@@ -212,12 +212,12 @@ class HookDecision:
     Hooks may emit a single-line JSON object on stdout to influence the
     pipeline:
 
-    * ``{"decision": "allow"}`` — explicit allow (default if absent).
-    * ``{"decision": "deny", "reason": "<text>"}`` — for ``preToolUse``,
+    * ``{"decision": "allow"}`` - explicit allow (default if absent).
+    * ``{"decision": "deny", "reason": "<text>"}`` - for ``preToolUse``,
       blocks the tool call and raises :class:`HookDenied`.
-    * ``{"decision": "mutate", "data": {...}}`` — replaces the payload
+    * ``{"decision": "mutate", "data": {...}}`` - replaces the payload
       passed to subsequent hooks in the chain.
-    * ``{"decision": "annotate", "data": {...}}`` — merges keys into the
+    * ``{"decision": "annotate", "data": {...}}`` - merges keys into the
       payload without replacing it.
 
     Any other key is preserved verbatim on ``HookDecision.raw`` for
@@ -419,7 +419,7 @@ class HookRegistry:
         final (possibly mutated) context.
 
         Pre-existing callers that ignore the return value continue to
-        work — the signature change is forward-compatible.
+        work - the signature change is forward-compatible.
 
         Raises:
             HookFailure: On the first failure; subsequent hooks are not run.
@@ -733,7 +733,7 @@ def discover_default_hook_scripts(
     The filename stem is matched against :class:`LifecycleEvent` values
     so a file named ``preToolUse.sh`` registers against
     :attr:`LifecycleEvent.PRE_TOOL_USE`. Files whose stem does not match
-    a known event are silently ignored — that keeps the convention
+    a known event are silently ignored - that keeps the convention
     forgiving for ``README.md`` or other helpers operators drop into
     the directory.
 

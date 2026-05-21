@@ -1,4 +1,4 @@
-"""Tests for CapacityWake — merged abort + capacity-free wake signals."""
+"""Tests for CapacityWake - merged abort + capacity-free wake signals."""
 
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def test_abort_signal_wakes_early() -> None:
 
 
 def test_abort_signal_persists_across_calls() -> None:
-    """abort flag is NOT cleared — subsequent wait() calls also return ABORT."""
+    """abort flag is NOT cleared - subsequent wait() calls also return ABORT."""
     wake = CapacityWake()
     wake.signal_abort()
 

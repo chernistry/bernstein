@@ -1,4 +1,4 @@
-"""Eval harness — multiplicative scoring, LLM judge, failure taxonomy.
+"""Eval harness - multiplicative scoring, LLM judge, failure taxonomy.
 
 Provides tiered evaluation with the scoring formula:
     Score = (0.5*TaskSuccess + 0.3*CodeQuality + 0.2*Efficiency) * Reliability * Safety
@@ -285,7 +285,7 @@ class EvalHarness:
         benchmarks_dir = (sandbox_dir / "tests" / "benchmarks") if sandbox_dir else self._benchmarks_dir
 
         if not benchmarks_dir.is_dir():
-            logger.debug("No benchmarks directory at %s — returning score 1.0", benchmarks_dir)
+            logger.debug("No benchmarks directory at %s - returning score 1.0", benchmarks_dir)
             return EvalResult(
                 score=1.0,
                 components={},
@@ -361,7 +361,7 @@ class EvalHarness:
     ) -> TaskEvalResult:
         """Evaluate a single task against its golden expectations.
 
-        Synchronous scoring path — takes pre-collected telemetry and
+        Synchronous scoring path - takes pre-collected telemetry and
         an optional judge verdict, produces a TaskEvalResult.
 
         Args:

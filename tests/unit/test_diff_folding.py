@@ -1,4 +1,4 @@
-"""Tests for diff_folding — collapsible diff display."""
+"""Tests for diff_folding - collapsible diff display."""
 
 from __future__ import annotations
 

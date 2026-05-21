@@ -2,7 +2,7 @@
 
 Each test creates a real throwaway repo under ``tmp_path``. We exercise
 the real git plumbing because the module's whole point is to be a thin
-wrapper around it — mocking ``subprocess`` would test nothing useful.
+wrapper around it - mocking ``subprocess`` would test nothing useful.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Loaded eagerly at startup so a misconfigured sink fails fast before
 any agent is spawned. The schema is designed so a brand-new install
-that doesn't set ``notifications`` at all is valid — every field is
+that doesn't set ``notifications`` at all is valid - every field is
 optional.
 
 Example::

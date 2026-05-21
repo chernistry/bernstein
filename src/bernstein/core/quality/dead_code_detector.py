@@ -150,7 +150,7 @@ def _extract_removed_names(diff: str) -> set[str]:
     """Parse *diff* and return names of functions/classes removed from the diff.
 
     Only lines prefixed with ``-`` (removed) are considered. Lines prefixed
-    with ``+`` (added) represent new names and are excluded — if they were
+    with ``+`` (added) represent new names and are excluded - if they were
     renamed, the old name is still removed and will be checked for callers.
     """
     names: set[str] = set()
@@ -308,7 +308,7 @@ def _check_unreachable_branches(source: str, rel_path: str) -> list[DeadCodeIssu
     issues: list[DeadCodeIssue] = []
 
     for node in ast.walk(tree):
-        # if False: <body>  — body is always skipped
+        # if False: <body>  - body is always skipped
         if isinstance(node, ast.If):
             test = node.test
             if isinstance(test, ast.Constant) and test.value is False:
@@ -317,7 +317,7 @@ def _check_unreachable_branches(source: str, rel_path: str) -> list[DeadCodeIssu
                         kind="unreachable_branch",
                         name="if False",
                         file=rel_path,
-                        detail=f"Line {node.lineno}: unreachable branch — condition is always False.",
+                        detail=f"Line {node.lineno}: unreachable branch - condition is always False.",
                     )
                 )
             elif isinstance(test, ast.Constant) and test.value is True and node.orelse:
@@ -326,7 +326,7 @@ def _check_unreachable_branches(source: str, rel_path: str) -> list[DeadCodeIssu
                         kind="unreachable_branch",
                         name="if True ... else",
                         file=rel_path,
-                        detail=(f"Line {node.lineno}: unreachable else-branch — condition is always True."),
+                        detail=(f"Line {node.lineno}: unreachable else-branch - condition is always True."),
                     )
                 )
 
@@ -360,7 +360,7 @@ def _check_unreachable_after_jump(
                     name=type(stmt).__name__.lower(),
                     file=rel_path,
                     detail=(
-                        f"Line {next_stmt.lineno}: unreachable — "
+                        f"Line {next_stmt.lineno}: unreachable - "
                         f"statement follows {type(stmt).__name__.lower()} at line {stmt.lineno}."
                     ),
                 )
@@ -392,7 +392,7 @@ def _check_added_private_name(name: str, workdir: Path, default_file: str) -> De
         kind="no_callers",
         name=name,
         file=default_file,
-        detail=f"Newly added {name!r} has no callers — may be dead code.",
+        detail=f"Newly added {name!r} has no callers - may be dead code.",
     )
 
 
@@ -405,7 +405,7 @@ def _check_lost_callers(
 
     When an agent removes a name from a file but does not update all call
     sites, the callers reference a symbol that no longer exists.  This is
-    the inverse of dead code — it's *broken* code — but it arises from the
+    the inverse of dead code - it's *broken* code - but it arises from the
     same agent pattern of adding new implementations without removing old
     ones.
 

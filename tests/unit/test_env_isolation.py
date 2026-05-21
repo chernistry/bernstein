@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# build_filtered_env — unit tests
+# build_filtered_env - unit tests
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ class TestBuildFilteredEnv:
         The agent's Claude-Code hook runner signs ``/hooks/{session_id}``
         POSTs with ``SECRET="${BERNSTEIN_HOOK_SECRET:-$BERNSTEIN_AUTH_TOKEN}"``.
         If the allowlist strips these vars, openssl HMACs over the empty
-        string and every hook event returns 401 — which silently kills
+        string and every hook event returns 401 - which silently kills
         token-tracking, context-util %, and completion markers.
         """
         env = {

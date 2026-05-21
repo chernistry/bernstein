@@ -122,7 +122,7 @@ async def test_access_log_rotation_debounced_across_many_requests(tmp_path: Path
                 self.headers.setdefault(key, value)
 
         resp = _Resp()
-        # Starlette response stub — just needs ``headers.setdefault`` and ``status_code``.
+        # Starlette response stub - just needs ``headers.setdefault`` and ``status_code``.
         resp.headers = _HeaderDict()
         return resp
 
@@ -212,7 +212,7 @@ async def test_access_log_rotation_triggers_at_byte_threshold(tmp_path: Path) ->
 
 @pytest.mark.anyio
 async def test_access_log_handle_reused_across_requests(tmp_path: Path) -> None:
-    """The append-mode file handle must be reused — not reopened per request."""
+    """The append-mode file handle must be reused - not reopened per request."""
 
     log_path = tmp_path / "access.jsonl"
 

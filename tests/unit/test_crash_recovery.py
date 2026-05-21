@@ -1,4 +1,4 @@
-"""Tests for crash recovery — orphaned agent detection and resume.
+"""Tests for crash recovery - orphaned agent detection and resume.
 
 Tests cover:
 - OrchestratorConfig has recovery fields with defaults
@@ -124,7 +124,7 @@ def test_orchestrator_config_recovery_accepts_all_strategies():
 
 
 # ---------------------------------------------------------------------------
-# 2. spawn_for_resume — uses provided worktree path
+# 2. spawn_for_resume - uses provided worktree path
 # ---------------------------------------------------------------------------
 
 
@@ -165,7 +165,7 @@ def test_spawn_for_resume_does_not_create_new_worktree(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 3. spawn_for_resume — prompt includes crash context
+# 3. spawn_for_resume - prompt includes crash context
 # ---------------------------------------------------------------------------
 
 
@@ -265,7 +265,7 @@ def _route_mock_request(request: httpx.Request, task_store: list[dict]) -> httpx
 
 
 # ---------------------------------------------------------------------------
-# 4. Orchestrator crash tracking — crash count incremented
+# 4. Orchestrator crash tracking - crash count incremented
 # ---------------------------------------------------------------------------
 
 
@@ -325,7 +325,7 @@ def test_orchestrator_increments_crash_count_on_agent_death(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 5. max_crash_retries enforced — task fails after limit
+# 5. max_crash_retries enforced - task fails after limit
 # ---------------------------------------------------------------------------
 
 
@@ -333,7 +333,7 @@ def test_orchestrator_fails_task_after_max_crash_retries(tmp_path: Path):
     """Task should be failed permanently once _crash_counts[task_id] >= max_crash_retries."""
     task = _make_task(id="T-exhaust", status="claimed")
     task_dict = _task_as_dict(task)
-    # audit-017: retry_count is the typed source of truth — no markers.
+    # audit-017: retry_count is the typed source of truth - no markers.
     task_dict["retry_count"] = 2
     task_dict["max_retries"] = 2
 
@@ -361,7 +361,7 @@ def test_orchestrator_fails_task_after_max_crash_retries(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 6. resume strategy — spawn_for_resume called with preserved worktree
+# 6. resume strategy - spawn_for_resume called with preserved worktree
 # ---------------------------------------------------------------------------
 
 
@@ -400,7 +400,7 @@ def test_orchestrator_calls_spawn_for_resume_when_worktree_preserved(tmp_path: P
 
 
 # ---------------------------------------------------------------------------
-# 7. restart strategy — no worktree preserved
+# 7. restart strategy - no worktree preserved
 # ---------------------------------------------------------------------------
 
 
@@ -433,7 +433,7 @@ def test_orchestrator_does_not_preserve_worktree_on_restart(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# 8. escalate strategy — marks task BLOCKED after max_crash_retries exceeded
+# 8. escalate strategy - marks task BLOCKED after max_crash_retries exceeded
 # ---------------------------------------------------------------------------
 
 

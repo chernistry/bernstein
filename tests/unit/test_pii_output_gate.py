@@ -244,7 +244,7 @@ class TestFindingProperties:
         assert {f.line_number for f in email_findings} == {1, 2}
 
     def test_duplicate_identical_line_deduped(self) -> None:
-        """Exact same span on the same line must not be reported twice —
+        """Exact same span on the same line must not be reported twice -
         ``(rule, line_num, start, end)`` dedup still applies."""
         text = "alert@real.com"
         findings = scan_text(text)
@@ -262,7 +262,7 @@ class TestAudit044PerRuleDedup:
 
     Prior to the fix, ``_scan_line`` skipped any rule after its first hit
     (``if rule_label in seen_rules: continue``), so a file with two different
-    AWS keys or two different credit-card numbers would report only one —
+    AWS keys or two different credit-card numbers would report only one -
     scanner evasion. Dedup now keys on ``(rule, line_num, span)`` instead.
     """
 
@@ -407,7 +407,7 @@ class TestPiiQualityGate:
 
         src = tmp_path / "src"
         src.mkdir()
-        # email is medium severity — does not block, but is flagged
+        # email is medium severity - does not block, but is flagged
         (src / "utils.py").write_text("# Contact alice@realcompany.com\n")
         config = QualityGatesConfig(pii_scan=True, pii_scan_paths=["src/"])
         result = _run_pii_gate(config, tmp_path)

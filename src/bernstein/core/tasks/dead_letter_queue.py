@@ -217,7 +217,7 @@ class DeadLetterQueue:
         self._append_to_file(entry)
 
         logger.info(
-            "DLQ: task %s (%s) added — %s (retries=%d)",
+            "DLQ: task %s (%s) added - %s (retries=%d)",
             task_id,
             title,
             reason,

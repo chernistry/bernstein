@@ -105,7 +105,7 @@ class TestConsecutiveRejectThreshold:
         det.record_verdict("s1", "T-001", _reject())
         det.record_verdict("s1", "T-002", _approve())  # resets count
         det.record_verdict("s1", "T-003", _reject())
-        # Only 1 consecutive reject after the approval — not degraded
+        # Only 1 consecutive reject after the approval - not degraded
         assert "s1" not in det.degraded_sessions()
 
     def test_threshold_of_three(self, tmp_path: Path) -> None:

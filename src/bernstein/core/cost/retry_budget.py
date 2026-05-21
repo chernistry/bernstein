@@ -6,14 +6,14 @@ The default retry path in ``task_retry.py`` rebooks an identical attempt:
 same model, same prompt, same gate criteria.  When attempt #1 has already
 exhausted the per-task budget, attempt #2 either burns the same amount
 and yields the same failure, or trips the circuit breaker.  Operators
-want the second attempt to be *cheaper and more cautious* — not a
+want the second attempt to be *cheaper and more cautious* - not a
 rerun.
 
 This module models that behaviour as a :class:`RetryBudget`: a finite
 list of retries paired with an *ordered* list of criteria to dial down.
 The first retry degrades the first criterion, the second retry degrades
 the second criterion, and so on.  Once every criterion has been
-degraded, further retries operate at the minimum bar — they are still
+degraded, further retries operate at the minimum bar - they are still
 permitted but produce no additional degradation.
 
 A criterion (:class:`Criterion`) is identified by name plus an integer
@@ -24,10 +24,10 @@ degraded further; attempting to do so raises
 
 Public surface:
 
-* :class:`Criterion` — name + level + min/max bounds.
-* :class:`RetryBudget` — retries + ordered degradation policy.
-* :class:`RetryDecision` — what to do for the *next* attempt.
-* :func:`parse_retry_budget_spec` — parse the CLI string format
+* :class:`Criterion` - name + level + min/max bounds.
+* :class:`RetryBudget` - retries + ordered degradation policy.
+* :class:`RetryDecision` - what to do for the *next* attempt.
+* :func:`parse_retry_budget_spec` - parse the CLI string format
   ``"3 retries, degrade: coverage>tests>style"``.
 * :exc:`RetryBudgetError` and subclasses.
 
@@ -83,7 +83,7 @@ class DegradationKind(StrEnum):
 
     These are descriptive labels emitted in :class:`RetryDecision` so
     callers can render an operator-facing message.  The kind does not
-    affect the numerical level — the criterion's *name* is what the
+    affect the numerical level - the criterion's *name* is what the
     orchestrator keys policy off.
     """
 
@@ -418,7 +418,7 @@ class RetryBudget:
         """
         if attempt_index < 0 or attempt_index >= len(self.criterion_degradation):
             return None
-        # Look up by name to get the *current* level — the configured
+        # Look up by name to get the *current* level - the configured
         # criterion is only the *target*; its mutable state lives in
         # ``self._criteria``.
         target_name = self.criterion_degradation[attempt_index].name
@@ -429,7 +429,7 @@ class RetryBudget:
         attempt_index = self._attempts_used
         target = self._criterion_for_attempt(attempt_index)
         if target is None:
-            # No criterion left in the policy at this index — retry is
+            # No criterion left in the policy at this index - retry is
             # still permitted but no degradation happens.
             if consume:
                 self._attempts_used += 1

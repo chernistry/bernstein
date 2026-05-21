@@ -1,4 +1,4 @@
-"""Graceful drain endpoints — freeze/unfreeze task claiming."""
+"""Graceful drain endpoints - freeze/unfreeze task claiming."""
 
 from __future__ import annotations
 

@@ -238,7 +238,7 @@ def post_writeback_comment(
     """Best-effort post the halt summary as a tracker comment.
 
     Returns ``True`` when the comment was successfully posted, ``False``
-    otherwise. Never raises — the dispatch loop must terminate cleanly
+    otherwise. Never raises - the dispatch loop must terminate cleanly
     regardless of tracker availability.
     """
     if adapter is None:

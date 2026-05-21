@@ -2,7 +2,7 @@
 
 Coverage:
 
-* Empty policy is back-compat — every role/adapter pair allowed.
+* Empty policy is back-compat - every role/adapter pair allowed.
 * Non-empty allow-list rejects any adapter not on the list.
 * Deny emits a structured ``role.adapter.denied`` event into the audit log.
 * Policy roundtrips through JSON disk persistence.
@@ -42,7 +42,7 @@ def _reset_policy_each_test():
 
 
 # ---------------------------------------------------------------------------
-# Default semantics — back-compat
+# Default semantics - back-compat
 # ---------------------------------------------------------------------------
 
 

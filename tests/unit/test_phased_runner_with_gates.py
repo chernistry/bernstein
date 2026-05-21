@@ -72,7 +72,7 @@ def _implement_artifact() -> PhaseArtifact:
 
 
 # ---------------------------------------------------------------------------
-# Happy path — gate passes on every boundary, no retries.
+# Happy path - gate passes on every boundary, no retries.
 # ---------------------------------------------------------------------------
 
 
@@ -97,7 +97,7 @@ def test_gate_pass_proceeds_with_zero_retries(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Single retry — first attempt fails R001, second attempt passes.
+# Single retry - first attempt fails R001, second attempt passes.
 # ---------------------------------------------------------------------------
 
 
@@ -135,7 +135,7 @@ def test_gate_failure_re_fires_failing_phase_with_violation_seed(tmp_path: Path)
 
 
 # ---------------------------------------------------------------------------
-# Retry exhausted — task fails with PhaseGateFailure.
+# Retry exhausted - task fails with PhaseGateFailure.
 # ---------------------------------------------------------------------------
 
 
@@ -163,7 +163,7 @@ def test_second_failure_raises_phase_gate_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# R005 byte-budget — hard fail bypasses the retry budget.
+# R005 byte-budget - hard fail bypasses the retry budget.
 # ---------------------------------------------------------------------------
 
 
@@ -233,7 +233,7 @@ def test_lineage_hook_receives_per_boundary_results(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Single-phase tasks — gate runner is a no-op.
+# Single-phase tasks - gate runner is a no-op.
 # ---------------------------------------------------------------------------
 
 
@@ -255,7 +255,7 @@ def test_single_phase_task_skips_gate_machinery(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Plan YAML denylist — disables one rule.
+# Plan YAML denylist - disables one rule.
 # ---------------------------------------------------------------------------
 
 
@@ -264,14 +264,14 @@ def test_gate_denylist_disables_single_rule(tmp_path: Path) -> None:
         if spec.phase is Phase.RESEARCH:
             return _research_artifact()
         if spec.phase is Phase.PLAN:
-            # Leaves an open question — would normally fail R001.
+            # Leaves an open question - would normally fail R001.
             return _plan_artifact(open_qs=["intentional"])
         return _implement_artifact()
 
     runner = PhasedRunner(
         executor=executor,
         store=ArtifactStore(root=tmp_path),
-        gate_max_retries=0,  # zero retries — failure would raise
+        gate_max_retries=0,  # zero retries - failure would raise
         gate_denied=["R001-no-open-questions"],
     )
     # No exception: R001 was suppressed via the denylist.

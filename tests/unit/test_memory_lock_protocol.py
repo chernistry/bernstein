@@ -1,4 +1,4 @@
-"""Tests for memory lock protocol — PID/mtime locking, atomic writes, and rollback."""
+"""Tests for memory lock protocol - PID/mtime locking, atomic writes, and rollback."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class TestIsProcessAlive:
         assert _is_process_alive(os.getpid()) is True
 
     def test_nonexistent_process(self) -> None:
-        # PID 1 is usually init/systemd — use very high PID instead
+        # PID 1 is usually init/systemd - use very high PID instead
         assert _is_process_alive(999_999_999) is False
 
 
@@ -212,7 +212,7 @@ class TestGuardedMemoryWrite:
             with guarded_memory_write(target) as guard:
                 if guard.original_content:
                     guard.write_backup()
-                # Don't write anything new — simulate exception
+                # Don't write anything new - simulate exception
                 raise ValueError("oops")
 
         # Should be restored to original
@@ -345,7 +345,7 @@ class TestRenewLock:
         os.utime(lock_path, (now - 61, now - 61))
         assert _is_lock_stale(lock_path, ttl_seconds=60) is True  # Now stale
 
-        # Renew resets mtime — no longer stale
+        # Renew resets mtime - no longer stale
         renew_lock(info)
         assert _is_lock_stale(lock_path, ttl_seconds=60) is False
 

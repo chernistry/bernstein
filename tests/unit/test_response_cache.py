@@ -123,7 +123,7 @@ class TestResponseCacheManagerFuzzyHit:
         strict = ResponseCacheManager(tmp_path, similarity_threshold=1.0)
         key = ResponseCacheManager.task_key("backend", "add auth tests", "write tests")
         strict.store(key, "done")
-        # Slightly different key — same hash, still hits (exact match via SHA-256)
+        # Slightly different key - same hash, still hits (exact match via SHA-256)
         result, _score = strict.lookup(key)
         assert result == "done"
 

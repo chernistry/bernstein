@@ -14,7 +14,7 @@ from bernstein.core.traces import (
 )
 
 # ---------------------------------------------------------------------------
-# FileEditDelta — capture_edit_delta()
+# FileEditDelta - capture_edit_delta()
 # ---------------------------------------------------------------------------
 
 
@@ -88,7 +88,7 @@ class TestCaptureEditDelta:
 
 
 # ---------------------------------------------------------------------------
-# FileEditDelta — serialisation round-trip
+# FileEditDelta - serialisation round-trip
 # ---------------------------------------------------------------------------
 
 
@@ -137,7 +137,7 @@ class TestFileEditDeltaSerialization:
 
 
 # ---------------------------------------------------------------------------
-# EditReplayArtifact — create_edit_replay_artifact()
+# EditReplayArtifact - create_edit_replay_artifact()
 # ---------------------------------------------------------------------------
 
 
@@ -189,7 +189,7 @@ class TestCreateEditReplayArtifact:
 
 
 # ---------------------------------------------------------------------------
-# EditReplayArtifact — serialisation round-trip
+# EditReplayArtifact - serialisation round-trip
 # ---------------------------------------------------------------------------
 
 
@@ -237,7 +237,7 @@ class TestEditReplayArtifactSerialization:
 
 
 # ---------------------------------------------------------------------------
-# EditReplayStore — persistence
+# EditReplayStore - persistence
 # ---------------------------------------------------------------------------
 
 
@@ -369,7 +369,7 @@ class TestEditDeltaToReplayPipeline:
     def test_mismatch_delta_produces_non_empty_diff(self) -> None:
         """A failed/partial edit still yields a non-empty diff for audit purposes."""
         before = "a = 1\nb = 2\n"
-        # Simulated partial write — only first line updated
+        # Simulated partial write - only first line updated
         after = "a = 99\nb = 2\n"
 
         delta = capture_edit_delta("partial.py", before, after)

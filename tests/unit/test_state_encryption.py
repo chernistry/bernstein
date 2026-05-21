@@ -1,4 +1,4 @@
-"""Tests for state_encryption — AES-256-GCM file encryption at rest."""
+"""Tests for state_encryption - AES-256-GCM file encryption at rest."""
 
 from __future__ import annotations
 
@@ -228,7 +228,7 @@ class TestKeyManagerMigration:
         assert not legacy_path.exists()
 
     def test_migration_preserves_existing_new_key(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        # New key already exists — legacy key should be discarded, not
+        # New key already exists - legacy key should be discarded, not
         # clobber the new one.
         new_path = tmp_path / "state-key-override"
         new_path.write_bytes(b"n" * 32)
@@ -284,7 +284,7 @@ class TestKeyManagerPassphraseWrapping:
 
     def test_plain_key_ignored_by_passphrase_env_on_read(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # A pre-existing unwrapped key (e.g. just migrated) must still
-        # load cleanly even if the passphrase env var is set — we only
+        # load cleanly even if the passphrase env var is set - we only
         # unwrap blobs that carry the BSK1 magic.
         key_path = tmp_path / "state-key-override"
         key_path.write_bytes(b"p" * 32)

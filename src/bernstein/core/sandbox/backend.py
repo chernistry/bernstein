@@ -3,7 +3,7 @@
 Bernstein's agent isolation has historically been git-worktree-only. This
 module defines the shape that lets additional isolation backends (Docker,
 E2B, Modal, Daytona, Cloudflare, Vercel ...) plug in behind a uniform
-interface — every backend provisions a :class:`SandboxSession` against a
+interface - every backend provisions a :class:`SandboxSession` against a
 :class:`~bernstein.core.sandbox.manifest.WorkspaceManifest` and exposes
 ``read``/``write``/``exec``/``ls``/``snapshot``/``shutdown`` primitives.
 
@@ -203,7 +203,7 @@ class SandboxSession(ABC):
     async def shutdown(self) -> None:
         """Release all resources held by the session.
 
-        Idempotent — safe to call multiple times.
+        Idempotent - safe to call multiple times.
         """
 
 

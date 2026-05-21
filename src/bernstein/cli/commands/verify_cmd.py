@@ -369,7 +369,7 @@ def _verify_wheelhouse(
     table.add_row("Path", str(wheelhouse_path))
     table.add_row("Wheels verified", str(verified))
     table.add_row("Signatures present", str(signed))
-    table.add_row("CA pubkey", str(ca_pubkey) if ca_pubkey else "(none — checksum only)")
+    table.add_row("CA pubkey", str(ca_pubkey) if ca_pubkey else "(none - checksum only)")
     if customer_outcome.valid is True:
         table.add_row("Customer sig", f"ok (org={customer_outcome.matched_org})")
     elif customer_outcome.present:

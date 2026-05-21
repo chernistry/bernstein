@@ -11,7 +11,7 @@ from bernstein.core.ab_test import (
 )
 
 # ---------------------------------------------------------------------------
-# Fixtures — reusable configs/results
+# Fixtures - reusable configs/results
 # ---------------------------------------------------------------------------
 
 _CONFIG = ABTestConfig(

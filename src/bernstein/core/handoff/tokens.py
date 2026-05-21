@@ -13,7 +13,7 @@ Lifecycle:
 2. Destination calls :func:`claim_token`. We look the id up, check it
    is not expired or already-claimed, and return the
    :class:`HandoffToken` so the caller can re-attach to the session.
-3. The token is **single-use** — claiming flips a flag and any future
+3. The token is **single-use** - claiming flips a flag and any future
    claim raises :class:`HandoffClaimError`.
 4. Expired tokens are swept on every load; nothing else needs to run a
    janitor.
@@ -207,7 +207,7 @@ class HandoffTokenStore:
         # Prefix with "h_" so the token never starts with "-" (urlsafe base64
         # alphabet includes "-"). A leading dash makes click misparse the
         # token as an option in `bernstein handoff claim TOKEN` and breaks
-        # ~1.5% of issued tokens at random — flaky in CI, surprising in prod.
+        # ~1.5% of issued tokens at random - flaky in CI, surprising in prod.
         token = HandoffToken(
             token=f"h_{secrets.token_urlsafe(_TOKEN_BYTES)}",
             session_id=session_id,
@@ -383,7 +383,7 @@ def claim_token(
         workdir: Project root.
         token: Opaque token presented by the destination.
         claimed_by: Surface claiming the token.
-        ttl_s: Token lifetime — used purely for expiry sweeping when the
+        ttl_s: Token lifetime - used purely for expiry sweeping when the
             store is constructed; the previously-recorded
             ``expires_at`` is what gates the claim.
 

@@ -1,10 +1,10 @@
-"""Stalled-manager detection — actionable error when manager never creates children.
+"""Stalled-manager detection - actionable error when manager never creates children.
 
 The manager agent is responsible for decomposing the seed goal into child tasks
 by POSTing to the task server. When the manager process is alive (heartbeats
 present, hook events being recorded) but never makes a successful ``POST /tasks``
-call — typically because of an auth-token issue between the manager worktree
-and the task server — the generic watchdog eventually kills the task server
+call - typically because of an auth-token issue between the manager worktree
+and the task server - the generic watchdog eventually kills the task server
 with a misleading "Server unresponsive" message after roughly three minutes.
 
 This module detects that specific failure mode directly:
@@ -50,7 +50,7 @@ REMEDIATION_DOC: str = "docs/architecture/manager-auth.md"
 
 # Env vars whose names we surface in the failure record (values redacted).
 # Anything that looks like a secret is redacted regardless of being on the
-# allowlist — see ``_redact_env``.
+# allowlist - see ``_redact_env``.
 _TRACKED_ENV_PREFIXES: tuple[str, ...] = ("BERNSTEIN_", "ANTHROPIC_", "OPENAI_", "OPENROUTER_")
 
 # Substrings used to redact env values whose names suggest secrets.
@@ -81,7 +81,7 @@ class StalledManagerDiagnostic:
         return (
             f"Manager session {self.session_id} ran for {self.runtime_s:.0f}s without "
             f"creating any child tasks ({self.hook_event_count} hook event(s) recorded). "
-            f"This is NOT a generic server timeout — the manager likely cannot authenticate "
+            f"This is NOT a generic server timeout - the manager likely cannot authenticate "
             f"to the task server. See {self.remediation} for remediation."
         )
 
@@ -165,7 +165,7 @@ def _find_manager_session(agents: dict[str, Any], now: float) -> Any | None:
         candidates.append((runtime, session))
     if not candidates:
         return None
-    # Oldest session first — that's the one we judge against the threshold.
+    # Oldest session first - that's the one we judge against the threshold.
     candidates.sort(key=operator.itemgetter(0), reverse=True)
     return candidates[0][1]
 
@@ -232,7 +232,7 @@ def build_diagnostic(
 def detect_stalled_manager(orch: Any) -> StalledManagerDiagnostic | None:
     """Return a diagnostic if a manager session has stalled, else ``None``.
 
-    Pure detection — never mutates orchestrator state. The caller decides
+    Pure detection - never mutates orchestrator state. The caller decides
     whether to log, write the failure record, or abort the run.
     """
     workdir = getattr(orch, "_workdir", None)
@@ -275,7 +275,7 @@ def handle_stalled_manager(orch: Any) -> StalledManagerDiagnostic | None:
     Returns the diagnostic on detection (also written to logs + failures dir);
     returns ``None`` when no stall is present. Setting ``_running = False`` on
     the orchestrator triggers the existing clean-drain path in
-    ``orchestrator_run._run_loop`` — no generic-watchdog kill is required.
+    ``orchestrator_run._run_loop`` - no generic-watchdog kill is required.
     """
     # Avoid emitting the same diagnostic on every tick.
     if getattr(orch, "_stalled_manager_emitted", False):

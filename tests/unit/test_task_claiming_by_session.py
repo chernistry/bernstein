@@ -102,7 +102,7 @@ async def test_list_tasks_without_filter_returns_all(client: AsyncClient) -> Non
 
 
 # ---------------------------------------------------------------------------
-# GET /tasks/next/{role}?parent_session_id= — scoped claiming
+# GET /tasks/next/{role}?parent_session_id= - scoped claiming
 # ---------------------------------------------------------------------------
 
 
@@ -154,7 +154,7 @@ async def test_workers_from_different_coordinators_dont_steal(client: AsyncClien
     assert resp_b.status_code == 200
     assert resp_b.json()["title"] == "coord-B-task"
 
-    # coord-A worker claims from coord-A namespace — coord-B task is not touched
+    # coord-A worker claims from coord-A namespace - coord-B task is not touched
     resp_a = await client.get("/tasks/next/backend?parent_session_id=coord-A")
     assert resp_a.status_code == 200
     assert resp_a.json()["title"] in ("coord-A-task-1", "coord-A-task-2")

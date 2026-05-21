@@ -19,7 +19,7 @@ Events
 ``budget.warning``
     Cumulative spend is approaching the configured budget cap.
 ``budget.exhausted``
-    Cost budget fully exhausted — orchestration must stop.
+    Cost budget fully exhausted - orchestration must stop.
 ``approval.needed``
     A task is blocked waiting for human review.
 ``incident.critical``
@@ -316,7 +316,7 @@ def format_pagerduty(payload: NotificationPayload, routing_key: str) -> dict[str
 class NotificationManager:
     """Dispatch notifications to configured targets.
 
-    Errors are always swallowed — notification failures must never crash
+    Errors are always swallowed - notification failures must never crash
     the orchestrator run.
 
     Args:

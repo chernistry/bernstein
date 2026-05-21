@@ -2,21 +2,21 @@
 
 Activates when ``compliance: hipaa`` is set in bernstein.yaml.  Provides:
 
-1. **PHI detection** — regex-based detection of Protected Health Information
+1. **PHI detection** - regex-based detection of Protected Health Information
    in agent inputs and outputs (SSNs, MRNs, DOBs, phone numbers, email,
    diagnoses keywords, ICD codes).  Does not use ML models to avoid
    external dependencies.
 
-2. **File access controls** — blocks agent access to files matching PHI path
+2. **File access controls** - blocks agent access to files matching PHI path
    patterns (e.g. ``*.phi``, ``patient_records/**``).
 
-3. **Encryption at rest** — AES-256-GCM encryption for all ``.sdd/`` state
+3. **Encryption at rest** - AES-256-GCM encryption for all ``.sdd/`` state
    files when HIPAA mode is active (uses ``cryptography`` package).
 
-4. **BAA-ready compliance report** — generates a structured report suitable
+4. **BAA-ready compliance report** - generates a structured report suitable
    for inclusion in a Business Associate Agreement audit package.
 
-Different from ``pii_output_gate.py`` (which gates generic PII in output) —
+Different from ``pii_output_gate.py`` (which gates generic PII in output) -
 this is a comprehensive mode that enforces HIPAA-specific controls across the
 full agent lifecycle.
 
@@ -664,7 +664,7 @@ class HIPAAMode:
                     }
                 )
             logger.warning(
-                "PHI detected in %s: %d finding(s) — use result.redacted_text",
+                "PHI detected in %s: %d finding(s) - use result.redacted_text",
                 source or "input",
                 len(result.findings),
             )

@@ -4,7 +4,7 @@
 file is persisted (session.json, file_locks.json, supervisor_state.json,
 merkle seal). Subtle JSON serialisation behaviours can creep in here:
 
-* **NaN / +Inf / -Inf** — Python's ``json.dumps`` emits non-standard
+* **NaN / +Inf / -Inf** - Python's ``json.dumps`` emits non-standard
   ``NaN`` / ``Infinity`` tokens by default. The audit / runtime
   consumers expect strict JSON; the writer's contract is to either
   emit valid JSON or refuse to write. The property here asserts the
@@ -14,17 +14,17 @@ merkle seal). Subtle JSON serialisation behaviours can creep in here:
   contract so any future tightening (``allow_nan=False``) is a
   deliberate change.
 
-* **Dict key order does not affect ``sort_keys`` round-trip** — the
+* **Dict key order does not affect ``sort_keys`` round-trip** - the
   ``sort_keys=True`` argument is intended to produce a canonical
   byte form. The property asserts that two semantically-equivalent
   dicts (different insertion order) write the same bytes.
 
-* **Large numeric payloads** — ``json.dumps`` happily round-trips
+* **Large numeric payloads** - ``json.dumps`` happily round-trips
   Python's arbitrary-precision ints. The property catches a
   regression that would coerce to float and lose precision on values
   beyond 2^53.
 
-* **Unicode keys / values do not corrupt the JSON byte form** — the
+* **Unicode keys / values do not corrupt the JSON byte form** - the
   default Python ``json.dumps`` emits ``\\uXXXX`` escapes; the
   bytes on disk are pure ASCII regardless of the input character set.
   Catches regressions that flip ``ensure_ascii=False`` and produce
@@ -110,7 +110,7 @@ def test_unicode_value_emits_ascii_escapes(
     (legacy parsers, regex-scanners) cannot handle.
 
     Equality is established via ``json.loads`` rather than raw byte
-    inspection — the loader expands escapes back to the original
+    inspection - the loader expands escapes back to the original
     code point regardless of how the writer stored them.
     """
     target = tmp_path_factory.mktemp("aw-json") / "u.json"
@@ -207,7 +207,7 @@ def test_indent_does_not_change_semantic_value(
 
     The indent kwarg only affects whitespace. Catches a regression
     where indent forwarding accidentally toggled ``sort_keys`` as a
-    side-effect (the wrapper accepts both — they must be independent).
+    side-effect (the wrapper accepts both - they must be independent).
     """
     a = tmp_path_factory.mktemp("aw-json") / "a.json"
     b = tmp_path_factory.mktemp("aw-json") / "b.json"

@@ -79,7 +79,7 @@ def parse_webhook(headers: dict[str, str], body: bytes) -> WebhookEvent:
 
     action = payload.get("action", "")
 
-    # Extract repo full name — different location for push vs other events
+    # Extract repo full name - different location for push vs other events
     repo_full_name = payload.get("repository", {}).get("full_name", "")
     if not repo_full_name:
         msg = "Missing repository.full_name in payload"

@@ -1,4 +1,4 @@
-"""Tests for output_styles — output style loading and rendering."""
+"""Tests for output_styles - output style loading and rendering."""
 
 from __future__ import annotations
 

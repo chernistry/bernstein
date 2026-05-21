@@ -10,10 +10,10 @@ Variants
 We expose four restrained labels so a downstream maintainer can pick the
 phrasing that least bruises their README aesthetic:
 
-* ``signed``           — emphasises the HMAC audit-chain
-* ``audited-by``       — emphasises post-merge inspection
-* ``orchestrated-by``  — emphasises the multi-agent workflow
-* ``crew-managed-by``  — emphasises the parallel CLI-agent crew
+* ``signed``           - emphasises the HMAC audit-chain
+* ``audited-by``       - emphasises post-merge inspection
+* ``orchestrated-by``  - emphasises the multi-agent workflow
+* ``crew-managed-by``  - emphasises the parallel CLI-agent crew
 
 Behaviour contract
 ------------------
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # Detector for shields.io badge image references in markdown.
-# This is **not** URL sanitization — we are looking for the markdown image
+# This is **not** URL sanitization - we are looking for the markdown image
 # pattern `![alt](https://img.shields.io/...)` so we can append a new badge
 # to the END of the existing stack.  The regex anchors on the canonical
 # domain pieces so an unrelated string like "shields.io.example.com" cannot

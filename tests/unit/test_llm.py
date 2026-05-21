@@ -1,4 +1,4 @@
-"""Unit tests for bernstein.core.llm — LLMSettings and get_client."""
+"""Unit tests for bernstein.core.llm - LLMSettings and get_client."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 from bernstein.core.llm import LLMSettings, call_llm, get_client, tavily_search
 
 # ---------------------------------------------------------------------------
-# LLMSettings — env var loading
+# LLMSettings - env var loading
 # ---------------------------------------------------------------------------
 
 
@@ -81,7 +81,7 @@ class TestLLMSettings:
 
 
 # ---------------------------------------------------------------------------
-# get_client — provider routing and base_url selection
+# get_client - provider routing and base_url selection
 # ---------------------------------------------------------------------------
 
 
@@ -278,7 +278,7 @@ class TestGetClient:
 
 
 # ---------------------------------------------------------------------------
-# call_llm — async LLM invocation
+# call_llm - async LLM invocation
 # ---------------------------------------------------------------------------
 
 
@@ -338,7 +338,7 @@ class TestCallLLM:
 
 
 # ---------------------------------------------------------------------------
-# tavily_search — web search via Tavily API
+# tavily_search - web search via Tavily API
 # ---------------------------------------------------------------------------
 
 

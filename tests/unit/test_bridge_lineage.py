@@ -1,4 +1,4 @@
-"""Tests for remote bridge lineage — T549, T550, T551."""
+"""Tests for remote bridge lineage - T549, T550, T551."""
 
 from __future__ import annotations
 

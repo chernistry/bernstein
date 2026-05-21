@@ -1,4 +1,4 @@
-"""Tests for RateLimitTracker — per-provider throttle state and 429 detection."""
+"""Tests for RateLimitTracker - per-provider throttle state and 429 detection."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ class TestActiveAgentCounts:
         tracker.increment_active("b")
         counts = tracker.get_all_active_counts()
         assert counts == {"a": 2, "b": 1}
-        # Returns a copy — mutation doesn't affect tracker
+        # Returns a copy - mutation doesn't affect tracker
         counts["a"] = 99
         assert tracker.get_active_count("a") == 2
 
@@ -234,7 +234,7 @@ class TestScanLogFor429:
     def test_only_scans_last_500_lines(self, tmp_path: Path) -> None:
         """Pattern in first line of a 600-line log should NOT be detected."""
         log = tmp_path / "agent.log"
-        lines = ["rate limit exceeded"]  # line 1 — outside tail window
+        lines = ["rate limit exceeded"]  # line 1 - outside tail window
         lines += ["normal output"] * 600  # 600 normal lines follow
         log.write_text("\n".join(lines))
         tracker = RateLimitTracker()

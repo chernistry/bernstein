@@ -603,7 +603,7 @@ def benchmark_simulate(
 
 
 # ---------------------------------------------------------------------------
-# eval — multiplicative scoring harness
+# eval - multiplicative scoring harness
 # ---------------------------------------------------------------------------
 
 
@@ -742,7 +742,7 @@ def eval_run(
 
     console.print(f"[bold]Eval harness[/bold]: {len(tasks)} golden task(s)")
 
-    # Evaluate each task (with empty telemetry for now — real runs
+    # Evaluate each task (with empty telemetry for now - real runs
     # would collect telemetry from actual agent execution)
     task_results: list[TaskEvalResult] = []
     for task in tasks:
@@ -1248,7 +1248,7 @@ def eval_ab(
 
 
 # ---------------------------------------------------------------------------
-# eval scenario — scenario-style evals (precision/recall, e.g. security-pentest)
+# eval scenario - scenario-style evals (precision/recall, e.g. security-pentest)
 # ---------------------------------------------------------------------------
 
 
@@ -1390,7 +1390,7 @@ def eval_scenario(
 
 
 # ---------------------------------------------------------------------------
-# eval calibration — Brier + ECE report over the on-disk calibration log
+# eval calibration - Brier + ECE report over the on-disk calibration log
 # ---------------------------------------------------------------------------
 
 
@@ -1474,4 +1474,4 @@ def calibration_report(
 
 
 # ---------------------------------------------------------------------------
-# workspace — multi-repo workspace management
+# workspace - multi-repo workspace management

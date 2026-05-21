@@ -2,12 +2,12 @@
 
 Four named presets bundle enterprise safety features into a single flag:
 
-- **DEVELOPMENT** — audit logging + WAL + AI content labels.
-- **STANDARD** — adds HMAC audit chain, governed workflow, approval gates,
+- **DEVELOPMENT** - audit logging + WAL + AI content labels.
+- **STANDARD** - adds HMAC audit chain, governed workflow, approval gates,
   execution fingerprint.
-- **REGULATED** — adds signed WAL, data residency, SBOM generation,
+- **REGULATED** - adds signed WAL, data residency, SBOM generation,
   mandatory human review, evidence bundle export.
-- **HIPAA** — PHI detection, file access controls, encryption at rest,
+- **HIPAA** - PHI detection, file access controls, encryption at rest,
   HMAC audit chain, governed workflow, BAA-ready evidence bundle.
 
 Each sub-feature can also be enabled independently outside of presets.
@@ -702,7 +702,7 @@ def _build_evidence_summary(
 
     lines.extend(
         (
-            f"# SOC 2 Evidence Package — {period}",
+            f"# SOC 2 Evidence Package - {period}",
             "",
             f"**Period**: {start_date} to {end_date}",
             f"**Generated**: {generated}",
@@ -753,8 +753,8 @@ def _build_evidence_summary(
     )
     for m in control_mappings:
         status = "Satisfied" if m["satisfied"] else "Gap"
-        present = ", ".join(m["evidence_present"]) or "—"
-        missing = ", ".join(m["evidence_missing"]) or "—"
+        present = ", ".join(m["evidence_present"]) or "-"
+        missing = ", ".join(m["evidence_missing"]) or "-"
         lines.append(f"| {m['control_id']} | {m['title']} | {status} | {present} | {missing} |")
     lines.append("")
 
@@ -921,7 +921,7 @@ def export_soc2_package(
         period: Period string (e.g. ``Q1-2026``, ``2026-03``, ``2026``).
         output_path: Where to write the package.  Defaults to
             ``sdd_dir / evidence / soc2-<period>``.
-        fmt: Output format — ``"zip"`` or ``"dir"``.
+        fmt: Output format - ``"zip"`` or ``"dir"``.
 
     Returns:
         Path to the exported zip file or directory.

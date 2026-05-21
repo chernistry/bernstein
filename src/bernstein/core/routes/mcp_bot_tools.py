@@ -8,7 +8,7 @@ Off by default. Enabled by setting the env var
 ``BERNSTEIN_BOT_TOOLS_ENABLED=1`` (or the corresponding ``.sdd/config.yaml``
 ``bot_tools.enabled: true`` flag, surfaced by the harness).
 
-Contract — the response body is intentionally minimal::
+Contract - the response body is intentionally minimal::
 
     {
       "version": 1,
@@ -60,7 +60,7 @@ DISCOVERY_PATH: Final[str] = "/.well-known/mcp-tools"
 _ENABLE_ENV_VAR: Final[str] = "BERNSTEIN_BOT_TOOLS_ENABLED"
 _TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 
-# Schema-version sentinel — bumped if the discovery payload shape changes.
+# Schema-version sentinel - bumped if the discovery payload shape changes.
 # Kept out of the response body's tool entries so the docs bot can switch
 # parsers based on this single integer.
 _SCHEMA_VERSION: Final[int] = 1
@@ -118,8 +118,8 @@ def mcp_tools_discovery() -> dict[str, Any]:
     """Return the bot-callable MCP tool list (or an empty list when off).
 
     Always 200. The docs bot's fail-open discovery treats both
-    ``enabled=false`` and a network error identically — it skips tool
-    injection and answers from passages alone — so we never need to 503
+    ``enabled=false`` and a network error identically - it skips tool
+    injection and answers from passages alone - so we never need to 503
     just because an operator has the flag off.
     """
     return discovery_payload(enabled=_is_enabled())

@@ -5,18 +5,18 @@ browser without having to ``bernstein attach`` over SSH. This module
 delivers the feature in three endpoints that together satisfy the
 acceptance criteria on #1217:
 
-* ``GET /sessions/{session_id}/peek`` — returns the last N entries of the
+* ``GET /sessions/{session_id}/peek`` - returns the last N entries of the
   session's stream-tail ring buffer as JSON.  Polled by the static page
   on a short interval (<500 ms perceived latency on loopback).
-* ``POST /sessions/{session_id}/send`` — pipe one line of input back to
+* ``POST /sessions/{session_id}/send`` - pipe one line of input back to
   the running agent's stdin via :mod:`bernstein.core.agents.agent_ipc`.
   This is the send-bar primitive; the bearer-auth middleware in
   :mod:`bernstein.core.server.server_middleware` covers it like every
   other mutating route.
-* ``GET /dashboard/peek/{session_id}`` — vanilla-JS HTML page that polls
+* ``GET /dashboard/peek/{session_id}`` - vanilla-JS HTML page that polls
   the JSON endpoint, renders the lines, exposes a send-bar, and supports
   client-side regex filtering of the buffered tail.
-* ``GET /dashboard/peek`` — 2x2 tile grid that watches up to four
+* ``GET /dashboard/peek`` - 2x2 tile grid that watches up to four
   sessions side-by-side; session ids come in via the
   ``s1`` / ``s2`` / ``s3`` / ``s4`` query parameters.  Each tile carries
   its own send-bar; a single shared search box filters every tile.
@@ -120,7 +120,7 @@ def peek_session(session_id: str, request: Request) -> JSONResponse:
 
     Args:
         session_id: Bernstein session whose tail to read.
-        request: FastAPI request — used to resolve the workdir and the
+        request: FastAPI request - used to resolve the workdir and the
             ``tail`` query argument.
 
     Returns:
@@ -171,7 +171,7 @@ def send_to_session(
         agent has no live pipe yet.
     """
     safe_id = _validate_session_id(session_id)
-    _ = request  # parity with peek_session — keeps signature uniform.
+    _ = request  # parity with peek_session - keeps signature uniform.
     text = (payload.get("text") or "").rstrip("\r\n")
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -214,7 +214,7 @@ def peek_grid(request: Request) -> HTMLResponse:
 
 
 # ---------------------------------------------------------------------------
-# Inline HTML — vanilla JS, no framework. Two pages share the head + script.
+# Inline HTML - vanilla JS, no framework. Two pages share the head + script.
 # ---------------------------------------------------------------------------
 
 _PAGE_HEAD = """\
@@ -273,7 +273,7 @@ _PAGE_HEAD = """\
 _PAGE_SCRIPT = """\
 <script>
 (function () {
-  // Poll cadence — 400 ms keeps perceived latency inside the <500 ms budget
+  // Poll cadence - 400 ms keeps perceived latency inside the <500 ms budget
   // the issue calls out for the loopback case, without flooding the server
   // when several tiles render at once.
   const POLL_MS = 400;

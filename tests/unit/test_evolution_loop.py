@@ -630,7 +630,7 @@ def test_run_logs_and_continues_after_run_cycle_exception(tmp_path: Path) -> Non
     with patch.object(loop, "run_cycle", side_effect=flaky_cycle):
         results = loop.run(window_seconds=60, max_proposals=2)
 
-    # First call raised, second succeeded — only the second result is in the list
+    # First call raised, second succeeded - only the second result is in the list
     assert len(results) == 1
     assert results[0].proposal_id == "P-2"
     assert loop._running is False

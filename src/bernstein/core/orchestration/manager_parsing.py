@@ -353,7 +353,7 @@ def _resolve_depends_on(tasks: list[Task]) -> None:
                 resolved.append(dep_id)
             else:
                 logger.warning(
-                    "Task %s depends on %r which was not found — dropping dependency",
+                    "Task %s depends on %r which was not found - dropping dependency",
                     task.id,
                     dep,
                 )

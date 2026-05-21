@@ -6,11 +6,11 @@ are fast-tracked.  This replaces the binary apply/reject gate with a
 graduated risk-aware pipeline.
 
 Risk dimensions:
-  - code_complexity_delta  — did the diff increase apparent complexity?
-  - test_coverage_delta    — did coverage improve or regress?
-  - regression_potential   — how likely are existing tests to break?
-  - blast_radius           — how many files were touched?
-  - composite_risk         — weighted combination, clamped to [0.0, 1.0]
+  - code_complexity_delta  - did the diff increase apparent complexity?
+  - test_coverage_delta    - did coverage improve or regress?
+  - regression_potential   - how likely are existing tests to break?
+  - blast_radius           - how many files were touched?
+  - composite_risk         - weighted combination, clamped to [0.0, 1.0]
 """
 
 from __future__ import annotations

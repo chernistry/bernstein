@@ -1,4 +1,4 @@
-"""Tests for `LineageStore` — append-only log + tip projections + reindex.
+"""Tests for `LineageStore` - append-only log + tip projections + reindex.
 
 These cover the file-layout invariants described in ADR-009 §4 plus the
 crash-safety / concurrency guarantees the recorder relies on:
@@ -126,7 +126,7 @@ def test_fork_surfaces_two_open_tips(tmp_path: Path) -> None:
     store = LineageStore(tmp_path / "lineage")
     e0 = _make_entry(content_hash="sha256:" + "0" * 64, ts_ns=1)
     h0 = store.append(e0, jws="jws-0")
-    # Two siblings sharing the same parent — classic fork.
+    # Two siblings sharing the same parent - classic fork.
     e_a = _make_entry(content_hash="sha256:" + "a" * 64, parent_hashes=[h0], ts_ns=2)
     e_b = _make_entry(content_hash="sha256:" + "b" * 64, parent_hashes=[h0], ts_ns=3)
     h_a = store.append(e_a, jws="jws-a")
@@ -222,7 +222,7 @@ def test_reindex_rebuilds_projections_after_deletion(tmp_path: Path) -> None:
     e2 = _make_entry(content_hash="sha256:" + "2" * 64, parent_hashes=[h1], ts_ns=2)
     h2 = store.append(e2, jws="jws-2")
 
-    # Nuke projections — the log alone is the source of truth.
+    # Nuke projections - the log alone is the source of truth.
     import shutil
 
     shutil.rmtree(root / "by-artefact")
@@ -365,7 +365,7 @@ def test_recovery_from_partial_tip_write(tmp_path: Path) -> None:
     e1 = _make_entry(ts_ns=1)
     h1 = store.append(e1, jws="jws-1")
 
-    # Simulate a torn write — clobber the tip JSON with garbage.
+    # Simulate a torn write - clobber the tip JSON with garbage.
     _, full = _path_shard("src/foo.py")
     tip_path = root / "tips" / f"{full}.json"
     tip_path.write_text("{not-json", encoding="utf-8")

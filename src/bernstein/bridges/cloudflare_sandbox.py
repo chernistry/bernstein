@@ -1,7 +1,7 @@
 """Cloudflare sandbox as secure agent code execution runtime.
 
 Agents run in isolated V8 isolates or container sandboxes on Cloudflare's
-edge infrastructure. No host filesystem access — workspace files synced
+edge infrastructure. No host filesystem access - workspace files synced
 via R2 object storage.
 """
 
@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 class SandboxType(StrEnum):
     """Type of Cloudflare sandbox."""
 
-    ISOLATE = "isolate"  # V8 isolate — fast, lightweight
-    CONTAINER = "container"  # Full Linux container — heavier but full OS
+    ISOLATE = "isolate"  # V8 isolate - fast, lightweight
+    CONTAINER = "container"  # Full Linux container - heavier but full OS
 
 
 class NetworkAccess(StrEnum):

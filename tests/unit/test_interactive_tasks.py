@@ -140,7 +140,7 @@ async def test_force_claim_unknown_task_returns_404(client: AsyncClient) -> None
 
 
 # ---------------------------------------------------------------------------
-# PATCH /tasks/{id} — model field
+# PATCH /tasks/{id} - model field
 # ---------------------------------------------------------------------------
 
 

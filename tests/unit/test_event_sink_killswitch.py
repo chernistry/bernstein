@@ -22,7 +22,7 @@ def test_event_sink_values_exist() -> None:
 
 
 # ---------------------------------------------------------------------------
-# MetricsCollector — disabled_sinks property and is_sink_enabled
+# MetricsCollector - disabled_sinks property and is_sink_enabled
 # ---------------------------------------------------------------------------
 
 
@@ -58,7 +58,7 @@ def test_both_sinks_disabled() -> None:
 
 
 # ---------------------------------------------------------------------------
-# File sink kill-switch — no files written when EventSink.FILE is disabled
+# File sink kill-switch - no files written when EventSink.FILE is disabled
 # ---------------------------------------------------------------------------
 
 
@@ -88,7 +88,7 @@ def test_file_sink_enabled_writes_files(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Plugin sink kill-switch — hook not called when EventSink.PLUGIN is disabled
+# Plugin sink kill-switch - hook not called when EventSink.PLUGIN is disabled
 # ---------------------------------------------------------------------------
 
 
@@ -153,11 +153,11 @@ def test_set_prometheus_enabled_disables_sink() -> None:
         "total_cost_usd": 3.0,
         "per_role": [],
     }
-    # Baseline — call once with sink enabled so delta tracking is initialised
+    # Baseline - call once with sink enabled so delta tracking is initialised
     prom_module.update_metrics_from_status(status)
     depth_after_first = prom_module.task_queue_depth._value.get()  # type: ignore[attr-defined]
 
-    # Disable the sink — subsequent calls must not change gauges
+    # Disable the sink - subsequent calls must not change gauges
     prom_module.set_prometheus_enabled(False)
     status_updated = dict(status, open=99)
     prom_module.update_metrics_from_status(status_updated)

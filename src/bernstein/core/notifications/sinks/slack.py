@@ -1,6 +1,6 @@
 """Slack notification sink (incoming webhook flavour).
 
-Targets the simplest Slack surface — an Incoming Webhook URL. Bot
+Targets the simplest Slack surface - an Incoming Webhook URL. Bot
 tokens and Block Kit are deliberately out of scope; users who want
 either can publish their own pluggy-registered driver. Retrying is
 delegated to the shared :mod:`_http` helper which classifies HTTP

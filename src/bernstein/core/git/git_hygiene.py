@@ -1,4 +1,4 @@
-"""Git hygiene — mechanical cleanup of worktrees, branches, and stale state.
+"""Git hygiene - mechanical cleanup of worktrees, branches, and stale state.
 
 This module handles ONLY the safe, mechanical operations:
 - Removing stale worktree directories
@@ -6,7 +6,7 @@ This module handles ONLY the safe, mechanical operations:
 - Pruning git worktree registry
 - Cleaning stale PID files
 
-It does NOT commit, merge, or push — those decisions require an intelligent
+It does NOT commit, merge, or push - those decisions require an intelligent
 agent that can review diffs and make judgment calls. The orchestrator spawns
 a dedicated "hygiene" task for that when needed.
 
@@ -145,7 +145,7 @@ def run_hygiene(
             committed to by live agents).
         force_unmerged: **Dangerous.** When True, delete agent branches even
             if they are not merged into ``target_branch``. This is a
-            privileged opt-in — automated periodic/bootstrap/shutdown
+            privileged opt-in - automated periodic/bootstrap/shutdown
             cleanup must never set it. Only an explicit CLI command with a
             ``--force`` flag should pass ``True``.
 
@@ -216,7 +216,7 @@ def _clean_stale_worktrees(workdir: Path) -> int:
         if not entry.is_dir():
             continue
         if str(entry) not in tracked_paths:  # noqa: SIM102
-            # Stale directory — not tracked by git
+            # Stale directory - not tracked by git
             if _rmtree_windows_safe(entry):
                 cleaned += 1
                 logger.debug("Removed stale worktree dir: %s", entry.name)
@@ -228,7 +228,7 @@ def _is_branch_merged(workdir: Path, branch: str, target_branch: str) -> bool:
     """Return True when *branch* is fully contained in *target_branch*.
 
     Uses ``git merge-base --is-ancestor`` which reports success (exit 0)
-    only when every commit on *branch* is reachable from *target_branch* —
+    only when every commit on *branch* is reachable from *target_branch* -
     i.e. there is no unmerged work that would be lost by deleting *branch*.
 
     Args:
@@ -240,7 +240,7 @@ def _is_branch_merged(workdir: Path, branch: str, target_branch: str) -> bool:
         True iff *branch* is an ancestor of *target_branch*; False when the
         branch still has unique commits or the check could not be run
         (missing target, transient git failure). When in doubt we return
-        False — callers must preserve the branch on uncertainty.
+        False - callers must preserve the branch on uncertainty.
     """
     result = run_git(
         ["merge-base", "--is-ancestor", branch, target_branch],
@@ -277,7 +277,7 @@ def _delete_merged_agent_branches(
     1. Its session id is NOT in *active_session_ids* (no live agent is
        committing to it).
     2. Every commit on it is already reachable from *target_branch* (i.e.
-       ``git merge-base --is-ancestor`` succeeds) — unless *force_unmerged*
+       ``git merge-base --is-ancestor`` succeeds) - unless *force_unmerged*
        is explicitly True.
 
     Args:
@@ -291,7 +291,7 @@ def _delete_merged_agent_branches(
             that explicitly opt in; automated cleanup MUST leave this False.
 
     Returns:
-        ``(deleted_count, skipped_count)`` — skipped counts branches that
+        ``(deleted_count, skipped_count)`` - skipped counts branches that
         were preserved because they were unmerged or in use.
     """
     result = run_git(["branch", "--list", "agent/*"], workdir, timeout=10)
@@ -305,11 +305,11 @@ def _delete_merged_agent_branches(
         if not branch.startswith("agent/"):
             continue
 
-        # Guard 1: live agents own these branches — never touch them.
+        # Guard 1: live agents own these branches - never touch them.
         session_id = _session_id_from_branch(branch)
         if session_id in active_session_ids:
             logger.info(
-                "Preserving agent branch %s — session %s is active",
+                "Preserving agent branch %s - session %s is active",
                 branch,
                 session_id,
             )
@@ -320,7 +320,7 @@ def _delete_merged_agent_branches(
         merged = _is_branch_merged(workdir, branch, target_branch)
         if not merged and not force_unmerged:
             logger.warning(
-                "Preserving unmerged agent branch %s — not an ancestor of %s; "
+                "Preserving unmerged agent branch %s - not an ancestor of %s; "
                 "pass force_unmerged=True via a privileged CLI path to override",
                 branch,
                 target_branch,

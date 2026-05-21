@@ -110,7 +110,7 @@ class TestTaskStoreSnapshots:
 
 
 # ---------------------------------------------------------------------------
-# HTTP API — POST /tasks/{id}/progress with snapshot fields
+# HTTP API - POST /tasks/{id}/progress with snapshot fields
 # ---------------------------------------------------------------------------
 
 
@@ -197,7 +197,7 @@ async def test_get_snapshots_empty(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# check_stalled_tasks — stall detection logic
+# check_stalled_tasks - stall detection logic
 # ---------------------------------------------------------------------------
 
 

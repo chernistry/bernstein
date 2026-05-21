@@ -1,4 +1,4 @@
-"""Tests for the Agent Run Manifest — hashable workflow spec.
+"""Tests for the Agent Run Manifest - hashable workflow spec.
 
 Covers:
 - RunManifest dataclass creation and field defaults

@@ -39,7 +39,7 @@ def test_voice_intent_is_frozen() -> None:
 
 
 # ---------------------------------------------------------------------------
-# parse_voice_intent — action matching
+# parse_voice_intent - action matching
 # ---------------------------------------------------------------------------
 
 

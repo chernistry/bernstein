@@ -2,11 +2,11 @@
 
 Two complementary checkpoint shapes live here:
 
-1. :class:`Checkpoint` — the canonical, atomic full-snapshot written by the
+1. :class:`Checkpoint` - the canonical, atomic full-snapshot written by the
    orchestrator for crash recovery.  Captures task graph, agent sessions,
    cost accumulator, and WAL position as a single JSON file in
    ``.sdd/runtime/checkpoints/checkpoint-{id}.json``.
-2. :class:`PartialState` — the operator-visible progress slice written by
+2. :class:`PartialState` - the operator-visible progress slice written by
    the ``bernstein checkpoint`` CLI.  Captures goal, completed/in-flight/
    pending task ids, cumulative cost, and git SHA.  Stored in
    ``.sdd/sessions/{ts}-checkpoint.json``.
@@ -272,7 +272,7 @@ def _checkpoint_from_dict(data: dict[str, Any]) -> Checkpoint:
 
 
 # ---------------------------------------------------------------------------
-# PartialState — operator-visible progress slice
+# PartialState - operator-visible progress slice
 # ---------------------------------------------------------------------------
 
 

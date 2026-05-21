@@ -252,11 +252,11 @@ def test_path_traversal_artefact_in_log_does_not_crash_gate(tmp_path: Path) -> N
         assert log.parent in sig.parents
     result = check(log_path=log, agent_cards_dir=cards)
     # Whether the gate reports OK or FAIL is policy; the contract here
-    # is "no escape" — the test is green if the rglob assertion holds.
+    # is "no escape" - the test is green if the rglob assertion holds.
     assert isinstance(result.ok, bool)
 
 
-# ── 6. Replay attack — duplicate entries by hash detection ──────────────────
+# ── 6. Replay attack - duplicate entries by hash detection ──────────────────
 
 
 def test_replay_attack_duplicate_entry_hash_is_idempotent(tmp_path: Path) -> None:
@@ -267,7 +267,7 @@ def test_replay_attack_duplicate_entry_hash_is_idempotent(tmp_path: Path) -> Non
     a = _Agent("agent:a", "k1")
     _write_card(cards, a)
     g = _entry(a, "x.py", _h("1"), [], ts_ns=1)
-    # Write the same entry twice — same body, same hash.
+    # Write the same entry twice - same body, same hash.
     _append(log, g, a)
     _append(log, g, a)
     # Same content_hash + same parent_hash + same ts → idempotent replay,

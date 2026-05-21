@@ -1,4 +1,4 @@
-"""Lifecycle Governance Kernel — deterministic FSM for task and agent transitions.
+"""Lifecycle Governance Kernel - deterministic FSM for task and agent transitions.
 
 Every task and agent status change flows through this module. Illegal
 transitions raise ``IllegalTransitionError``; legal ones emit a typed
@@ -190,7 +190,7 @@ TASK_TRANSITIONS: dict[tuple[TaskStatus, TaskStatus], Callable[[Task], bool]] = 
     # Verification gate (orchestrator closes after janitor + merge)
     (TaskStatus.DONE, TaskStatus.CLOSED): _always,
     (TaskStatus.DONE, TaskStatus.FAILED): _always,
-    # Abandon primitive (#1350) — agent-initiated structured exit.
+    # Abandon primitive (#1350) - agent-initiated structured exit.
     # ABANDONED is a terminal state distinct from FAILED so dashboards can
     # split intentional vs. unintentional exits. Downstream consumers move
     # to BLOCKED_BY_ABANDON instead of waiting forever for an output that

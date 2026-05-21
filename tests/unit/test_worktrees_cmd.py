@@ -1,6 +1,6 @@
 """Unit tests for the ``bernstein worktrees`` subcommand and classifier.
 
-Every fixture builds an isolated ``.sdd/`` tree under ``tmp_path`` — the
+Every fixture builds an isolated ``.sdd/`` tree under ``tmp_path`` - the
 suite NEVER touches the real repo's 30+ worktrees.
 """
 
@@ -67,7 +67,7 @@ def _init_repo(repo_root: Path) -> None:
 def _make_worktree_dir(repo_root: Path, session_id: str, *, with_git: bool = True) -> Path:
     """Create a fake worktree directory under ``.sdd/runtime/worktrees``.
 
-    We do not actually call ``git worktree add`` — the classifier only
+    We do not actually call ``git worktree add`` - the classifier only
     needs the directory layout (`.git` anchor + size on disk).
     """
     base = repo_root / ".sdd" / "runtime" / "worktrees"
@@ -107,7 +107,7 @@ def repo_root(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Classifier — 4-state matrix
+# Classifier - 4-state matrix
 # ---------------------------------------------------------------------------
 
 
@@ -164,7 +164,7 @@ def test_classifier_dead_pid_recent_trace_stays_active(repo_root: Path) -> None:
     """Dead PID but recent trace => still active (avoid racing).
 
     We refuse to reap a worktree whose trace is fresh, even if its PID
-    has gone away — the agent may simply be restarting.
+    has gone away - the agent may simply be restarting.
     """
     sid = "race"
     _make_worktree_dir(repo_root, sid)
@@ -186,7 +186,7 @@ def test_iter_worktree_dirs_skips_locks(repo_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Lock — concurrency safety
+# Lock - concurrency safety
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +208,7 @@ def test_lock_released_on_exception(repo_root: Path) -> None:
         with lock_gc(repo_root):
             raise Boom
 
-    # Lock should be gone — next acquisition succeeds.
+    # Lock should be gone - next acquisition succeeds.
     with lock_gc(repo_root):
         pass
 
@@ -241,7 +241,7 @@ def test_lock_held_by_thread_blocks_second(repo_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Reap behaviour — --dry and real deletion
+# Reap behaviour - --dry and real deletion
 # ---------------------------------------------------------------------------
 
 

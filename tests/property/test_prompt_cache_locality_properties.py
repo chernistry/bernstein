@@ -40,7 +40,7 @@ def test_stable_prefix_independent_of_insertion_order(
 ) -> None:
     """Two ``build_stable_prefix`` calls with reordered headers must match.
 
-    Implementation already canonicalises by ``sorted(items)`` — the
+    Implementation already canonicalises by ``sorted(items)`` - the
     property guards against a future contributor switching to plain
     iteration order.
     """
@@ -75,7 +75,7 @@ def test_one_header_change_increments_drift_by_exactly_one(
     never counted as drift either.
     """
     if extra_key in header:
-        return  # the change wouldn't be visible — narrow Hypothesis input
+        return  # the change wouldn't be visible - narrow Hypothesis input
 
     locality = PromptCacheLocality()
 

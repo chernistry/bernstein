@@ -194,7 +194,7 @@ async def sandbox_landing(request: Request) -> HTMLResponse:
 
 
 # ---------------------------------------------------------------------------
-# HTML templates (inline — no Jinja dependency)
+# HTML templates (inline - no Jinja dependency)
 # ---------------------------------------------------------------------------
 
 _COMMON_HEAD = """\
@@ -210,7 +210,7 @@ def _render_landing_page() -> str:
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Bernstein — Try It Free</title>
+  <title>Bernstein - Try It Free</title>
   {_COMMON_HEAD}
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
@@ -301,7 +301,7 @@ def _render_landing_page() -> str:
           const data = await resp.json();
           window.location.href = data.dashboard_url;
         }} catch (e) {{
-          this.error = 'Network error — please try again';
+          this.error = 'Network error - please try again';
         }} finally {{
           this.loading = false;
         }}
@@ -326,7 +326,7 @@ def _render_sandbox_page(session_id: str) -> str:
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Bernstein Sandbox — Session {safe_title_id}</title>
+  <title>Bernstein Sandbox - Session {safe_title_id}</title>
   {_COMMON_HEAD}
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">

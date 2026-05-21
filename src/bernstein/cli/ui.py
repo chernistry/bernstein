@@ -25,7 +25,7 @@ _STYLE_BOLD_GREEN = "bold green"
 _STYLE_BOLD_YELLOW = "bold yellow"
 
 # ---------------------------------------------------------------------------
-# Status colors — single source of truth
+# Status colors - single source of truth
 # ---------------------------------------------------------------------------
 
 STATUS_COLORS: dict[str, str] = {

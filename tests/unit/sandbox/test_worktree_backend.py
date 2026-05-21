@@ -144,7 +144,7 @@ async def test_manager_is_cached_per_repo(git_repo: Path) -> None:
     s2 = await backend.create(manifest, options={"repo_root": str(git_repo)})
     try:
         # Internal assertion: manager reuse across sessions sharing a
-        # repo — a subsequent audit of the backend's worktree_managers
+        # repo - a subsequent audit of the backend's worktree_managers
         # must find exactly one entry keyed to the repo root.
         managers = backend._managers  # type: ignore[attr-defined]
         assert len(managers) == 1

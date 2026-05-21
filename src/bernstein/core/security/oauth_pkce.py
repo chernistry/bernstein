@@ -271,12 +271,12 @@ class PKCEFlow:
 
         Enforces four properties:
 
-        1. **Presence** — the callback MUST carry a ``state`` parameter.
-        2. **Freshness** — the flow's stored state must not be older than
+        1. **Presence** - the callback MUST carry a ``state`` parameter.
+        2. **Freshness** - the flow's stored state must not be older than
            :attr:`state_ttl_seconds`.
-        3. **Match** — the received value must byte-equal the stored
+        3. **Match** - the received value must byte-equal the stored
            state, compared in constant time via :func:`hmac.compare_digest`.
-        4. **Single-use** — once a state has been accepted, any subsequent
+        4. **Single-use** - once a state has been accepted, any subsequent
            validation attempt is rejected as a replay.
 
         Args:

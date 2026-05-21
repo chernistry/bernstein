@@ -152,7 +152,7 @@ def test_ids_are_unique_when_constructed_via_factory(tmp_path_factory: Any, rows
 
 @given(target=st.sampled_from([s for s in TaskStatus if s is not TaskStatus.ABANDONED]))
 def test_abandoned_is_terminal_for_all_other_states(target: TaskStatus) -> None:
-    """ABANDONED is a closed terminal status — no outbound transitions."""
+    """ABANDONED is a closed terminal status - no outbound transitions."""
     assert (TaskStatus.ABANDONED, target) not in TASK_TRANSITIONS
 
 

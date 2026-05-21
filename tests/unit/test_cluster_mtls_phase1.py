@@ -3,7 +3,7 @@
 These tests complement ``test_cluster_tls.py`` by covering the security
 properties of the SSLContext objects that
 :func:`bernstein.core.protocols.cluster.cluster_tls.build_ssl_context` and
-:func:`build_httpx_client_kwargs` hand to uvicorn / httpx — the parts an
+:func:`build_httpx_client_kwargs` hand to uvicorn / httpx - the parts an
 operator cannot override after the fact.
 
 Specifically:
@@ -63,7 +63,7 @@ def _build_ca(now: datetime.datetime, cn: str = "phase1-ca") -> tuple[x509.Certi
         .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
         # OpenSSL 3.2+ (ships with Python 3.13) rejects CA certs that set
         # `pathLen` in BasicConstraints without a matching `keyCertSign` bit
-        # in KeyUsage — error: "Path length given without key usage
+        # in KeyUsage - error: "Path length given without key usage
         # keyCertSign". RFC 5280 §4.2.1.9 actually requires KeyUsage on any
         # cert that signs other certs; older OpenSSL was lenient.
         .add_extension(
@@ -188,7 +188,7 @@ def pki(tmp_path: Path) -> dict[str, Path]:
 
 
 # ---------------------------------------------------------------------------
-# In-process MemoryBIO handshake — deterministic, no sockets, no subprocess.
+# In-process MemoryBIO handshake - deterministic, no sockets, no subprocess.
 # ---------------------------------------------------------------------------
 
 
@@ -199,7 +199,7 @@ def _do_handshake(
 ) -> None:
     """Drive a TLS handshake between two ``MemoryBIO`` pairs until both sides finish.
 
-    Raises whatever ``ssl.SSLError`` either side emits — letting tests assert
+    Raises whatever ``ssl.SSLError`` either side emits - letting tests assert
     on the precise failure mode.
     """
     s_in, s_out = ssl.MemoryBIO(), ssl.MemoryBIO()
@@ -207,7 +207,7 @@ def _do_handshake(
     server_obj = server_ctx.wrap_bio(s_in, s_out, server_side=True)
     client_obj = client_ctx.wrap_bio(c_in, c_out, server_side=False, server_hostname=server_hostname)
 
-    for _ in range(64):  # bounded — the handshake completes well within this
+    for _ in range(64):  # bounded - the handshake completes well within this
         for obj, peer_in, peer_out in (
             (client_obj, s_in, c_out),
             (server_obj, c_in, s_out),
@@ -277,7 +277,7 @@ def test_optional_mode_keeps_client_side_full_verification(pki: dict[str, Path])
     """``verify_mode='optional'`` is a server-side concept.
 
     The httpx client we build for a worker must still verify the server
-    fully — otherwise an attacker on the path could MitM the upload.
+    fully - otherwise an attacker on the path could MitM the upload.
     """
     cfg = TLSConfig(
         ca_file=pki["ca"],
@@ -293,7 +293,7 @@ def test_optional_mode_keeps_client_side_full_verification(pki: dict[str, Path])
 def test_cipher_suites_exclude_known_weak(pki: dict[str, Path]) -> None:
     """No NULL/EXPORT/RC4/DES/MD5/anon/PSK suites in the negotiated list.
 
-    Pure-RSA key exchange (no DHE/ECDHE prefix) is also excluded — without
+    Pure-RSA key exchange (no DHE/ECDHE prefix) is also excluded - without
     forward secrecy a captured handshake decrypts all past traffic if the
     server key leaks later.
     """
@@ -342,7 +342,7 @@ def test_disabled_mode_does_not_require_ca_file(pki: dict[str, Path], tmp_path: 
 
 
 # ---------------------------------------------------------------------------
-# Real handshake — accept / reject decisions
+# Real handshake - accept / reject decisions
 # ---------------------------------------------------------------------------
 
 
@@ -372,14 +372,14 @@ def test_handshake_accepts_valid_client_cert(pki: dict[str, Path]) -> None:
 
 def test_handshake_rejects_client_with_no_cert_when_required(pki: dict[str, Path]) -> None:
     server_ctx = _server_ctx_required(pki)
-    # Plain client context — trusts the CA but presents no client cert.
+    # Plain client context - trusts the CA but presents no client cert.
     client_ctx = ssl.create_default_context(cafile=str(pki["ca"]))
     with pytest.raises(ssl.SSLError):
         _do_handshake(server_ctx, client_ctx)
 
 
 def test_handshake_rejects_client_signed_by_alien_ca(pki: dict[str, Path], tmp_path: Path) -> None:
-    """Cert chain validation — leaf signed by a CA the server does not trust."""
+    """Cert chain validation - leaf signed by a CA the server does not trust."""
     now = datetime.datetime.now(datetime.UTC)
     alien_ca_cert, alien_ca_key = _build_ca(now, cn="alien-ca")
     alien_leaf, alien_leaf_key = _build_leaf(
@@ -410,7 +410,7 @@ def test_handshake_rejects_client_signed_by_alien_ca(pki: dict[str, Path], tmp_p
 
 
 def test_handshake_rejects_expired_client_cert(pki: dict[str, Path], tmp_path: Path) -> None:
-    """Expired client cert — Phase 1 must reject, not silently accept."""
+    """Expired client cert - Phase 1 must reject, not silently accept."""
     now = datetime.datetime.now(datetime.UTC)
     expired_dir = tmp_path / "expired"
     expired_dir.mkdir()
@@ -461,12 +461,12 @@ def test_handshake_optional_mode_accepts_client_without_cert(pki: dict[str, Path
         )
     )
     client_ctx = ssl.create_default_context(cafile=str(pki["ca"]))
-    # Should NOT raise — handshake completes without a client cert.
+    # Should NOT raise - handshake completes without a client cert.
     _do_handshake(server_ctx, client_ctx)
 
 
 def test_client_rejects_server_without_matching_san(pki: dict[str, Path]) -> None:
-    """Hostname mismatch — client must refuse a cert whose SAN does not include the host."""
+    """Hostname mismatch - client must refuse a cert whose SAN does not include the host."""
     server_ctx = _server_ctx_required(pki)
     client_kwargs = build_httpx_client_kwargs(
         TLSConfig(
@@ -515,6 +515,6 @@ def test_disabled_client_still_loads_local_cert(pki: dict[str, Path]) -> None:
     ctx = _client_ctx_from_kwargs(build_httpx_client_kwargs(cfg))
     assert ctx.verify_mode == ssl.CERT_NONE
     # A real handshake against a server demanding client auth confirms the
-    # cert was loaded — without it, this would fail at the server side.
+    # cert was loaded - without it, this would fail at the server side.
     server_ctx = _server_ctx_required(pki)
     _do_handshake(server_ctx, ctx)

@@ -1,4 +1,4 @@
-"""Tests for RealtimeBehaviorMonitor — real-time agent session anomaly detection."""
+"""Tests for RealtimeBehaviorMonitor - real-time agent session anomaly detection."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def test_suspicious_file_allows_test_fixture_key() -> None:
 
 
 # ---------------------------------------------------------------------------
-# RealtimeBehaviorMonitor — suspicious file access
+# RealtimeBehaviorMonitor - suspicious file access
 # ---------------------------------------------------------------------------
 
 
@@ -215,7 +215,7 @@ def test_monitor_evict_is_idempotent(tmp_path: Path) -> None:
 def test_monitor_accumulates_output_across_multiple_updates(tmp_path: Path) -> None:
     monitor = RealtimeBehaviorMonitor(tmp_path, max_output_bytes=50)
 
-    # Three small updates each 20 bytes — third one pushes past limit
+    # Three small updates each 20 bytes - third one pushes past limit
     for i in range(3):
         signals = monitor.record_progress("session-acc", "task-acc", files_changed=0, last_file="", message="x" * 20)
         if i < 2:
@@ -230,7 +230,7 @@ def test_monitor_tracks_multiple_sessions_independently(tmp_path: Path) -> None:
     monitor.record_progress("s-a", "t-1", files_changed=0, last_file="", message="a" * 80)
     monitor.record_progress("s-b", "t-2", files_changed=0, last_file="", message="b" * 10)
 
-    # s-a: 80 bytes, s-b: 10 bytes — only s-a is close to limit
+    # s-a: 80 bytes, s-b: 10 bytes - only s-a is close to limit
     signals_a = monitor.record_progress("s-a", "t-1", files_changed=0, last_file="", message="a" * 30)
     signals_b = monitor.record_progress("s-b", "t-2", files_changed=0, last_file="", message="b" * 5)
 

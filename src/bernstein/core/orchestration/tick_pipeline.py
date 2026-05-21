@@ -113,7 +113,7 @@ def _groups_can_merge(left: list[Task], right: list[Task], agent_affinity: dict[
     """Return True when two groups are compatible for batching.
 
     Tasks with different per-step ``cli:`` or ``model:`` directives must
-    spawn separate agents — a single ``spawn_for_tasks`` call only consults
+    spawn separate agents - a single ``spawn_for_tasks`` call only consults
     ``tasks[0].cli``/``tasks[0].model``, so merging would silently drop the
     second task's routing hints.
     """
@@ -307,7 +307,7 @@ def complete_task(
             if attempt < max_retries:
                 delay = 2**attempt  # 1s, 2s, 4s
                 logger.warning(
-                    "complete_task %s attempt %d/%d failed (server unreachable): %s — retrying in %ds",
+                    "complete_task %s attempt %d/%d failed (server unreachable): %s - retrying in %ds",
                     task_id,
                     attempt + 1,
                     max_retries + 1,
@@ -802,7 +802,7 @@ def collapse_prompt_sections(
     # "token" here counts LLM context tokens, not credentials.
     # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info(
-        "Prompt sections exceed token budget%s: %d > %d tokens — applying staged collapse",
+        "Prompt sections exceed token budget%s: %d > %d tokens - applying staged collapse",
         task_ctx,
         total_tokens,
         token_budget,
@@ -840,7 +840,7 @@ def partition_best_of_n(tasks: list[Task]) -> tuple[list[Task], list[tuple[Task,
     caller can hand them to a :class:`bernstein.core.orchestration.best_of_n.BestOfNRunner`
     instead of the legacy single-agent path.  When the global flag is
     off, every task lands in ``single_agent`` and the fan-out list is
-    empty — the legacy assignment loop is unaffected.
+    empty - the legacy assignment loop is unaffected.
     """
     single: list[Task] = []
     fan_out: list[tuple[Task, int]] = []

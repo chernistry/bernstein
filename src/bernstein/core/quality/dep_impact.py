@@ -1,4 +1,4 @@
-"""Dependency impact analysis — detects call sites that break when a function signature changes.
+"""Dependency impact analysis - detects call sites that break when a function signature changes.
 
 When an agent modifies a function signature, this module scans the entire
 codebase for files that import and call the changed function.  It flags
@@ -136,7 +136,7 @@ def _collect_imported_names(
             continue
         for alias in node.names:
             if alias.name == "*":
-                # Wildcard — cannot resolve statically; skip.
+                # Wildcard - cannot resolve statically; skip.
                 continue
             if alias.name in broken_symbol_names:
                 local = alias.asname or alias.name

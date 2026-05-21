@@ -381,7 +381,7 @@ def test_mid_step_kill_continues_from_next_step_boundary(workdir: Path) -> None:
     """The checkpoint we write after step N must surface as ``last_completed_step_id=N``.
 
     The orchestrator uses that field to know which step to begin from on
-    re-spawn — the *next* boundary, never re-running step N. This test
+    re-spawn - the *next* boundary, never re-running step N. This test
     pins the contract: whatever we save is exactly what resume sees.
     """
     save_checkpoint(

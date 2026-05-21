@@ -13,7 +13,7 @@ Usage::
 
 The filter mutates ``record.msg`` and ``record.args`` in-place so that
 downstream handlers (file, console, structured JSON) all receive sanitised
-text — no PII is ever written to disk or stdout.
+text - no PII is ever written to disk or stdout.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import re
 from typing import Any
 
 # ---------------------------------------------------------------------------
-# PII patterns — kept in sync with memory_sanitizer._PII_RULES
+# PII patterns - kept in sync with memory_sanitizer._PII_RULES
 # ---------------------------------------------------------------------------
 
 _PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -113,7 +113,7 @@ def install_pii_filter(
 ) -> PiiRedactingFilter:
     """Attach a ``PiiRedactingFilter`` to *target* (default: root logger).
 
-    Safe to call multiple times — subsequent calls are no-ops that return the
+    Safe to call multiple times - subsequent calls are no-ops that return the
     existing filter instance.
 
     Args:

@@ -1,4 +1,4 @@
-"""Write-once MCP skill registry — bridges MCP server tools to skill discovery.
+"""Write-once MCP skill registry - bridges MCP server tools to skill discovery.
 
 MCP servers register skills by calling :func:`register_mcp_skills` once.
 The registry is intentionally write-once (a second registration for the same
@@ -53,7 +53,7 @@ def register_mcp_skills(server_name: str, skills: list[SkillDefinition]) -> None
     """
     if server_name in _REGISTRY:
         log.debug(
-            "mcp_skill_registry: server %r already registered — ignoring",
+            "mcp_skill_registry: server %r already registered - ignoring",
             server_name,
         )
         return
@@ -92,7 +92,7 @@ def get_mcp_skills() -> dict[str, SkillDefinition]:
 def clear_registry() -> None:
     """Clear all registered MCP skills.
 
-    Intended for use in tests only — do not call from production code.
+    Intended for use in tests only - do not call from production code.
     """
     _REGISTRY.clear()
 

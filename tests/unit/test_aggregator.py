@@ -1,4 +1,4 @@
-"""Tests for MetricsAggregator — EWMA, CUSUM, BOCPD, Mann-Kendall, posteriors, Goodhart."""
+"""Tests for MetricsAggregator - EWMA, CUSUM, BOCPD, Mann-Kendall, posteriors, Goodhart."""
 
 from __future__ import annotations
 
@@ -235,7 +235,7 @@ def test_bocpd_detects_changepoints_with_high_hazard(tmp_path: Path) -> None:
 
 def test_bocpd_conservative_hazard_rarely_fires(tmp_path: Path) -> None:
     agg, _ = _make_aggregator(tmp_path)
-    # Default hazard_rate=1/250 is very conservative — even large shifts
+    # Default hazard_rate=1/250 is very conservative - even large shifts
     # may not produce changepoints. This is by design.
     values = [0.0] * 30 + [20.0] * 30
     changepoints = agg.detect_changepoints(values)
@@ -281,7 +281,7 @@ def test_bocpd_changepoint_structure(tmp_path: Path) -> None:
 
 def test_mann_kendall_detects_increasing_trend(tmp_path: Path) -> None:
     agg, _ = _make_aggregator(tmp_path)
-    values = list(range(20))  # 0, 1, 2, ..., 19 — clearly increasing
+    values = list(range(20))  # 0, 1, 2, ..., 19 - clearly increasing
     result = agg.mann_kendall_test(values)
     assert result is not None
     s, p = result
@@ -307,7 +307,7 @@ def test_mann_kendall_returns_none_for_insufficient_data(tmp_path: Path) -> None
 
 def test_mann_kendall_detects_decreasing_trend(tmp_path: Path) -> None:
     agg, _ = _make_aggregator(tmp_path)
-    values = list(range(20, 0, -1))  # 20, 19, ..., 1 — decreasing
+    values = list(range(20, 0, -1))  # 20, 19, ..., 1 - decreasing
     result = agg.mann_kendall_test(values)
     assert result is not None
     s, p = result
@@ -536,7 +536,7 @@ def test_composite_trip_wire_100_percent_success(tmp_path: Path) -> None:
 
 def test_composite_no_trip_wire_below_threshold(tmp_path: Path) -> None:
     agg, _ = _make_aggregator(tmp_path)
-    # Only 3 calls with 100% — not enough for trip wire
+    # Only 3 calls with 100% - not enough for trip wire
     for _ in range(3):
         result = agg.compute_composite_score(
             {

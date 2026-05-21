@@ -784,9 +784,9 @@ def cost_cmd(
     table.add_column("Avg Duration", justify="right", min_width=12)
 
     for model, v in sorted_models:
-        avg_dur = f"{v['duration_total'] / v['duration_count']:.1f}s" if v["duration_count"] > 0 else "—"
+        avg_dur = f"{v['duration_total'] / v['duration_count']:.1f}s" if v["duration_count"] > 0 else "-"
         cost_str = f"${v['cost_usd']:.4f}" if v["cost_usd"] > 0 else "$0.0000"
-        cost_per_task = f"${v['cost_usd'] / v['tasks']:.4f}" if v["tasks"] > 0 else "—"
+        cost_per_task = f"${v['cost_usd'] / v['tasks']:.4f}" if v["tasks"] > 0 else "-"
         table.add_row(
             model,
             str(v["tasks"]),
@@ -798,8 +798,8 @@ def cost_cmd(
         )
 
     # Totals row
-    avg_total = f"{total_dur / total_dur_count:.1f}s" if total_dur_count > 0 else "—"
-    total_cost_per_task = f"${totals['cost_usd'] / totals['tasks']:.4f}" if totals["tasks"] > 0 else "—"
+    avg_total = f"{total_dur / total_dur_count:.1f}s" if total_dur_count > 0 else "-"
+    total_cost_per_task = f"${totals['cost_usd'] / totals['tasks']:.4f}" if totals["tasks"] > 0 else "-"
     table.add_section()
     table.add_row(
         "[bold]TOTAL[/bold]",

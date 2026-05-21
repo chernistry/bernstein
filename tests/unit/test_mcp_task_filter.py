@@ -33,7 +33,7 @@ ALL_SERVERS = ["github", "database", "test-runner", "coverage", "security-scanne
 
 
 # ---------------------------------------------------------------------------
-# Tests — RoleServerRule
+# Tests - RoleServerRule
 # ---------------------------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ class TestRoleServerRule:
 
 
 # ---------------------------------------------------------------------------
-# Tests — TaskMCPFilter with explicit task servers
+# Tests - TaskMCPFilter with explicit task servers
 # ---------------------------------------------------------------------------
 
 
@@ -85,7 +85,7 @@ class TestExplicitTaskServers:
 
 
 # ---------------------------------------------------------------------------
-# Tests — TaskMCPFilter with role rules
+# Tests - TaskMCPFilter with role rules
 # ---------------------------------------------------------------------------
 
 
@@ -129,7 +129,7 @@ class TestRoleRules:
 
 
 # ---------------------------------------------------------------------------
-# Tests — Default allow all
+# Tests - Default allow all
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +143,7 @@ class TestDefaultAllowAll:
 
 
 # ---------------------------------------------------------------------------
-# Tests — Scope-based filtering
+# Tests - Scope-based filtering
 # ---------------------------------------------------------------------------
 
 
@@ -158,7 +158,7 @@ class TestScopeFiltering:
 
 
 # ---------------------------------------------------------------------------
-# Tests — Serialization
+# Tests - Serialization
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Tests for bernstein.cli.errors — structured error reporting."""
+"""Tests for bernstein.cli.errors - structured error reporting."""
 
 from __future__ import annotations
 

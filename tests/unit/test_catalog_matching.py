@@ -1,4 +1,4 @@
-"""Tests for CatalogRegistry.match() — role matching with catalog fallback."""
+"""Tests for CatalogRegistry.match() - role matching with catalog fallback."""
 
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ def test_match_fuzzy_by_description_keywords() -> None:
     )
     registry.register_agent(agent)
 
-    # "qa" is affine to "security" — fuzzy match should find SecurityReviewer
+    # "qa" is affine to "security" - fuzzy match should find SecurityReviewer
     # via keyword overlap on "authentication" and "vulnerabilities"
     result = registry.match("qa", "Review authentication vulnerabilities in API")
     assert result is not None
@@ -108,7 +108,7 @@ def test_match_fuzzy_picks_highest_overlap() -> None:
     registry.register_agent(weak)
     registry.register_agent(strong)
 
-    # "architect" is affine to "backend" — fuzzy match ranks by keyword overlap
+    # "architect" is affine to "backend" - fuzzy match ranks by keyword overlap
     result = registry.match("backend", "Build backend REST API service")
     assert result is not None
     assert result.name == "StrongMatch"

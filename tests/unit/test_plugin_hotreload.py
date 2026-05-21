@@ -1,4 +1,4 @@
-"""Tests for plugin hot-reloading with version rollback — issue #697."""
+"""Tests for plugin hot-reloading with version rollback - issue #697."""
 
 from __future__ import annotations
 

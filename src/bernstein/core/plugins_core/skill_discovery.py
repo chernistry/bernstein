@@ -1,15 +1,15 @@
-"""Skill discovery priority order — 6-level cascade (T797).
+"""Skill discovery priority order - 6-level cascade (T797).
 
 Skills are loaded from multiple sources in priority order. Later sources
 cannot override skills already loaded from earlier (higher-priority) sources.
 
 Discovery priority (highest to lowest):
-    1. **managed** — MDM/enterprise-managed skills that enforce org policy
-    2. **user** — per-user skills in ``~/.bernstein/skills/``
-    3. **project** — project-level skills in ``.bernstein/skills/``
-    4. **additional** — extra skills declared via config/YAML
-    5. **plugin** — skills bundled with installed plugins
-    6. **mcp** — skills advertised by MCP servers
+    1. **managed** - MDM/enterprise-managed skills that enforce org policy
+    2. **user** - per-user skills in ``~/.bernstein/skills/``
+    3. **project** - project-level skills in ``.bernstein/skills/``
+    4. **additional** - extra skills declared via config/YAML
+    5. **plugin** - skills bundled with installed plugins
+    6. **mcp** - skills advertised by MCP servers
 
 This mirrors Claude Code's ``loadSkillsDir.ts`` priority chain:
 managed > user > project > additional > plugin > MCP.

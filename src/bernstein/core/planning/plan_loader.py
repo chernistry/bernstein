@@ -82,16 +82,16 @@ def _parse_completion_signals(raw_signals: list[object]) -> list[CompletionSigna
     signals: list[CompletionSignal] = []
     for i, raw in enumerate(raw_signals):
         if not isinstance(raw, dict):
-            logger.warning("completion_signals[%d] is not a mapping — skipping", i)
+            logger.warning("completion_signals[%d] is not a mapping - skipping", i)
             continue
         sig_type = raw.get("type", "")
         # Support 'value' or 'path'/'command'/'contains' as the signal value
         sig_value = raw.get("value") or raw.get("path") or raw.get("command") or raw.get("contains") or ""
         if sig_type not in valid_types:
-            logger.warning("completion_signals[%d] has invalid type %r — skipping", i, sig_type)
+            logger.warning("completion_signals[%d] has invalid type %r - skipping", i, sig_type)
             continue
         if not sig_value:
-            logger.warning("completion_signals[%d] has empty value — skipping", i)
+            logger.warning("completion_signals[%d] has empty value - skipping", i)
             continue
         signals.append(CompletionSignal(type=sig_type, value=str(sig_value)))  # type: ignore[arg-type]
     return signals
@@ -162,11 +162,11 @@ def load_plan(path: Path) -> tuple[PlanConfig, list[Task]]:
     repos: list[RepoRef] = []
     for raw_repo in data.get("repos") or []:
         if not isinstance(raw_repo, dict):
-            logger.warning("repos entry is not a mapping — skipping")
+            logger.warning("repos entry is not a mapping - skipping")
             continue
         repo_path = raw_repo.get("path")
         if not repo_path:
-            logger.warning("repos entry missing 'path' — skipping")
+            logger.warning("repos entry missing 'path' - skipping")
             continue
         repos.append(
             RepoRef(
@@ -271,7 +271,7 @@ def _parse_step(
         try:
             parsed = parse_phases(phases_raw)
         except ValueError as exc:
-            raise PlanLoadError(f"Step {step_index} in stage {stage_name!r}: invalid 'phases' field — {exc}") from exc
+            raise PlanLoadError(f"Step {step_index} in stage {stage_name!r}: invalid 'phases' field - {exc}") from exc
         if parsed:
             metadata["phases"] = [p.value for p in parsed]
 

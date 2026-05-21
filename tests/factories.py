@@ -33,7 +33,7 @@ _DEFAULT_ROLES: list[str] = [
     "security",
 ]
 
-# Titles keyed by role — used by ``make_task_batch`` for realism.
+# Titles keyed by role - used by ``make_task_batch`` for realism.
 _ROLE_TITLES: dict[str, list[str]] = {
     "backend": [
         "Add pagination to /tasks endpoint",

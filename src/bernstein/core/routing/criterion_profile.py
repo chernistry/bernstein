@@ -18,16 +18,16 @@ fast-tier model and skipped past the high-stakes opus override.
 
 The profile is plumbed through three resolution paths:
 
-* **Named preset** — string like ``"safety-first"`` resolved from YAML
+* **Named preset** - string like ``"safety-first"`` resolved from YAML
   files under ``templates/criterion_profiles/<name>.yaml`` (or any
   registry the loader is pointed at).  Force-included into the wheel
   the same way ``templates/mode_profiles`` is.
 
-* **Inline dict** — ``{"correctness": 0.6, "cost": 0.2, "latency": 0.1,
+* **Inline dict** - ``{"correctness": 0.6, "cost": 0.2, "latency": 0.1,
   "reversibility": 0.1}``.  Useful when an automation needs to set the
   vector programmatically without registering a new preset.
 
-* **Inheritance** — a child task spawned from a parent inherits the
+* **Inheritance** - a child task spawned from a parent inherits the
   parent's profile unless the child explicitly overrides it.
 
 Origin: Synapse's per-scenario weight vector
@@ -147,7 +147,7 @@ class CriterionProfile:
             if not isinstance(value, (int, float)):
                 raise CriterionProfileError(f"axis {axis!r} must be numeric, got {type(value).__name__}")
             if isinstance(value, bool):
-                # ``bool`` is a subclass of ``int`` — reject explicitly.
+                # ``bool`` is a subclass of ``int`` - reject explicitly.
                 raise CriterionProfileError(f"axis {axis!r} must be numeric, got bool")
             float_value = float(value)
             if math.isnan(float_value):
@@ -363,7 +363,7 @@ def normalize(
     Unlike :func:`from_dict` this function tolerates weight vectors
     that don't already form a probability simplex, rescaling them by
     their sum.  Still rejects negative weights, NaN/inf, and unknown
-    or missing axes — only the sum constraint is relaxed.
+    or missing axes - only the sum constraint is relaxed.
 
     Useful for operator-friendly inputs like ``correctness=3, cost=1,
     latency=1, reversibility=1`` (a 60/20/10/10 vector after normalisation).
@@ -371,7 +371,7 @@ def normalize(
     values = _extract_weights(raw, check_finite=True)
     total = sum(values.values())
     if total <= 0.0:
-        raise CriterionProfileError("cannot normalise — total weight is zero or negative")
+        raise CriterionProfileError("cannot normalise - total weight is zero or negative")
 
     rescaled = {axis: values[axis] / total for axis in AXES}
     profile = CriterionProfile(
@@ -544,7 +544,7 @@ def inherit_for_child(
     """Return a child metadata dict that inherits the parent's profile.
 
     The child's explicit ``criterion_profile`` (if any) wins; otherwise
-    the parent's value is copied in.  Returns a new dict — neither
+    the parent's value is copied in.  Returns a new dict - neither
     input is mutated.
     """
     base: dict[str, Any] = dict(child_metadata or {})
@@ -601,7 +601,7 @@ def derive_bias(profile: CriterionProfile) -> RoutingBias:
     """Translate a :class:`CriterionProfile` into a :class:`RoutingBias`.
 
     The mapping is intentionally deterministic so that two runs with
-    the same profile vector always produce the same bias — replay
+    the same profile vector always produce the same bias - replay
     invariants depend on it.
 
     Resolution order (first match wins):
@@ -619,7 +619,7 @@ def derive_bias(profile: CriterionProfile) -> RoutingBias:
             forced_model="opus",
             forced_effort="max",
             max_blast_radius=1,
-            rationale=(f"reversibility={profile.reversibility:.2f} dominant — pin to opus/max with tight blast radius"),
+            rationale=(f"reversibility={profile.reversibility:.2f} dominant - pin to opus/max with tight blast radius"),
         )
 
     if profile.is_correctness_dominant():
@@ -627,7 +627,7 @@ def derive_bias(profile: CriterionProfile) -> RoutingBias:
             forced_model="opus",
             forced_effort="max",
             max_blast_radius=None,
-            rationale=(f"correctness={profile.correctness:.2f} dominant — pin to opus/max"),
+            rationale=(f"correctness={profile.correctness:.2f} dominant - pin to opus/max"),
         )
 
     if profile.is_cost_dominant():
@@ -635,7 +635,7 @@ def derive_bias(profile: CriterionProfile) -> RoutingBias:
             forced_model="haiku",
             forced_effort="low",
             max_blast_radius=None,
-            rationale=(f"cost={profile.cost:.2f} dominant — pin to haiku/low"),
+            rationale=(f"cost={profile.cost:.2f} dominant - pin to haiku/low"),
         )
 
     if profile.is_latency_dominant():
@@ -643,14 +643,14 @@ def derive_bias(profile: CriterionProfile) -> RoutingBias:
             forced_model="haiku",
             forced_effort="low",
             max_blast_radius=None,
-            rationale=(f"latency={profile.latency:.2f} dominant — pin to haiku/low for fast turnaround"),
+            rationale=(f"latency={profile.latency:.2f} dominant - pin to haiku/low for fast turnaround"),
         )
 
     return RoutingBias(
         forced_model="sonnet",
         forced_effort="high",
         max_blast_radius=None,
-        rationale=(f"no dominant axis — default to sonnet/high (vector={profile.as_vector()})"),
+        rationale=(f"no dominant axis - default to sonnet/high (vector={profile.as_vector()})"),
     )
 
 

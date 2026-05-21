@@ -10,10 +10,10 @@ Demonstrates how to implement a routing plugin that:
 
 This pattern lets you plug in custom routing intelligence without touching
 ``bernstein/core/router.py``.  The orchestrator already reads
-``.sdd/runtime/routing_hints.json`` when present — if it does not exist,
+``.sdd/runtime/routing_hints.json`` when present - if it does not exist,
 routing falls back to the standard tier-aware algorithm.
 
-Usage — add to bernstein.yaml::
+Usage - add to bernstein.yaml::
 
     plugins:
       - examples.plugins.custom_router_plugin:CostAwareRouter
@@ -163,7 +163,7 @@ class CostAwareRouter:
 
     @hookimpl
     def on_task_failed(self, task_id: str, role: str, error: str) -> None:
-        """Log budget state on failure — useful for post-mortem analysis."""
+        """Log budget state on failure - useful for post-mortem analysis."""
         log.warning(
             "CostAwareRouter: task %s failed (role=%s); session spend so far ~$%.4f / $%.2f budget",
             task_id,

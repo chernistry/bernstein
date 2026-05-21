@@ -141,7 +141,7 @@ class TestSoftCap:
 
     def test_cheaper_model_after_warn(self, tmp_path: Path) -> None:
         led = SpendLedger(path=tmp_path / "ledger.jsonl", budget_usd=5.0)
-        # Below 80% — no reroute
+        # Below 80% - no reroute
         led.record(tags=CallTags(), model="opus", cost_usd=1.0)
         assert led.cheaper_model("opus") is None
         # Cross the 80% line
@@ -347,7 +347,7 @@ class TestCostTrackerHardBudget:
     def test_cheaper_model_for_uses_ledger(self, tmp_path: Path) -> None:
         ledger = SpendLedger(path=tmp_path / "ledger.jsonl", budget_usd=5.0)
         tracker = CostTracker(run_id="r-1", spend_ledger=ledger)
-        # Below 80% — no reroute
+        # Below 80% - no reroute
         tracker.record("a", "t", "opus", 0, 0, cost_usd=1.0)
         assert tracker.cheaper_model_for("opus") is None
         # Cross 80%

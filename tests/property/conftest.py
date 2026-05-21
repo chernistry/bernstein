@@ -17,11 +17,11 @@ import os
 
 from hypothesis import HealthCheck, Verbosity, settings
 
-# ``smoke`` — PR-time. Tight budget; flake-resistant.
+# ``smoke`` - PR-time. Tight budget; flake-resistant.
 settings.register_profile(
     "smoke",
     max_examples=50,
-    deadline=5_000,  # 5 s per example — generous for property cases that
+    deadline=5_000,  # 5 s per example - generous for property cases that
     # touch the filesystem (WAL writer, audit log).
     suppress_health_check=[
         HealthCheck.too_slow,
@@ -31,7 +31,7 @@ settings.register_profile(
     verbosity=Verbosity.normal,
 )
 
-# ``deep`` — nightly. Thoroughness over speed.
+# ``deep`` - nightly. Thoroughness over speed.
 settings.register_profile(
     "deep",
     max_examples=1_000,

@@ -236,7 +236,7 @@ def test_ordering_preserved_between_scripts_and_callables(tmp_path: Path) -> Non
     ctx = LifecycleContext(event=LifecycleEvent.POST_SPAWN, workdir=tmp_path)
     registry.run(LifecycleEvent.POST_SPAWN, ctx)
 
-    # first.sh must have produced its marker before second.sh — we rely on
+    # first.sh must have produced its marker before second.sh - we rely on
     # mtimes as a coarse ordering check on filesystems that support them.
     assert marker_first.exists() and marker_second.exists()
     assert marker_first.stat().st_mtime <= marker_second.stat().st_mtime

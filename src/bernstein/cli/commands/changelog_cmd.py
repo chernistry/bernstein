@@ -250,7 +250,7 @@ def _write_changelog_file(output_path: str, text: str, entry_count: int, version
     candidate = (cwd / output_path).resolve()
     if not str(candidate).startswith(str(cwd)):
         raise click.ClickException(f"Output path '{output_path}' resolves outside the working directory.")
-    # Use the sanitized, CWD-anchored path — never the raw user string.
+    # Use the sanitized, CWD-anchored path - never the raw user string.
     out = candidate
     if out.exists():
         existing = out.read_text()

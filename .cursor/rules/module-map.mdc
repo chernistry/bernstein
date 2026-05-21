@@ -24,36 +24,36 @@ alwaysApply: false
 | `cost/`                 | cost sub-package |
 | `daemon/`               | Daemon installation helpers for Bernstein |
 | `devops/`               | devops sub-package |
-| `distribution/`         | Distribution utilities — air-gap wheelhouse build, verify, signing |
+| `distribution/`         | Distribution utilities - air-gap wheelhouse build, verify, signing |
 | `errors/`               | Structured first-run error categorization for Bernstein |
-| `fleet/`                | Fleet dashboard — supervise multiple Bernstein projects in one view |
+| `fleet/`                | Fleet dashboard - supervise multiple Bernstein projects in one view |
 | `git/`                  | git sub-package |
-| `grpc_gen/`             | Generated gRPC stubs — run ``scripts/generate_proto.sh`` to populate |
+| `grpc_gen/`             | Generated gRPC stubs - run ``scripts/generate_proto.sh`` to populate |
 | `handoff/`              | Session handoff between terminal and chat/dashboard surfaces (op-005) |
-| `identity/`             | Install-rev identity module — passive, operator-decodable install fingerprint |
+| `identity/`             | Install-rev identity module - passive, operator-decodable install fingerprint |
 | `integrations/`         | Integrations sub-package |
 | `interop/`              | Cross-organisation interoperability surfaces |
 | `knowledge/`            | knowledge sub-package |
 | `lifecycle/`            | Lifecycle-hooks subsystem |
-| `lineage/`              | Lineage v1 — Sigstore-style per-artefact transparency log |
-| `memory/`               | memory sub-package — persistent memory stores |
+| `lineage/`              | Lineage v1 - Sigstore-style per-artefact transparency log |
+| `memory/`               | memory sub-package - persistent memory stores |
 | `notifications/`        | Outbound notification subsystem (release 1.9) |
 | `observability/`        | observability sub-package |
 | `orchestration/`        | orchestration sub-package |
 | `persistence/`          | persistence sub-package |
 | `planning/`             | planning sub-package |
 | `plugins_core/`         | plugins_core sub-package |
-| `preview/`              | ``bernstein preview`` — sandboxed dev-server with public tunnel link |
+| `preview/`              | ``bernstein preview`` - sandboxed dev-server with public tunnel link |
 | `protocols/`            | protocols sub-package |
 | `quality/`              | quality sub-package |
 | `replay/`               | Deterministic replay package for Bernstein agent runs |
 | `review/`               | Per-adapter perspective assignment and chain coordination for reviews |
-| `review_responder/`     | PR review responder — react to inline review comments on Bernstein PRs |
+| `review_responder/`     | PR review responder - react to inline review comments on Bernstein PRs |
 | `routes/`               | FastAPI router modules for the Bernstein task server |
 | `routing/`              | routing sub-package |
 | `sandbox/`              | Pluggable sandbox backends for agent isolation (oai-002 phase 1) |
 | `security/`             | security sub-package |
-| `server/`               | server sub-package — re-exports for backward compatibility |
+| `server/`               | server sub-package - re-exports for backward compatibility |
 | `sessions/`             | Session-level orchestration primitives that span multiple subsystems |
 | `simulate/`             | Digital-twin orchestration simulator (issue #1374) |
 | `skills/`               | Progressive-disclosure skill packs (oai-004) |
@@ -63,7 +63,7 @@ alwaysApply: false
 | `telemetry/`            | Opt-in operator observability for Bernstein |
 | `tokens/`               | tokens sub-package |
 | `trackers/`             | Tracker adapter subsystem |
-| `trigger_sources/`      | Trigger source adapters — normalize raw events into TriggerEvent |
+| `trigger_sources/`      | Trigger source adapters - normalize raw events into TriggerEvent |
 | `tunnels/`              | Tunnel provider abstraction and registry |
 | `workflows/`            | Archon-inspired YAML workflow manifests |
 | `worktrees/`            | Worktree inventory and garbage-collection helpers |
@@ -86,11 +86,11 @@ alwaysApply: false
 | `claude_cache_control.py`  | Anthropic API cache-control block builder for the Claude Code adapter |
 | `claude_exit_codes.py`     | Map Claude Code exit codes to Bernstein AbortReason/TransitionReason |
 | `claude_mcp_loader.py`     | MCP config loading and merging for the Claude Code adapter |
-| `claude_routine.py`        | Claude Code Routine adapter — offloads tasks to Anthropic cloud via /fire API |
+| `claude_routine.py`        | Claude Code Routine adapter - offloads tasks to Anthropic cloud via /fire API |
 | `claude_stream_parser.py`  | Parse Claude Code --output-format stream-json events |
 | `claude_wrapper_script.py` | Inline wrapper script source + assembly for the Claude Code adapter |
 | `cline.py`                 | Cline CLI adapter |
-| `clm.py`                   | CLM sovereign LLM adapter — drives a customer-side CLM gateway |
+| `clm.py`                   | CLM sovereign LLM adapter - drives a customer-side CLM gateway |
 | `clm_tls_launcher.py`      | mTLS launcher for the CLM adapter |
 | `cloudflare_agents.py`     | Cloudflare Agents SDK adapter for local wrangler dev or deployed worker trigger |
 | `codebuff.py`              | Codebuff CLI adapter |
@@ -120,7 +120,7 @@ alwaysApply: false
 | `manager.py`               |  |
 | `mistral.py`               | Mistral Vibe CLI adapter |
 | `mock.py`                  | Mock CLI adapter for zero-API-key demos and testing |
-| `ollama.py`                | Ollama / OpenAI-compatible local LLM adapter — run coding agents without cloud API keys |
+| `ollama.py`                | Ollama / OpenAI-compatible local LLM adapter - run coding agents without cloud API keys |
 | `open_interpreter.py`      | Open Interpreter CLI adapter |
 | `openai_agents.py`         | OpenAI Agents SDK v2 adapter |
 | `openai_agents_runner.py`  | Python entrypoint that runs an OpenAI Agents SDK session |
@@ -132,7 +132,7 @@ alwaysApply: false
 | `q_dev.py`                 | AWS Q Developer CLI adapter (binary: ``q``) |
 | `qwen.py`                  | Qwen CLI adapter for OpenAI compatible models |
 | `ralphex.py`               | Ralphex (umputun/ralphex) CLI adapter |
-| `registry.py`              | Adapter registry — look up CLI adapters by name |
+| `registry.py`              | Adapter registry - look up CLI adapters by name |
 | `report.py`                | Adapter conformance + capability report |
 | `rovo.py`                  | Atlassian Rovo Dev CLI adapter |
 | `session_id.py`            | Deterministic session-id binding for adapter replay isolation |
@@ -145,8 +145,8 @@ alwaysApply: false
 
 | File                 | Purpose |
 |----------------------|---------|
-| `agency_provider.py` | AgencyProvider — loads CatalogAgent instances from msitarzewski/agency-agents format |
-| `catalog.py`         | Agent catalog registry — loads agent definitions from external sources |
+| `agency_provider.py` | AgencyProvider - loads CatalogAgent instances from msitarzewski/agency-agents format |
+| `catalog.py`         | Agent catalog registry - loads agent definitions from external sources |
 | `discovery.py`       | Agent directory auto-discovery for Bernstein |
 | `registry.py`        | Dynamic agent registry with YAML-based definitions and hot-reload support |
 
@@ -169,8 +169,8 @@ alwaysApply: false
 | `keybindings.py`        | Keybinding system for the Bernstein TUI |
 | `live.py`               | Live view helpers for ``bernstein live --classic`` |
 | `main.py`               | CLI entry point for Bernstein -- declarative agent orchestration |
-| `notebook_traces.py`    | Notebook-aware traces — detect and track Jupyter notebook cell edits |
-| `release_notes.py`      | Release notes display — fetch and format CHANGELOG.md for terminal output |
+| `notebook_traces.py`    | Notebook-aware traces - detect and track Jupyter notebook cell edits |
+| `release_notes.py`      | Release notes display - fetch and format CHANGELOG.md for terminal output |
 | `run.py`                | Enhanced run output for ``bernstein run`` |
 | `run_archive.py`        | Export full run archive as ZIP |
 | `run_bootstrap.py`      | Main Click commands and execution bootstrap for Bernstein runs |
@@ -178,7 +178,7 @@ alwaysApply: false
 | `run_confirm.py`        | Recipe/cook commands, demo, and confirmation helpers for Bernstein runs |
 | `run_names.py`          | Memorable deterministic run names for user-facing surfaces (#1626) |
 | `run_preflight.py`      | Preflight cost estimation and runtime warnings for Bernstein runs |
-| `settings_snapshot.py`  | Settings snapshot — capture and serialize effective settings for traces |
+| `settings_snapshot.py`  | Settings snapshot - capture and serialize effective settings for traces |
 | `side_query.py`         | Side-question ("btw") protocol for non-blocking agent queries |
 | `status.py`             | Formatted status output for ``bernstein status`` |
 | `transcript_search.py`  | Search across agent transcript/trace files in .sdd/traces/ |
@@ -197,48 +197,48 @@ alwaysApply: false
 |------------------------|---------|
 | `_shared.py`           | Shared constants, data classes, and helpers for the evolution loop modules |
 | `aggregator.py`        | Metrics aggregation with EWMA, CUSUM, BOCPD, and Goodhart defenses |
-| `applicator.py`        | Change applicator — execute upgrades via file modification |
+| `applicator.py`        | Change applicator - execute upgrades via file modification |
 | `benchmark.py`         | Tiered benchmark runner for evolution validation |
-| `circuit.py`           | CircuitBreaker — halt evolution when safety conditions are violated |
-| `creative.py`          | Creative evolution pipeline — visionary → analyst → production gate |
-| `cycle_helpers.py`     | Evolution cycle helper logic — community, creative, and GitHub sync |
+| `circuit.py`           | CircuitBreaker - halt evolution when safety conditions are violated |
+| `creative.py`          | Creative evolution pipeline - visionary → analyst → production gate |
+| `cycle_helpers.py`     | Evolution cycle helper logic - community, creative, and GitHub sync |
 | `cycle_runner.py`      | Evolution cycle execution engine |
 | `data_collector.py`    | Metric record types and file-based metrics collection for the evolution system |
 | `detector.py`          | Opportunity detection from aggregated metrics |
-| `gate.py`              | ApprovalGate and EvalGate — risk-stratified routing for evolution proposals |
+| `gate.py`              | ApprovalGate and EvalGate - risk-stratified routing for evolution proposals |
 | `governance.py`        | Adaptive governance for the evolution system |
-| `invariants.py`        | InvariantsGuard — hash-lock safety-critical files |
-| `loop.py`              | Autoresearch evolution loop — continuous self-improvement via experiment cycles |
+| `invariants.py`        | InvariantsGuard - hash-lock safety-critical files |
+| `loop.py`              | Autoresearch evolution loop - continuous self-improvement via experiment cycles |
 | `oscillation_guard.py` | Oscillation guard for prompt-evolution proposals |
 | `predicted_delta.py`   | Predicted-delta gate for prompt-evolution proposals |
 | `proposal_scorer.py`   | Proposal risk scoring and routing classification |
 | `proposals.py`         | Upgrade proposal generation |
-| `report.py`            | Evolution observability — history table and static report generation |
+| `report.py`            | Evolution observability - history table and static report generation |
 | `report_generator.py`  | Analysis result types, statistical helpers, and Goodhart's Law defenses |
 | `risk.py`              | Strategic Risk Score (SRS) computation for evolution proposals |
-| `sandbox.py`           | SandboxValidator — isolated testing of evolution proposals |
+| `sandbox.py`           | SandboxValidator - isolated testing of evolution proposals |
 | `types.py`             | Shared types for the evolution system |
 
 ### `src/bernstein/eval/` - evaluation harness
 
 | File                      | Purpose |
 |---------------------------|---------|
-| `ab_runner.py`            | A/B runner primitive — deterministic prompt-vs-prompt comparison |
+| `ab_runner.py`            | A/B runner primitive - deterministic prompt-vs-prompt comparison |
 | `baseline.py`             | Baseline tracking for eval-gated evolution |
 | `calibration.py`          | Calibration log + Brier score for router and judge decisions |
-| `golden.py`               | Golden benchmark suite — curated tasks for eval |
-| `harness.py`              | Eval harness — multiplicative scoring, LLM judge, failure taxonomy |
+| `golden.py`               | Golden benchmark suite - curated tasks for eval |
+| `harness.py`              | Eval harness - multiplicative scoring, LLM judge, failure taxonomy |
 | `incident_synthesizer.py` | Convert dead-letter and post-mortem incidents into regression eval cases |
-| `judge.py`                | LLM judge — evaluate code quality of agent-produced changes |
-| `metrics.py`              | Custom eval metrics — each metric is a dataclass with a compute method |
+| `judge.py`                | LLM judge - evaluate code quality of agent-produced changes |
+| `metrics.py`              | Custom eval metrics - each metric is a dataclass with a compute method |
 | `pentest_consensus.py`    | Consensus aggregation for the multi-adapter pentest fan-out |
 | `pentest_runner.py`       | Driver that runs the ``security-pentest`` scenario end-to-end |
 | `pentest_scorer.py`       | Precision and recall scorer for security pentest eval scenario |
 | `scenario_generator.py`   | Forward-looking synthetic scenario generator |
-| `scenario_runner.py`      | Scenario runner — execute YAML-defined eval scenarios against the live codebase |
-| `taxonomy.py`             | Failure taxonomy — classify every eval failure into a closed set |
-| `telemetry.py`            | Telemetry contract — strict schema for agent output metadata |
-| `vcr_fixture.py`          | VCR fixture pattern — dehydrate/hydrate deterministic test fixtures (T805) |
+| `scenario_runner.py`      | Scenario runner - execute YAML-defined eval scenarios against the live codebase |
+| `taxonomy.py`             | Failure taxonomy - classify every eval failure into a closed set |
+| `telemetry.py`            | Telemetry contract - strict schema for agent output metadata |
+| `vcr_fixture.py`          | VCR fixture pattern - dehydrate/hydrate deterministic test fixtures (T805) |
 | `yaml_runner.py`          | YAML eval harness - operator-runnable spec format with judge and golden diff |
 | `golden_data/`            | Packaged golden benchmark fixtures (ships in wheel via package-data) |
 
@@ -246,8 +246,8 @@ alwaysApply: false
 
 | File                    | Purpose |
 |-------------------------|---------|
-| `hookspecs.py`          | Hook specifications — defines extension points for Bernstein plugins |
-| `manager.py`            | Plugin manager — discovers, loads, and invokes Bernstein plugins |
+| `hookspecs.py`          | Hook specifications - defines extension points for Bernstein plugins |
+| `manager.py`            | Plugin manager - discovers, loads, and invokes Bernstein plugins |
 | `permission_explain.py` | Progressive disclosure for permission requests -- explain-before-approve mode |
 | `plugin_errors.py`      | Plugin error collection and reporting |
 | `plugin_trust.py`       | Plugin trust checking and risk scoring for Bernstein plugins |
@@ -266,30 +266,30 @@ alwaysApply: false
 | `approval_panel.py`       | Approval, waterfall, tool observer, and SLO widgets for the Bernstein TUI |
 | `away_summary.py`         | Away summary generation for orchestration recap |
 | `clipboard.py`            | TUI-007: Copy-to-clipboard for task IDs, agent logs, error messages |
-| `color_mode.py`           | Terminal color mode detection — auto-detect truecolor/256-color/ANSI |
+| `color_mode.py`           | Terminal color mode detection - auto-detect truecolor/256-color/ANSI |
 | `command_palette.py`      | Command palette with fuzzy search for TUI actions |
 | `context_files_doctor.py` | Context warnings for bernstein doctor -- detect stale configs, bad files, MCP issues |
-| `context_tokens.py`       | Context token accounting — analyze where context budget is spent |
+| `context_tokens.py`       | Context token accounting - analyze where context budget is spent |
 | `contextual_tips.py`      | Contextual tips system with cooldown for Bernstein CLI |
 | `cost_sparkline.py`       | TUI-006: Cost sparkline for the TUI sidebar |
 | `dependency_graph.py`     | ASCII-art dependency graph renderer for tasks |
-| `diff_folding.py`         | Diff folding — collapsible diff display for large changes |
+| `diff_folding.py`         | Diff folding - collapsible diff display for large changes |
 | `diff_render.py`          | Word-level diff rendering for Bernstein TUI |
 | `fallback.py`             | Rich-based fallback display for unsupported terminals (TUI-003) |
-| `help_screen.py`          | Help screen modal for TUI — shortcuts plus discoverability hints |
+| `help_screen.py`          | Help screen modal for TUI - shortcuts plus discoverability hints |
 | `keybinding_config.py`    | TUI-004: Configurable keybinding system with YAML-based key map |
-| `layout_cache.py`         | Dirty-flag layout caching — skip layout recalculation when nothing changed |
+| `layout_cache.py`         | Dirty-flag layout caching - skip layout recalculation when nothing changed |
 | `layout_persistence.py`   | Persistent layout customization and presets for the Bernstein TUI |
 | `log_viewer.py`           | Syntax highlighting, diff folding, and markdown rendering for agent logs |
 | `mouse_support.py`        | TUI-017: Mouse support for panel interaction |
 | `notification_badge.py`   | TUI-020: Notification badge for background events |
 | `output_styles.py`        | Output style customization -- load per-project agent output format preferences |
 | `progress_bar.py`         | TUI-010: Task progress bar with completion percentage |
-| `scheduling_panel.py`     | Scheduling panel widget for TUI — visualizes scheduling decisions |
-| `session_analytics.py`    | Session analytics — analyze task traces for insights |
+| `scheduling_panel.py`     | Scheduling panel widget for TUI - visualizes scheduling decisions |
+| `session_analytics.py`    | Session analytics - analyze task traces for insights |
 | `session_recorder.py`     | TUI-019: Session recording and playback |
-| `session_rename.py`       | Session rename functionality — rename the current session safely |
-| `session_tags.py`         | Session tag system — add searchable tags to the current orchestration session |
+| `session_rename.py`       | Session rename functionality - rename the current session safely |
+| `session_tags.py`         | Session tag system - add searchable tags to the current orchestration session |
 | `snapshot_testing.py`     | TUI visual regression snapshot testing utilities |
 | `split_pane.py`           | TUI-008: Split-pane view (tasks list + live agent log) |
 | `status_bar.py`           | Status, scratchpad, and coordinator widgets for the Bernstein TUI |
@@ -300,10 +300,10 @@ alwaysApply: false
 | `themes.py`               | TUI-011: Dark/light theme support |
 | `timeline.py`             | Timeline view of task execution for the Bernstein TUI |
 | `toast.py`                | TUI-009: Notification toast for events |
-| `tokens.py`               | Per-agent token usage tracker — lightweight thread-safe token accounting |
+| `tokens.py`               | Per-agent token usage tracker - lightweight thread-safe token accounting |
 | `vim_mode.py`             | TUI-014: Vim-mode keybindings for TUI navigation |
 | `widgets.py`              | Custom Textual widgets for the Bernstein TUI |
-| `worker_badges.py`        | Worker badge identity module — format worker metadata into Rich badge strings |
+| `worker_badges.py`        | Worker badge identity module - format worker metadata into Rich badge strings |
 | `worktree_status.py`      | Compact runtime and worktree health pane for the Bernstein TUI |
 
 ### `src/bernstein/github_app/` - GitHub App integration

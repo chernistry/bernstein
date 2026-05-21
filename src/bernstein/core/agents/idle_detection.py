@@ -1,4 +1,4 @@
-"""Idle agent cost elimination — detect and kill agents with no activity.
+"""Idle agent cost elimination - detect and kill agents with no activity.
 
 Detects agents that are idle (not producing output) and kills them to save cost.
 If agent log hasn't grown in 3 minutes AND no git changes in worktree: assume stuck.
@@ -68,14 +68,14 @@ def detect_idle_agent(
     if last_known_log_lines is not None:
         last_lines = last_known_log_lines.get(session_id, 0)
         if current_lines == last_lines and current_lines > 0:
-            # Log hasn't grown — check how long
+            # Log hasn't grown - check how long
             log_unchanged = True
             # Estimate idle time based on last activity line
             if log_summary.last_activity_line > 0:
                 # Assume log lines are roughly chronological
-                # This is a heuristic — actual time would require timestamps
+                # This is a heuristic - actual time would require timestamps
                 idle_seconds = idle_timeout_seconds  # Conservative estimate
-    # No baseline — cannot determine idle yet (first tick)
+    # No baseline - cannot determine idle yet (first tick)
     # Will establish baseline and check on next tick
 
     # Check git changes in worktree
@@ -193,7 +193,7 @@ def integrate_idle_detection(orch: Any) -> dict[str, int] | None:
         if result.is_idle:
             idle_sessions.append((session, result))
             logger.info(
-                "Agent %s was idle for %.0fs — killing to save cost (reason: %s)",
+                "Agent %s was idle for %.0fs - killing to save cost (reason: %s)",
                 session.id,
                 result.idle_seconds,
                 result.reason,

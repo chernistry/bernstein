@@ -30,7 +30,7 @@ _RISK_ICON: dict[str, str] = {
 }
 
 _STATUS_LABEL: dict[str, str] = {
-    PlanStatus.PENDING.value: "pending — awaiting approval",
+    PlanStatus.PENDING.value: "pending - awaiting approval",
     PlanStatus.APPROVED.value: "approved",
     PlanStatus.REJECTED.value: "rejected",
     PlanStatus.EXPIRED.value: "expired",
@@ -223,14 +223,14 @@ class PlanBuilder:
     def _dependency_order(self) -> str:
         plan = self._plan
         if not self._tasks:
-            # No Task objects — just list in original order with IDs
+            # No Task objects - just list in original order with IDs
             lines = [
                 "## Dependency Order",
                 "",
                 "<!-- Topological execution order (add Task objects for full dependency graph) -->",
             ]
             for i, est in enumerate(plan.task_estimates, start=1):
-                lines.append(f"{i}. `{est.task_id}` — {est.title}")
+                lines.append(f"{i}. `{est.task_id}` - {est.title}")
             return "\n".join(lines)
 
         # Full topological sort using Task.depends_on
@@ -257,7 +257,7 @@ class PlanBuilder:
                 dep_note = f" ({'; '.join(dep_parts)})"
             else:
                 dep_note = " (no deps)"
-            lines.append(f"{i}. `{task.id}` — {task.title}{dep_note}")
+            lines.append(f"{i}. `{task.id}` - {task.title}{dep_note}")
 
         return "\n".join(lines)
 

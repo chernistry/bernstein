@@ -2,7 +2,7 @@
 
 Sinks resolve their provider credentials from environment variables
 on the *orchestrator* process. Spawned agents must never see these
-credentials — otherwise a compromised agent could exfiltrate the
+credentials - otherwise a compromised agent could exfiltrate the
 orchestrator's long-lived cloud keys.
 
 Bernstein's default env-isolation layer (:mod:`bernstein.adapters.env_isolation`)
@@ -12,9 +12,9 @@ be added here so audits can assert it is never forwarded to an agent.
 
 The list is consumed by two places:
 
-- :func:`list_storage_credential_env_vars` — exposed so documentation
+- :func:`list_storage_credential_env_vars` - exposed so documentation
   and tests can enumerate the current surface.
-- :func:`scrub_env` — strips the listed keys from a given mapping,
+- :func:`scrub_env` - strips the listed keys from a given mapping,
   used in one-off spawner paths that bypass ``build_filtered_env``.
 """
 
@@ -24,7 +24,7 @@ from typing import Final
 
 #: Environment variables consumed by the first-party cloud sinks.
 #: Keep in sync with the constructor fallbacks in
-#: :mod:`bernstein.core.storage.sinks` — every env var read by a sink
+#: :mod:`bernstein.core.storage.sinks` - every env var read by a sink
 #: must appear here so it can be scrubbed from agent environments.
 STORAGE_CREDENTIAL_ENV_VARS: Final[frozenset[str]] = frozenset(
     {

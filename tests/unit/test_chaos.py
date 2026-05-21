@@ -272,7 +272,7 @@ def test_taskstore_replay_tolerates_corrupt_line(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Chaos: agent OOM — slot reclaimed, task requeued, worktree preserved
+# Chaos: agent OOM - slot reclaimed, task requeued, worktree preserved
 # ---------------------------------------------------------------------------
 
 
@@ -362,7 +362,7 @@ def test_oom_slot_reclaimed_and_task_requeued(tmp_path: Path) -> None:
     ):
         handle_orphaned_task(orch, task.id, session, {"claimed": [task], "open": [], "in_progress": [], "done": []})
 
-    # Slot was reclaimed (no completion) — task goes to retry/fail path
+    # Slot was reclaimed (no completion) - task goes to retry/fail path
     mock_complete.assert_not_called()
     mock_retry.assert_called_once()
 
@@ -444,7 +444,7 @@ def test_save_partial_work_skips_missing_worktree() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Chaos: disk full during merge — graceful error, no corruption, cleanup
+# Chaos: disk full during merge - graceful error, no corruption, cleanup
 # ---------------------------------------------------------------------------
 
 
@@ -547,7 +547,7 @@ def test_disk_full_merge_cleanup_worktree_survives_oserror(tmp_path: Path) -> No
     spawner._worktree_paths[session_id] = worktree
 
     with patch("shutil.rmtree", side_effect=OSError(errno.ENOSPC, "No space left on device")):
-        # Should not raise — disk-full OSError in rmtree is caught and logged
+        # Should not raise - disk-full OSError in rmtree is caught and logged
         spawner.cleanup_worktree(session_id)
 
     # Worktree path removed from tracking dict regardless of rmtree failure
@@ -555,7 +555,7 @@ def test_disk_full_merge_cleanup_worktree_survives_oserror(tmp_path: Path) -> No
 
 
 # ---------------------------------------------------------------------------
-# Chaos: disk full during merge — _merge_worktree_branch resilience
+# Chaos: disk full during merge - _merge_worktree_branch resilience
 # ---------------------------------------------------------------------------
 
 
@@ -586,7 +586,7 @@ def test_merge_worktree_branch_returns_failed_result_on_exception(tmp_path: Path
 
 
 def test_merge_worktree_branch_no_corruption_after_disk_full(tmp_path: Path) -> None:
-    """No state corruption after disk-full during merge — worktree tracking stays clean.
+    """No state corruption after disk-full during merge - worktree tracking stays clean.
 
     After a failed merge due to ENOSPC, the spawner's internal tracking
     dictionaries must be unmodified so cleanup_worktree can still run.
@@ -653,7 +653,7 @@ def test_merge_queue_processes_next_job_after_failed_merge(tmp_path: Path) -> No
 
 
 # ---------------------------------------------------------------------------
-# Chaos: kill server mid-task — IN_PROGRESS recovery + CLOSED preservation
+# Chaos: kill server mid-task - IN_PROGRESS recovery + CLOSED preservation
 # ---------------------------------------------------------------------------
 
 
@@ -737,7 +737,7 @@ def test_recovery_is_idempotent_across_multiple_restarts(tmp_path: Path) -> None
     assert count1 == 1
     assert store.get_task("t-stale").status.value == "open"  # type: ignore[union-attr]
 
-    # Second restart (task is already open — no additional resets)
+    # Second restart (task is already open - no additional resets)
     count2 = store.recover_stale_claimed_tasks()
     assert count2 == 0
     assert store.get_task("t-stale").status.value == "open"  # type: ignore[union-attr]
@@ -762,7 +762,7 @@ def test_no_data_loss_after_server_kill_with_mixed_task_states(tmp_path: Path) -
     store.replay_jsonl()
     store.recover_stale_claimed_tasks()
 
-    # All tasks survived replay — no data loss
+    # All tasks survived replay - no data loss
     for tid in all_ids:
         assert store.get_task(tid) is not None, f"Task {tid} was lost after recovery"
 

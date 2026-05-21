@@ -1,4 +1,4 @@
-"""Tests for AgentSignalManager — WAKEUP / SHUTDOWN / HEARTBEAT signal files."""
+"""Tests for AgentSignalManager - WAKEUP / SHUTDOWN / HEARTBEAT signal files."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ class TestAgentHeartbeat:
 
 
 # ---------------------------------------------------------------------------
-# AgentSignalManager — WAKEUP
+# AgentSignalManager - WAKEUP
 # ---------------------------------------------------------------------------
 
 
@@ -74,7 +74,7 @@ class TestWriteWakeup:
 
 
 # ---------------------------------------------------------------------------
-# AgentSignalManager — SHUTDOWN
+# AgentSignalManager - SHUTDOWN
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ class TestWriteShutdown:
 
 
 # ---------------------------------------------------------------------------
-# AgentSignalManager — HEARTBEAT read/write
+# AgentSignalManager - HEARTBEAT read/write
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +159,7 @@ class TestHeartbeat:
 
 
 # ---------------------------------------------------------------------------
-# AgentSignalManager — staleness detection
+# AgentSignalManager - staleness detection
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +185,7 @@ class TestIsStale:
 
 
 # ---------------------------------------------------------------------------
-# AgentSignalManager — clear_signals
+# AgentSignalManager - clear_signals
 # ---------------------------------------------------------------------------
 
 
@@ -210,7 +210,7 @@ class TestClearSignals:
 
     def test_clear_is_idempotent(self, tmp_path: Path) -> None:
         mgr = AgentSignalManager(tmp_path)
-        # No files exist — should not raise
+        # No files exist - should not raise
         mgr.clear_signals("nonexistent-session")
 
     def test_clear_removes_heartbeat(self, tmp_path: Path) -> None:

@@ -3,7 +3,7 @@
 E2B runs agent workloads inside ephemeral Firecracker microVMs. It is
 an optional Bernstein extra: ``pip install bernstein[e2b]`` pulls in
 ``e2b_code_interpreter`` and registers this backend. When the SDK is
-not installed the module still imports cleanly — instantiation is
+not installed the module still imports cleanly - instantiation is
 where the error surfaces.
 
 Snapshots are supported by the E2B SDK; the backend therefore declares

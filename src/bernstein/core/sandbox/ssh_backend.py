@@ -1,4 +1,4 @@
-"""SSH-backed :class:`SandboxBackend` — run agents on remote hosts.
+"""SSH-backed :class:`SandboxBackend` - run agents on remote hosts.
 
 This backend lets Bernstein provision a sandbox on an arbitrary host
 reachable over SSH. Every primitive (``read`` / ``write`` / ``exec`` /
@@ -71,7 +71,7 @@ class SandboxConnectionError(RuntimeError):
         self.hint = hint
         message = f"SSH sandbox unreachable ({host}): {reason}"
         if hint:
-            message = f"{message} — {hint}"
+            message = f"{message} - {hint}"
         super().__init__(message)
 
 
@@ -138,7 +138,7 @@ class SSHSandboxSession(SandboxSession):
         Args:
             backend: Owning backend; used for shared SSH argv and the
                 ``git worktree`` cleanup on :meth:`shutdown`.
-            session_id: Opaque identifier — also the worktree directory
+            session_id: Opaque identifier - also the worktree directory
                 name under the remote ``path``.
             workdir: Absolute POSIX path on the remote host of the
                 session's root directory.
@@ -270,7 +270,7 @@ class SSHSandboxSession(SandboxSession):
     async def shutdown(self) -> None:
         """Remove the remote worktree and mark the session closed.
 
-        Idempotent — repeat calls are no-ops.
+        Idempotent - repeat calls are no-ops.
         """
         if self._closed:
             return
@@ -411,7 +411,7 @@ class SSHSandboxBackend:
     def ensure_control_master(self) -> None:
         """Open the shared ``ControlMaster`` socket if not already up.
 
-        Idempotent — safe to call before every command. The resulting
+        Idempotent - safe to call before every command. The resulting
         socket persists for ``ControlPersist`` seconds even after this
         process exits so rapid re-runs stay cheap.
         """
@@ -459,7 +459,7 @@ class SSHSandboxBackend:
             subprocess.run(argv, capture_output=True, check=False)
         except OSError as exc:
             logger.debug("ssh -O exit: %s", exc)
-        # Best-effort socket removal — OpenSSH usually clears it itself.
+        # Best-effort socket removal - OpenSSH usually clears it itself.
         try:
             self._control_socket.unlink(missing_ok=True)
         except OSError as exc:

@@ -133,7 +133,7 @@ def test_suggest_downgrade_unknown() -> None:
 
 
 # ---------------------------------------------------------------------------
-# apply_policy() — policy evaluation + task-model mutation (audit-058)
+# apply_policy() - policy evaluation + task-model mutation (audit-058)
 # ---------------------------------------------------------------------------
 
 

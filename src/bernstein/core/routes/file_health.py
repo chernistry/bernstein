@@ -1,8 +1,8 @@
 """Per-file code health score API routes.
 
-GET /quality/file-health        — list all tracked files, sorted worst-first
-GET /quality/file-health/flagged — files flagged for human review
-GET /quality/file-health/{path}  — history for a single file
+GET /quality/file-health        - list all tracked files, sorted worst-first
+GET /quality/file-health/flagged - files flagged for human review
+GET /quality/file-health/{path}  - history for a single file
 """
 
 from __future__ import annotations

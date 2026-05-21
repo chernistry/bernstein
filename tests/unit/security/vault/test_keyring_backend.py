@@ -1,6 +1,6 @@
 """Unit tests for the keyring-backed vault.
 
-We never touch the real OS keychain — the ``keyring`` module is replaced
+We never touch the real OS keychain - the ``keyring`` module is replaced
 with an in-memory fake so the round-trip is byte-identical to what a real
 keyring would do (the package's contract is just ``get_password`` /
 ``set_password`` / ``delete_password``).

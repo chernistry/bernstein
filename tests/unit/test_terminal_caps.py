@@ -1,4 +1,4 @@
-"""Tests for bernstein.cli.terminal_caps — capability detection module."""
+"""Tests for bernstein.cli.terminal_caps - capability detection module."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class TestTerminalCapsDataclass:
 
 class TestCapabilityProperties:
     """New-spec properties: kitty_graphics, iterm2_inline, sixel, truecolor,
-    halfblocks, sync_output, braille — all False on non-TTY."""
+    halfblocks, sync_output, braille - all False on non-TTY."""
 
     # kitty_graphics
     def test_kitty_graphics_true_when_tty_and_kitty(self) -> None:
@@ -192,7 +192,7 @@ class TestBestProtocol:
         assert caps.best_protocol is Protocol.NONE
 
 
-# ── detect() — env var based detection ───────────────────────────────────
+# ── detect() - env var based detection ───────────────────────────────────
 
 
 class TestDetect:
@@ -280,7 +280,7 @@ class TestDetect:
         assert caps.best_protocol is Protocol.NONE
 
 
-# ── detect_capabilities() — module-level cached function ─────────────────
+# ── detect_capabilities() - module-level cached function ─────────────────
 
 
 class TestDetectCapabilities:

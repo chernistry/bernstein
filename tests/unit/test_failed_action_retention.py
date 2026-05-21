@@ -149,7 +149,7 @@ class TestPipelineKeepFailedActionsFlag:
             # keep_failed_actions defaults to False
         )
         # With the flag off, the deterministic summary path doesn't preserve
-        # the marker — proving disabled-vs-enabled have observable
+        # the marker - proving disabled-vs-enabled have observable
         # difference.
         assert RETAINED_PREFIX not in result.compacted_text
 

@@ -1,4 +1,4 @@
-"""Tests for ActivitySummaryPoller — periodic bulletin-board broadcasts."""
+"""Tests for ActivitySummaryPoller - periodic bulletin-board broadcasts."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ class TestPollerThread:
             which was flaky on slow CI (macOS runner observed 2026-04-11)
             whenever the poll thread had not yet completed its next tick.
             Swap the fixed sleep for a bounded spin that succeeds as soon
-            as the summary matches — identical semantics on a fast box,
+            as the summary matches - identical semantics on a fast box,
             tolerant of a delayed tick on a slow one.
             """
             deadline = time.time() + timeout

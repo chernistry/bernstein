@@ -77,7 +77,7 @@ class YourCIParser:
     """CI log parser for <YourCI>.
 
     Implements the ``CILogParser`` protocol from
-    ``bernstein.core.ci_log_parser`` — no import required, duck typing is used.
+    ``bernstein.core.ci_log_parser`` - no import required, duck typing is used.
 
     Attributes:
         name: Parser key used in the registry. Must be unique across all parsers.

@@ -4,7 +4,7 @@ Tracks team membership with per-member metadata (agent_id, role, model,
 status, task_ids) so the orchestrator, CLI, and TUI can show consistent
 team state across restarts.
 
-Storage: ``.sdd/runtime/team.json`` — a single JSON file that is
+Storage: ``.sdd/runtime/team.json`` - a single JSON file that is
 atomically rewritten on every mutation.
 """
 
@@ -44,7 +44,7 @@ class TeamMember:
         mode: Permission/operation mode (e.g. ``default``, ``auto``, ``trusted``).
         status: Lifecycle status mirroring AgentSession
             (``starting``, ``working``, ``idle``, ``dead``).
-        is_active: Convenience flag — True when status is not ``dead``.
+        is_active: Convenience flag - True when status is not ``dead``.
         task_ids: List of task IDs currently assigned to this agent.
         spawned_at: Unix timestamp when the agent was spawned.
         finished_at: Unix timestamp when the agent finished (0 while running).

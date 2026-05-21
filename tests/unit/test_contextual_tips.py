@@ -1,4 +1,4 @@
-"""Tests for contextual_tips — tips catalog, cooldown, persistence, and display."""
+"""Tests for contextual_tips - tips catalog, cooldown, persistence, and display."""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ class TestTipsCatalog:
         result1 = cat.get_tip(category="test", now=1000.0)
         assert result1 == "only tip"
 
-        # Within cooldown — should be None
+        # Within cooldown - should be None
         result2 = cat.get_tip(category="test", now=1000.0 + COOLDOWN_SECONDS - 1)
         assert result2 is None
 
@@ -145,7 +145,7 @@ class TestTipsCatalog:
         cat = TipsCatalog(catalog_path=catalog_path, active_path=active_path)
 
         cat.get_tip(category="test", now=1000.0)
-        # After cooldown — should return tip again
+        # After cooldown - should return tip again
         result = cat.get_tip(category="test", now=1000.0 + COOLDOWN_SECONDS)
         assert result == "only tip"
 

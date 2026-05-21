@@ -70,7 +70,7 @@ def generate_yaml(
     # the operator's GitHub code search picks it up uniformly
     # regardless of any subsequent yaml resaves that may strip later
     # comments.  Skipped entirely when emission is off or the token is
-    # the disabled sentinel — we never emit a useless ``0…0`` placeholder
+    # the disabled sentinel - we never emit a useless ``0…0`` placeholder
     # in the user's repo.
     if _identity.IDENTITY_EMISSION_ENABLED:
         token_line = render_yaml_comment()

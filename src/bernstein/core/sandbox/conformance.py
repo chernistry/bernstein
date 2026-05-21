@@ -19,7 +19,7 @@ Subclass it like::
             return WorkspaceManifest(...)
 
 Test runners that cannot accept fixtures at the method level (e.g.
-``doctest``) are not supported — the conformance contract is pytest-only.
+``doctest``) are not supported - the conformance contract is pytest-only.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ class SandboxBackendConformance:
         """Write then read a UTF-8 file and check byte equality."""
         session = await backend.create(manifest)
         try:
-            payload = "hello world — ✓".encode()
+            payload = "hello world - ✓".encode()
             await session.write("hello.txt", payload)
             got = await session.read("hello.txt")
             assert got == payload

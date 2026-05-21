@@ -259,7 +259,7 @@ def conventional_commit(
     """Generate a conventional commit message from the staged diff and commit.
 
     Parses ``git diff --cached`` to determine change type and scope.
-    No LLM call — purely deterministic.
+    No LLM call - purely deterministic.
 
     Args:
         cwd: Repository root.
@@ -436,7 +436,7 @@ def safe_push(
     unavailable) are retried; persistent failures like rejected non-fast-
     forward pushes fail immediately.
 
-    No-ops cleanly when ``remote`` is not configured — local-only repos
+    No-ops cleanly when ``remote`` is not configured - local-only repos
     (the GUI-smoke playground, ephemeral test fixtures) used to log a noisy
     ``fatal: 'origin' does not appear to be a git repository`` per agent
     reap.  We now detect the missing remote and return a successful
@@ -453,7 +453,7 @@ def safe_push(
         GitResult from the push command.
     """
 
-    # Guardrail: never push to "master" — auto-correct to "main".
+    # Guardrail: never push to "master" - auto-correct to "main".
     if branch == "master":
         logger.info("safe_push: correcting branch 'master' -> 'main'")
         branch = "main"
@@ -592,7 +592,7 @@ def _parse_latest_version(tags: list[str], tag_prefix: str) -> tuple[int, int, i
         tag_prefix: Prefix to strip (e.g. ``"v"``).
 
     Returns:
-        (major, minor, patch, latest_tag) — tag is None if no valid tag found.
+        (major, minor, patch, latest_tag) - tag is None if no valid tag found.
     """
     for t in tags:
         stripped = t.lstrip(tag_prefix)

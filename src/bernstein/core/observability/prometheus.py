@@ -152,7 +152,7 @@ __all__ = [
 ]
 
 # ---------------------------------------------------------------------------
-# Dedicated registry — avoids polluting the default global registry, which
+# Dedicated registry - avoids polluting the default global registry, which
 # matters in tests where multiple apps share a process.
 # ---------------------------------------------------------------------------
 
@@ -348,7 +348,7 @@ best_of_n_judge_score: Histogram = Histogram(
     registry=registry,
 )
 
-# Rework-rate ledger surface — see ``bernstein.core.routing.rework_ledger``.
+# Rework-rate ledger surface - see ``bernstein.core.routing.rework_ledger``.
 rework_rate_per_model: Gauge = Gauge(
     "bernstein_rework_rate_per_model",
     "Observed rework rate per (model, effort, phase) bucket from the rework ledger.",
@@ -364,7 +364,7 @@ cascade_auto_promotions_total: Counter = Counter(
 )
 
 # ---------------------------------------------------------------------------
-# Prompt-cache locality — see ``bernstein.core.agents.prompt_cache_locality``.
+# Prompt-cache locality - see ``bernstein.core.agents.prompt_cache_locality``.
 # Drift events fire when consecutive same-role spawns disagree on the
 # cacheable prefix, breaking Anthropic's 90% / OpenAI's 50% cache discount.
 # Reason labels are bucketed against a closed taxonomy in the locality
@@ -415,7 +415,7 @@ sandbox_exec_count_total: Counter = Counter(
 )
 
 # ---------------------------------------------------------------------------
-# Skill-pack sanitization — counts invisible Unicode Tag codepoints stripped
+# Skill-pack sanitization - counts invisible Unicode Tag codepoints stripped
 # from a skill body before it is injected into an agent worktree. Labelled by
 # the owning :class:`SkillSource` name so operators can spot a poisoned source
 # without re-scanning the index. See ``bernstein.core.skills.sanitizer``.
@@ -429,7 +429,7 @@ skills_unicode_tags_stripped_total: Counter = Counter(
 )
 
 # ---------------------------------------------------------------------------
-# Cardinality guard — only allow known TransitionReason enum values as labels.
+# Cardinality guard - only allow known TransitionReason enum values as labels.
 # Unknown values are bucketed under "unknown" to prevent cardinality explosion.
 # ---------------------------------------------------------------------------
 
@@ -472,7 +472,7 @@ def _sanitize_reason(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Cluster observability — node registry, task stealing, autoscaler.
+# Cluster observability - node registry, task stealing, autoscaler.
 # Labels are bucketed against closed sets below to prevent cardinality
 # explosion on operator-supplied values.
 # ---------------------------------------------------------------------------
@@ -514,7 +514,7 @@ cluster_admission_failures_total: Counter = Counter(
 
 
 # ---------------------------------------------------------------------------
-# Cluster cardinality guards — keep the label sets bounded so an attacker
+# Cluster cardinality guards - keep the label sets bounded so an attacker
 # (or a buggy worker) cannot blow up Prometheus storage by sending novel
 # strings on every call.
 # ---------------------------------------------------------------------------
@@ -675,13 +675,13 @@ def record_transition_reason(
 ) -> None:
     """Increment the transition-reason counter for a lifecycle event.
 
-    Safe to call from hot paths — respects the kill-switch and silently
+    Safe to call from hot paths - respects the kill-switch and silently
     drops bad input rather than raising.
 
     Args:
         reason: The ``TransitionReason`` value (or raw string).
         role: Agent/task role label (e.g. ``"backend"``, ``"qa"``).
-        entity_type: ``"agent"`` or ``"task"`` — selects which counter family.
+        entity_type: ``"agent"`` or ``"task"`` - selects which counter family.
     """
     if not _prometheus_enabled:
         return
@@ -697,7 +697,7 @@ def record_transition_reason(
 
 
 # ---------------------------------------------------------------------------
-# Kill-switch — lets operators disable the Prometheus sink without restarting
+# Kill-switch - lets operators disable the Prometheus sink without restarting
 # ---------------------------------------------------------------------------
 
 _prometheus_enabled: bool = True

@@ -273,7 +273,7 @@ def test_total_cached_tokens_accumulates_on_hits() -> None:
         prefix = "You are a backend engineer."
         result1 = mgr.process_prompt(f"{prefix}\n\n## Assigned tasks\nTask 1")
 
-        assert mgr._manifest.total_cached_tokens == 0  # first hit — no savings yet
+        assert mgr._manifest.total_cached_tokens == 0  # first hit - no savings yet
 
         # expected_tokens comes from the entry (actual extracted prefix, not raw prefix)
         entry = mgr._manifest.entries[result1.cache_key]
@@ -462,7 +462,7 @@ def test_bootstrap_creates_spawner_with_caching() -> None:
 
 
 # ---------------------------------------------------------------------------
-# make_prompt_cache_key — orchestrator-level cache key with file invalidation
+# make_prompt_cache_key - orchestrator-level cache key with file invalidation
 # ---------------------------------------------------------------------------
 
 
@@ -508,7 +508,7 @@ def test_make_prompt_cache_key_invalidates_on_file_change() -> None:
         prompt = "You are a backend engineer."
         key_v1 = make_prompt_cache_key(prompt, context_files=[ctx])
 
-        ctx.write_text("# Project context v2 — changed")
+        ctx.write_text("# Project context v2 - changed")
         key_v2 = make_prompt_cache_key(prompt, context_files=[ctx])
 
         assert key_v1 != key_v2
@@ -897,7 +897,7 @@ class TestBuildCacheSafeForkParams:
 
 
 # ---------------------------------------------------------------------------
-# AgentCacheTracker — per-agent FIFO eviction
+# AgentCacheTracker - per-agent FIFO eviction
 # ---------------------------------------------------------------------------
 
 
@@ -925,7 +925,7 @@ class TestAgentCacheTracker:
         tracker = AgentCacheTracker(max_entries=2)
         tracker.record("a", "key-1")
         tracker.record("b", "key-2")
-        # Update "a" — should not evict anything
+        # Update "a" - should not evict anything
         evicted = tracker.record("a", "key-1-updated")
         assert evicted is None
         assert len(tracker) == 2
@@ -968,7 +968,7 @@ class TestAgentCacheTracker:
         tracker.record("alpha", "k-a")
         tracker.record("beta", "k-b")
         tracker.record("gamma", "k-c")
-        # Update "alpha" — does NOT change its eviction priority
+        # Update "alpha" - does NOT change its eviction priority
         tracker.record("alpha", "k-a-new")
         # Adding "delta" should evict "alpha" (still oldest by insertion)
         evicted = tracker.record("delta", "k-d")
@@ -1017,7 +1017,7 @@ class TestAgentCacheTracker:
 
 
 # ---------------------------------------------------------------------------
-# PromptCachingManager — per-agent tracker integration
+# PromptCachingManager - per-agent tracker integration
 # ---------------------------------------------------------------------------
 
 

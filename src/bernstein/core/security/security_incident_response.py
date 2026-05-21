@@ -4,15 +4,15 @@ When a security event is detected (sandbox escape attempt, credential
 exfiltration, anomalous behaviour), this module automatically executes a
 containment procedure:
 
-1. **Kill the agent** — write a structured kill-signal file so the
+1. **Kill the agent** - write a structured kill-signal file so the
    orchestrator terminates the session on its next tick.
-2. **Quarantine the worktree** — preserve the git branch and write quarantine
+2. **Quarantine the worktree** - preserve the git branch and write quarantine
    metadata for forensic review.
-3. **Snapshot state for forensics** — capture task, session, and environment
+3. **Snapshot state for forensics** - capture task, session, and environment
    state at time of detection so investigators have a complete picture.
-4. **Block the task from retry** — write a block marker file so the
+4. **Block the task from retry** - write a block marker file so the
    orchestrator will not re-schedule this task.
-5. **Notify the security team** — append to the security incident audit log
+5. **Notify the security team** - append to the security incident audit log
    and write a bulletin-board entry that other agents can read.
 
 This module is deliberately distinct from :mod:`bernstein.core.security_correlation`
@@ -79,7 +79,7 @@ def _safe_filename(value: str) -> str:
     """
     # Remove null bytes and control characters first
     cleaned = value.replace("\x00", "").strip()
-    # Take only the last component — strips absolute paths and all ../.. traversal
+    # Take only the last component - strips absolute paths and all ../.. traversal
     cleaned = Path(cleaned).name
     # Replace any remaining non-safe characters with underscores
     cleaned = _SAFE_FILENAME_RE.sub("_", cleaned)
@@ -201,7 +201,7 @@ class SecurityIncidentResponder:
         """Execute the full containment procedure for a security event.
 
         Steps are executed in order.  Failures in one step do not prevent
-        subsequent steps from running — we want maximum containment even
+        subsequent steps from running - we want maximum containment even
         if individual steps encounter errors (e.g., disk full on snapshot).
 
         Args:
@@ -232,7 +232,7 @@ class SecurityIncidentResponder:
         block_path: str | None = None
 
         logger.critical(
-            "SECURITY INCIDENT %s [%s]: %s — initiating containment for session %s task %s",
+            "SECURITY INCIDENT %s [%s]: %s - initiating containment for session %s task %s",
             incident_id,
             severity.upper(),
             event_type,
@@ -322,7 +322,7 @@ class SecurityIncidentResponder:
 
         if steps_failed:
             logger.error(
-                "Incident %s containment incomplete — %d steps failed: %s",
+                "Incident %s containment incomplete - %d steps failed: %s",
                 incident_id,
                 len(steps_failed),
                 ", ".join(steps_failed),
@@ -360,7 +360,7 @@ class SecurityIncidentResponder:
             "requester": "security_incident_responder",
         }
         kill_file = runtime_dir / f"{safe_session_id}.kill"
-        # Paranoid containment check — reject writes outside the runtime dir
+        # Paranoid containment check - reject writes outside the runtime dir
         if not str(kill_file.resolve()).startswith(str(runtime_dir.resolve())):
             raise ValueError(f"Kill signal path escaped runtime dir: {kill_file}")
         kill_file.write_text(json.dumps(kill_payload), encoding="utf-8")
@@ -407,7 +407,7 @@ class SecurityIncidentResponder:
 
         # Attempt to capture the current git HEAD of the agent's branch so
         # investigators can checkout the exact commit that was active when the
-        # incident fired.  This is best-effort — failures are non-fatal.
+        # incident fired.  This is best-effort - failures are non-fatal.
         git_info = self._capture_branch_head(branch)
         if git_info:
             metadata.update(git_info)
@@ -641,7 +641,7 @@ class SecurityIncidentResponder:
         and, if ``notify_via_bulletin`` is enabled, writes a bulletin-board
         message so other agents can read the alert.
         """
-        # Security audit log — machine-readable, append-only
+        # Security audit log - machine-readable, append-only
         metrics_dir = self.workdir / ".sdd" / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
 
@@ -660,7 +660,7 @@ class SecurityIncidentResponder:
             fh.write(json.dumps(audit_entry) + "\n")
 
         logger.critical(
-            "SECURITY AUDIT [%s] %s — %s (session=%s, task=%s) — contained via: %s",
+            "SECURITY AUDIT [%s] %s - %s (session=%s, task=%s) - contained via: %s",
             severity.upper(),
             incident_id,
             event_type,

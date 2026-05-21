@@ -1,4 +1,4 @@
-"""GitHub Actions adapter — create Bernstein tasks from CI events.
+"""GitHub Actions adapter - create Bernstein tasks from CI events.
 
 Parses GitHub Actions workflow run and check-run webhook payloads and converts
 CI failures into Bernstein tasks for automated remediation.

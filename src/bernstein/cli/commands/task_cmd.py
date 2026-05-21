@@ -313,7 +313,7 @@ def review_cmd(
       bernstein review --pipeline templates/review/default-3-phase.yaml --pr 42
     """
     if pipeline_path is not None or validate_only or dry_run or pr_number is not None:
-        # Lazy import — keep the legacy fast path zero-cost.
+        # Lazy import - keep the legacy fast path zero-cost.
         from bernstein.cli.commands.review_pipeline_cmd import run_review_pipeline_cli
 
         exit_code = run_review_pipeline_cli(
@@ -527,15 +527,15 @@ def plan(ctx: click.Context, export_file: str | None, status_filter: str | None,
     for t in tasks:
         raw_status: str = t.get("status", "open")
         color = STATUS_COLORS.get(raw_status, "white")
-        depends = ", ".join(d[:8] for d in cast("list[str]", t.get("depends_on", []))) or "—"
+        depends = ", ".join(d[:8] for d in cast("list[str]", t.get("depends_on", []))) or "-"
         table.add_row(
-            str(t.get("id", "—"))[:8],
+            str(t.get("id", "-"))[:8],
             f"[{color}]{raw_status}[/{color}]",
-            str(t.get("role", "—")),
-            str(t.get("title", "—")),
+            str(t.get("role", "-")),
+            str(t.get("title", "-")),
             depends,
-            str(t.get("model") or "—"),
-            str(t.get("effort") or "—"),
+            str(t.get("model") or "-"),
+            str(t.get("effort") or "-"),
         )
 
     console.print(table)
@@ -686,9 +686,9 @@ def list_tasks(status_filter: str | None, role: str | None, as_json: bool) -> No
         raw_status = t.get("status", "open")
         color = STATUS_COLORS.get(raw_status, "white")
         table.add_row(
-            t.get("id", "—"),
-            t.get("title", "—"),
-            t.get("role", "—"),
+            t.get("id", "-"),
+            t.get("title", "-"),
+            t.get("role", "-"),
             f"[{color}]{raw_status}[/{color}]",
             str(t.get("priority", 2)),
         )

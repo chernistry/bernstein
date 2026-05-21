@@ -137,7 +137,7 @@ class TestVaultProvider:
 
         provider = VaultSecretsProvider()
         provider._addr = "http://vault.test:8200"
-        provider._token = "test-token"  # NOSONAR — test fixture
+        provider._token = "test-token"  # NOSONAR - test fixture
 
         mock_response = MagicMock()
         mock_response.read.return_value = kv2_body
@@ -147,14 +147,14 @@ class TestVaultProvider:
         with patch("urllib.request.urlopen", return_value=mock_response):
             result = provider.fetch("secret/bernstein")
 
-        assert result == {"ANTHROPIC_API_KEY": "sk-vault", "OTHER": "val"}  # NOSONAR — test fixture
+        assert result == {"ANTHROPIC_API_KEY": "sk-vault", "OTHER": "val"}  # NOSONAR - test fixture
 
     def test_check_connectivity_ok(self) -> None:
         health_body = json.dumps({"sealed": False, "initialized": True}).encode()
 
         provider = VaultSecretsProvider()
         provider._addr = "http://vault.test:8200"
-        provider._token = "test-token"  # NOSONAR — test fixture
+        provider._token = "test-token"  # NOSONAR - test fixture
 
         mock_response = MagicMock()
         mock_response.read.return_value = health_body
@@ -179,7 +179,7 @@ class TestVaultProvider:
 
         provider = VaultSecretsProvider()
         provider._addr = "http://vault.test:8200"
-        provider._token = "test-token"  # NOSONAR — test fixture
+        provider._token = "test-token"  # NOSONAR - test fixture
 
         mock_response = MagicMock()
         mock_response.read.return_value = health_body
@@ -299,7 +299,7 @@ class TestOnePasswordProvider:
 
 
 # ---------------------------------------------------------------------------
-# load_secrets — caching and fallback
+# load_secrets - caching and fallback
 # ---------------------------------------------------------------------------
 
 
@@ -319,7 +319,7 @@ class TestLoadSecrets:
 
         assert r1 == {"KEY": "val"}
         assert r2 == {"KEY": "val"}
-        # Only one actual fetch call — second was from cache.
+        # Only one actual fetch call - second was from cache.
         assert mock_provider.fetch.call_count == 1
 
     def test_cache_expiry(self) -> None:

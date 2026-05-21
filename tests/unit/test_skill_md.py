@@ -1,4 +1,4 @@
-"""Tests for T676 — SKILL.md frontmatter parsing and loading.
+"""Tests for T676 - SKILL.md frontmatter parsing and loading.
 
 Covers:
 - ``parse_frontmatter``: frontmatter extraction, fallback, edge cases

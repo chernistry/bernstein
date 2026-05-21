@@ -89,7 +89,7 @@ def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="bernstein-article12-demo-"))
     sdd_dir = workspace / ".sdd"
     sdd_dir.mkdir(parents=True, exist_ok=True)
-    audit_key = b"x" * 32  # demo-only key — production loads from XDG state
+    audit_key = b"x" * 32  # demo-only key - production loads from XDG state
     run_id = f"demo-{datetime.now(tz=UTC).strftime('%Y%m%dT%H%M%SZ')}"
 
     print(f"workspace : {workspace}")

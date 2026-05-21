@@ -1,7 +1,7 @@
 """Cross-adapter model_id consistency checks (audit-140).
 
-These tests guard against model-id drift between the Claude adapter — which
-owns the canonical Opus pin — and the secondary adapters that wrap other
+These tests guard against model-id drift between the Claude adapter - which
+owns the canonical Opus pin - and the secondary adapters that wrap other
 CLI tools (aider, amp, cody, goose).  Whenever the Claude adapter bumps
 ``opus`` to a new generation, the secondary adapters must follow in the
 form each tool expects.

@@ -1,7 +1,7 @@
 """Amazon S3 :class:`ArtifactSink` (optional extra).
 
 Use ``pip install bernstein[s3]`` to install ``boto3``. When the SDK
-is not installed the module still imports cleanly — instantiation is
+is not installed the module still imports cleanly - instantiation is
 where the error surfaces. This mirrors the sandbox-backend pattern in
 :mod:`bernstein.core.sandbox.backends.e2b`.
 
@@ -17,7 +17,7 @@ Credentials resolve in this order:
 boto3 is synchronous. Every operation is dispatched through
 :func:`asyncio.to_thread` so the event loop is not blocked during
 PUT/GET round-trips. ``durable=True`` maps to a blocking synchronous
-PUT — the object store's ACK is the S3 analogue of a local fsync.
+PUT - the object store's ACK is the S3 analogue of a local fsync.
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ class S3ArtifactSink(ArtifactSink):
                 ``AWS_SESSION_TOKEN``.
             client_factory: Test seam: callable returning a boto3
                 client. When provided, takes priority over every other
-                argument — used in unit tests to inject a stubbed
+                argument - used in unit tests to inject a stubbed
                 client without touching the real SDK.
         """
         self._bucket = bucket or os.environ.get("BERNSTEIN_S3_BUCKET") or ""

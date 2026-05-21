@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants — average tokens per turn by scope/complexity (in thousands)
+# Constants - average tokens per turn by scope/complexity (in thousands)
 # ---------------------------------------------------------------------------
 
 _SCOPE_BASE_TOKENS_K: dict[str, float] = {

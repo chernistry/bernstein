@@ -1,4 +1,4 @@
-"""Autoresearch evolution loop — continuous self-improvement via experiment cycles.
+"""Autoresearch evolution loop - continuous self-improvement via experiment cycles.
 
 Implements the autoresearch pattern (Karpathy, March 2026):
 editable asset + scalar metric + time-boxed cycle.
@@ -95,7 +95,7 @@ logger = logging.getLogger(__name__)
 
 
 class EvolutionLoop:
-    """Autoresearch evolution loop — runs time-boxed experiment cycles.
+    """Autoresearch evolution loop - runs time-boxed experiment cycles.
 
     Each cycle: load metrics, run baseline, generate proposal, sandbox test,
     approve or discard, log results. Targets 12 experiments per hour in
@@ -217,7 +217,7 @@ class EvolutionLoop:
     def _gh(self) -> GitHubClient | None:
         """Return the lazily-initialised GitHubClient, or None if sync disabled.
 
-        Deferred import keeps the ``gh`` CLI optional — the evolution loop
+        Deferred import keeps the ``gh`` CLI optional - the evolution loop
         works without it.
         """
         if not self._github_sync:
@@ -228,7 +228,7 @@ class EvolutionLoop:
             self._github = GitHubClient()
             if not self._github.available:
                 logger.warning(
-                    "GitHub sync requested but gh CLI is unavailable or unauthenticated — running without GitHub sync"
+                    "GitHub sync requested but gh CLI is unavailable or unauthenticated - running without GitHub sync"
                 )
         return self._github
 
@@ -242,9 +242,9 @@ class EvolutionLoop:
         if not (gh and gh.available):
             return
         if self._community_mode:
-            logger.info("Community mode enabled — scanning GitHub for evolve-candidate and feature-request issues")
+            logger.info("Community mode enabled - scanning GitHub for evolve-candidate and feature-request issues")
         else:
-            logger.info("GitHub sync enabled — proposals will be synced as Issues")
+            logger.info("GitHub sync enabled - proposals will be synced as Issues")
 
     def _run_single_cycle(self, focus: str) -> None:
         """Execute one cycle with error handling."""
@@ -356,7 +356,7 @@ class EvolutionLoop:
         focus = rotation[self._cycle_count % len(rotation)]
         self._cycle_count += 1
 
-        logger.info("Evolution cycle %d — focus: %s", self._cycle_count, focus)
+        logger.info("Evolution cycle %d - focus: %s", self._cycle_count, focus)
 
         # Community issue cycles delegate to the community pipeline.
         if focus == "community_issue":
@@ -368,7 +368,7 @@ class EvolutionLoop:
 
         self._prepare_governance_cycle()
 
-        # Step 1 — Gather metrics, detect opportunities, and run feature discovery.
+        # Step 1 - Gather metrics, detect opportunities, and run feature discovery.
         self._aggregator.run_full_analysis()
         opportunities = self._detector.identify_opportunities()
         feature_tickets = self._feature_discovery.discover(max_tickets=5)
@@ -377,11 +377,11 @@ class EvolutionLoop:
 
         baseline_score = self._run_baseline()
 
-        # Step 3 — GitHub coordination.
+        # Step 3 - GitHub coordination.
         self._current_issue_number = None
         github_hint: str | None = self._github_check_unclaimed() if self._github_sync else None
 
-        # Step 4 — Generate a proposal.
+        # Step 4 - Generate a proposal.
         proposal = self._generate_proposal(opportunities)
         if proposal is None:
             logger.debug("No actionable opportunities found this cycle")
@@ -392,7 +392,7 @@ class EvolutionLoop:
             return None
 
         self._proposals_generated += 1
-        # Governance — compute risk score and determine routing strategy.
+        # Governance - compute risk score and determine routing strategy.
         risk_score = self._compute_proposal_risk(proposal)
         self._cycle_risk_scores.append(risk_score.composite_risk)
         self._cycle_proposals_evaluated = 1
@@ -411,7 +411,7 @@ class EvolutionLoop:
         if self._github_sync:
             self._github_sync_proposal(proposal.title, proposal.description)
 
-        # Step 5 — Circuit breaker check.
+        # Step 5 - Circuit breaker check.
         # Map the proposal risk assessment to a RiskLevel for the breaker.
         risk_level = self._infer_risk_level(proposal)
         can_evolve, breaker_reason = self._breaker.can_evolve(risk_level)
@@ -437,7 +437,7 @@ class EvolutionLoop:
             self._flush_governance_log()
             return result
 
-        # Step 6 — Approval gate routing.
+        # Step 6 - Approval gate routing.
         decision = self._gate.route(
             _to_types_proposal(proposal, risk_level),
         )
@@ -469,12 +469,12 @@ class EvolutionLoop:
             self._flush_governance_log()
             return result
 
-        # Step 7 — Sandbox validation.
+        # Step 7 - Sandbox validation.
         # Fast-tracked proposals (composite_risk < 0.3) bypass the sandbox.
         # High-risk proposals (composite_risk > 0.6) are always sandbox-verified.
         if risk_route == "fast_track":
             logger.info(
-                "Proposal %s fast-tracked (composite_risk=%.2f) — skipping sandbox",
+                "Proposal %s fast-tracked (composite_risk=%.2f) - skipping sandbox",
                 proposal.id,
                 risk_score.composite_risk,
             )
@@ -507,7 +507,7 @@ class EvolutionLoop:
                 self._flush_governance_log()
                 return result
 
-        # Step 7b — Eval gate (eval-gated evolution #516).
+        # Step 7b - Eval gate (eval-gated evolution #516).
         # After sandbox passes, run the eval harness and compare against baseline.
         eval_result = self._eval_gate.evaluate(
             proposal=_to_types_proposal(proposal, risk_level),
@@ -530,7 +530,7 @@ class EvolutionLoop:
             self._flush_governance_log()
             return result
 
-        # Step 8 — Apply the proposal.
+        # Step 8 - Apply the proposal.
         applied = self._apply_proposal(proposal, sandbox_result)
         candidate_score = sandbox_result.candidate_score if applied else baseline_score
         delta = sandbox_result.delta if applied else 0.0
@@ -713,7 +713,7 @@ class EvolutionLoop:
         pending_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not pending_path.exists() or pending_path.stat().st_size == 0:
-            logger.debug("Creative vision: no pending proposals — skipping cycle")
+            logger.debug("Creative vision: no pending proposals - skipping cycle")
             return None
 
         proposals: list[VisionaryProposal] = []
@@ -795,7 +795,7 @@ class EvolutionLoop:
         """
         gh = self._gh
         if gh is None or not gh.available:
-            logger.debug("Community cycle: GitHub unavailable — skipping")
+            logger.debug("Community cycle: GitHub unavailable - skipping")
             return None
 
         issues = gh.fetch_community_issues()
@@ -874,7 +874,7 @@ class EvolutionLoop:
             )
             gh.close_issue(selected.number, comment=closing_comment)
         else:
-            # Pipeline rejected or no tasks — unmark so it can be retried.
+            # Pipeline rejected or no tasks - unmark so it can be retried.
             gh.unmark_in_progress(selected.number)
             logger.info("Community cycle: pipeline produced no tasks for issue #%d", selected.number)
 
@@ -901,7 +901,7 @@ class EvolutionLoop:
         """
         benchmarks_dir = self._repo_root / "tests" / "benchmarks"
         if not benchmarks_dir.is_dir():
-            logger.debug("No benchmarks directory found at %s — baseline=1.0", benchmarks_dir)
+            logger.debug("No benchmarks directory found at %s - baseline=1.0", benchmarks_dir)
             return 1.0
 
         try:
@@ -959,7 +959,7 @@ class EvolutionLoop:
         if not eligible:
             return None
 
-        # Sort by confidence descending — pick the most promising.
+        # Sort by confidence descending - pick the most promising.
         eligible.sort(key=lambda o: o.confidence, reverse=True)
         best = eligible[0]
 
@@ -995,7 +995,7 @@ class EvolutionLoop:
             self._breaker.record_change(risk_level, proposal.id)
             logger.info("Proposal %s applied successfully", proposal.id)
         else:
-            logger.warning("Proposal %s application failed — attempting rollback", proposal.id)
+            logger.warning("Proposal %s application failed - attempting rollback", proposal.id)
             self._executor.rollback_upgrade(proposal)
             self._breaker.record_rollback(proposal.id)
 
@@ -1018,7 +1018,7 @@ class EvolutionLoop:
 
         If an unclaimed issue exists, claim it and track its number so we
         can close it on success.  Returns the issue title as a hint (for
-        logging purposes only — the proposal generator still runs normally).
+        logging purposes only - the proposal generator still runs normally).
 
         Returns:
             Title of the claimed issue, or None if none available or GitHub
@@ -1065,14 +1065,14 @@ class EvolutionLoop:
         existing = gh.find_by_hash(title)
         if existing is not None:
             logger.info(
-                "GitHub sync: duplicate detected — claiming existing issue #%d",
+                "GitHub sync: duplicate detected - claiming existing issue #%d",
                 existing.number,
             )
             if gh.claim_issue(existing.number):
                 self._current_issue_number = existing.number
             return
 
-        # No duplicate — create a new issue.
+        # No duplicate - create a new issue.
         body = (
             f"## Auto-generated evolution proposal\n\n"
             f"{description}\n\n"

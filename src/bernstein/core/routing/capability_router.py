@@ -1,4 +1,4 @@
-"""Capability-based addressing for agents — find by skill, not by name.
+"""Capability-based addressing for agents - find by skill, not by name.
 
 Instead of assigning tasks to specific adapters/models, tasks specify
 required capabilities: ``requires: [python, testing, refactoring]``.
@@ -6,9 +6,9 @@ The router matches capabilities to available agents, decoupling task
 definitions from specific providers.
 
 Includes two layers:
-1.  **CapabilityRouter** — lightweight matcher that works against
+1.  **CapabilityRouter** - lightweight matcher that works against
     ``DiscoveryResult`` objects obtained from agent_discovery probes.
-2.  **CapabilityRegistry** — explicit registration of agents with typed
+2.  **CapabilityRegistry** - explicit registration of agents with typed
     ``Capability`` descriptors (name + level + description).  This enables
     fine-grained skill-level matching (basic / advanced / expert) and
     produces ranked ``RegistryMatch`` results.

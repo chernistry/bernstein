@@ -2,11 +2,11 @@
 
 The contract under test:
 
-1. Generators are **deterministic** under a fixed seed — every public
+1. Generators are **deterministic** under a fixed seed - every public
    entry point must round-trip to the same case ids on repeat invocation.
 2. The default registry exposes the six v1 stock scenarios with the
    right severity tags.
-3. Trace-parsing is **defensive** — malformed JSONL, oversized files
+3. Trace-parsing is **defensive** - malformed JSONL, oversized files
    and encoding errors never raise, and never produce non-schema cases.
 4. Emitted YAML always round-trips through ``yaml.safe_load`` and
    carries the contract keys (``id``, ``scenario``, ``severity``,
@@ -197,7 +197,7 @@ class TestDeterminism:
     def test_distinct_seeds_produce_distinct_timestamps(self) -> None:
         a = materialise("large_diff", count=1, seed=1)
         b = materialise("large_diff", count=1, seed=2)
-        # We do not assert a strict ordering — only that the
+        # We do not assert a strict ordering - only that the
         # deterministic timestamp varies with seed (no time.time()
         # leakage).
         assert a[0].created_at != b[0].created_at
@@ -382,7 +382,7 @@ class TestWriteCases:
     def test_write_skips_disabled(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(DISABLE_ENV, "1")
         cases = materialise("large_diff", count=1, seed=42)
-        # materialise also short-circuits — explicitly check write path
+        # materialise also short-circuits - explicitly check write path
         # by constructing one case manually.
         synthetic_case = SyntheticCase(
             id="syn-aaaaaaaaaaaa",
@@ -508,7 +508,7 @@ class TestTraceIngestion:
             encoding="utf-8",
         )
         result = generate_from_traces(workdir=tmp_path, from_traces=5, seed=42)
-        # No detection — file was skipped — fallback corpus only.
+        # No detection - file was skipped - fallback corpus only.
         assert all(c.scenario == "prompt_injection" for c in result.created)
 
     def test_from_traces_zero_only_uses_fallback(self, tmp_path: Path) -> None:
@@ -869,7 +869,7 @@ def test_documented_example_from_issue() -> None:
 
 
 def re_match_syn(s: str) -> bool:
-    """Quick filter — keep as a plain function for stable test imports."""
+    """Quick filter - keep as a plain function for stable test imports."""
     import re
 
     return bool(re.match(r"^syn-[0-9a-f]{12}$", s))

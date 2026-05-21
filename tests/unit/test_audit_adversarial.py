@@ -9,7 +9,7 @@ in ``test_audit.py``/``test_audit_integrity.py``:
 - Cross-file (post-rotation) chain continuity and tamper cascade.
 - Replay attack where an old record is copied forward.
 - Truncated last record (simulated crash mid-write).
-- Concurrent writers across two processes — verifies the chain after the race.
+- Concurrent writers across two processes - verifies the chain after the race.
 - Attacker who rewrites HMACs with a *wrong* key.
 - Genesis chain on an empty file vs. an empty directory.
 - Reordering of records.
@@ -172,7 +172,7 @@ class TestFieldModificationCascade:
             log.log(f"e{i}", f"a{i}", "task", f"i{i}")
 
         path, lines = _read_lines(audit_dir)
-        # Modify entry at index 2 — change actor only.
+        # Modify entry at index 2 - change actor only.
         target = json.loads(lines[2])
         target["actor"] = "TAMPERED"
         lines[2] = json.dumps(target, sort_keys=True)
@@ -377,7 +377,7 @@ class TestConcurrentWriters:
     (each ``json.dumps(entry, sort_keys=True) + "\\n"`` is well under
     PIPE_BUF=4096), meaning **no record is corrupted on disk**. However,
     each AuditLog instance caches ``_prev_hmac`` independently and there is
-    no inter-process locking — so the **HMAC chain breaks** when two writers
+    no inter-process locking - so the **HMAC chain breaks** when two writers
     race because both compute against the same cached ``_prev_hmac``.
 
     A ``multiprocessing.Barrier`` is used to force interleaved execution so
@@ -431,12 +431,12 @@ class TestConcurrentWriters:
         log = AuditLog(audit_dir, key=_TEST_KEY)
         valid, errors = log.verify()
         # Without inter-process locking, the chain must be detected as broken.
-        # Note: this test documents the current limitation — a future fix
+        # Note: this test documents the current limitation - a future fix
         # that adds proper locking would flip this assertion.
         assert valid is False, (
             "Concurrent writers without a file lock should produce a broken "
             "chain that verify() detects. If this assertion flips, a lock "
-            "has been added (good!) — invert this expectation."
+            "has been added (good!) - invert this expectation."
         )
         assert errors, "broken chain should produce at least one error"
 

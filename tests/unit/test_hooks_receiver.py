@@ -211,7 +211,7 @@ class TestTouchHeartbeat:
 
 
 # ---------------------------------------------------------------------------
-# process_hook_event — integration of all side-effects
+# process_hook_event - integration of all side-effects
 # ---------------------------------------------------------------------------
 
 

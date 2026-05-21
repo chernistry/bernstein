@@ -1,4 +1,4 @@
-"""Tests for the evaluation harness — multiplicative scoring, task eval, persistence."""
+"""Tests for the evaluation harness - multiplicative scoring, task eval, persistence."""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ class TestEvalResult:
 
 
 # ---------------------------------------------------------------------------
-# EvalHarness — init and golden loading
+# EvalHarness - init and golden loading
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +208,7 @@ class TestLoadGoldenTasks:
 
 
 # ---------------------------------------------------------------------------
-# EvalHarness — evaluate_task
+# EvalHarness - evaluate_task
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +347,7 @@ class TestEvaluateTask:
 
 
 # ---------------------------------------------------------------------------
-# EvalHarness — compute_multiplicative_score
+# EvalHarness - compute_multiplicative_score
 # ---------------------------------------------------------------------------
 
 
@@ -469,7 +469,7 @@ class TestMultiplicativeScoring:
 
 
 # ---------------------------------------------------------------------------
-# EvalHarness — persistence
+# EvalHarness - persistence
 # ---------------------------------------------------------------------------
 
 
@@ -584,7 +584,7 @@ class TestTaxonomyAccess:
 
 
 # ---------------------------------------------------------------------------
-# Taxonomy classification — classify_failure priority ordering
+# Taxonomy classification - classify_failure priority ordering
 # ---------------------------------------------------------------------------
 
 

@@ -1,7 +1,7 @@
 """Tests for Dead Letter Queue integration with retry_or_fail_task (audit-019).
 
 Verifies that when a task exhausts its retry budget, it is enqueued into the
-DLQ under ``<workdir>/.sdd/runtime/dlq.jsonl`` — instead of being silently
+DLQ under ``<workdir>/.sdd/runtime/dlq.jsonl`` - instead of being silently
 dropped with a ``fail_task`` call.
 """
 
@@ -98,7 +98,7 @@ def test_task_under_threshold_is_retried_not_dlq(tmp_path: Path) -> None:
 def test_task_at_threshold_goes_to_dlq(tmp_path: Path) -> None:
     """A task at its retry ceiling is enqueued into the DLQ with rich metadata."""
     client = _make_client()
-    # retry_count == max_retries — we're past the budget.
+    # retry_count == max_retries - we're past the budget.
     task = _MockTask("task-beta", retry_count=3, max_retries=3)
 
     retry_or_fail_task(
@@ -163,7 +163,7 @@ def test_dlq_entries_are_listable_and_not_rescheduled(tmp_path: Path) -> None:
     assert len(pending) == 1
 
     # Now simulate the scheduler re-touching an exhausted task: retry_or_fail_task
-    # must NOT create a new open task — it should flow into the DLQ branch and
+    # must NOT create a new open task - it should flow into the DLQ branch and
     # issue a fail_task call only (and append to the same DLQ file).
     client = _make_client()
     task = _MockTask("task-gamma", retry_count=3, max_retries=3)
@@ -185,7 +185,7 @@ def test_dlq_entries_are_listable_and_not_rescheduled(tmp_path: Path) -> None:
     # Must have been failed via HTTP.
     assert any(url.endswith("/task-gamma/fail") for url in posted_urls)
 
-    # And the DLQ now has a second entry for the same task id — confirming
+    # And the DLQ now has a second entry for the same task id - confirming
     # the retry path appended rather than silently dropped.
     dlq2 = DeadLetterQueue(sdd_dir=tmp_path / ".sdd")
     all_entries = dlq2.list_entries()
@@ -194,7 +194,7 @@ def test_dlq_entries_are_listable_and_not_rescheduled(tmp_path: Path) -> None:
 
 
 def test_workdir_none_preserves_legacy_fail_path(tmp_path: Path) -> None:
-    """Without a workdir, exhausted tasks still fail — just without DLQ persistence.
+    """Without a workdir, exhausted tasks still fail - just without DLQ persistence.
 
     This guards the opt-in shape of the API: callers that omit ``workdir``
     keep the pre-audit-019 behaviour (fail_task only, no file writes).

@@ -45,7 +45,7 @@ def test_recommend_for_cheapest_model() -> None:
     """Cheapest model for low complexity has few or no recommendations."""
     task = _make_task(model="haiku", complexity=Complexity.LOW)
     report = recommend_models(task)
-    # haiku is tier 1 and low complexity needs tier 1 — might have alternatives at same price
+    # haiku is tier 1 and low complexity needs tier 1 - might have alternatives at same price
     # but all recommendations must be cheaper
     for rec in report.recommendations:
         assert rec.savings_vs_current_usd > 0

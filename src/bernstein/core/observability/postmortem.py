@@ -10,9 +10,9 @@ covering:
 - Recommended actions to prevent recurrence
 
 Data sources (read-only):
-- ``.sdd/runs/{run_id}/summary.json`` — high-level run summary
-- ``.sdd/metrics/task_*.json`` / ``*.jsonl`` — per-task metrics
-- ``.sdd/runtime/{session}.log`` / ``.sdd/logs/{session}.log`` — agent logs
+- ``.sdd/runs/{run_id}/summary.json`` - high-level run summary
+- ``.sdd/metrics/task_*.json`` / ``*.jsonl`` - per-task metrics
+- ``.sdd/runtime/{session}.log`` / ``.sdd/logs/{session}.log`` - agent logs
 """
 
 from __future__ import annotations
@@ -379,8 +379,8 @@ class PostMortemGenerator:
             return lines
         lines.extend(("| Time | Event | Kind | Task |", "|------|-------|------|------|"))
         for ev in report.timeline:
-            t_str = _dt.datetime.fromtimestamp(ev.timestamp).strftime("%H:%M:%S") if ev.timestamp > 0 else "—"
-            lines.append(f"| {t_str} | {ev.label} | `{ev.kind}` | {ev.task_id or '—'} |")
+            t_str = _dt.datetime.fromtimestamp(ev.timestamp).strftime("%H:%M:%S") if ev.timestamp > 0 else "-"
+            lines.append(f"| {t_str} | {ev.label} | `{ev.kind}` | {ev.task_id or '-'} |")
         return lines
 
     @staticmethod
@@ -413,9 +413,9 @@ class PostMortemGenerator:
         lines: list[str] = [f"### Task `{trace.task_id}`", ""]
         lines.extend(
             (
-                f"- **Role:** {trace.role or '—'}",
-                f"- **Model:** {trace.model or '—'}",
-                f"- **Session:** `{trace.session_id or '—'}`",
+                f"- **Role:** {trace.role or '-'}",
+                f"- **Model:** {trace.model or '-'}",
+                f"- **Session:** `{trace.session_id or '-'}`",
                 f"- **Dominant failure:** `{trace.dominant_failure or 'unknown'}`",
             )
         )
@@ -460,7 +460,7 @@ class PostMortemGenerator:
         lines: list[str] = []
         ts = datetime.datetime.fromtimestamp(report.generated_at).strftime("%Y-%m-%d %H:%M:%S")
 
-        lines.extend((f"# Post-Mortem Report — Run `{report.run_id}`", ""))
+        lines.extend((f"# Post-Mortem Report - Run `{report.run_id}`", ""))
         if report.goal:
             lines.append(f"**Goal:** {report.goal}")
         lines.extend((f"**Generated:** {ts}", f"**Tasks:** {report.total_tasks} total, {report.failed_tasks} failed"))
@@ -507,13 +507,13 @@ class PostMortemGenerator:
             return "<p class='muted'>No timeline data available.</p>"
 
         def _ev_time(ev: PostMortemEvent) -> str:
-            return datetime.datetime.fromtimestamp(ev.timestamp).strftime("%H:%M:%S") if ev.timestamp > 0 else "—"
+            return datetime.datetime.fromtimestamp(ev.timestamp).strftime("%H:%M:%S") if ev.timestamp > 0 else "-"
 
         timeline_rows = "\n".join(
             f"<tr><td>{_ev_time(ev)}</td>"
             f"<td>{html.escape(ev.label)}</td>"
             f"<td>{_status_badge(ev.kind)}</td>"
-            f"<td>{html.escape(ev.task_id) if ev.task_id else '—'}</td></tr>"
+            f"<td>{html.escape(ev.task_id) if ev.task_id else '-'}</td></tr>"
             for ev in report.timeline
         )
         return f"""
@@ -562,15 +562,15 @@ class PostMortemGenerator:
             files_html = (
                 ", ".join(f"<code>{html.escape(f)}</code>" for f in trace.files_touched[:5])
                 if trace.files_touched
-                else "—"
+                else "-"
             )
             trace_parts.append(
                 f"""<div class='trace-card'>
   <h3>Task <code>{html.escape(trace.task_id)}</code></h3>
   <table class='compact'>
-    <tr><th>Role</th><td>{html.escape(trace.role) or "—"}</td></tr>
-    <tr><th>Model</th><td>{html.escape(trace.model) or "—"}</td></tr>
-    <tr><th>Session</th><td><code>{html.escape(trace.session_id) or "—"}</code></td></tr>
+    <tr><th>Role</th><td>{html.escape(trace.role) or "-"}</td></tr>
+    <tr><th>Model</th><td>{html.escape(trace.model) or "-"}</td></tr>
+    <tr><th>Session</th><td><code>{html.escape(trace.session_id) or "-"}</code></td></tr>
     <tr><th>Dominant failure</th><td><code>{html.escape(trace.dominant_failure) or "unknown"}</code></td></tr>
     <tr><th>Files touched</th><td>{files_html}</td></tr>
   </table>
@@ -769,7 +769,7 @@ class PostMortemGenerator:
         html_path.write_text(html_content, encoding="utf-8")
         logger.warning(
             "PDF export requires weasyprint or wkhtmltopdf. "
-            "HTML saved to %s — open in browser and use File → Print → Save as PDF.",
+            "HTML saved to %s - open in browser and use File → Print → Save as PDF.",
             html_path,
         )
         return html_path

@@ -1,4 +1,4 @@
-"""Team state read API — expose current team roster to CLI/TUI consumers."""
+"""Team state read API - expose current team roster to CLI/TUI consumers."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _get_sdd_dir(request: Request) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# GET /team — full team summary
+# GET /team - full team summary
 # ---------------------------------------------------------------------------
 
 
@@ -39,7 +39,7 @@ def team_summary(request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# GET /team/active — active members only
+# GET /team/active - active members only
 # ---------------------------------------------------------------------------
 
 
@@ -51,7 +51,7 @@ def team_active(request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# GET /team/{agent_id} — single member lookup
+# GET /team/{agent_id} - single member lookup
 # ---------------------------------------------------------------------------
 
 

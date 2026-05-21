@@ -15,7 +15,7 @@ any claim is trusted. The certificate is read from
 PEM-encoded X.509 certificate (newlines encoded as ``\\n`` when provided
 via an environment variable). The ``signxml`` library performs the W3C
 XML Signature verification. If the env var is empty while
-``BERNSTEIN_SAML_ENABLED=true``, every assertion is rejected — Bernstein
+``BERNSTEIN_SAML_ENABLED=true``, every assertion is rejected - Bernstein
 will not silently accept unsigned SAML responses.
 """
 
@@ -107,7 +107,7 @@ _ROLE_PERMISSIONS: dict[AuthRole, frozenset[str]] = {
             _PERM_BULLETIN_READ,
             "bulletin:write",
             # Operator-level gate for shutdown, broadcast, drain, and the
-            # config writer — held only by ADMIN.  OPERATOR and VIEWER must
+            # config writer - held only by ADMIN.  OPERATOR and VIEWER must
             # NOT have this permission or they could SIGTERM the server.
             "admin:manage",
         }
@@ -271,7 +271,7 @@ class DeviceAuthRequest:
 
 
 # ---------------------------------------------------------------------------
-# SSO configuration (Pydantic settings — reads from env / .env)
+# SSO configuration (Pydantic settings - reads from env / .env)
 # ---------------------------------------------------------------------------
 
 
@@ -353,7 +353,7 @@ class SSOConfig(BaseSettings):
     #
     # Supplied as a comma-separated list in env vars
     # (``BERNSTEIN_AUTH_EXPECTED_RESOURCE="https://a.example,https://b.example"``)
-    # or as a single string. Any-match semantics — the token only has to
+    # or as a single string. Any-match semantics - the token only has to
     # match one entry in the list.
     expected_resource: str = ""
 
@@ -563,7 +563,7 @@ def resolve_role(
 
 
 # ---------------------------------------------------------------------------
-# Auth store — file-based persistence in .sdd/auth/
+# Auth store - file-based persistence in .sdd/auth/
 # ---------------------------------------------------------------------------
 
 
@@ -780,7 +780,7 @@ class AuthStore:
 
 
 # ---------------------------------------------------------------------------
-# Auth service — orchestrates authentication flows
+# Auth service - orchestrates authentication flows
 # ---------------------------------------------------------------------------
 
 
@@ -821,7 +821,7 @@ def _verify_saml_signature(xml_bytes: bytes, idp_x509_cert: str) -> bytes:
             :attr:`SAMLConfig.idp_x509_cert`.
 
     Returns:
-        The canonical bytes of the element covered by the signature — the
+        The canonical bytes of the element covered by the signature - the
         ``signed_xml`` returned by ``signxml``. Only this payload may be
         trusted; the raw input must not be parsed for claims.
 
@@ -871,7 +871,7 @@ def _verify_saml_signature(xml_bytes: bytes, idp_x509_cert: str) -> bytes:
         msg = "SAML signature verification returned no signed payload"
         raise SAMLSignatureError(msg)
 
-    # Return the canonical bytes of the element that was actually signed —
+    # Return the canonical bytes of the element that was actually signed -
     # following signxml's "see what is signed" guidance.
     return etree.tostring(signed_element)  # type: ignore[no-any-return]
 
@@ -1142,7 +1142,7 @@ class AuthService:
             return None
         except DefusedXmlException as exc:
             # Internal entity expansion, DTD, or external entity reference.
-            # Never trust the payload — reject and let the caller return 401.
+            # Never trust the payload - reject and let the caller return 401.
             logger.error("Rejecting unsafe SAML assertion XML: %s", type(exc).__name__)
             return None
 
@@ -1181,7 +1181,7 @@ class AuthService:
         try:
             signed_bytes = _verify_saml_signature(xml_bytes, self.config.saml.idp_x509_cert)
         except SAMLSignatureError as exc:
-            # SECURITY: reject — do NOT fall back to parsing the unsigned XML.
+            # SECURITY: reject - do NOT fall back to parsing the unsigned XML.
             logger.error("Rejecting SAML response: %s", exc)
             return None
 

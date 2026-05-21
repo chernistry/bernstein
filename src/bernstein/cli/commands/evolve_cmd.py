@@ -246,7 +246,7 @@ def evolve_run(
 
         for r in results:
             color = "green" if r.accepted else "red"
-            delta_str = f"{r.delta:+.3f}" if r.delta != 0 else "—"
+            delta_str = f"{r.delta:+.3f}" if r.delta != 0 else "-"
             result_table.add_row(
                 r.proposal_id,
                 r.title,

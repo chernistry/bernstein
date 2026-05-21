@@ -1,4 +1,4 @@
-"""CLI command: ``bernstein export`` — generate shareable run reports."""
+"""CLI command: ``bernstein export`` - generate shareable run reports."""
 
 from __future__ import annotations
 

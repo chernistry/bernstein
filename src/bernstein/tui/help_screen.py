@@ -1,4 +1,4 @@
-"""Help screen modal for TUI — shortcuts plus discoverability hints."""
+"""Help screen modal for TUI - shortcuts plus discoverability hints."""
 
 from __future__ import annotations
 

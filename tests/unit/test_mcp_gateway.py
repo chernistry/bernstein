@@ -1,4 +1,4 @@
-"""Tests for MCP Gateway Proxy — MCPGateway, GatewayReplay, ToolMetrics, route."""
+"""Tests for MCP Gateway Proxy - MCPGateway, GatewayReplay, ToolMetrics, route."""
 
 from __future__ import annotations
 
@@ -172,7 +172,7 @@ class TestGatewayReplay:
 
 
 # ---------------------------------------------------------------------------
-# TestMCPGateway — replay mode
+# TestMCPGateway - replay mode
 # ---------------------------------------------------------------------------
 
 
@@ -234,7 +234,7 @@ class TestMCPGatewayReplayMode:
 
 
 # ---------------------------------------------------------------------------
-# TestMCPGateway — live mode (mocked upstream)
+# TestMCPGateway - live mode (mocked upstream)
 # ---------------------------------------------------------------------------
 
 

@@ -6,7 +6,7 @@ the spawning task is preserved at the top; the abstracted "Intent"
 section follows, with collapsible ``<details>`` blocks that hold the
 raw diff for drill-down.
 
-This module is intentionally thin — the heavy lifting lives in
+This module is intentionally thin - the heavy lifting lives in
 ``bernstein.core.quality.review_pipeline.abstract_diff``. The split is
 about layering: the responder owns *what shows up on the PR*, the
 review pipeline owns *how the abstraction is computed*.

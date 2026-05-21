@@ -85,7 +85,7 @@ def testsetup_demo_project_creates_app_py(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# demo command — dry-run mode (no real agents spawned)
+# demo command - dry-run mode (no real agents spawned)
 # ---------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ def test_demo_no_adapter_dry_run_still_works():
 def test_demo_explicit_adapter_bypasses_detection():
     """--adapter flag must skip auto-detection."""
     runner = CliRunner()
-    # No need to patch detect_available_adapter — explicit flag skips it
+    # No need to patch detect_available_adapter - explicit flag skips it
     with patch("bernstein.cli.run_cmd.detect_available_adapter") as mock_detect:
         result = runner.invoke(cli, ["demo", "--dry-run", "--adapter", "claude"])
     mock_detect.assert_not_called()

@@ -1,8 +1,8 @@
 """Real-time circuit breaker for purpose enforcement.
 
 Auto-terminates misbehaving agents and quarantines their changes:
-- **Scope violations** — agent edited files outside the task's ``owned_files``
-- **Budget violations** — agent exceeded a per-session token limit
+- **Scope violations** - agent edited files outside the task's ``owned_files``
+- **Budget violations** - agent exceeded a per-session token limit
 
 When a violation is detected the circuit breaker:
 1. Writes a structured JSON ``.kill`` signal file for the orchestrator to process.
@@ -174,7 +174,7 @@ def enforce_kill_signal(
         detail,
     )
 
-    # Audit log — every kill is recorded regardless of reason
+    # Audit log - every kill is recorded regardless of reason
     log_kill_event(workdir, session_id, reason, detail, files=files, requester=requester)
 
     # Quarantine metadata for violation kills so the branch can be reviewed
@@ -289,7 +289,7 @@ def check_scope_violations(orch: Any, result: Any) -> None:
     3. On violation: writes a structured kill signal and records quarantine
        metadata so the branch is preserved for review.
 
-    Agents without a worktree are skipped — scope is checked at merge time
+    Agents without a worktree are skipped - scope is checked at merge time
     by ``guardrails.run_guardrails()`` for those cases.
 
     Args:
@@ -317,7 +317,7 @@ def check_scope_violations(orch: Any, result: Any) -> None:
 
         changed_files = _get_worktree_changed_files(Path(worktree_path))
         if changed_files is None:
-            continue  # git unavailable or not a repo — skip silently
+            continue  # git unavailable or not a repo - skip silently
 
         out_of_scope = _files_outside_scope(changed_files, owned_files)
         if not out_of_scope:
@@ -470,7 +470,7 @@ def check_guardrail_violations(orch: Any, result: Any) -> None:
     contains credentials, API keys, or private key material, the agent is
     immediately terminated and its changes quarantined.
 
-    Only agents with an active git worktree are checked — agents without a
+    Only agents with an active git worktree are checked - agents without a
     worktree are checked at merge time by ``guardrails.run_guardrails()``.
 
     Args:

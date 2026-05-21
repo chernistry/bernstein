@@ -8,9 +8,9 @@ attacks on the HMAC digest.
 
 Supported event types (``X-Gitlab-Event`` header):
 
-* ``Merge Request Hook`` — push to MR, MR open/close, etc.
-* ``Pipeline Hook`` — CI pipeline status change.
-* ``Note Hook`` — comments on issues/MRs (where ``/bernstein`` lives).
+* ``Merge Request Hook`` - push to MR, MR open/close, etc.
+* ``Pipeline Hook`` - CI pipeline status change.
+* ``Note Hook`` - comments on issues/MRs (where ``/bernstein`` lives).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class GitLabWebhookEvent:
     """Parsed GitLab webhook event.
 
     Attributes:
-        event_type: Value of the ``X-Gitlab-Event`` header — for example
+        event_type: Value of the ``X-Gitlab-Event`` header - for example
             ``"Merge Request Hook"``.
         object_kind: ``payload["object_kind"]`` such as
             ``"merge_request"``, ``"pipeline"`` or ``"note"``.

@@ -66,7 +66,7 @@ class DedupRecord:
 class DedupQueue:
     """Persistent dedup queue.
 
-    The queue is intentionally tiny — it stores at most one record per
+    The queue is intentionally tiny - it stores at most one record per
     ``comment_id`` (the latest seen ``updated_at``).  Memory usage is
     proportional to the number of distinct comments observed, which on a
     real PR rarely exceeds a few dozen.
@@ -129,7 +129,7 @@ class DedupQueue:
 
         Returns:
             ``True`` if a previous record matches the dedup key, else
-            ``False`` — including the "edited comment" case where the id
+            ``False`` - including the "edited comment" case where the id
             is known but ``updated_at`` advanced.
         """
         rec = self._records.get(comment.comment_id)

@@ -1,4 +1,4 @@
-"""Bernstein runtime bridge — adapters for external execution backends."""
+"""Bernstein runtime bridge - adapters for external execution backends."""
 
 from bernstein.bridges.base import (
     AgentState,

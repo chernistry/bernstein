@@ -72,7 +72,7 @@ def test_spawn_request_shape_matches_openai_compat(tmp_path: Path) -> None:
 
 
 def test_authorization_header_uses_scoped_token_not_master(tmp_path: Path) -> None:
-    """The scoped CLM_TOKEN — never an operator master key — is forwarded as OPENAI_API_KEY."""
+    """The scoped CLM_TOKEN - never an operator master key - is forwarded as OPENAI_API_KEY."""
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(701)
 
@@ -154,7 +154,7 @@ def test_config_from_env_parses_optional_overrides() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 partial — tool-calling allowlist + lethal-trifecta enforcement
+# Phase 2 partial - tool-calling allowlist + lethal-trifecta enforcement
 # ---------------------------------------------------------------------------
 
 
@@ -231,7 +231,7 @@ def test_spawn_refuses_lethal_trifecta_chain(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 partial — streaming verification regression
+# Phase 2 partial - streaming verification regression
 # ---------------------------------------------------------------------------
 
 
@@ -268,7 +268,7 @@ def test_streaming_lineage_captures_tool_calls_across_chunks() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 2.5 — opt-in mTLS to the customer gateway
+# Phase 2.5 - opt-in mTLS to the customer gateway
 # ---------------------------------------------------------------------------
 
 
@@ -284,7 +284,7 @@ def _write_pem_stub(path: Path, label: str) -> None:
 
 
 def test_tls_config_from_env_returns_none_when_unset() -> None:
-    """Operator opted out of mTLS — adapter must keep plain-HTTPS behaviour."""
+    """Operator opted out of mTLS - adapter must keep plain-HTTPS behaviour."""
     assert tls_config_from_env({}) is None
     # PATH presence alone should not flip mTLS on.
     assert tls_config_from_env({"PATH": "/usr/bin"}) is None
@@ -433,7 +433,7 @@ def test_spawn_skips_launcher_when_mtls_not_configured(tmp_path: Path) -> None:
 
 
 def test_spawn_partial_mtls_triple_surfaces_typed_error(tmp_path: Path) -> None:
-    """A half-configured mTLS triple is operator error — fail fast, not silently."""
+    """A half-configured mTLS triple is operator error - fail fast, not silently."""
     adapter = ClmAdapter()
     cert = tmp_path / "client.crt"
     _write_pem_stub(cert, "CERTIFICATE")
@@ -457,7 +457,7 @@ def test_redactable_env_keys_includes_token_and_paths() -> None:
     assert CLM_CERT_FILE_ENV in keys
     assert CLM_KEY_FILE_ENV in keys
     assert CLM_CA_FILE_ENV in keys
-    # The endpoint and model are *not* redacted — they're operator
+    # The endpoint and model are *not* redacted - they're operator
     # configuration the audit trail needs to preserve for traceability.
     assert CLM_ENDPOINT_ENV not in keys
     assert CLM_MODEL_ENV not in keys
@@ -469,7 +469,7 @@ def test_redactable_env_keys_includes_token_and_paths() -> None:
 
 
 def test_clm_config_is_truly_frozen_no_late_mutation() -> None:
-    """ClmConfig is ``frozen=True`` — late mutation is impossible.
+    """ClmConfig is ``frozen=True`` - late mutation is impossible.
 
     A late-binding mutation of the resolved config would let one spawn
     leak a token / endpoint into a sibling spawn whose ClmConfig was
@@ -502,7 +502,7 @@ def test_streaming_chunk_and_payload_are_frozen() -> None:
 
 
 def test_spawn_filters_broad_provider_master_keys(tmp_path: Path) -> None:
-    """No host master credential — Anthropic, OpenAI, Azure, AWS, GCP, GitHub — leaks to the subprocess.
+    """No host master credential - Anthropic, OpenAI, Azure, AWS, GCP, GitHub - leaks to the subprocess.
 
     The existing test pinned ``ANTHROPIC_API_KEY`` and ``OPENAI_API_KEY``;
     sovereign-AI deployments routinely co-locate cloud credentials, so we
@@ -537,7 +537,7 @@ def test_spawn_filters_broad_provider_master_keys(tmp_path: Path) -> None:
         )
 
     env = popen.call_args.kwargs.get("env", {})
-    # Scoped token survives as the OpenAI bearer credential — never the master.
+    # Scoped token survives as the OpenAI bearer credential - never the master.
     assert env["OPENAI_API_KEY"] == "scoped-jwt-customer-001"
     # No other provider master keys made it through.
     for forbidden_key in (
@@ -628,7 +628,7 @@ def test_parse_tool_allowlist_env_returns_none_when_unset() -> None:
 
 
 def test_build_openai_tools_schema_empty_allowlist_returns_empty_list() -> None:
-    """An empty allowlist produces an empty schema list — never a wildcard."""
+    """An empty allowlist produces an empty schema list - never a wildcard."""
     assert build_openai_tools_schema([]) == []
 
 
@@ -646,7 +646,7 @@ def test_streaming_lineage_finish_reason_is_last_non_none() -> None:
 
     Some gateways emit a placeholder ``finish_reason`` mid-stream and then
     overwrite it on the terminal chunk.  Lineage must record the terminal
-    state, not an intermediate one — otherwise the audit trail thinks the
+    state, not an intermediate one - otherwise the audit trail thinks the
     response was truncated when it really wasn't (and vice versa).
     """
     events = [
@@ -734,7 +734,7 @@ def test_spawn_drops_verify_mode_when_mtls_off(tmp_path: Path) -> None:
 
 
 def test_tls_config_from_env_disabled_mode_still_returns_config(tmp_path: Path) -> None:
-    """``verify_mode='disabled'`` is a valid (non-default) operator choice — config still returned."""
+    """``verify_mode='disabled'`` is a valid (non-default) operator choice - config still returned."""
     cert = tmp_path / "client.crt"
     key = tmp_path / "client.key"
     ca = tmp_path / "ca.crt"
@@ -783,7 +783,7 @@ def test_spawn_overrides_host_openai_api_base_with_clm_endpoint(tmp_path: Path) 
     """A pre-existing host ``OPENAI_API_BASE`` must be overridden by the CLM endpoint.
 
     If an operator has the OpenAI cloud API base in their shell rc,
-    inheritance must not redirect the spawn to it — that would silently
+    inheritance must not redirect the spawn to it - that would silently
     bypass the customer-side gateway and ship prompts to OpenAI.
     """
     adapter = ClmAdapter()
@@ -850,7 +850,7 @@ def test_spawn_tools_schema_env_is_strict_json_with_documented_shape(tmp_path: P
 
 
 def test_spawn_passes_clm_namespaced_extras_only(tmp_path: Path) -> None:
-    """``build_filtered_env`` is invoked with CLM_*-only extras — never operator master keys.
+    """``build_filtered_env`` is invoked with CLM_*-only extras - never operator master keys.
 
     Asserts the contract from the inside: regardless of host env, the
     ``extra_keys`` argument lists *only* CLM-namespaced keys, so a future
@@ -881,7 +881,7 @@ def test_spawn_passes_clm_namespaced_extras_only(tmp_path: Path) -> None:
 
     extras = captured["extra_keys"]
     assert isinstance(extras, list)
-    # Every extra key must start with CLM_ — no provider master snuck in.
+    # Every extra key must start with CLM_ - no provider master snuck in.
     for key in extras:
         assert isinstance(key, str)
         assert key.startswith("CLM_"), f"non-CLM key in extras: {key}"

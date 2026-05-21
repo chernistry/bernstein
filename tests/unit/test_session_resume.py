@@ -152,7 +152,7 @@ def test_discard_is_noop_when_no_file(tmp_path: Path) -> None:
 
 
 def test_load_respects_custom_stale_minutes(tmp_path: Path) -> None:
-    # 5 minutes old — stale at 4 min, fresh at 10 min
+    # 5 minutes old - stale at 4 min, fresh at 10 min
     ts = time.time() - 5 * 60
     state = SessionState(saved_at=ts, goal="custom stale", completed_task_ids=[], cost_spent=0.0)
     save_session(tmp_path, state)
@@ -247,7 +247,7 @@ def test_orchestrator_save_session_state(tmp_path: Path) -> None:
 
 
 def test_orchestrator_save_session_state_server_down(tmp_path: Path) -> None:
-    """_save_session_state is best-effort — doesn't raise if server is down."""
+    """_save_session_state is best-effort - doesn't raise if server is down."""
     from bernstein.core.models import OrchestratorConfig
     from bernstein.core.orchestrator import Orchestrator
 

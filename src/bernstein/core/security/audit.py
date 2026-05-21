@@ -43,7 +43,7 @@ DEFAULT_RETENTION_DAYS = 90
 #: Environment variable that overrides the audit key path.
 AUDIT_KEY_ENV = "BERNSTEIN_AUDIT_KEY_PATH"
 
-#: Required mode for the audit key file (0600 — owner read/write only).
+#: Required mode for the audit key file (0600 - owner read/write only).
 _REQUIRED_KEY_MODE = 0o600
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ _REQUIRED_KEY_MODE = 0o600
 # Canonical event-type strings emitted into the HMAC-chained log.  Centralised
 # here so producers and consumers reference the same identifiers.
 
-#: Issue #1109 — emitted whenever a retry spawns a fresh agent process with
+#: Issue #1109 - emitted whenever a retry spawns a fresh agent process with
 #: no accumulated state because the task opted into
 #: ``agent_restart_between_retries``.
 AGENT_FRESH_RESTART_ON_RETRY = "agent_fresh_restart_on_retry"
@@ -144,7 +144,7 @@ def load_or_create_audit_key(key_path: Path | None = None) -> bytes:
         parent.chmod(0o700)
 
     key = secrets.token_hex(32).encode()
-    # Create with restrictive mode from the start — never widen then narrow.
+    # Create with restrictive mode from the start - never widen then narrow.
     fd = os.open(str(resolved), os.O_WRONLY | os.O_CREAT | os.O_EXCL, _REQUIRED_KEY_MODE)
     try:
         os.write(fd, key)
@@ -252,7 +252,7 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
         try:
             entry = json.loads(raw_line)
         except json.JSONDecodeError as exc:
-            errors.append(f"{log_path.name}:{line_no}: invalid JSON — {exc}")
+            errors.append(f"{log_path.name}:{line_no}: invalid JSON - {exc}")
             continue
         if not isinstance(entry, dict):
             errors.append(f"{log_path.name}:{line_no}: entry is not a JSON object")
@@ -271,7 +271,7 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
 
         stored_hmac = entry.pop("hmac", "")
         entry_prev = str(entry.get("prev_hmac", ""))
-        # Constant-time compare on the chain link — verification is offline
+        # Constant-time compare on the chain link - verification is offline
         # but a leaky compare in audit code is a CodeQL/Bandit smell and
         # masks regressions when the same helper is later reused on a
         # network surface.
@@ -314,7 +314,7 @@ class AuditLog:
     Args:
         audit_dir: Directory for daily JSONL log files.
         key: HMAC key bytes.  If ``None``, the key is loaded from the path
-            resolved by :func:`load_or_create_audit_key` — which by default
+            resolved by :func:`load_or_create_audit_key` - which by default
             lives *outside* ``audit_dir`` so a log-writer cannot also read
             or rotate the signing key.
         key_path: Optional explicit key file path. Overrides the environment
@@ -351,7 +351,7 @@ class AuditLog:
         to a dict carrying an ``hmac`` field.  Earlier-only inspection of
         the lex-last file would silently fork the chain when that file is
         empty/truncated (e.g. a freshly-rotated day with no events yet,
-        or a writer crash mid-line) — see test_truncated_last_file_does_
+        or a writer crash mid-line) - see test_truncated_last_file_does_
         not_fork_chain in tests/property/test_audit_chain_bughunt.py.
         """
         log_files = sorted(self._audit_dir.glob(_JSONL_GLOB))

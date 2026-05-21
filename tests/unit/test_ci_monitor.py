@@ -1,4 +1,4 @@
-"""Tests for ci_monitor — CIMonitor, FailureContext parsing, CIAutofixPipeline."""
+"""Tests for ci_monitor - CIMonitor, FailureContext parsing, CIAutofixPipeline."""
 
 from __future__ import annotations
 

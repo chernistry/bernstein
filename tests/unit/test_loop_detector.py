@@ -1,4 +1,4 @@
-"""Unit tests for LoopDetector — loop and deadlock detection."""
+"""Unit tests for LoopDetector - loop and deadlock detection."""
 
 from __future__ import annotations
 

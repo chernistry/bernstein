@@ -1,4 +1,4 @@
-"""Generic webhook trigger source — normalizes arbitrary HTTP webhook payloads."""
+"""Generic webhook trigger source - normalizes arbitrary HTTP webhook payloads."""
 
 from __future__ import annotations
 

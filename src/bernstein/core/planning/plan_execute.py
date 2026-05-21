@@ -7,7 +7,7 @@ cheaper models (Sonnet/Haiku) per task.
 
 Key properties:
 - Planning and execution use different model tiers (cost/quality trade-off).
-- Plans are persisted and reusable — `bernstein run --plan <file>` re-runs.
+- Plans are persisted and reusable - `bernstein run --plan <file>` re-runs.
 - Optional plan review gate with cost estimate before execution begins.
 """
 

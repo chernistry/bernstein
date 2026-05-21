@@ -314,11 +314,11 @@ class TestEvolutionEndToEnd:
             analysis_interval_minutes=60,
         )
 
-        # First call — should run (never ran before)
+        # First call - should run (never ran before)
         assert coordinator.should_run_analysis() is True
 
         # Run it
         coordinator.run_analysis_cycle()
 
-        # Immediately after — should not run
+        # Immediately after - should not run
         assert coordinator.should_run_analysis() is False

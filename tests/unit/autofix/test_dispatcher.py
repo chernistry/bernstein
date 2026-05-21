@@ -215,7 +215,7 @@ def test_cost_cap_aborts_and_comments(tmp_path: Path) -> None:
 
 
 def test_cost_cap_zero_means_unlimited(tmp_path: Path) -> None:
-    """A cost cap of 0 USD means 'no cap' — matches CostTracker semantics."""
+    """A cost cap of 0 USD means 'no cap' - matches CostTracker semantics."""
     spy = _DispatchSpy(result=DispatchResult(success=True, cost_usd=99.99))
     dispatcher = Dispatcher(
         audit=_audit(tmp_path),

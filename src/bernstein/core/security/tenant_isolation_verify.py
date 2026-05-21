@@ -605,7 +605,7 @@ def render_isolation_report(report: IsolationReport) -> str:
     """
     status = "PASS" if report.passed else "FAIL"
     lines: list[str] = [
-        f"## Tenant Isolation Report — {status}",
+        f"## Tenant Isolation Report - {status}",
         "",
         f"**Total:** {report.total} | **Passed:** {report.passed_count} | **Failed:** {report.failed_count}",
         "",

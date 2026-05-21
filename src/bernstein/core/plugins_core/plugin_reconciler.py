@@ -1,4 +1,4 @@
-"""Plugin marketplace reconciliation — auto-uninstall delisted plugins.
+"""Plugin marketplace reconciliation - auto-uninstall delisted plugins.
 
 Compares installed plugins against a marketplace listing on startup and
 removes plugins that are no longer offered.  Mirrors the intent of Claude
@@ -179,7 +179,7 @@ def reconcile_plugins(
     """Compare installed plugins against marketplace and remove delisted ones.
 
     When the marketplace file is absent, reconciliation is skipped entirely
-    (no plugins are removed).  This is intentional — an absent marketplace
+    (no plugins are removed).  This is intentional - an absent marketplace
     file means the user has not opted into marketplace reconciliation.
 
     Args:
@@ -196,7 +196,7 @@ def reconcile_plugins(
 
     marketplace = load_marketplace(marketplace_path)
     if not marketplace:
-        log.debug("plugin_reconciler: no marketplace listing found — skipping reconciliation")
+        log.debug("plugin_reconciler: no marketplace listing found - skipping reconciliation")
         return result
 
     listed_names: frozenset[str] = frozenset(e.name for e in marketplace)

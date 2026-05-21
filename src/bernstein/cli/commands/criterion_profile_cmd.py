@@ -2,9 +2,9 @@
 
 Adds:
 
-* ``bernstein criterion-profile show <task_id>`` — print the resolved
+* ``bernstein criterion-profile show <task_id>`` - print the resolved
   weight vector and the named preset (or ``"inline"``) for a task.
-* ``bernstein criterion-profile list`` — enumerate available presets.
+* ``bernstein criterion-profile list`` - enumerate available presets.
 
 The ``--criterion-profile`` flag on ``bernstein run`` and on ``bernstein
 add-task`` lives in their respective modules so they're discoverable

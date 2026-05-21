@@ -19,7 +19,7 @@ class ComposioAdapter(CLIAdapter):
 
     This adapter wraps Composio's ``@aoagents/ao`` as a single Bernstein
     agent. The wrapped orchestrator runs its own internal multi-agent
-    workflow inside a tmux session — Bernstein only observes the final
+    workflow inside a tmux session - Bernstein only observes the final
     exit code and the captured log output. This is leaf-node delegation,
     not deep meta-orchestration: the cost, quality gates, and routing
     decisions made by Composio's sub-agents are not visible to

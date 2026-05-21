@@ -6,7 +6,7 @@ provider-aware endpoint declaration, missing-binary handling, and the
 inherited ``is_alive`` / ``kill`` plumbing without ever spawning a
 real subprocess.
 
-Junie's CLI surface is still in beta — the assertions here pin the
+Junie's CLI surface is still in beta - the assertions here pin the
 ``run --headless --model <id> --prompt-file <path>`` shape documented
 at https://junie.jetbrains.com/ on 2026-05-06. If the public surface
 drifts, update both the adapter constants and these expectations.
@@ -32,7 +32,7 @@ pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
 
 
 # ---------------------------------------------------------------------------
-# JunieAdapter.spawn() — command construction
+# JunieAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -260,7 +260,7 @@ class TestJunieSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation (BYOK pattern: forward routed-provider key,
+# spawn() - env isolation (BYOK pattern: forward routed-provider key,
 # always forward JUNIE_API_KEY, never leak master credentials).
 # ---------------------------------------------------------------------------
 
@@ -636,7 +636,7 @@ class TestJunieEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() / kill() — inherited from CLIAdapter base
+# is_alive() / kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 
@@ -680,7 +680,7 @@ class TestJunieRegistry:
 
 
 # ---------------------------------------------------------------------------
-# Fast-exit probe — early non-zero exit surfaces as SpawnError
+# Fast-exit probe - early non-zero exit surfaces as SpawnError
 # ---------------------------------------------------------------------------
 
 
@@ -729,7 +729,7 @@ class TestJunieFastExit:
 
 
 # ---------------------------------------------------------------------------
-# detect_tier() — base default returns None for this adapter.
+# detect_tier() - base default returns None for this adapter.
 # ---------------------------------------------------------------------------
 
 

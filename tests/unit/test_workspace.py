@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.workspace — multi-repo workspace orchestration."""
+"""Tests for bernstein.core.workspace - multi-repo workspace orchestration."""
 
 from __future__ import annotations
 

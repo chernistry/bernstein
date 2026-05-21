@@ -110,7 +110,7 @@ class TestDisabledByDefault:
         The watcher's *only* lazy import lives in ``_default_llm_caller``.
         We pass ``llm_caller=None`` and confirm a disabled watcher never
         triggers it.  If it did, the test would still pass because the
-        import is harmless — but the recorded call count would jump.
+        import is harmless - but the recorded call count would jump.
         """
         watcher = LLMWatcher(WatcherConfig(enabled=False), llm_caller=None)
         result = asyncio.run(watcher.observe(_make_event()))
@@ -225,7 +225,7 @@ class TestReadOnlyContract:
         """The event payload is intended to be JSON-shaped, not callable.
 
         Even if a caller stuffs a callable in, the watcher does not
-        execute it — there is no ``payload[...](...)`` call site.  We
+        execute it - there is no ``payload[...](...)`` call site.  We
         assert behaviourally: when given a callable in the payload, the
         watcher does not invoke it and still degrades cleanly.
         """
@@ -302,7 +302,7 @@ class TestWatcherFailuresAreSafe:
 
         We document the expected escape hatch: BaseException is not
         caught.  A failing LLM is bounded (Exception); shutdown
-        signals are not — they should still propagate so operators can
+        signals are not - they should still propagate so operators can
         Ctrl-C cleanly.
         """
 
@@ -348,7 +348,7 @@ class TestBuildFromEnv:
 
 
 # ---------------------------------------------------------------------------
-# (b extension) End-to-end observe() shape — keeps the module honest about
+# (b extension) End-to-end observe() shape - keeps the module honest about
 # its public contract.
 # ---------------------------------------------------------------------------
 

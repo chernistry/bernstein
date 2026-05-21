@@ -3,18 +3,18 @@
 Selects the appropriate :class:`~bernstein.core.store.BaseTaskStore`
 implementation based on configuration.  Supports three backends:
 
-- **memory** — in-memory with JSONL persistence (default, zero dependencies).
-- **postgres** — PostgreSQL via asyncpg, production-grade.
-- **redis** — PostgreSQL + Redis distributed locking for multi-node.
+- **memory** - in-memory with JSONL persistence (default, zero dependencies).
+- **postgres** - PostgreSQL via asyncpg, production-grade.
+- **redis** - PostgreSQL + Redis distributed locking for multi-node.
 
 Configuration sources (in priority order):
 
 1. Explicit keyword arguments to :func:`create_store`.
 2. ``storage:`` section in ``bernstein.yaml`` (parsed by :mod:`~bernstein.core.seed`).
 3. Environment variables:
-   - ``BERNSTEIN_STORAGE_BACKEND`` — ``memory`` | ``postgres`` | ``redis``
-   - ``BERNSTEIN_DATABASE_URL`` — PostgreSQL DSN
-   - ``BERNSTEIN_REDIS_URL`` — Redis URL for distributed locking
+   - ``BERNSTEIN_STORAGE_BACKEND`` - ``memory`` | ``postgres`` | ``redis``
+   - ``BERNSTEIN_DATABASE_URL`` - PostgreSQL DSN
+   - ``BERNSTEIN_REDIS_URL`` - Redis URL for distributed locking
 """
 
 from __future__ import annotations

@@ -175,7 +175,7 @@ class TestHeuristicDeltaPredictor:
 
 
 # ---------------------------------------------------------------------------
-# PredictedDeltaGate — core behaviour
+# PredictedDeltaGate - core behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -212,7 +212,7 @@ class TestPredictedDeltaGate:
         gate = PredictedDeltaGate(min_delta=0.0)
         # Even tiny negative deltas (-0.001) are not accepted at threshold 0
         # because the rule is strict >= threshold. Issue says "delta check
-        # is disabled" — interpret as: every non-negative delta passes.
+        # is disabled" - interpret as: every non-negative delta passes.
         assert gate.evaluate(_make(predicted_delta=0.0)).accepted
         assert gate.evaluate(_make(predicted_delta=0.001)).accepted
 

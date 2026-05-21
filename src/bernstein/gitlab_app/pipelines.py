@@ -1,4 +1,4 @@
-"""GitLab Commit Statuses API client — pipeline status updates.
+"""GitLab Commit Statuses API client - pipeline status updates.
 
 Posts and updates "external CI" commit statuses on the SHA backing an
 MR so Bernstein agent verification appears as a native pipeline check
@@ -134,7 +134,7 @@ class PipelineStatusClient:
 
         Args:
             sha: Commit SHA the status should attach to.
-            state: GitLab state — defaults to ``running``.
+            state: GitLab state - defaults to ``running``.
             description: Short status text.
             target_url: Bernstein details URL.
             ref: Optional branch/tag for the status.
@@ -143,7 +143,7 @@ class PipelineStatusClient:
             :class:`PipelineStatusResult` on success, ``None`` otherwise.
         """
         if not self.configured:
-            logger.debug("PipelineStatusClient not configured — skipping create")
+            logger.debug("PipelineStatusClient not configured - skipping create")
             return None
         if state not in _VALID_STATES:
             state = "running"
@@ -163,7 +163,7 @@ class PipelineStatusClient:
         Args:
             sha: Commit SHA.
             conclusion: Bernstein conclusion (mapped to GitLab state).
-            summary: Markdown summary — truncated to 140 chars.
+            summary: Markdown summary - truncated to 140 chars.
             target_url: Bernstein details URL.
             ref: Optional branch/tag.
 
@@ -171,7 +171,7 @@ class PipelineStatusClient:
             :class:`PipelineStatusResult` on success, ``None`` otherwise.
         """
         if not self.configured:
-            logger.debug("PipelineStatusClient not configured — skipping update")
+            logger.debug("PipelineStatusClient not configured - skipping update")
             return None
         state = conclusion_to_state(conclusion)
         body = build_status_body(state, summary, target_url, ref)
@@ -182,7 +182,7 @@ class PipelineStatusClient:
         try:
             import httpx
         except ImportError:
-            logger.debug("httpx not available — cannot post GitLab status")
+            logger.debug("httpx not available - cannot post GitLab status")
             return None
 
         url = build_api_url(f"/projects/{self._project_id}/statuses/{sha}", self._base_url)

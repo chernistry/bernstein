@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-# U+2581..U+2588 — eighths-block sparkline glyphs.
+# U+2581..U+2588 - eighths-block sparkline glyphs.
 _SPARKLINE_GLYPHS: tuple[str, ...] = (" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█")
 
 
@@ -78,7 +78,7 @@ def _read_cost_history(sdd_dir: Path, window_days: int) -> list[float]:
     """Read the per-day rolling cost from a project's metrics dir.
 
     The function tolerates a missing or malformed JSONL file by returning
-    an empty series — the dashboard treats that as "no data yet".
+    an empty series - the dashboard treats that as "no data yet".
 
     Schema understood:
         - ``{"ts": <epoch>, "cost_usd": <float>}`` per line, OR

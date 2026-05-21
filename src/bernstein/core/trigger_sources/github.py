@@ -1,4 +1,4 @@
-"""GitHub trigger source adapters — normalize GitHub webhook payloads into TriggerEvents."""
+"""GitHub trigger source adapters - normalize GitHub webhook payloads into TriggerEvents."""
 
 from __future__ import annotations
 

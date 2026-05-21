@@ -137,7 +137,7 @@ async def test_permanent_error_short_circuits_to_dead_letter(tmp_path: Path) -> 
     sink = _Sink("gamma", raises=[NotificationPermanentError("nope")])
     outcomes = await dispatcher.dispatch(_make_event("e-3"), [sink])
     assert outcomes == {"gamma": NotificationOutcome.FAILED_PERMANENT}
-    # Only one attempt — permanent skips retry.
+    # Only one attempt - permanent skips retry.
     assert len(sink.deliveries) == 1
     dl_path = tmp_path / "notifications" / "dead_letter.jsonl"
     assert dl_path.exists()
@@ -220,7 +220,7 @@ def test_dedup_window_expires(tmp_path: Path) -> None:
     cache = DedupCache(tmp_path / "dedup.jsonl", lru_size=8, window_seconds=10)
     cache.remember("evt-1", now=1000.0)
     assert cache.seen("evt-1", now=1005.0)
-    # Outside the window — must miss.
+    # Outside the window - must miss.
     assert not cache.seen("evt-1", now=1100.0)
 
 
@@ -234,5 +234,5 @@ def test_dedup_persists_across_instances(tmp_path: Path) -> None:
 
 def test_retry_policy_delay_is_capped() -> None:
     policy = RetryPolicy(initial_delay_ms=1000, backoff_factor=10.0, max_delay_ms=5000)
-    # 1000 * 10^2 = 100000ms — must be capped.
+    # 1000 * 10^2 = 100000ms - must be capped.
     assert policy.delay_seconds(3) == 5.0

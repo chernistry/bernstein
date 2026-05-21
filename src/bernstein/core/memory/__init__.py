@@ -1,1 +1,1 @@
-"""memory sub-package — persistent memory stores."""
+"""memory sub-package - persistent memory stores."""

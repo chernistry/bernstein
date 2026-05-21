@@ -8,7 +8,7 @@ licence checkers, etc.
 The gate result is written to `.sdd/metrics/custom_gates.jsonl` and also
 logged at WARNING level when the check fails.
 
-Usage — add to bernstein.yaml:
+Usage - add to bernstein.yaml:
 
     plugins:
       - examples.plugins.quality_gate_plugin:SecurityScanGate
@@ -42,7 +42,7 @@ class SecurityScanGate:
 
     Results are written to ``.sdd/metrics/custom_gates.jsonl``.
     A failed scan is logged as a warning but does NOT block the orchestrator
-    — you can promote it to a hard block by raising an exception here, though
+    - you can promote it to a hard block by raising an exception here, though
     note that exceptions from plugins are caught and discarded.  For hard
     blocking, wire your gate into the quality_gates config instead.
     """

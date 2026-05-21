@@ -4,7 +4,7 @@ Every connect / read / revoke goes through :func:`audit_event` which writes
 an immutable entry into the project's audit chain
 (``.sdd/audit/YYYY-MM-DD.jsonl``) using
 :class:`bernstein.core.security.audit.AuditLog`. Secret material is never
-written — only the provider id, account label, fingerprint hash, and
+written - only the provider id, account label, fingerprint hash, and
 backend.
 
 Audit failures are non-fatal for read paths (we fall back to logging a

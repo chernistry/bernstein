@@ -1,9 +1,9 @@
 """Tests for CI failure auto-routing (334f).
 
 Covers:
-- bernstein.github_app.ci_router — git helpers, blame attribution, payload builder
-- bernstein.github_app.mapper.workflow_run_to_task — mapper integration
-- bernstein.core.routes.webhooks — workflow_run event handling + retry cap
+- bernstein.github_app.ci_router - git helpers, blame attribution, payload builder
+- bernstein.github_app.mapper.workflow_run_to_task - mapper integration
+- bernstein.core.routes.webhooks - workflow_run event handling + retry cap
 """
 
 from __future__ import annotations

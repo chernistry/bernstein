@@ -46,7 +46,7 @@ def _spawn_claimers(backlog_path: Path, *, workers: int, total_calls: int) -> li
 def test_no_double_claim_under_contention(tmp_path: Path) -> None:
     """A 100-item backlog under hard contention is drained once, then returns None.
 
-    Concurrency dialed to 8 workers × 400 calls × 3 seeds — enough to exercise
+    Concurrency dialed to 8 workers × 400 calls × 3 seeds - enough to exercise
     the lock invariant a few hundred times without exhausting GitHub-hosted
     runners' system thread ceiling. Earlier sweep used 32 × 1000 × 10 and hit
     ``RuntimeError: can't start new thread`` on shared CI runners.

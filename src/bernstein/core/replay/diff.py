@@ -5,7 +5,7 @@ at which the recorded responses diverge. Used by
 ``bernstein replay diff <run_a> <run_b>`` to pinpoint *where* two runs
 behaved differently.
 
-Comparison is intentionally simple — equality on the ``(kind, key,
+Comparison is intentionally simple - equality on the ``(kind, key,
 response)`` triple. Timestamps and metadata are ignored because they
 vary by wall-clock even on identical runs. Callers who want stricter
 matching can compose the dataclass with their own comparator.

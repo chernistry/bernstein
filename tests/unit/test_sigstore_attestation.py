@@ -1,7 +1,7 @@
 """Tests for Sigstore/Rekor cryptographic attestation module.
 
 These tests exercise the attestation module without requiring network access
-or the sigstore package — they mock out the sigstore path and directly test
+or the sigstore package - they mock out the sigstore path and directly test
 the Ed25519 fallback and the data model / persistence layer.
 """
 
@@ -237,7 +237,7 @@ class TestFallbackAttestation:
                 attestation_dir=attest_dir,
             )
 
-        # Tamper with the payload — use a known-safe path derived from attest_dir
+        # Tamper with the payload - use a known-safe path derived from attest_dir
         safe_bundle = attest_dir / Path(record.bundle_path).name
         assert safe_bundle.exists(), f"Bundle not found at {safe_bundle}"
         bundle = json.loads(safe_bundle.read_text())

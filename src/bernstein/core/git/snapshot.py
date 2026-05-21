@@ -37,15 +37,15 @@ worktree teardown.
 Public surface
 --------------
 
-* :class:`Snapshot` — frozen dataclass of metadata returned by every
+* :class:`Snapshot` - frozen dataclass of metadata returned by every
   read or write.
-* :class:`SnapshotStore` — facade for ``take``, ``undo``, ``list``,
+* :class:`SnapshotStore` - facade for ``take``, ``undo``, ``list``,
   ``diff``.
-* :func:`stack_push` / :func:`stack_list` — branch stack helpers.
+* :func:`stack_push` / :func:`stack_list` - branch stack helpers.
 
 The hook integration lives in :mod:`bernstein.core.lifecycle.hooks` and
 calls :meth:`SnapshotStore.take` on ``preToolUse`` for tool calls that
-mutate files. That binding is optional — operators who do not want the
+mutate files. That binding is optional - operators who do not want the
 overhead can disable the hook via configuration.
 """
 
@@ -74,7 +74,7 @@ DEFAULT_GC_DAYS: int = 30
 """Retention window after which snapshots are eligible for garbage collection."""
 
 _SNAPSHOT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
-"""Allow only alphanumerics, dot, dash, underscore — matches git ref rules."""
+"""Allow only alphanumerics, dot, dash, underscore - matches git ref rules."""
 
 _TASK_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 """Same constraint applied to task IDs used in stack ref paths."""
@@ -119,8 +119,8 @@ class Snapshot:
 class StackEntry:
     """One branch on a task's stacked-branches ordering.
 
-    The ordering is preserved by the ``<n>`` suffix on the ref name —
-    ``refs/bernstein/stacks/<task_id>/001``, ``002``, ... — so a normal
+    The ordering is preserved by the ``<n>`` suffix on the ref name -
+    ``refs/bernstein/stacks/<task_id>/001``, ``002``, ... - so a normal
     ``git for-each-ref --sort=refname`` enumerates them in chronological
     order.
     """
@@ -190,7 +190,7 @@ def _write_tree(cwd: Path) -> str:
     try:
         # Seed the temp index from HEAD when one exists. Without HEAD
         # (fresh repo with no commits) we simply start from an empty
-        # index, which is fine — ``git add -A`` will populate it.
+        # index, which is fine - ``git add -A`` will populate it.
         head_result = run_git(["rev-parse", "--verify", "HEAD"], cwd)
         if head_result.ok:
             seed = subprocess.run(
@@ -321,7 +321,7 @@ class SnapshotStore:
     The store is intentionally stateless; every method re-resolves refs
     via ``git`` so two processes (orchestrator + CLI) cannot disagree on
     what exists. Concurrency between writers is delegated to git's own
-    ref-update locking — ``update-ref`` acquires ``packed-refs.lock`` so
+    ref-update locking - ``update-ref`` acquires ``packed-refs.lock`` so
     parallel writes to the same ref are serialised.
     """
 
@@ -475,7 +475,7 @@ class SnapshotStore:
     def diff(self, a: str, b: str) -> str:
         """Return ``git diff --stat`` between two snapshot trees.
 
-        We deliberately default to ``--stat`` rather than a full diff —
+        We deliberately default to ``--stat`` rather than a full diff -
         the typical operator question is *"what changed between these
         two snapshots?"*, and rendering full patch text in a terminal
         is rarely useful. Callers that want a full diff can call
@@ -596,7 +596,7 @@ def stack_push(
 ) -> StackEntry:
     """Record *branch* as the next entry in a task's branch stack.
 
-    The function is purely a metadata operation — it never creates the
+    The function is purely a metadata operation - it never creates the
     branch itself (the orchestrator already has worktree-creation code
     that picks branch names) and never moves HEAD. All it does is link
     *branch* to its predecessor so :func:`stack_list` can return a

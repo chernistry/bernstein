@@ -248,7 +248,7 @@ def kill_process(pid: int, sig: int = 15) -> bool:
     # Windows path
     if sig == signal.SIGTERM:
         return _win_taskkill(pid, force=False)
-    if sig == 9:  # SIGKILL — force-kill on Windows
+    if sig == 9:  # SIGKILL - force-kill on Windows
         return _win_taskkill(pid, force=True)
     # Best-effort: os.kill on Windows only supports SIGTERM natively
     try:
@@ -299,7 +299,7 @@ def kill_process_group_graceful(
     Bernstein adapters spawn child processes with ``start_new_session=True``
     so the PID equals the PGID.  Reap paths (wall-clock timeout and stale
     heartbeat) invoke :meth:`CLIAdapter.kill`, which historically only sent
-    SIGTERM without waiting or escalating — wedged agents that trap SIGTERM
+    SIGTERM without waiting or escalating - wedged agents that trap SIGTERM
     (e.g. ``trap '' TERM``) survive the reap and leak resources until the
     next orchestrator startup.
 
@@ -310,7 +310,7 @@ def kill_process_group_graceful(
     Args:
         pgid: Process group ID (on Unix) or PID (on Windows).
         grace_seconds: Total time to wait for SIGTERM to take effect
-            before escalating to SIGKILL.  Defaults to 3s — reap paths
+            before escalating to SIGKILL.  Defaults to 3s - reap paths
             need to be aggressive because the agent already failed to
             heartbeat or exceeded its wall-clock timeout.
         poll_interval: How often to poll :func:`process_alive` during the
@@ -337,7 +337,7 @@ def kill_process_group_graceful(
             return True
         time.sleep(poll_interval)
 
-    # Still alive after grace period — escalate.
+    # Still alive after grace period - escalate.
     if process_alive(pgid):
         logger.warning(
             "Process group %d did not exit within %.1fs of SIGTERM; sending SIGKILL",

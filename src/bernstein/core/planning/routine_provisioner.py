@@ -88,7 +88,7 @@ def recommend_triggers(scenario: ScenarioRecipe) -> tuple[TriggerRecommendation,
 
     Returns:
         A tuple of trigger recommendations, possibly empty. Each recommendation
-        is independent — operators can pick one or several.
+        is independent - operators can pick one or several.
     """
     tags = {t.lower() for t in scenario.tags}
     out: list[TriggerRecommendation] = []
@@ -131,7 +131,7 @@ def _format_task_list(tasks: tuple[ScenarioTaskTemplate, ...]) -> str:
     """Render a markdown bullet list of scenario tasks."""
     lines: list[str] = []
     for idx, t in enumerate(tasks, start=1):
-        suffix = f" — {t.description}" if t.description else ""
+        suffix = f" - {t.description}" if t.description else ""
         lines.append(f"{idx}. **{t.title}** (role: `{t.role}`, priority: {t.priority}){suffix}")
     return "\n".join(lines)
 
@@ -360,8 +360,8 @@ def _format_triggers_markdown(triggers: tuple[TriggerRecommendation, ...]) -> st
     for r in triggers:
         header = f"## {r.type}"
         if r.event:
-            header += f" — `{r.event}`"
+            header += f" - `{r.event}`"
         if r.cadence:
-            header += f" — cadence `{r.cadence}`"
+            header += f" - cadence `{r.cadence}`"
         lines.extend((header, "", r.reason, ""))
     return "\n".join(lines).rstrip() + "\n"

@@ -2,7 +2,7 @@
 
 These tests cross-import `bernstein` at TEST scope to prove byte-for-byte
 compatibility of our re-implementation. The package under test
-(`bernstein_verify`) never imports `bernstein` itself — see
+(`bernstein_verify`) never imports `bernstein` itself - see
 test_no_bernstein_install.py for the install-isolation proof.
 """
 
@@ -217,7 +217,7 @@ def test_walk_chain_merge_entry_two_parents_ok():
 
 
 def test_walk_chain_out_of_order_parents_still_ok():
-    """walk_chain must accept any topological order — entries can arrive
+    """walk_chain must accept any topological order - entries can arrive
     in any order in the log; what matters is that every parent exists."""
     g = _mk_entry("v1", [])
     g_h = _entry_h(g)

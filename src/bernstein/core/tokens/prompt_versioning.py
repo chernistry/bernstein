@@ -146,7 +146,7 @@ class PromptVersion:
 
 @dataclass
 class PromptMeta:
-    """Metadata for a prompt name — tracks all versions and the active one."""
+    """Metadata for a prompt name - tracks all versions and the active one."""
 
     name: str
     active_version: int = 1

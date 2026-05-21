@@ -1,6 +1,6 @@
 """Per-attempt orchestration logic for the autofix daemon.
 
-The dispatcher is plain Python — no LLM in the scheduling loop —
+The dispatcher is plain Python - no LLM in the scheduling loop -
 which keeps every retry reproducible and every routing decision
 auditable.  A single attempt walks through the following pipeline:
 
@@ -27,7 +27,7 @@ auditable.  A single attempt walks through the following pipeline:
    SHA, spend, success/failure).  The two events share a stable
    ``attempt_id`` so they can be joined by ``bernstein audit``.
 
-The dispatcher does not push to git or comment on PRs by itself —
+The dispatcher does not push to git or comment on PRs by itself -
 those side-effects are wired through the ``ActionAdapter`` protocol
 so the daemon can be exercised in tests without ever touching the
 network.

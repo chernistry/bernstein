@@ -32,7 +32,7 @@ def sdd_dir(tmp_path: Path) -> Path:
 
     now = time.time()
 
-    # metrics/tasks.jsonl — recent tasks
+    # metrics/tasks.jsonl - recent tasks
     recent_tasks = [
         {
             "task_id": f"recent-{i}",
@@ -51,7 +51,7 @@ def sdd_dir(tmp_path: Path) -> Path:
     ]
     (metrics / "tasks.jsonl").write_text("\n".join(json.dumps(r) for r in recent_tasks))
 
-    # archive/tasks.jsonl — older tasks (8 days ago)
+    # archive/tasks.jsonl - older tasks (8 days ago)
     old_tasks = [
         {
             "task_id": f"old-{i}",
@@ -68,7 +68,7 @@ def sdd_dir(tmp_path: Path) -> Path:
     ]
     (archive / "tasks.jsonl").write_text("\n".join(json.dumps(r) for r in old_tasks))
 
-    # runtime/*.tokens — cache data
+    # runtime/*.tokens - cache data
     token_lines = [
         json.dumps({"ts": now - 100, "in": 1000, "out": 500, "cache_read": 700, "cache_write": 300}),
         json.dumps({"ts": now - 50, "in": 800, "out": 400, "cache_read": 600, "cache_write": 200}),

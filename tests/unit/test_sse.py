@@ -1,4 +1,4 @@
-"""Tests for SSEBus class and SSE endpoints — SSE real-time publishing and consumption."""
+"""Tests for SSEBus class and SSE endpoints - SSE real-time publishing and consumption."""
 
 from __future__ import annotations
 
@@ -202,7 +202,7 @@ class TestSSEBus:
         bus.subscribe(client_ip="192.168.1.42")
         bus.subscribe(client_ip="192.168.1.42")
         bus.subscribe(client_ip="192.168.1.42")
-        # IP is at capacity but not yet blocked — is_blocked should be False.
+        # IP is at capacity but not yet blocked - is_blocked should be False.
         assert not bus.is_blocked("192.168.1.42")
 
     def test_reconnect_limiter_isolates_ips(self) -> None:
@@ -238,7 +238,7 @@ class TestSSEBus:
         bus = SSEBus(max_buffer=256, max_buffer_per_ip=4)
         q1 = bus.subscribe(client_ip="10.0.0.1")
         q2 = bus.subscribe(client_ip="10.0.0.1")
-        # Publish 6 events — the per-IP cap (4) should limit total across both.
+        # Publish 6 events - the per-IP cap (4) should limit total across both.
         for _ in range(6):
             bus.publish("task_update", "{}")
         total = q1.qsize() + q2.qsize()

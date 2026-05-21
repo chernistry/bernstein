@@ -112,7 +112,7 @@ class PermissionDeniedError(CategorizedSpawnError):
 
 
 class RateLimitError(CategorizedSpawnError):
-    """Provider rate limit hit — try a different provider."""
+    """Provider rate limit hit - try a different provider."""
 
     retry_strategy = RetryStrategy.RETRY_FALLBACK
 

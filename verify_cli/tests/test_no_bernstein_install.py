@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-# Test-scope import — allowed, but only at test scope.
+# Test-scope import - allowed, but only at test scope.
 from bernstein.core.lineage.entry import LineageEntry, canonicalise
 from bernstein.core.lineage.identity import generate_keypair, sign_detached
 

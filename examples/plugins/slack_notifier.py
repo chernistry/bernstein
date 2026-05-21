@@ -1,10 +1,10 @@
 """Example plugin: Slack notifier.
 
 Posts task failure and completion alerts to a Slack channel via an
-Incoming Webhook.  Only implements the hooks it cares about — the other
+Incoming Webhook.  Only implements the hooks it cares about - the other
 hooks are simply not defined, which is fine.
 
-Usage — add to bernstein.yaml:
+Usage - add to bernstein.yaml:
 
     plugins:
       - examples.plugins.slack_notifier:SlackNotifier
@@ -42,7 +42,7 @@ class SlackNotifier:
         self._webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
         if not self._webhook_url:
             log.warning(
-                "SlackNotifier: no webhook URL configured — "
+                "SlackNotifier: no webhook URL configured - "
                 "set SLACK_WEBHOOK_URL or pass webhook_url= at construction time"
             )
 
@@ -52,7 +52,7 @@ class SlackNotifier:
 
     @hookimpl
     def on_task_failed(self, task_id: str, role: str, error: str) -> None:
-        """Alert on task failure — highest-signal event for on-call."""
+        """Alert on task failure - highest-signal event for on-call."""
         self._post(
             {
                 "text": f":red_circle: *Task failed* `{task_id}` (role: `{role}`)\n```{error[:500]}```",

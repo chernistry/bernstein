@@ -122,7 +122,7 @@ def test_no_persist_credentials_true(workflow_text: str) -> None:
 
 def test_no_em_dashes_in_workflow(workflow_text: str) -> None:
     """Constraint: no em-dashes anywhere."""
-    assert "—" not in workflow_text
+    assert "-" not in workflow_text
 
 
 def test_no_attribution_strings_in_workflow(workflow_text: str) -> None:

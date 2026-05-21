@@ -125,7 +125,7 @@ def test_snapshot_sets_timestamp(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConfigWatcher.check — no drift
+# ConfigWatcher.check - no drift
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +142,7 @@ def test_check_no_drift_when_unchanged(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConfigWatcher.check — modified
+# ConfigWatcher.check - modified
 # ---------------------------------------------------------------------------
 
 
@@ -165,7 +165,7 @@ def test_check_detects_modification(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConfigWatcher.check — created
+# ConfigWatcher.check - created
 # ---------------------------------------------------------------------------
 
 
@@ -186,7 +186,7 @@ def test_check_detects_creation(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ConfigWatcher.check — deleted
+# ConfigWatcher.check - deleted
 # ---------------------------------------------------------------------------
 
 
@@ -253,7 +253,7 @@ def test_acknowledge_suppresses_drift(tmp_path: Path) -> None:
     # Acknowledge the drift.
     watcher.acknowledge_report(report)
 
-    # Check again — should be clean now.
+    # Check again - should be clean now.
     report2 = watcher.check()
     assert report2.drifted is False
 

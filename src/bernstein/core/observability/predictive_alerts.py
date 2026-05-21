@@ -1,11 +1,11 @@
-"""Predictive alerting — forecast issues before they impact a run (ROAD-157).
+"""Predictive alerting - forecast issues before they impact a run (ROAD-157).
 
 Uses linear regression on recent metric observations to predict:
 - Budget exhaustion: "At current cost velocity, budget exhausted in N minutes"
 - Completion rate decline: "Task completion rate is declining; run will overrun window"
 - Run duration overrun: "At current velocity, run will exceed the N-hour window"
 
-No heavy ML dependencies — uses ordinary least squares from the standard library.
+No heavy ML dependencies - uses ordinary least squares from the standard library.
 ``scikit-learn`` (optional dep ``ml``) is used when available for tighter CIs.
 """
 
@@ -215,11 +215,11 @@ def forecast_budget_exhaustion(
 
     current_spend = current_spend_usd if current_spend_usd is not None else ys[-1]
 
-    # Velocity (USD/min) — use OLS slope as the best estimate
+    # Velocity (USD/min) - use OLS slope as the best estimate
     velocity = max(slope, 0.0)
 
     if velocity <= 0:
-        # Budget is not being consumed — no exhaustion predicted
+        # Budget is not being consumed - no exhaustion predicted
         return BudgetForecast(
             current_spend_usd=current_spend,
             budget_cap_usd=budget_cap_usd,

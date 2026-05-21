@@ -673,7 +673,7 @@ def _plane_parse(headers: dict[str, str], payload: dict[str, Any]) -> TrackerEve
 def register_builtin_handlers() -> None:
     """Register the built-in tracker webhook handlers.
 
-    Idempotent — safe to call multiple times.  Adapter implementations
+    Idempotent - safe to call multiple times.  Adapter implementations
     that ship outside the core package can register additional handlers
     via :func:`register_handler` from their own ``__init__`` hooks.
     """
@@ -742,7 +742,7 @@ def replay_recent_via_poll(
     Used at process start to catch events that the tracker tried to
     deliver while bernstein was down.  The tracker adapter's
     ``pull_open_tickets`` already paginates the upstream API, so we just
-    iterate and filter by an ``updated_at`` claim on the raw payload —
+    iterate and filter by an ``updated_at`` claim on the raw payload -
     adapters that do not populate that field simply replay all open
     tickets, which is the safe default.
 

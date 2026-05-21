@@ -264,6 +264,6 @@ class TestSplitPassesParentContext:
         # Even with minimal parent, the goal line is always included, so parent_context is set
         for call in client.post.call_args_list[:2]:
             body = call.kwargs["json"]
-            # parent_context may or may not be present — if present it must be non-empty
+            # parent_context may or may not be present - if present it must be non-empty
             if "parent_context" in body:
                 assert body["parent_context"] != ""

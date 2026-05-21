@@ -66,7 +66,7 @@ def slash_command_to_task(
     """
     spec = _ACTION_MAP.get(action)
     if spec is None:
-        logger.info("Unknown /bernstein action %r — ignoring", action)
+        logger.info("Unknown /bernstein action %r - ignoring", action)
         return None
 
     mr: dict[str, Any] = event.payload.get("merge_request", {}) or {}
@@ -77,7 +77,7 @@ def slash_command_to_task(
     target_title = str(mr.get("title") or issue.get("title") or "")
     note_body = str(attrs.get("note", "") or "")
 
-    args_line = f" — {args}" if args else ""
+    args_line = f" - {args}" if args else ""
     description = (
         f"Slash command `/bernstein {action}`{args_line} by @{event.sender} "
         f"on !{iid} in {event.project_path}.\n\n"

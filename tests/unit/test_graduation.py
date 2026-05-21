@@ -365,7 +365,7 @@ class TestDefaultPolicies:
         assert GraduationStage.ASSISTED.value in policies
 
     def test_autonomous_has_no_policy(self) -> None:
-        # Terminal stage — no outbound policy needed.
+        # Terminal stage - no outbound policy needed.
         policies = _default_policies()
         assert GraduationStage.AUTONOMOUS.value not in policies
 

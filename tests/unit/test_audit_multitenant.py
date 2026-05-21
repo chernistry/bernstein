@@ -2,14 +2,14 @@
 
 Covers the ticket's hard constraints:
 
-* **Determinism** — same input → byte-identical bundle.
-* **Tenant filter** — only events with the matching ``tenant_id`` leak
+* **Determinism** - same input → byte-identical bundle.
+* **Tenant filter** - only events with the matching ``tenant_id`` leak
   through.
-* **Chain integrity** — :func:`verify_tenant_slice` passes on a clean
+* **Chain integrity** - :func:`verify_tenant_slice` passes on a clean
   slice; a one-byte flip flips it to ``ok=False``.
-* **Cross-tenant leakage** — a tampered ``tenant_id`` in a slice is
+* **Cross-tenant leakage** - a tampered ``tenant_id`` in a slice is
   detected.
-* **Empty window safe** — no events for tenant produces an empty-but-
+* **Empty window safe** - no events for tenant produces an empty-but-
   verifiable slice.
 
 The tests use the same HMAC key plumbing as the production
@@ -31,7 +31,7 @@ from bernstein.core.security.audit_multitenant import (
     verify_tenant_slice,
 )
 
-# A deterministic byte key — easier to reason about than a generated hex key.
+# A deterministic byte key - easier to reason about than a generated hex key.
 _TEST_KEY: bytes = b"x" * 32
 
 
@@ -111,7 +111,7 @@ class TestTenantFilter:
         """Events without ``details.tenant_id`` belong to 'default'.
 
         Matches :func:`bernstein.core.security.tenanting.normalize_tenant_id`.
-        Critical for backwards compatibility — operators who roll
+        Critical for backwards compatibility - operators who roll
         multi-tenant out gradually keep their pre-existing chain visible.
         """
         audit_dir = tmp_path / ".sdd" / "audit"
@@ -177,7 +177,7 @@ class TestDeterminism:
         """Air-gap mode is deterministic when the operator pins the anchor ts.
 
         This guards the air-gap branch: ``signature_kind=hmac-chain+
-        offline-anchor`` defaults the anchor timestamp to ``now()`` —
+        offline-anchor`` defaults the anchor timestamp to ``now()`` -
         which is non-deterministic. Operators chasing byte-stable
         bundles must pin ``offline_anchor_iso``.
         """
@@ -364,7 +364,7 @@ class TestCrossTenantTamperDetection:
             key=_TEST_KEY,
             write=False,
         )
-        # Parse, mutate, re-serialise — simulate an attacker who edits
+        # Parse, mutate, re-serialise - simulate an attacker who edits
         # the bundle JSON manually.
         bundle = json.loads(export.bundle_bytes.decode("utf-8"))
         bundle["events"][0]["details"]["tenant_id"] = "globex"

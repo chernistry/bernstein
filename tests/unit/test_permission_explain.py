@@ -1,4 +1,4 @@
-"""Tests for permission_explain — progressive disclosure for permission requests."""
+"""Tests for permission_explain - progressive disclosure for permission requests."""
 
 from __future__ import annotations
 

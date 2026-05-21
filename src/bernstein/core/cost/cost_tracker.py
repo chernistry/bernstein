@@ -9,7 +9,7 @@ the ``GET /costs/{run_id}`` endpoint and the CLI can report budget
 status for any run, even after restart.
 
 This module is about *budget enforcement*.  Model selection / ROI
-optimization lives in ``cost.py`` — do not conflate the two.
+optimization lives in ``cost.py`` - do not conflate the two.
 """
 
 from __future__ import annotations
@@ -511,7 +511,7 @@ class CostTracker:
     # once ``should_stop`` transitions True the orchestrator
     # sends SHUTDOWN to every live agent, waits ``kill_grace_period_s``
     # for them to commit WIP, and SIGKILLs any still alive afterwards.
-    # 0 disables the grace window (immediate SIGKILL — not recommended
+    # 0 disables the grace window (immediate SIGKILL - not recommended
     # outside tests).
     kill_grace_period_s: int = DEFAULT_KILL_GRACE_PERIOD_S
     # bound in-memory usage history. ``None`` → resolve from
@@ -568,7 +568,7 @@ class CostTracker:
         repr=False,
     )
     # Running total of savings from prompt-cache reads (USD) and savings vs
-    # an all-Opus baseline — kept so reports survive usage eviction.
+    # an all-Opus baseline - kept so reports survive usage eviction.
     _cache_savings_usd: float = field(default=0.0, init=False, repr=False)
     _opus_baseline_savings_usd: float = field(default=0.0, init=False, repr=False)
     _cumulative_tokens: dict[tuple[str, str, str], tuple[int, ...]] = field(
@@ -597,7 +597,7 @@ class CostTracker:
         resolved = self.usage_buffer_size
         if resolved is None:
             resolved = _resolve_usage_buffer_size()
-        # A non-positive value means "unbounded" — store as ``None`` maxlen.
+        # A non-positive value means "unbounded" - store as ``None`` maxlen.
         maxlen: int | None = resolved if resolved > 0 else None
         # Preserve any usages that may have been pre-seeded (load path).
         seed = list(self._usages)
@@ -881,7 +881,7 @@ class CostTracker:
 
         Convenience setter so callers building a tracker from
         ``bernstein.yaml`` need not assign ``tracker.envelopes`` directly.
-        Existing envelope spend totals are preserved — the new
+        Existing envelope spend totals are preserved - the new
         configuration only affects future records.
         """
         self.envelopes = envelopes.copy()
@@ -954,7 +954,7 @@ class CostTracker:
     def _maybe_fire_envelope_threshold_locked(self, envelope: str) -> EnvelopeReport | None:
         """Return the EnvelopeReport when the threshold has just been crossed.
 
-        Called under ``self._lock``. Does not invoke the hook — the
+        Called under ``self._lock``. Does not invoke the hook - the
         caller fires the hook *after* releasing the lock so a slow
         observer never blocks other writers.
         """
@@ -1329,7 +1329,7 @@ class CostTracker:
         """Estimate USD saved by prompt caching across the entire run.
 
         Uses the running :attr:`_cache_savings_usd` accumulator so the
-        reported figure covers every usage ever recorded — not just the
+        reported figure covers every usage ever recorded - not just the
         ones currently held in the bounded in-memory buffer.
 
         Returns:
@@ -1365,7 +1365,7 @@ class CostTracker:
         """Persist a cost report to ``.sdd/metrics/costs_{run_id}.json``.
 
         Creates the directory if it does not exist.  Handles zero/missing
-        budget gracefully — ``budget_usd=0`` is written as-is (unlimited).
+        budget gracefully - ``budget_usd=0`` is written as-is (unlimited).
 
         Args:
             metrics_dir: The ``.sdd/metrics`` directory path.
@@ -1454,7 +1454,7 @@ class CostTracker:
     def _rotate_evicted(self, usage: TokenUsage) -> None:
         """Append an evicted usage row to a JSONL rotation file.
 
-        Does nothing when :attr:`rotation_dir` is unset — in that case the
+        Does nothing when :attr:`rotation_dir` is unset - in that case the
         row is simply dropped (its stats are still carried in the
         accumulators). Failures are logged and swallowed so that telemetry
         IO never blocks the orchestrator hot path.
@@ -1475,7 +1475,7 @@ class CostTracker:
 
         Imported lazily so importing ``cost_tracker`` does not pull in
         the retry budget module (and vice versa).  The attachment is a
-        back-reference — the tracker does not mutate the budget.
+        back-reference - the tracker does not mutate the budget.
 
         Args:
             budget: Any object that exposes ``attempts_left`` /
@@ -1499,7 +1499,7 @@ class CostTracker:
 
         if status.percentage_used >= self.hard_stop_threshold:
             logger.warning(
-                "BUDGET EXCEEDED for run %s: $%.2f / $%.2f (%.0f%%) — stopping agent spawns",
+                "BUDGET EXCEEDED for run %s: $%.2f / $%.2f (%.0f%%) - stopping agent spawns",
                 self.run_id,
                 status.spent_usd,
                 self.budget_usd,

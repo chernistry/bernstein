@@ -55,7 +55,7 @@ pytestmark = [
 
 
 # ---------------------------------------------------------------------------
-# Helpers (lifted from test_adapter_e2e.py — kept minimal and standalone)
+# Helpers (lifted from test_adapter_e2e.py - kept minimal and standalone)
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ def _wait_for_log_nonempty(log_path: Path, *, timeout_s: float = 5.0) -> str:
     """Wait until *log_path* exists; return whatever body it has.
 
     Note: in *no_output* mode the log may be empty after the worker
-    exits — callers should not assert on body content there.
+    exits - callers should not assert on body content there.
     """
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
@@ -140,7 +140,7 @@ def test_unexpected_exit_code_42_does_not_crash_caller(
     fake_cli_fixture: FakeCLIHandle,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """CLI exits 42 from inside ``adapter.spawn`` — caller observes rc=42.
+    """CLI exits 42 from inside ``adapter.spawn`` - caller observes rc=42.
 
     Reproduces the failure mode "adapter exits with code 42
     unexpectedly". The spawn() call itself must succeed (it returns a
@@ -167,7 +167,7 @@ def test_caller_sees_nonzero_rc_without_exception(
     fake_cli_fixture: FakeCLIHandle,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """spawn() must not raise on a non-zero CLI exit — the worker wraps it.
+    """spawn() must not raise on a non-zero CLI exit - the worker wraps it.
 
     The adapter contract: ``spawn`` returns a :class:`SpawnResult`
     *regardless* of how the inner CLI ends up exiting. Non-zero exit
@@ -177,7 +177,7 @@ def test_caller_sees_nonzero_rc_without_exception(
     fake_cli_fixture.configure(mode="error", exit_code=99)
     workdir = _make_workdir(tmp_path)
 
-    # Must not raise during spawn itself — the Aider adapter doesn't probe.
+    # Must not raise during spawn itself - the Aider adapter doesn't probe.
     result = _aider_spawn(workdir, session_id="drift-noraise")
     rc = _reap(result, timeout_s=5.0)
     AiderAdapter.cancel_timeout(result)
@@ -194,7 +194,7 @@ def test_malformed_stream_then_die_logs_and_exits(
     fake_cli_fixture: FakeCLIHandle,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """CLI emits partial output then dies — log shows both halves.
+    """CLI emits partial output then dies - log shows both halves.
 
     The ``stream_then_die`` mode flushes one stdout line and one stderr
     line before exiting non-zero. Both must end up in the log, and the
@@ -235,7 +235,7 @@ def test_no_output_success_does_not_orphan(
 
     assert rc == 0, f"silent CLI must exit 0 cleanly; got {rc}"
 
-    # The log file is created up-front by the adapter — assert it's
+    # The log file is created up-front by the adapter - assert it's
     # present so log readers don't ENOENT mid-flight.
     assert result.log_path.exists(), "log file must be created even with no output"
 
@@ -357,7 +357,7 @@ def test_worker_with_nonexistent_inner_binary_exits_127(tmp_path: Path) -> None:
     Mirrors the contract from ``test_worker_subprocess_signals.py`` but
     asserts it from the *manager's* perspective: this is what the
     orchestrator/reaper will observe when the adapter binary itself is
-    missing on PATH — distinct from "CLI ran but errored".
+    missing on PATH - distinct from "CLI ran but errored".
     """
     pid_dir = tmp_path / "pids"
     pid_dir.mkdir()

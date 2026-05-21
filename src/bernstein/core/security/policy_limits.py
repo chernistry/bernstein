@@ -185,7 +185,7 @@ async def _fetch_limits_from_api(
             resp = await client.get(api_url, headers=headers)
 
             if resp.status_code == 304:
-                # Not Modified — reuse existing snapshot
+                # Not Modified - reuse existing snapshot
                 logger.debug("Policy limits not modified (ETag match)")
                 return None, etag
 
@@ -215,7 +215,7 @@ def _parse_payload(payload: dict[str, Any]) -> dict[str, PolicyLimitEntry]:
             entry = PolicyLimitEntry.from_dict(item_dict)
             result[entry.feature] = entry
         except (KeyError, TypeError) as exc:
-            logger.debug("Skipping malformed policy limit entry: %s — %s", item_dict, exc)
+            logger.debug("Skipping malformed policy limit entry: %s - %s", item_dict, exc)
     return result
 
 
@@ -234,7 +234,7 @@ class PolicyLimitsClient:
         allowed = client.is_allowed("allow_product_feedback")
         client.start_background_polling()  # non-blocking, asyncio task
 
-    The client is *fail-open* by default — if the policy cannot be fetched, all
+    The client is *fail-open* by default - if the policy cannot be fetched, all
     features are considered enabled except those in
     :data:`ESSENTIAL_TRAFFIC_DENY_ON_MISS`.
     """
@@ -270,7 +270,7 @@ class PolicyLimitsClient:
         The entire operation is bounded by ``init_timeout`` seconds so a
         slow or unreachable API never blocks agent startup.
         """
-        # Try cache first — instant
+        # Try cache first - instant
         cached = _read_cache(self._cache_path)
         if cached is not None:
             self._snapshot = cached
@@ -325,7 +325,7 @@ class PolicyLimitsClient:
     def start_background_polling(self) -> None:
         """Schedule background polling every ``poll_interval`` seconds.
 
-        Safe to call multiple times — only one task is created.
+        Safe to call multiple times - only one task is created.
         """
         if self._poll_task is not None and not self._poll_task.done():
             return
@@ -358,7 +358,7 @@ class PolicyLimitsClient:
         )
 
         if payload is None:
-            # 304 Not Modified or network error — keep existing snapshot
+            # 304 Not Modified or network error - keep existing snapshot
             return
 
         new_limits = _parse_payload(payload)

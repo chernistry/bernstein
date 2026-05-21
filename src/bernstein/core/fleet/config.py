@@ -231,7 +231,7 @@ def load_projects_config(path: Path | None = None) -> FleetConfig:
             errors=[
                 FleetConfigError(
                     -1,
-                    f"fleet config not found at {target} — create it with [[project]] blocks",
+                    f"fleet config not found at {target} - create it with [[project]] blocks",
                 )
             ],
             source_path=target,

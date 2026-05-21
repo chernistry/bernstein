@@ -17,7 +17,7 @@ Default implementation
 ----------------------
 :class:`Ed25519FileKeySigner` reads a customer-provided Ed25519 private
 key from disk in either PEM or raw 32-byte form. We pick Ed25519 by
-default because (a) signatures are 64 bytes — small enough to embed in
+default because (a) signatures are 64 bytes - small enough to embed in
 every WAL line, (b) signing latency is ~50µs on commodity hardware,
 (c) the key format is unambiguous, (d) ``cryptography`` already ships
 in Bernstein's dependency closure.
@@ -26,7 +26,7 @@ Pluggable backends
 ------------------
 The :class:`LineageSigner` protocol is intentionally narrow: a
 ``sign(bytes) -> bytes`` call. HSM, TPM, or KMS-backed signers
-implement the same protocol — the writer doesn't care where the key
+implement the same protocol - the writer doesn't care where the key
 material lives, only that the call returns a signature over the
 provided canonical bytes. Verifiers are similarly pluggable via
 :class:`LineageVerifier`.
@@ -191,7 +191,7 @@ def signer_from_config(
 
     Returns ``None`` when signing is disabled or unconfigured. Raises
     :class:`LineageSignerError` when ``enabled=True`` but the key cannot
-    be loaded — the orchestrator should fail fast rather than silently
+    be loaded - the orchestrator should fail fast rather than silently
     drop signatures.
     """
     if not enabled:

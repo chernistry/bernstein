@@ -60,7 +60,7 @@ def _canonicalize(value: Any) -> Any:
     is total even for mixed-type members) so two processes with
     different ``PYTHONHASHSEED`` produce identical bytes.  Without this,
     ``json.dumps({"a","b"}, default=repr)`` round-trips through
-    ``repr(set)`` whose member order is hash-randomised — yielding a
+    ``repr(set)`` whose member order is hash-randomised - yielding a
     different cache key per process and silently breaking action-cache
     hits in CI.  Dicts recurse so nested sets are also canonicalised.
     """
@@ -224,7 +224,7 @@ class MemoStore:
             os.replace(tmp, path)
         except OSError as exc:
             # Best-effort cleanup; another concurrent writer may have already
-            # claimed the slot which is fine — content is content-addressed.
+            # claimed the slot which is fine - content is content-addressed.
             logger.debug("memo: put failed for %s: %s", digest.hex()[:12], exc)
             with contextlib.suppress(OSError):
                 tmp.unlink()

@@ -6,14 +6,14 @@ the agent can load on demand.
 
 Schema (all fields strict-validated by Pydantic):
 
-- ``name``        — lowercase slug ``[a-z][a-z0-9-]*``
-- ``description`` — 20-500 chars, shown in the index
-- ``trigger_keywords`` — optional keyword hints
-- ``references``  — list of files under ``<skill>/references/``
-- ``scripts``     — list of files under ``<skill>/scripts/``
-- ``assets``      — list of files under ``<skill>/assets/``
-- ``version``     — semver-ish; defaults to ``1.0.0``
-- ``author``      — optional free-form attribution
+- ``name``        - lowercase slug ``[a-z][a-z0-9-]*``
+- ``description`` - 20-500 chars, shown in the index
+- ``trigger_keywords`` - optional keyword hints
+- ``references``  - list of files under ``<skill>/references/``
+- ``scripts``     - list of files under ``<skill>/scripts/``
+- ``assets``      - list of files under ``<skill>/assets/``
+- ``version``     - semver-ish; defaults to ``1.0.0``
+- ``author``      - optional free-form attribution
 
 Parsing failures point at the offending file so operators can correct the
 manifest without greping through 17 skill directories.
@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 if TYPE_CHECKING:
     from pathlib import Path
 
-# Precompiled once — Pydantic recompiles each time if we pass a string.
+# Precompiled once - Pydantic recompiles each time if we pass a string.
 _NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9-]*$")
 
 # Matches a line containing only ``---`` (with optional trailing whitespace).
@@ -40,7 +40,7 @@ _FENCE_LINE_RE: re.Pattern[str] = re.compile(r"^---[ \t]*$")
 
 # Hard cap on frontmatter size (16 KiB). A real SKILL.md header is ~500 bytes;
 # anything larger is either corrupt or hostile. The cap is applied to the
-# frontmatter slice — not the whole file — so legitimate markdown bodies
+# frontmatter slice - not the whole file - so legitimate markdown bodies
 # stay unbounded.
 _MAX_FRONTMATTER_BYTES = 16 * 1024
 
@@ -101,7 +101,7 @@ def parse_skill_md(path: Path) -> tuple[SkillManifest, str]:
         path: Path to the ``SKILL.md`` file.
 
     Returns:
-        ``(manifest, body)`` — ``body`` is the markdown text after the
+        ``(manifest, body)`` - ``body`` is the markdown text after the
         closing ``---`` marker with surrounding whitespace stripped.
 
     Raises:
@@ -165,7 +165,7 @@ def _split_frontmatter(raw: str) -> tuple[str, str]:
     Implemented as a linear line-scan rather than a ``re.DOTALL``-style
     regex so there is no nested quantifier for a malicious input to exploit
     (the original pattern ``\\A---\\s*\\r?\\n(.*?)\\r?\\n---\\s*(?:\\r?\\n|\\Z)(.*)``
-    tripped SonarCloud's ReDoS heuristic — see S5852). The frontmatter slice
+    tripped SonarCloud's ReDoS heuristic - see S5852). The frontmatter slice
     is bounded by :data:`_MAX_FRONTMATTER_BYTES` so even a file that never
     closes the fence can never force more than ``O(cap)`` work.
 
@@ -173,7 +173,7 @@ def _split_frontmatter(raw: str) -> tuple[str, str]:
         raw: Full ``SKILL.md`` text.
 
     Returns:
-        ``(front, body)`` — ``front`` is the YAML between the two fences
+        ``(front, body)`` - ``front`` is the YAML between the two fences
         (unstripped, suitable for :func:`yaml.safe_load`); ``body`` is the
         markdown after the closing fence with surrounding whitespace stripped.
 
@@ -184,7 +184,7 @@ def _split_frontmatter(raw: str) -> tuple[str, str]:
     """
     lines = raw.splitlines()
     if not lines or not _FENCE_LINE_RE.match(lines[0]):
-        raise ValueError("missing YAML frontmatter — expected ``---`` on the first line")
+        raise ValueError("missing YAML frontmatter - expected ``---`` on the first line")
 
     front_lines: list[str] = []
     close_idx: int | None = None
@@ -199,11 +199,11 @@ def _split_frontmatter(raw: str) -> tuple[str, str]:
         # force us to accumulate gigabytes before we notice.
         front_bytes += len(line.encode("utf-8")) + 1  # +1 for the newline
         if front_bytes > _MAX_FRONTMATTER_BYTES:
-            raise ValueError(f"frontmatter exceeds {_MAX_FRONTMATTER_BYTES} bytes — refusing to parse")
+            raise ValueError(f"frontmatter exceeds {_MAX_FRONTMATTER_BYTES} bytes - refusing to parse")
         front_lines.append(line)
 
     if close_idx is None:
-        raise ValueError("unterminated YAML frontmatter — missing closing ``---`` fence")
+        raise ValueError("unterminated YAML frontmatter - missing closing ``---`` fence")
 
     front = "\n".join(front_lines)
     body = "\n".join(lines[close_idx + 1 :]).strip()

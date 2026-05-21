@@ -14,7 +14,7 @@ single agent via the existing pipeline.  See
 :data:`bernstein.core.defaults.BEST_OF_N` for the global enable flag.
 
 Coexistence with :mod:`bernstein.core.orchestration.phase_pipeline`:
-both patterns are independent — a task can be phased *or* fan-out, not
+both patterns are independent - a task can be phased *or* fan-out, not
 both at once (the runner only inspects ``best_of_n``).
 
 Pattern source:
@@ -103,7 +103,7 @@ def score_candidate(result: CandidateResult, weights: ScoreWeights = _DEFAULT_WE
     Combines tests-passing, lint score, runtime (normalised so faster is
     better), and the judge score when available.  When the judge has not
     been invoked the judge weight is redistributed proportionally across
-    the remaining components — a candidate with no judge score is not
+    the remaining components - a candidate with no judge score is not
     penalised.
     """
     tests_signal = 1.0 if result.tests_passing else 0.0
@@ -132,7 +132,7 @@ def _runtime_signal(seconds: float) -> float:
     """Normalise runtime so faster candidates score higher.
 
     Maps 0s → 1.0 and decays linearly to 0.0 at 30 minutes.  Above the
-    cap the signal is clamped at 0.0 — a 31-minute candidate is no worse
+    cap the signal is clamped at 0.0 - a 31-minute candidate is no worse
     than a 30-minute one for ranking purposes.
     """
     if seconds <= 0.0:
@@ -153,7 +153,7 @@ CandidateSpawner = Callable[["Task", int], list[str]]
 
 Concrete implementations create ``n`` worktrees, register subtasks with
 the task store, and return the new task IDs.  The runner is
-agent-agnostic — pass any callable matching this signature.  A typical
+agent-agnostic - pass any callable matching this signature.  A typical
 production wiring delegates to :func:`bernstein.core.agents.spawner`.
 """
 
@@ -240,13 +240,13 @@ def select_winner(
     """Pick the winner using either TOPSIS or the legacy blended score.
 
     When *profile* is None this delegates to :func:`select_best` and
-    preserves bit-for-bit the legacy code path — that is the regression
+    preserves bit-for-bit the legacy code path - that is the regression
     invariant required by issue #1347.
 
     When *profile* is a :class:`CriterionProfile`, candidates are ranked
     by :func:`bernstein.core.orchestration.multi_criteria_rank.rank_candidates`
     over the same axes the runner already collects today: ``correctness``
-    (tests + judge), ``cost`` (lint inverse — proxy for blast radius),
+    (tests + judge), ``cost`` (lint inverse - proxy for blast radius),
     ``latency`` (runtime), ``reversibility`` (currently a constant 1.0
     until the runner emits a real signal).  Fewer than two candidates is
     a no-op: the lone candidate is returned as-is.
@@ -259,7 +259,7 @@ def select_winner(
     if profile is None or len(candidates) < 2:
         return select_best(candidates, weights)
 
-    # Lazy import — keeps the module import graph cycle-free.
+    # Lazy import - keeps the module import graph cycle-free.
     from bernstein.core.orchestration.multi_criteria_rank import (
         CriterionProfile as _CriterionProfile,
     )
@@ -474,7 +474,7 @@ def is_best_of_n(task: Task) -> bool:
 def task_n(task: Task) -> int:
     """Return the candidate count requested on *task*, clamped to bounds.
 
-    Returns 1 when the task is not opted in — callers can treat that as
+    Returns 1 when the task is not opted in - callers can treat that as
     "single agent, skip best-of-N".
     """
     if not is_best_of_n(task):

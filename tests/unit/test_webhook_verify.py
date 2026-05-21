@@ -43,7 +43,7 @@ class TestWebhookSignatureVerifier:
     async def test_no_secret_disables_endpoint(self) -> None:
         """audit-042: when no secret is configured, verifier raises 503.
 
-        Fail-closed — a missing secret means the endpoint is *disabled*,
+        Fail-closed - a missing secret means the endpoint is *disabled*,
         not silently open.  Unsigned webhooks must never be accepted.
         """
         verifier = WebhookSignatureVerifier(secret="")

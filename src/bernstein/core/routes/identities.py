@@ -1,4 +1,4 @@
-"""Agent identity lifecycle routes — create, list, revoke, audit."""
+"""Agent identity lifecycle routes - create, list, revoke, audit."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _identity_store(request: Request) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# GET /identities — list all agent identities
+# GET /identities - list all agent identities
 # ---------------------------------------------------------------------------
 
 
@@ -65,7 +65,7 @@ def list_identities(
 
 
 # ---------------------------------------------------------------------------
-# GET /identities/{identity_id} — get single identity
+# GET /identities/{identity_id} - get single identity
 # ---------------------------------------------------------------------------
 
 
@@ -83,7 +83,7 @@ def get_identity(request: Request, identity_id: str) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# POST /identities/{identity_id}/revoke — revoke an identity
+# POST /identities/{identity_id}/revoke - revoke an identity
 # ---------------------------------------------------------------------------
 
 
@@ -103,7 +103,7 @@ async def revoke_identity(request: Request, identity_id: str) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# GET /identities/{identity_id}/audit — audit trail for an identity
+# GET /identities/{identity_id}/audit - audit trail for an identity
 # ---------------------------------------------------------------------------
 
 

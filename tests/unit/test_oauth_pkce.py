@@ -266,7 +266,7 @@ class TestPKCEFlowAutomaticMode:
 
 
 class TestPKCEStateValidation:
-    """Direct tests for PKCEFlow.validate_state — the CSRF defence."""
+    """Direct tests for PKCEFlow.validate_state - the CSRF defence."""
 
     def test_happy_path_accepts_matching_state(self) -> None:
         flow = _make_flow()

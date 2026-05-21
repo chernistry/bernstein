@@ -47,7 +47,7 @@ MODEL_OR_GEMINI_3_FLASH: str = "google/gemini-3-flash"
 # Maximum time (seconds) for any single subprocess probe.
 _PROBE_TIMEOUT_S: Final[float] = 3.0
 
-# Cache TTL — avoid re-scanning within the same session.
+# Cache TTL - avoid re-scanning within the same session.
 _CACHE_TTL_S: Final[float] = 300.0  # 5 minutes
 
 
@@ -268,7 +268,7 @@ def _detect_codex() -> tuple[AgentCapabilities | None, list[str]]:
 
     logged_in, login_method = _codex_login_status(config_model)
     if binary and not logged_in:
-        warnings.append("codex found but not logged in — run: codex login")
+        warnings.append("codex found but not logged in - run: codex login")
 
     # Use configured models if available, otherwise fall back to defaults
     if config_models:
@@ -313,7 +313,7 @@ def _detect_gemini() -> tuple[AgentCapabilities | None, list[str]]:
 
     if binary and not logged_in:
         warnings.append(
-            "gemini found but not logged in — set GOOGLE_API_KEY, GEMINI_API_KEY, or run: gcloud auth login"
+            "gemini found but not logged in - set GOOGLE_API_KEY, GEMINI_API_KEY, or run: gcloud auth login"
         )
 
     return AgentCapabilities(
@@ -351,7 +351,7 @@ def _detect_claude() -> tuple[AgentCapabilities | None, list[str]]:
         logged_in = True
         login_method = _LOGIN_API_KEY
     else:
-        # Check for OAuth session — claude --version succeeding is a good proxy
+        # Check for OAuth session - claude --version succeeding is a good proxy
         oauth_probe = _run_probe(["claude", "--version"])
         if oauth_probe is not None and oauth_probe.returncode == 0:
             # Claude Code binary exists and is functional; OAuth may be active
@@ -363,7 +363,7 @@ def _detect_claude() -> tuple[AgentCapabilities | None, list[str]]:
                 login_method = "OAuth"
 
     if binary and not logged_in:
-        warnings.append("claude found but not authenticated — set ANTHROPIC_API_KEY or run: claude login")
+        warnings.append("claude found but not authenticated - set ANTHROPIC_API_KEY or run: claude login")
 
     return AgentCapabilities(
         name="claude",
@@ -411,7 +411,7 @@ def _detect_qwen() -> tuple[AgentCapabilities | None, list[str]]:
             break
 
     if binary and not logged_in:
-        warnings.append("qwen found but no API key set — set OPENROUTER_API_KEY_PAID or OPENAI_API_KEY")
+        warnings.append("qwen found but no API key set - set OPENROUTER_API_KEY_PAID or OPENAI_API_KEY")
 
     return AgentCapabilities(
         name="qwen",
@@ -450,7 +450,7 @@ def _detect_cursor() -> tuple[AgentCapabilities | None, list[str]]:
         login_method = "Cursor app"
 
     if binary and not logged_in:
-        warnings.append("cursor found but not logged in — open the Cursor app and sign in")
+        warnings.append("cursor found but not logged in - open the Cursor app and sign in")
 
     return AgentCapabilities(
         name="cursor",
@@ -493,7 +493,7 @@ def _detect_kilo() -> tuple[AgentCapabilities | None, list[str]]:
             login_method = "OAuth"
 
     if binary and not logged_in:
-        warnings.append("kilo found but not authenticated — set KILO_API_KEY or run: kilo login")
+        warnings.append("kilo found but not authenticated - set KILO_API_KEY or run: kilo login")
 
     return AgentCapabilities(
         name="kilo",
@@ -553,7 +553,7 @@ def _detect_kiro() -> tuple[AgentCapabilities | None, list[str]]:
         ]
 
     if binary and not logged_in:
-        warnings.append("kiro found but not authenticated — run: kiro-cli login")
+        warnings.append("kiro found but not authenticated - run: kiro-cli login")
 
     return AgentCapabilities(
         name="kiro",
@@ -615,7 +615,7 @@ def _detect_opencode() -> tuple[AgentCapabilities | None, list[str]]:
         ]
 
     if binary and not logged_in:
-        warnings.append("opencode found but not authenticated — run: opencode auth login")
+        warnings.append("opencode found but not authenticated - run: opencode auth login")
 
     return AgentCapabilities(
         name="opencode",
@@ -658,7 +658,7 @@ def _detect_aider() -> tuple[AgentCapabilities | None, list[str]]:
         login_method = "local"
 
     if binary and not logged_in:
-        warnings.append("aider found but not authenticated — set OPENAI_API_KEY or configure local model")
+        warnings.append("aider found but not authenticated - set OPENAI_API_KEY or configure local model")
 
     return AgentCapabilities(
         name="aider",
@@ -793,7 +793,7 @@ def detect_auth_status() -> dict[str, tuple[bool, bool]]:
 # Role-to-agent routing recommendation
 # ---------------------------------------------------------------------------
 
-# Default role preferences — maps role to a prioritized list of
+# Default role preferences - maps role to a prioritized list of
 # (agent_name, model) tuples. The first available match wins.
 #
 # Rationale (2026-03-28 benchmark data):

@@ -21,7 +21,7 @@ ARTEFACT_KINDS: frozenset[str] = frozenset({"file", "sdd-runtime", "mcp-result",
 class LineageEntry:
     """Single lineage event.
 
-    Frozen + slots so the dataclass shape itself is canonical — no surprise
+    Frozen + slots so the dataclass shape itself is canonical - no surprise
     extra attributes can mutate the byte form.
     """
 
@@ -80,7 +80,7 @@ def compute_operator_hmac(entry: LineageEntry, key: bytes) -> str:
 
     Recorder and gate share this helper so on-disk entries are accepted by
     the CI gate when the operator secret is supplied. Any divergence between
-    the two paths would silently invalidate every entry — see ADR-009 §5.2.
+    the two paths would silently invalidate every entry - see ADR-009 §5.2.
     """
     body = asdict(entry)
     body["operator_hmac"] = ""

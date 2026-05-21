@@ -18,7 +18,7 @@ from bernstein.core.tasks.models import Task, TaskStatus
 from bernstein.core.tasks.task_store_core import TaskStore
 
 # ---------------------------------------------------------------------------
-# Lifecycle transition table — abandon-related entries
+# Lifecycle transition table - abandon-related entries
 # ---------------------------------------------------------------------------
 
 

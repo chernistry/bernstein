@@ -15,7 +15,7 @@ The flow is:
     report = reduce_swarm(plan_id, child_results)             # pass/fail aggregate
 
 Idempotency is provided via a checkpoint file under
-``<repo_root>/.sdd/runtime/swarm/{plan_id}.json`` — re-running with the
+``<repo_root>/.sdd/runtime/swarm/{plan_id}.json`` - re-running with the
 same ``plan.id`` skips chunks whose hash already appears in the
 checkpoint's ``completed_chunks`` set.
 
@@ -279,7 +279,7 @@ def spawn_swarm(
             A non-positive value is treated as "no cap".
 
     Returns:
-        List of task ids that exist for the plan after this call —
+        List of task ids that exist for the plan after this call -
         previously-recorded ids first (in chunk order), then any newly
         spawned ones.
     """

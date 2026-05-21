@@ -68,7 +68,7 @@ class TestMCPRunAllowlist:
 
 
 # ---------------------------------------------------------------------------
-# MCPManager.build_mcp_config_with_allowlist — healthy path
+# MCPManager.build_mcp_config_with_allowlist - healthy path
 # ---------------------------------------------------------------------------
 
 
@@ -144,7 +144,7 @@ class TestBuildMCPConfigWithAllowlist:
 
 
 # ---------------------------------------------------------------------------
-# MCPManager cleanup / failure path — server not in allowlist at start_all
+# MCPManager cleanup / failure path - server not in allowlist at start_all
 # ---------------------------------------------------------------------------
 
 

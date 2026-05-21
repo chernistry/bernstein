@@ -1,4 +1,4 @@
-"""Local-filesystem :class:`ArtifactSink` — default, zero behaviour change.
+"""Local-filesystem :class:`ArtifactSink` - default, zero behaviour change.
 
 This sink preserves Bernstein's pre-oai-003 behaviour: artifacts map
 1:1 to files under a root directory (typically ``.sdd/``). It is the
@@ -11,7 +11,7 @@ write calls ``fsync`` on both the file descriptor and (on POSIX) the
 parent directory, so a crash immediately after ``write`` returns
 cannot leave a torn or missing artifact.
 
-``durable=False`` still fsyncs — the local sink has no asynchronous
+``durable=False`` still fsyncs - the local sink has no asynchronous
 path so the distinction exists only for protocol parity with remote
 sinks where it genuinely changes latency.
 """
@@ -57,7 +57,7 @@ class LocalFsSink(ArtifactSink):
                 Defaults to ``.sdd`` under the current working
                 directory so constructing a sink without arguments
                 matches the legacy layout. The directory is created on
-                demand by the first write — read-only roots that do
+                demand by the first write - read-only roots that do
                 not yet exist remain unchanged.
         """
         self._root = Path(root) if root is not None else Path(".sdd")
@@ -80,7 +80,7 @@ class LocalFsSink(ArtifactSink):
     ) -> None:
         """Write *data* to the file mapped from *key*.
 
-        ``content_type`` is ignored — local filesystems have no generic
+        ``content_type`` is ignored - local filesystems have no generic
         slot for MIME metadata. The argument is accepted for protocol
         compliance.
         """

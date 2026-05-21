@@ -1,11 +1,11 @@
-"""Session rename functionality — rename the current session safely.
+"""Session rename functionality - rename the current session safely.
 
 Allows renaming the current orchestration session by updating the session
 metadata file (``.sdd/runtime/session.json``).  This is useful for tagging
 long-running sessions or giving them human-readable identifiers.
 
 The session file stores a ``SessionState`` dataclass.  The ``name`` field is
-added as an optional attribute — existing runs without it are fully forward-
+added as an optional attribute - existing runs without it are fully forward-
 compatible (they just see ``goal`` instead).
 
 Usage::
@@ -69,7 +69,7 @@ def rename_session(new_name: str, workdir: Path) -> bool:
 
     Args:
         new_name: Validated session name (alphanumeric + hyphens, max 60).
-            Call :func:`validate_session_name` first — this function does NOT
+            Call :func:`validate_session_name` first - this function does NOT
             validate.
         workdir: Project root directory.
 

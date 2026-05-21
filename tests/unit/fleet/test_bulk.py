@@ -66,7 +66,7 @@ async def test_bulk_stop_dispatches_to_each_project(tmp_path: Path) -> None:
     calls: list[tuple[str, list[str], Path]] = []
 
     async def runner(cmd: list[str], cwd: Path, env: dict[str, str]) -> tuple[int, str, str]:
-        # Capture the trailing arg ("stop") — we don't care about the python prefix.
+        # Capture the trailing arg ("stop") - we don't care about the python prefix.
         calls.append((env["BERNSTEIN_TASK_SERVER_URL"], cmd[-1:], cwd))
         return 0, "ok", ""
 

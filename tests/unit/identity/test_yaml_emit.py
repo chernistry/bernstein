@@ -2,10 +2,10 @@
 
 Covers two yaml-render call sites:
 
-* :func:`bernstein.cli.commands.init_wizard_cmd.generate_yaml` — the
+* :func:`bernstein.cli.commands.init_wizard_cmd.generate_yaml` - the
   ``bernstein init`` wizard's bernstein.yaml output.
 * :func:`bernstein.core.workflows.workflow_spec.render_blank_template`
-  — the ``bernstein workflow init`` scaffolded manifest body.
+  - the ``bernstein workflow init`` scaffolded manifest body.
 
 For each: round-trip emit-then-decode with a real seed, kill-switch
 suppress, operator-seed-unset suppress, and the
@@ -32,7 +32,7 @@ from bernstein.core.identity.install_rev import (
 from bernstein.core.workflows.workflow_spec import render_blank_template
 
 # ---------------------------------------------------------------------------
-# Fixtures — mirror tests/unit/identity/test_install_rev.py for consistency
+# Fixtures - mirror tests/unit/identity/test_install_rev.py for consistency
 # ---------------------------------------------------------------------------
 
 TEST_SEED_HEX = "01" * 32
@@ -79,7 +79,7 @@ def _enable_emission(
 
 
 # ---------------------------------------------------------------------------
-# generate_yaml — bernstein init wizard
+# generate_yaml - bernstein init wizard
 # ---------------------------------------------------------------------------
 
 
@@ -104,7 +104,7 @@ class TestGenerateYamlEmit:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        # Arrange — emission gate ON, kill switch ON; result must still
+        # Arrange - emission gate ON, kill switch ON; result must still
         # suppress (kill switch wins, never emits the sentinel either).
         monkeypatch.setattr(ir, "IDENTITY_EMISSION_ENABLED", True)
         monkeypatch.setenv(ENV_DISABLE, "1")
@@ -119,7 +119,7 @@ class TestGenerateYamlEmit:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        # Emission gate ON but no seed available — every emit site must
+        # Emission gate ON but no seed available - every emit site must
         # short-circuit, no comment in output.
         monkeypatch.setattr(ir, "IDENTITY_EMISSION_ENABLED", True)
         ir._reset_cache_for_tests()
@@ -138,7 +138,7 @@ class TestGenerateYamlEmit:
 
         body = self._yaml()
         assert f"# bernstein-rev: {expected}" in body
-        # Lands as the very first non-blank line — survival rate is best
+        # Lands as the very first non-blank line - survival rate is best
         # when the marker reaches the head of the file.
         assert body.lstrip().startswith(f"# bernstein-rev: {expected}")
         # Token shape sanity.
@@ -169,7 +169,7 @@ class TestGenerateYamlEmit:
 
 
 # ---------------------------------------------------------------------------
-# render_blank_template — bernstein workflow init
+# render_blank_template - bernstein workflow init
 # ---------------------------------------------------------------------------
 
 

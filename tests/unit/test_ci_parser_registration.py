@@ -92,7 +92,7 @@ def test_register_built_in_ci_parsers_is_idempotent(
     ci_pkg.register_built_in_ci_parsers()
     first = set(ci_log_parser.list_parsers())
 
-    ci_pkg.register_built_in_ci_parsers()  # second call — must be a no-op
+    ci_pkg.register_built_in_ci_parsers()  # second call - must be a no-op
     second = set(ci_log_parser.list_parsers())
 
     assert first == second

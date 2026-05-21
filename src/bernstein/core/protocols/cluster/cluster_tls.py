@@ -1,19 +1,19 @@
 """Native mTLS for cluster node-to-node transport.
 
 The cluster transport historically rides over plain HTTP. The JWT bearer
-token authenticates the *caller*, but the channel itself is unencrypted —
+token authenticates the *caller*, but the channel itself is unencrypted -
 anyone on the path sees the token and the task payload. For internal-only
 deployments that's acceptable; for any internet-facing or regulated
 deployment it is not.
 
 This module provides the building blocks for opt-in mTLS:
 
-- :class:`TLSConfig` — dataclass capturing CA bundle, server cert/key,
+- :class:`TLSConfig` - dataclass capturing CA bundle, server cert/key,
   and client verification mode.
-- :func:`build_ssl_context` — assembles an :class:`ssl.SSLContext` for the
+- :func:`build_ssl_context` - assembles an :class:`ssl.SSLContext` for the
   server side (FastAPI / uvicorn) that loads the server cert chain and
   enforces the configured client-cert verification mode.
-- :func:`build_httpx_client_kwargs` — produces a kwargs dict ready to splat
+- :func:`build_httpx_client_kwargs` - produces a kwargs dict ready to splat
   into :class:`httpx.Client` for the worker side, enabling mutual auth
   against the central server.
 
@@ -34,14 +34,14 @@ VerifyMode = Literal["required", "optional", "disabled"]
 
 _VALID_MODES: tuple[VerifyMode, ...] = ("required", "optional", "disabled")
 
-# TLS 1.2 cipher allowlist — modern AEAD suites with forward secrecy only.
+# TLS 1.2 cipher allowlist - modern AEAD suites with forward secrecy only.
 # Drops PSK (we don't pre-share keys), pure-RSA key exchange (no PFS), and
 # every legacy weak family (NULL/EXPORT/RC4/DES/MD5/IDEA/SEED/RC2/aNULL).
 # OpenSSL's default cipher list on Linux ships PSK suites, so an explicit
 # allowlist is the simplest way to keep the surface auditable across
 # distros and Python builds (Py 3.12 ubuntu was failing the weak-suite
 # audit on the unconstrained default).
-# TLS 1.3 cipher selection is independent — its three default suites
+# TLS 1.3 cipher selection is independent - its three default suites
 # (TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256,
 # TLS_AES_128_GCM_SHA256) are always permitted and use AEAD + PFS by design.
 _CIPHER_ALLOWLIST = "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20"
@@ -61,7 +61,7 @@ class TLSConfig:
         cert_file: Path to the local PEM-encoded certificate (server cert
             on the central node, client cert on a worker).
         key_file: Path to the matching PEM-encoded private key. Should be
-            mode 0600 — the bootstrap helper sets this automatically.
+            mode 0600 - the bootstrap helper sets this automatically.
         verify_mode: Peer-cert verification policy. ``"required"`` enforces
             full mTLS; ``"optional"`` requests but does not require a peer
             cert (useful for staged rollouts); ``"disabled"`` accepts any
@@ -127,7 +127,7 @@ def build_ssl_context(cfg: TLSConfig) -> ssl.SSLContext:
     ctx = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
     # Pin TLS 1.2 floor explicitly. ssl.create_default_context() leaves
     # minimum_version at TLSVersion.MINIMUM_SUPPORTED (a sentinel that
-    # defers to OpenSSL's system policy) on some Python builds — that
+    # defers to OpenSSL's system policy) on some Python builds - that
     # sentinel sorts numerically below TLSVersion.TLSv1_2 (771), so a
     # downstream `>= TLSv1_2` security assertion would silently fail.
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -154,7 +154,7 @@ def build_httpx_client_kwargs(cfg: TLSConfig | None) -> dict[str, Any]:
     result unconditionally.
 
     The returned ``verify=`` is an :class:`ssl.SSLContext` (or ``False``
-    for ``verify_mode="disabled"``) — httpx 0.28+ deprecated string
+    for ``verify_mode="disabled"``) - httpx 0.28+ deprecated string
     paths for ``verify``, and constructing the context here also pre-loads
     the client cert chain in one place.
 

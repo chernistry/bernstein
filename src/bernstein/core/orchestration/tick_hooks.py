@@ -269,7 +269,7 @@ class TickHookManager:
             # None results (hooks that returned nothing) are silently skipped.
 
         if not results and raw_results:
-            # All hooks returned None — still record elapsed time for tracing.
+            # All hooks returned None - still record elapsed time for tracing.
             log.debug(
                 "Tick hook phase %s: %d hook(s) returned None in %.1fms",
                 phase,

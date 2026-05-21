@@ -32,7 +32,7 @@ class ConvergenceStatus:
     """Result of a convergence check.
 
     Attributes:
-        ready: True when all gates pass — safe to spawn.
+        ready: True when all gates pass - safe to spawn.
         reasons: Human-readable reasons why convergence is not met (empty when ready).
         pending_merges: Current pending merge count.
         active_agents: Current alive agent count.

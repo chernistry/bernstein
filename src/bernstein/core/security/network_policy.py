@@ -53,7 +53,7 @@ class NetworkPolicyConfigError(ValueError):
     Sovereign-customer compliance teams rely on the airgap profile being a
     hard fail-closed boundary. Allowing ``any`` to silently override the
     deny-all default would let a typo or copy-paste mistake escape the
-    boundary without the operator noticing — so we reject the combination
+    boundary without the operator noticing - so we reject the combination
     at parse time and force them to choose one or the other.
     """
 

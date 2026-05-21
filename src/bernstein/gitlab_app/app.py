@@ -3,9 +3,9 @@
 GitLab does not (publicly) ship an Apps + JWT flow comparable to GitHub
 Apps, so this module focuses on the two supported auth mechanisms:
 
-* **Personal Access Tokens (PAT)** — read from ``GITLAB_TOKEN`` /
+* **Personal Access Tokens (PAT)** - read from ``GITLAB_TOKEN`` /
   ``GITLAB_PAT``; used as the global fallback.
-* **Project / group access tokens** — passed in explicitly per-call so
+* **Project / group access tokens** - passed in explicitly per-call so
   each repo can use a least-privilege token.
 
 The base URL is configurable via ``BERNSTEIN_GITLAB_URL`` to support
@@ -55,10 +55,10 @@ class GitLabAppConfig:
 
         Reads (in order):
 
-        * ``BERNSTEIN_GITLAB_URL`` — base URL (default
+        * ``BERNSTEIN_GITLAB_URL`` - base URL (default
           ``https://gitlab.com``).
-        * ``GITLAB_TOKEN`` (or fallback ``GITLAB_PAT``) — API token.
-        * ``GITLAB_WEBHOOK_TOKEN`` — webhook shared secret.
+        * ``GITLAB_TOKEN`` (or fallback ``GITLAB_PAT``) - API token.
+        * ``GITLAB_WEBHOOK_TOKEN`` - webhook shared secret.
 
         Returns:
             Populated :class:`GitLabAppConfig`.
@@ -98,7 +98,7 @@ def get_gitlab_base_url() -> str:
     parsed = urlparse(raw)
     if parsed.scheme.lower() not in _ALLOWED_SCHEMES or not parsed.netloc:
         logger.warning(
-            "Invalid BERNSTEIN_GITLAB_URL %r — falling back to %s",
+            "Invalid BERNSTEIN_GITLAB_URL %r - falling back to %s",
             raw,
             DEFAULT_GITLAB_URL,
         )
@@ -111,7 +111,7 @@ def build_api_url(path: str, base_url: str | None = None) -> str:
     """Build a fully-qualified GitLab API URL.
 
     Args:
-        path: API path beginning with ``/`` — e.g. ``/projects/42/jobs``.
+        path: API path beginning with ``/`` - e.g. ``/projects/42/jobs``.
             A leading slash is added if missing.  The path is *not*
             URL-encoded; the caller is expected to encode project IDs
             (e.g. ``namespace%2Fproject``) where required.
@@ -171,14 +171,14 @@ def fetch_job_trace(
         Trace text or ``""`` on failure.
     """
     if not token:
-        logger.debug("fetch_job_trace: no token — skipping")
+        logger.debug("fetch_job_trace: no token - skipping")
         return ""
 
     url = build_api_url(f"/projects/{project_id}/jobs/{job_id}/trace", base_url)
     try:
         import httpx
     except ImportError:
-        logger.debug("httpx not available — cannot fetch GitLab job trace")
+        logger.debug("httpx not available - cannot fetch GitLab job trace")
         return ""
 
     try:

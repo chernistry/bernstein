@@ -1,4 +1,4 @@
-"""Tests for AgentRegistry — dynamic agent registration with YAML hot-reload."""
+"""Tests for AgentRegistry - dynamic agent registration with YAML hot-reload."""
 
 from __future__ import annotations
 

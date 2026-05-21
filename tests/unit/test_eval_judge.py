@@ -1,4 +1,4 @@
-"""Tests for the LLM judge — verdict parsing, circuit breaker, resilience."""
+"""Tests for the LLM judge - verdict parsing, circuit breaker, resilience."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ class TestJudgeVerdict:
 
 
 # ---------------------------------------------------------------------------
-# _parse_verdict — clean JSON
+# _parse_verdict - clean JSON
 # ---------------------------------------------------------------------------
 
 
@@ -103,7 +103,7 @@ class TestParseVerdictCleanJson:
 
 
 # ---------------------------------------------------------------------------
-# _parse_verdict — LLM response quirks
+# _parse_verdict - LLM response quirks
 # ---------------------------------------------------------------------------
 
 
@@ -128,7 +128,7 @@ class TestParseVerdictQuirks:
 
 
 # ---------------------------------------------------------------------------
-# _parse_verdict — score clamping
+# _parse_verdict - score clamping
 # ---------------------------------------------------------------------------
 
 
@@ -186,7 +186,7 @@ class TestParseVerdictClamping:
 
 
 # ---------------------------------------------------------------------------
-# _parse_verdict — verdict normalization
+# _parse_verdict - verdict normalization
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +213,7 @@ class TestParseVerdictNormalization:
 
 
 # ---------------------------------------------------------------------------
-# _parse_verdict — error cases
+# _parse_verdict - error cases
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ class TestCircuitBreakerTripped:
 
 
 # ---------------------------------------------------------------------------
-# EvalJudge — initialization and configuration
+# EvalJudge - initialization and configuration
 # ---------------------------------------------------------------------------
 
 _GOOD_JSON = json.dumps(
@@ -288,7 +288,7 @@ class TestEvalJudgeInit:
 
 
 # ---------------------------------------------------------------------------
-# EvalJudge — circuit breaker
+# EvalJudge - circuit breaker
 # ---------------------------------------------------------------------------
 
 
@@ -312,7 +312,7 @@ class TestEvalJudgeCircuitBreaker:
 
 
 # ---------------------------------------------------------------------------
-# EvalJudge — retry_with_backoff
+# EvalJudge - retry_with_backoff
 # ---------------------------------------------------------------------------
 
 
@@ -337,7 +337,7 @@ class TestEvalJudgeRetryBackoff:
 
 
 # ---------------------------------------------------------------------------
-# EvalJudge — dual_attempt
+# EvalJudge - dual_attempt
 # ---------------------------------------------------------------------------
 
 
@@ -373,7 +373,7 @@ class TestEvalJudgeDualAttempt:
 
 
 # ---------------------------------------------------------------------------
-# EvalJudge — review_git_diff (integration of all resilience)
+# EvalJudge - review_git_diff (integration of all resilience)
 # ---------------------------------------------------------------------------
 
 

@@ -496,7 +496,7 @@ class TestTaskVerificationFields:
         assert task.flagged_unverified is True
 
     def test_task_fields_mutable(self) -> None:
-        """Task is a mutable dataclass — completion flow stamps these fields."""
+        """Task is a mutable dataclass - completion flow stamps these fields."""
         from bernstein.core.models import Task
 
         task = Task(id="t1", title="test", description="d", role="backend")

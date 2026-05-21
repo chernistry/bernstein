@@ -1,4 +1,4 @@
-"""Task routes — backward-compatibility shim.
+"""Task routes - backward-compatibility shim.
 
 All route handlers have been decomposed into focused sub-modules:
 - task_crud: Task CRUD, agent heartbeats, bulletin, direct channel

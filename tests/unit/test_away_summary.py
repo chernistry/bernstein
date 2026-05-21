@@ -1,4 +1,4 @@
-"""Tests for bernstein.away_summary — JSONL reading, summary generation, formatting."""
+"""Tests for bernstein.away_summary - JSONL reading, summary generation, formatting."""
 
 from __future__ import annotations
 

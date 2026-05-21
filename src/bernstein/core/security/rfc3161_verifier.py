@@ -10,21 +10,21 @@ v2 closes that gap with a self-contained verifier that:
 2. Walks the embedded TSA certificate chain, building it against the
    operator-supplied trust bundle (``--rfc3161-trusted-tsa-bundle``).
 3. Verifies the TSA's CMS SignerInfo signature over the SignedAttributes
-   block (RFC 5652 §5.4) — this is what binds the TSA's identity to the
+   block (RFC 5652 §5.4) - this is what binds the TSA's identity to the
    ``TSTInfo``.
 4. Confirms ``TSTInfo.messageImprint == sha256(payload)`` (or whatever
    digest the TSA chose; we currently allow SHA-256 / SHA-384 / SHA-512).
 
 References:
 
-* RFC 3161 — Internet X.509 Public Key Infrastructure Time-Stamp Protocol.
-* RFC 5652 — Cryptographic Message Syntax (CMS).
-* RFC 5816 — ESSCertIDv2 (signing-cert anchor in CMS SignedAttributes).
+* RFC 3161 - Internet X.509 Public Key Infrastructure Time-Stamp Protocol.
+* RFC 5652 - Cryptographic Message Syntax (CMS).
+* RFC 5816 - ESSCertIDv2 (signing-cert anchor in CMS SignedAttributes).
 
 Design notes:
 
 * We use ``asn1crypto`` for ASN.1 parsing (MIT-licensed, pure Python, ~250KB).
-  The alternative — vendoring a minimal DER parser — was rejected because
+  The alternative - vendoring a minimal DER parser - was rejected because
   RFC 3161 chains are CMS SignedData with optional authenticated attributes,
   and a hand-rolled parser large enough to support that surface would be
   fragile and easy to get subtly wrong.
@@ -35,7 +35,7 @@ Design notes:
   primitives directly because the cryptography PKCS7 verifier does not
   surface RFC 3161 / CMS-with-authenticated-attributes paths.
 * We deliberately do **not** check the TSA cert's ``Extended Key Usage``
-  policy bit (``id-kp-timeStamping``) here — the trust bundle is the
+  policy bit (``id-kp-timeStamping``) here - the trust bundle is the
   operator's policy decision. We surface the EKU in the verification
   result so callers can enforce it themselves.
 """
@@ -131,7 +131,7 @@ def load_trusted_tsa_certs(bundle_path: Path) -> list[x509.Certificate]:
 
     Accepts either a single PEM/DER cert or a concatenated PEM bundle
     (``cat tsa.crt cacert.crt > bundle.pem``). We do not honour OS trust
-    stores — operators must explicitly pin TSA roots they accept.
+    stores - operators must explicitly pin TSA roots they accept.
 
     Args:
         bundle_path: Path to the bundle file.
@@ -173,7 +173,7 @@ def _try_parse_response_or_token(
 
     Returns the wrapping ``ContentInfo``. Raises :class:`ValueError` when:
 
-    * The TSA explicitly refused the request (``status != granted``) — we
+    * The TSA explicitly refused the request (``status != granted``) - we
       do NOT fall through to a bare-token attempt because the response
       structure is recognisable; the operator needs to know the TSA said
       no.
@@ -183,7 +183,7 @@ def _try_parse_response_or_token(
         resp = tsp_module.TimeStampResp.load(token_bytes)  # type: ignore[attr-defined]
         status = resp["status"]["status"].native
     except (ValueError, KeyError, TypeError) as exc:
-        # Not a TimeStampResp shape — fall through to ContentInfo.
+        # Not a TimeStampResp shape - fall through to ContentInfo.
         try:
             return cms_module.ContentInfo.load(token_bytes)  # type: ignore[attr-defined]
         except (ValueError, KeyError, TypeError) as exc2:
@@ -202,7 +202,7 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
 
     * A bare ``TimeStampToken`` (CMS ``ContentInfo`` wrapping ``SignedData``).
       Produced by ``openssl cms -in <token> ...`` style flows.
-    * A full ``TimeStampResp`` (RFC 3161 §2.4.2) — what a TSA returns from
+    * A full ``TimeStampResp`` (RFC 3161 §2.4.2) - what a TSA returns from
       the HTTP endpoint. We reach into ``response.timeStampToken``.
 
     Returns:
@@ -221,9 +221,9 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
         ) from exc
 
     # Two acceptable input shapes:
-    # 1. ``TimeStampResp`` (RFC 3161 §2.4.2) — what a TSA's HTTP endpoint
+    # 1. ``TimeStampResp`` (RFC 3161 §2.4.2) - what a TSA's HTTP endpoint
     #    returns. We descend into ``response.timeStampToken``.
-    # 2. Bare ``TimeStampToken`` (CMS ContentInfo) — the form an operator
+    # 2. Bare ``TimeStampToken`` (CMS ContentInfo) - the form an operator
     #    extracts via ``openssl cms`` for archival storage.
     # We try TimeStampResp first; if the parser disagrees, we fall back to
     # ContentInfo. Explicit "non-granted" errors must surface to the caller
@@ -242,7 +242,7 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
     raw_certs = signed_data["certificates"] or []
     embedded_certs: list[x509.Certificate] = []
     for choice in raw_certs:
-        # CMS ChoiceOfCertificate — only X.509 certs interest us.
+        # CMS ChoiceOfCertificate - only X.509 certs interest us.
         cert = choice.chosen
         embedded_certs.append(x509.load_der_x509_certificate(cert.dump()))
     signer_infos = signed_data["signer_infos"]
@@ -432,12 +432,12 @@ def verify_rfc3161_token(
 
     The verifier walks four checks; each can fail independently:
 
-    1. ASN.1 parse — recover SignedData / TSTInfo / embedded certs.
-    2. Trust path — anchor the embedded TSA cert against
+    1. ASN.1 parse - recover SignedData / TSTInfo / embedded certs.
+    2. Trust path - anchor the embedded TSA cert against
        ``trusted_tsa_certs`` using ``cryptography.x509.verification``.
-    3. CMS signature — confirm the TSA's SignerInfo signature over
+    3. CMS signature - confirm the TSA's SignerInfo signature over
        SignedAttributes (and that ``message-digest`` matches eContent).
-    4. Message imprint — confirm
+    4. Message imprint - confirm
        ``TSTInfo.messageImprint == sha256(payload)``.
 
     Args:
@@ -469,13 +469,13 @@ def verify_rfc3161_token(
             errors=["trusted TSA cert list is empty"],
         )
 
-    # Step 1 — parse.
+    # Step 1 - parse.
     try:
         signed_data, tst_info, embedded_certs, signer_info = _parse_token(token_bytes)
     except ValueError as exc:
         return RFC3161Verification(ok=False, errors=[f"parse: {exc}"])
 
-    # Step 4 (early) — message imprint. Fails fast before chain walk.
+    # Step 4 (early) - message imprint. Fails fast before chain walk.
     try:
         mi = tst_info["message_imprint"]  # type: ignore[index]
         hash_oid = mi["hash_algorithm"]["algorithm"].dotted
@@ -497,7 +497,7 @@ def verify_rfc3161_token(
     except (KeyError, AttributeError):
         errors.append("TSTInfo missing genTime")
 
-    # Step 2 — trust path.
+    # Step 2 - trust path.
     try:
         signing_cert = _signing_cert(signer_info, embedded_certs)
         tsa_subject = signing_cert.subject.rfc4514_string()
@@ -520,7 +520,7 @@ def verify_rfc3161_token(
         except ValueError as exc:
             errors.append(f"trust: {exc}")
 
-    # Step 3 — CMS signature.
+    # Step 3 - CMS signature.
     if signing_cert is not None:
         try:
             tst_info_bytes = bytes(
@@ -562,7 +562,7 @@ def _walk_chain(
     Uses ``cryptography.x509.verification`` (Rust-backed). The verifier
     is configured with the trust store and the embedded chain
     (intermediates) is fed in. Time-stamping EKU enforcement is left to
-    the caller — :class:`PolicyBuilder` does not surface that hook in
+    the caller - :class:`PolicyBuilder` does not surface that hook in
     the public API yet.
 
     Raises:
@@ -575,13 +575,13 @@ def _walk_chain(
     ]
     store = Store(trust_anchors)
     # The webpki defaults reject many real-world TSA chains because:
-    # 1. The EE (TSA leaf) cert does not carry CABF SAN constraints —
+    # 1. The EE (TSA leaf) cert does not carry CABF SAN constraints -
     #    TSA certs are CMS signers, not TLS endpoints.
     # 2. Many TSA intermediates ship basicConstraints as non-critical
     #    (FreeTSA is the canonical example), which webpki rejects.
     # We require basicConstraints to be PRESENT on CAs (so untrusted
     # leaves cannot impersonate intermediates) but we are AGNOSTIC about
-    # criticality. The leaf policy is fully permissive — the time-stamping
+    # criticality. The leaf policy is fully permissive - the time-stamping
     # EKU is surfaced on :class:`RFC3161Verification` so the caller can
     # enforce policy explicitly when needed.
     ca_policy = ExtensionPolicy.permit_all().require_present(

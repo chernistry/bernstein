@@ -1,4 +1,4 @@
-"""Tests for fork_from_agent — byte-identical prefix for prompt cache sharing."""
+"""Tests for fork_from_agent - byte-identical prefix for prompt cache sharing."""
 
 from __future__ import annotations
 

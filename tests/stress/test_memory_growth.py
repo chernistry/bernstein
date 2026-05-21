@@ -52,7 +52,7 @@ async def test_task_store_append_loop_rss_growth_bounded(tmp_path: Path) -> None
 
     store = TaskStore(tmp_path / "runtime" / "tasks.jsonl")
     # Warm-up: first ~50 creates pull in lazy imports (fast_path classifier,
-    # FSM tables, ...) — measure RSS after warm-up so we isolate the loop.
+    # FSM tables, ...) - measure RSS after warm-up so we isolate the loop.
     for _ in range(50):
         await store.create(make_task_request())
     await store.flush_buffer()
@@ -68,7 +68,7 @@ async def test_task_store_append_loop_rss_growth_bounded(tmp_path: Path) -> None
     rss_after = _require_rss()
 
     delta = rss_after - rss_before
-    # 10 MB budget for 1000 tasks ≈ 10 KB per task — generous.  Each Task
+    # 10 MB budget for 1000 tasks ≈ 10 KB per task - generous.  Each Task
     # dataclass is well under 1 KB; the rest is JSONL buffer + index
     # bookkeeping that should stabilise long before the loop ends.
     assert delta < 10 * _MB, (
@@ -111,7 +111,7 @@ def test_subprocess_spawn_reap_rss_growth_bounded(tmp_path: Path) -> None:
     Catches: leaks in our subprocess wrapper (e.g. an orchestrator that
     keeps every spawned Popen object live in a class-level list, or a
     parent-side stream reader thread that never exits).  We exercise
-    the *plain* ``subprocess.run`` path here as a lower-bound — if the
+    the *plain* ``subprocess.run`` path here as a lower-bound - if the
     raw API leaks under our environment, every Bernstein-side wrapper
     inherits the leak.
     """

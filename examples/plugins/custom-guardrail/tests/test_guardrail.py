@@ -53,7 +53,7 @@ class TestNoSecretsGuardrail:
         """The plugin only owns the input side of the pipeline."""
         guardrail = NoSecretsGuardrail()
         result = guardrail.check_output("this contains AKIAIOSFODNN7EXAMPLE", {})
-        # Output side intentionally passes — operators rely on the
+        # Output side intentionally passes - operators rely on the
         # in-tree SecretLeakGuardrail for output checking.
         assert result.passed
 

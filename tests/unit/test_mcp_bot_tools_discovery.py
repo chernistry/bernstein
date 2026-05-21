@@ -62,7 +62,7 @@ def test_specs_match_allowlist() -> None:
 
 
 def test_filter_drops_unknown_names() -> None:
-    """Unknown tool names are silently dropped — fail-open at the boundary."""
+    """Unknown tool names are silently dropped - fail-open at the boundary."""
     out = filter_to_allowed(["bernstein_status", "totally_made_up_tool", "bernstein_run"])
     names = [s.name for s in out]
     assert names == ["bernstein_status"]
@@ -157,7 +157,7 @@ def test_route_returns_full_tool_list_when_enabled(
 
 
 def test_route_is_in_public_auth_paths() -> None:
-    """Discovery is anonymous — must live in AUTH_PUBLIC_PATHS."""
+    """Discovery is anonymous - must live in AUTH_PUBLIC_PATHS."""
     assert DISCOVERY_PATH in AUTH_PUBLIC_PATHS
 
 

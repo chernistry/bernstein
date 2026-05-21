@@ -137,7 +137,7 @@ def test_summarize_diff_degrades_when_too_many_files() -> None:
     assert len(summaries) == 1
     assert summaries[0].path == "<aggregate>"
     assert "exceeds abstract-diff cap" in summaries[0].bullet_points[0]
-    assert stub.calls == []  # no per-file calls — graceful degradation
+    assert stub.calls == []  # no per-file calls - graceful degradation
 
 
 def test_summarize_diff_disallows_opus_tier() -> None:
@@ -225,13 +225,13 @@ def test_build_pr_body_concatenates_description_and_intent() -> None:
     )
     body = _run(
         build_pr_body(
-            description="Closes #123 — speed up sort.",
+            description="Closes #123 - speed up sort.",
             diff=_TWO_FILE_DIFF,
             task_context=TaskContext(title="Speed up sort", writer_model="claude"),
             llm_caller=stub,
         )
     )
-    assert body.startswith("Closes #123 — speed up sort.")
+    assert body.startswith("Closes #123 - speed up sort.")
     assert "## Intent" in body
     assert "- adds quicksort" in body
 

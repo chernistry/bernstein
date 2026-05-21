@@ -19,11 +19,11 @@ if TYPE_CHECKING:
     from starlette.responses import Response as StarletteResponse
 
 # ---------------------------------------------------------------------------
-# Auth middleware — bearer token validation
+# Auth middleware - bearer token validation
 # ---------------------------------------------------------------------------
 
 # Paths that are always accessible without auth (health checks, agent card,
-# API docs, and auth/discovery endpoints).  Keep this list minimal — anything
+# API docs, and auth/discovery endpoints).  Keep this list minimal - anything
 # that mutates state or exposes operational data must go through bearer auth
 # (or HMAC alternative auth, for webhook-style endpoints whose handlers
 # verify their own shared secret).
@@ -169,7 +169,7 @@ class CrashGuardMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Any],
     ) -> StarletteResponse:
-        # Do not wrap streaming responses — re-raising lets Uvicorn close
+        # Do not wrap streaming responses - re-raising lets Uvicorn close
         # the SSE connection without corrupting the wire format.
         if _is_sse_request(request):
             return await call_next(request)

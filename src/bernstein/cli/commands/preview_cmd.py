@@ -1,14 +1,14 @@
-"""``bernstein preview`` — sandboxed dev-server with public tunnel link.
+"""``bernstein preview`` - sandboxed dev-server with public tunnel link.
 
 Subcommands:
 
-* ``preview start`` — auto-discover (or override) the dev-server
+* ``preview start`` - auto-discover (or override) the dev-server
   command, boot it inside the originating session's sandbox, expose it
   via the existing ``bernstein tunnel`` wrapper, and print a shareable
   HTTPS URL.
-* ``preview list`` — print every active preview as a table or JSON.
-* ``preview status <id>`` — print details for a single preview.
-* ``preview stop <id>|--all`` — tear the preview down.
+* ``preview list`` - print every active preview as a table or JSON.
+* ``preview status <id>`` - print details for a single preview.
+* ``preview stop <id>|--all`` - tear the preview down.
 
 The CLI is intentionally thin: every meaningful decision lives in
 :class:`bernstein.core.preview.PreviewManager`.
@@ -271,7 +271,7 @@ async def _create_sandbox_session(cwd: Path) -> SandboxSession:
 
     Reuses the existing :class:`WorktreeSandboxBackend` so the dev
     server runs in the same isolation primitive the originating
-    session used. We deliberately don't try to "re-attach" — the
+    session used. We deliberately don't try to "re-attach" - the
     backend either reuses a warm worktree (when *cwd* already lives
     under ``.sdd/worktrees/``) or carves out a new lightweight one.
     """

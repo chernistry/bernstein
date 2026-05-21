@@ -119,7 +119,7 @@ class TestGenerateSecurityTxt:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — submit
+# VulnerabilityDisclosureManager - submit
 # ---------------------------------------------------------------------------
 
 
@@ -169,7 +169,7 @@ class TestSubmitReport:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — triage
+# VulnerabilityDisclosureManager - triage
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ class TestTriageReport:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — fix tracking
+# VulnerabilityDisclosureManager - fix tracking
 # ---------------------------------------------------------------------------
 
 
@@ -243,7 +243,7 @@ class TestFixTracking:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — disclosure timeline
+# VulnerabilityDisclosureManager - disclosure timeline
 # ---------------------------------------------------------------------------
 
 
@@ -293,7 +293,7 @@ class TestDisclosureTimeline:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — reward calculation
+# VulnerabilityDisclosureManager - reward calculation
 # ---------------------------------------------------------------------------
 
 
@@ -358,7 +358,7 @@ class TestRewardCalculation:
 
 
 # ---------------------------------------------------------------------------
-# VulnerabilityDisclosureManager — SLA compliance
+# VulnerabilityDisclosureManager - SLA compliance
 # ---------------------------------------------------------------------------
 
 

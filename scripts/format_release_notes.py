@@ -40,15 +40,15 @@ _CATEGORIES: OrderedDict[str, str] = OrderedDict(
 _SKIP_PREFIXES: tuple[str, ...] = ("chore: auto-bump",)
 _BATCH_SUMMARY_PREFIXES: tuple[str, ...] = ("audit batch ", "batch ")
 # Trailing PR ref, e.g. " (#123)". Inputs come from ``git log --pretty='%s'``
-# so subjects are a single line — the explicit ``[^\n]`` bound and required
+# so subjects are a single line - the explicit ``[^\n]`` bound and required
 # single leading space avoid any quadratic-backtracking surface Sonar flags.
 _PR_SUFFIX_RE = re.compile(r" \(#\d+\)$")
 # Trailing parenthesised single internal-ticket ref, e.g. " (audit-123)".
-# Single-pass only — for multi-ticket refs ``_strip_internal_refs`` loops.
+# Single-pass only - for multi-ticket refs ``_strip_internal_refs`` loops.
 # No nested repetition and no alternation under a quantifier, so this is
 # linear-time regardless of input.
 _TICKET_SUFFIX_RE = re.compile(r" \((?:audit|rt)-\d+\)$", re.IGNORECASE)
-# Internal-ticket scope, e.g. "fix(audit-160): ..." — keep the subject,
+# Internal-ticket scope, e.g. "fix(audit-160): ..." - keep the subject,
 # drop the scope so the reader sees "- ..." instead of "- **audit-160:** ...".
 _TICKET_SCOPE_RE = re.compile(r"^(?:audit|rt)-\d+$", re.IGNORECASE)
 _CC_RE = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[^)\n]+)\))?!?: (?P<subject>[^\n]+)$")
@@ -56,7 +56,7 @@ _CC_RE = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[^)\n]+)\))?!?: (?P<subjec
 # Linear-time URL matcher for bernstein.run links inside the rendered notes.
 # Captures the host plus any path or query string up to the first whitespace
 # or unbalanced ``)``. Bounded character class with no alternation under a
-# quantifier — linear regardless of input.
+# quantifier - linear regardless of input.
 _BERNSTEIN_URL_RE = re.compile(r"https://bernstein\.run[^\s)]*")
 
 
@@ -163,7 +163,7 @@ def format_notes(version: str, prev_tag: str, repo: str, commits: list[str]) -> 
         commit_type = match.group("type")
         scope = match.group("scope") or ""
         text = _strip_internal_refs(_PR_SUFFIX_RE.sub("", match.group("subject").strip()))
-        # Ticket-only scopes (e.g. ``fix(audit-160): …``) add noise —
+        # Ticket-only scopes (e.g. ``fix(audit-160): …``) add noise -
         # keep the fix description, drop the ticket scope marker.
         if _TICKET_SCOPE_RE.match(scope):
             scope = ""

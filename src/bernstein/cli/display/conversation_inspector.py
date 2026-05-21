@@ -29,7 +29,7 @@ _ROLE_COLORS: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# InspectorView — frozen aggregate of a parsed conversation
+# InspectorView - frozen aggregate of a parsed conversation
 # ---------------------------------------------------------------------------
 
 

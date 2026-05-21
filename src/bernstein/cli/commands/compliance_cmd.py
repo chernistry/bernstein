@@ -316,7 +316,7 @@ def list_policies(framework: str | None, as_json: bool) -> None:
     show_default=True,
     help="Exit non-zero if any failing policy has at least this severity.",
 )
-# Runtime snapshot overrides — pass current configuration state:
+# Runtime snapshot overrides - pass current configuration state:
 @click.option("--audit-logging/--no-audit-logging", default=False)
 @click.option("--audit-hmac-chain/--no-audit-hmac-chain", default=False)
 @click.option("--sandbox-enabled/--no-sandbox-enabled", default=False)
@@ -451,7 +451,7 @@ def export_rego(framework: str, output_dir: Path | None, workdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# `bernstein compliance pack` — EU AI Act Article 12 evidence bundle
+# `bernstein compliance pack` - EU AI Act Article 12 evidence bundle
 # ---------------------------------------------------------------------------
 
 

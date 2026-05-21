@@ -100,7 +100,7 @@ def test_datadog_preset_description_mentions_api_key() -> None:
 
 
 # ---------------------------------------------------------------------------
-# init_telemetry_from_preset — grpc path
+# init_telemetry_from_preset - grpc path
 # ---------------------------------------------------------------------------
 
 
@@ -137,7 +137,7 @@ def test_init_from_preset_endpoint_override(
 
 
 # ---------------------------------------------------------------------------
-# init_telemetry_from_preset — console path
+# init_telemetry_from_preset - console path
 # ---------------------------------------------------------------------------
 
 
@@ -156,7 +156,7 @@ def test_init_from_preset_console(
 
 
 # ---------------------------------------------------------------------------
-# init_telemetry_from_preset — unknown preset raises ValueError
+# init_telemetry_from_preset - unknown preset raises ValueError
 # ---------------------------------------------------------------------------
 
 

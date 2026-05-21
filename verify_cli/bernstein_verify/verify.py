@@ -3,13 +3,13 @@
 This module is the heart of `bernstein-verify`. It MUST NOT import
 anything from `bernstein.*`. Three primitives are re-implemented here:
 
-  * `jcs_canonicalise` — RFC 8785 JSON Canonicalisation Scheme, byte-for-byte
+  * `jcs_canonicalise` - RFC 8785 JSON Canonicalisation Scheme, byte-for-byte
     identical to `bernstein.core.lineage.entry.canonicalise` on the flat
     dict shapes used by lineage v1. Cross-tested under tests/test_verify.py.
-  * `verify_jws_detached` — RFC 7515 detached JWS with EdDSA / Ed25519
+  * `verify_jws_detached` - RFC 7515 detached JWS with EdDSA / Ed25519
     (RFC 8037) and the unencoded-payload extension (RFC 7797, `b64=false`).
     Matches `bernstein.core.lineage.identity.verify_detached` exactly.
-  * `walk_chain` — parent-hash DAG walk; surfaces orphans + duplicates.
+  * `walk_chain` - parent-hash DAG walk; surfaces orphans + duplicates.
 
 `verify_pack` wires the three primitives against a compliance-pack ZIP.
 
@@ -78,7 +78,7 @@ def verify_jws_detached(
 
     Matches `bernstein.core.lineage.identity.verify_detached`. Returns
     False on ANY malformed input, mismatched kid, wrong key, invalid
-    signature, or non-EdDSA algorithm. Never raises on bad input — the
+    signature, or non-EdDSA algorithm. Never raises on bad input - the
     auditor invokes this on attacker-controlled bytes.
 
     `expected_kid` is enforced when supplied. Pass `None` to skip the
@@ -141,7 +141,7 @@ def walk_chain(entries: list[dict[str, Any]]) -> tuple[bool, list[str]]:
     Order-independent: parents may appear after children in `entries`.
     Returns (ok, errors). `errors` is a list of human-readable diagnostics.
 
-    NOTE: This does NOT verify signatures — that's `verify_jws_detached`'s
+    NOTE: This does NOT verify signatures - that's `verify_jws_detached`'s
     job. `verify_pack` composes both. Splitting them keeps each unit
     testable in isolation and lets the caller decide whether to skip
     signature checks (e.g. fast fork-detection on CI).
@@ -208,7 +208,7 @@ def verify_pack(zip_path: Path | str) -> VerifyResult:
         agent-cards/<agent_id>.json       (one file per agent seen)
 
     Steps:
-      1. Open the zip (defensive: never extractall — read members in memory).
+      1. Open the zip (defensive: never extractall - read members in memory).
       2. Parse log.jsonl into a list of entries.
       3. Walk the parent-hash chain (orphans, dupes).
       4. For every entry: compute entry_hash, find sidecar JWS, find Agent

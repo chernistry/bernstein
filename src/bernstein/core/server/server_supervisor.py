@@ -1,4 +1,4 @@
-"""Server supervisor — auto-restart task server on crash.
+"""Server supervisor - auto-restart task server on crash.
 
 Wraps the uvicorn server process with a restart loop. If the server
 crashes, it's restarted automatically (up to MAX_RESTARTS within
@@ -55,7 +55,7 @@ def supervised_server(
     """Launch the task server with automatic restart on crash.
 
     Returns the PID of the supervisor thread's current server process.
-    The supervisor runs as a daemon thread — it dies when the main
+    The supervisor runs as a daemon thread - it dies when the main
     process exits.
     """
     state = _SupervisorState(
@@ -165,7 +165,7 @@ def _launch_server(state: _SupervisorState) -> int:
     # triggers a uvicorn restart, which drops in-flight HTTP connections,
     # races on the bind port ("Address already in use"), and replays the WAL
     # with duplicate task claims. Evolve cycles already restart via the
-    # supervisor on real crashes — auto-reload is never wanted here.
+    # supervisor on real crashes - auto-reload is never wanted here.
     # ``state.evolve_mode`` is intentionally not consulted when building the
     # uvicorn argv; if you're tempted to re-add --reload, read
     # first.
@@ -207,7 +207,7 @@ def _supervisor_loop(state: _SupervisorState) -> None:
         if _is_alive(pid):
             continue
 
-        # Server died — attempt restart
+        # Server died - attempt restart
         logger.warning("Server process %d died. Attempting restart...", pid)
 
         # Check restart budget
@@ -218,7 +218,7 @@ def _supervisor_loop(state: _SupervisorState) -> None:
 
             if len(state.restart_timestamps) >= MAX_RESTARTS:
                 logger.error(
-                    "Server crashed %d times in %ds — giving up. Check .sdd/runtime/server.log for root cause.",
+                    "Server crashed %d times in %ds - giving up. Check .sdd/runtime/server.log for root cause.",
                     MAX_RESTARTS,
                     RESTART_WINDOW_S,
                 )
@@ -278,9 +278,9 @@ def _health_check_loop(state: _SupervisorState) -> None:
         if failures >= MAX_CONSECUTIVE_FAILURES:
             pid = state.current_pid
             if _is_alive(pid):
-                # Server alive but unresponsive — kill it so supervisor restarts
+                # Server alive but unresponsive - kill it so supervisor restarts
                 logger.warning(
-                    "Server unresponsive for %ds (PID %d) — killing for restart",
+                    "Server unresponsive for %ds (PID %d) - killing for restart",
                     failures * HEALTH_CHECK_INTERVAL_S,
                     pid,
                 )

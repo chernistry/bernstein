@@ -1,4 +1,4 @@
-"""``bernstein pending`` — list outstanding human-approval gates.
+"""``bernstein pending`` - list outstanding human-approval gates.
 
 Surfaces two distinct queues:
 
@@ -102,10 +102,10 @@ def pending(workdir: str, kind: Literal["all", "approval", "spawn"]) -> None:
 
     Combines two file-backed queues:
 
-    * Pre-spawn ``ApprovalSpec`` gates (``*.pending`` sentinels) — tasks
+    * Pre-spawn ``ApprovalSpec`` gates (``*.pending`` sentinels) - tasks
       that will not start until ``bernstein approve <id>`` writes the
       decision file.
-    * Post-completion review gates — tasks parked after janitor
+    * Post-completion review gates - tasks parked after janitor
       verification awaiting merge.
 
     \b

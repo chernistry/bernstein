@@ -1,14 +1,14 @@
-"""Approval routes — list, approve, and reject pending approval requests.
+"""Approval routes - list, approve, and reject pending approval requests.
 
 Provides a TUI-friendly API over the file-based approval gate handshake:
 - Lists pending approvals from ``.sdd/runtime/pending_approvals/``
 - Approves or rejects by writing decision files to ``.sdd/runtime/approvals/``
 
 op-002 adds the interactive tool-call endpoints:
-- ``GET /approvals?session_id=...`` — list pending tool-call approvals.
-- ``POST /approvals/{id}/resolve`` — record an ``allow|reject|always``
+- ``GET /approvals?session_id=...`` - list pending tool-call approvals.
+- ``POST /approvals/{id}/resolve`` - record an ``allow|reject|always``
   decision for a specific approval id.
-- ``GET /approvals/live-fragment?session_id=...`` — HTML fragment that
+- ``GET /approvals/live-fragment?session_id=...`` - HTML fragment that
   the live-session page embeds so operators can resolve approvals from
   the web UI.
 """

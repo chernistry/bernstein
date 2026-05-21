@@ -10,7 +10,7 @@ shape NVIDIA NIM exposes, points :class:`ClmAdapter` at it via
 * the streaming SSE assembly returns the full response body,
 * no CLM_TOKEN bytes leak into the spawn log.
 
-Phase 2.5 — also exercises the mTLS path against a TLS-terminated
+Phase 2.5 - also exercises the mTLS path against a TLS-terminated
 fake NIM driven via :func:`build_httpx_client_kwargs` plumbing, with a
 matching negative-path test that asserts the gateway rejects a
 worker which has no client cert at the TLS handshake.
@@ -192,7 +192,7 @@ def test_adapter_handshake_and_streaming_assembly(
     assert body.get("model") == _FAKE_NIM_MODEL
 
     # Adapter is wired correctly: spawn produces a log, and the only
-    # token reachable inside the spawned env is the scoped one — never
+    # token reachable inside the spawned env is the scoped one - never
     # the master.
     log_path = tmp_path / ".sdd" / "runtime" / "clm-int.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -263,7 +263,7 @@ def test_streaming_lineage_regression_50plus_chunks(
 
 
 # ---------------------------------------------------------------------------
-# Phase 2.5 — mTLS handshake against a TLS-terminated fake NIM
+# Phase 2.5 - mTLS handshake against a TLS-terminated fake NIM
 # ---------------------------------------------------------------------------
 
 
@@ -396,7 +396,7 @@ def test_mtls_handshake_succeeds_with_client_cert(
 ) -> None:
     """A worker carrying the matching client cert completes the TLS handshake and the chat-completion succeeds.
 
-    Drives the gateway via :func:`build_httpx_client_kwargs` — exactly
+    Drives the gateway via :func:`build_httpx_client_kwargs` - exactly
     the kwargs the launcher (:mod:`bernstein.adapters.clm_tls_launcher`)
     splats into ``httpx.Client`` defaults inside the spawned aider
     subprocess. Asserting the success path here means the launcher's

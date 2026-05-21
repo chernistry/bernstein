@@ -59,7 +59,7 @@ def test_polling_emits_new_comments_only_once() -> None:
         gh_runner=_fake_runner(payload),
     )
     assert listener.tick() == 1
-    # Re-tick with the same payload — high-water mark suppresses replays.
+    # Re-tick with the same payload - high-water mark suppresses replays.
     assert listener.tick() == 0
     assert seen == [1]
 

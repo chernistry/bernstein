@@ -93,7 +93,7 @@ def get_tip_for_command(
 
     Resolution order:
 
-    1. Check ``CONTEXTUAL_TRIGGERS`` — if a trigger's condition is
+    1. Check ``CONTEXTUAL_TRIGGERS`` - if a trigger's condition is
        ``"always"`` or is truthy in *context*, return that trigger's tip.
     2. Fall back to a random category-based tip via ``TipsCatalog.get_tip``.
     3. Return ``None`` if neither yields a result.

@@ -5,7 +5,7 @@ def init() -> None:
     """Configure mutmut."""
 
 
-# Paths to mutate — critical modules where test effectiveness matters most
+# Paths to mutate - critical modules where test effectiveness matters most
 paths_to_mutate = [
     "src/bernstein/core/lifecycle.py",
     "src/bernstein/core/spawner.py",

@@ -117,7 +117,7 @@ class TestEvolutionFeedbackLoopE2E:
         assert success_opp.confidence > 0
         assert success_opp.risk_level in ("low", "medium", "high")
 
-        # Step 4: ProposalGenerator → UpgradeProposal (no LLM — deterministic)
+        # Step 4: ProposalGenerator → UpgradeProposal (no LLM - deterministic)
         generator = ProposalGenerator()
         proposal = generator.create_proposal(success_opp, AnalysisTrigger.SCHEDULED)
 
@@ -131,7 +131,7 @@ class TestEvolutionFeedbackLoopE2E:
         gate = ApprovalGate(decisions_dir=decisions_dir)
 
         # Build a types.UpgradeProposal targeting a config file.
-        # Use "providers.yaml" — it doesn't match any _LOGIC_KEYWORDS so the
+        # Use "providers.yaml" - it doesn't match any _LOGIC_KEYWORDS so the
         # RiskClassifier assigns L0_CONFIG (.sdd + .yaml + no logic keyword).
         evolution_proposal = EvolutionUpgradeProposal(
             id=proposal.id,
@@ -166,7 +166,7 @@ class TestEvolutionFeedbackLoopE2E:
         assert logged["risk_level"] == "config"
 
         # Step 6: SandboxValidator → SandboxResult
-        # L0_CONFIG uses schema-check only — no git worktree needed
+        # L0_CONFIG uses schema-check only - no git worktree needed
         validator = SandboxValidator(repo_root=tmp_path)
         sandbox_result = validator.create_sandbox(evolution_proposal)
 

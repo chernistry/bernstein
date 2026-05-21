@@ -139,7 +139,7 @@ class GhClient:
         """Attempt to PATCH a review comment as resolved.
 
         GitHub's REST API does not consistently expose a "resolve" verb on
-        review comments — when the call fails the responder falls back to
+        review comments - when the call fails the responder falls back to
         a reply citing the commit SHA.  This method simply reports whether
         the PATCH succeeded.
 

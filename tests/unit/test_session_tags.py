@@ -1,4 +1,4 @@
-"""Tests for session_tags — session tagging system."""
+"""Tests for session_tags - session tagging system."""
 
 from __future__ import annotations
 

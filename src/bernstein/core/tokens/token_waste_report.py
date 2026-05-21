@@ -3,11 +3,11 @@
 Analyses the token-sidecar records written by agent sessions and identifies
 categories of waste:
 
-- **Retries** — repeated token bursts (input spikes) with no file output
+- **Retries** - repeated token bursts (input spikes) with no file output
   between them, indicating the agent re-sent a large prompt multiple times.
-- **Loops** — quadratic growth in per-interval token deltas, meaning the
+- **Loops** - quadratic growth in per-interval token deltas, meaning the
   context is growing super-linearly (usually from accumulated tool output).
-- **Oversized contexts** — any single interval where tokens consumed exceed
+- **Oversized contexts** - any single interval where tokens consumed exceed
   the ``oversized_threshold`` parameter without a corresponding file change.
 
 The report is written to ``.sdd/metrics/token_waste_{session_id}.json`` and
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Thresholds — sourced from bernstein.core.defaults.TOKEN
+# Thresholds - sourced from bernstein.core.defaults.TOKEN
 # ---------------------------------------------------------------------------
 
 #: Minimum token burst (in a single interval) that counts as a "retry spike".

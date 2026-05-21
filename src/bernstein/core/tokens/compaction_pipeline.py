@@ -1,4 +1,4 @@
-"""Compaction pipeline — structured context compaction with typed hooks.
+"""Compaction pipeline - structured context compaction with typed hooks.
 
 Implements a stage pipeline:
     pre-compact hooks → strip media → LLM summary → boundary marker → reinject
@@ -153,8 +153,8 @@ def summarize_context(
         return f"[context compacted: {len(lines)} lines → {len(headers)} headers; see correlation log for detail]"
 
     # With a real LLM, call it.  The caller passes an async callable.
-    # This module doesn't block on IO — the orchestrator awaits it.
-    return "[llm summary delegated — not yet summarized]"
+    # This module doesn't block on IO - the orchestrator awaits it.
+    return "[llm summary delegated - not yet summarized]"
 
 
 # ---------------------------------------------------------------------------
@@ -166,11 +166,11 @@ class CompactionPipeline:
     """Execute a context compaction through typed stages.
 
     Each stage is independently testable:
-    1. Pre-compact hooks — plugins can modify/observe context before compaction.
-    2. Strip media — remove images/documents that waste token budget.
-    3. LLM summary — generate a compact summary for reinjection.
-    4. Boundary marker — caller records the trace marker.
-    5. Post-compact hooks — plugins observe the final result.
+    1. Pre-compact hooks - plugins can modify/observe context before compaction.
+    2. Strip media - remove images/documents that waste token budget.
+    3. LLM summary - generate a compact summary for reinjection.
+    4. Boundary marker - caller records the trace marker.
+    5. Post-compact hooks - plugins observe the final result.
 
     Plugin hooks that raise exceptions are logged and do not abort the pipeline.
 

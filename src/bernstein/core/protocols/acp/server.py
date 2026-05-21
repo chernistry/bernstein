@@ -231,7 +231,7 @@ def build_default_server(
     """Build an :class:`ACPServer` with sensible defaults.
 
     The defaults reach the running Bernstein task server over HTTP.  Any
-    callable can be overridden — tests inject in-memory stubs; the
+    callable can be overridden - tests inject in-memory stubs; the
     production CLI command threads through the real audit log.
 
     Args:
@@ -242,7 +242,7 @@ def build_default_server(
         sandbox_backends: Sandbox backends to surface during
             ``initialize``.  When ``None``, ships an empty list.
         audit_emitter: Override for the HMAC audit emitter.  When
-            ``None``, audit events go to the standard logger only —
+            ``None``, audit events go to the standard logger only -
             production CLI overrides with a real :class:`AuditLog`.
         task_creator: Override for task creation.
         task_canceller: Override for task cancellation.

@@ -298,7 +298,7 @@ async def test_task_gate_report_endpoint_annotates_generated_at_and_status(
     assert isinstance(data.get("generated_at"), str)
     assert data["generated_at"].endswith("Z")
     assert isinstance(data.get("task_status"), str)
-    # New task hasn't been claimed — should report an open-ish lifecycle status.
+    # New task hasn't been claimed - should report an open-ish lifecycle status.
     assert data["task_status"] in {"open", "planned", "queued", "pending_approval"}
 
 

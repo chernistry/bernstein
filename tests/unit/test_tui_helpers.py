@@ -131,7 +131,7 @@ def test_build_token_budget_bar_empty() -> None:
     """Bar renders dash when no budget."""
     from bernstein.tui.widgets import build_token_budget_bar
 
-    assert build_token_budget_bar(0, 0) == "—"
+    assert build_token_budget_bar(0, 0) == "-"
 
 
 def test_build_token_budget_bar_half() -> None:
@@ -491,7 +491,7 @@ class TestGroupTraceStepsIntoBatches:
 
         steps = [
             _make_step("orient", 1000.0),
-            _make_step("edit", 1000.2),  # 0.2s gap — within default 0.5s threshold
+            _make_step("edit", 1000.2),  # 0.2s gap - within default 0.5s threshold
         ]
         batches = group_trace_steps_into_batches(steps)
 
@@ -504,7 +504,7 @@ class TestGroupTraceStepsIntoBatches:
 
         steps = [
             _make_step("orient", 1000.0),
-            _make_step("edit", 1002.0),  # 2s gap — beyond default 0.5s threshold
+            _make_step("edit", 1002.0),  # 2s gap - beyond default 0.5s threshold
         ]
         batches = group_trace_steps_into_batches(steps)
 

@@ -1,4 +1,4 @@
-"""Tests for convergence_guard.py — spawn gating on merge queue, agents, error rate."""
+"""Tests for convergence_guard.py - spawn gating on merge queue, agents, error rate."""
 
 from __future__ import annotations
 

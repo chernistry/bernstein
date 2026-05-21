@@ -175,7 +175,7 @@ class TestWorkflowExecutor:
         executor.try_advance(plan_tasks)
         assert executor.current_phase_name == "implement"
 
-        # Now all implement tasks done — triggers approval request
+        # Now all implement tasks done - triggers approval request
         impl_tasks = [
             _task("t1", role="manager", status=TaskStatus.DONE),
             _task("t2", role="backend", status=TaskStatus.DONE),
@@ -189,7 +189,7 @@ class TestWorkflowExecutor:
         plan_tasks = [_task("t1", role="manager", status=TaskStatus.DONE)]
         executor.try_advance(plan_tasks)
 
-        # Complete implement tasks — triggers approval
+        # Complete implement tasks - triggers approval
         impl_tasks = [
             _task("t1", role="manager", status=TaskStatus.DONE),
             _task("t2", role="backend", status=TaskStatus.DONE),

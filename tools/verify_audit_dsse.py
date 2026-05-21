@@ -28,9 +28,9 @@ Usage::
 
 Exit codes:
 
-* 0 — all enabled checks passed.
-* 1 — at least one check failed (details printed).
-* 2 — bad CLI arguments or unreadable inputs.
+* 0 - all enabled checks passed.
+* 1 - at least one check failed (details printed).
+* 2 - bad CLI arguments or unreadable inputs.
 
 The HMAC chain check is **opt-in**: an external regulator typically does not
 hold the operator's HMAC key, so they verify the envelope signature + bundle
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 # the bernstein audit module. Any drift between this file and
 # ``src/bernstein/core/security/audit_dsse.py`` is caught by the dedicated
 # round-trip test (``tests/unit/test_audit_dsse.py``). DO NOT replace these
-# with imports from the bernstein package — see the module docstring above.
+# with imports from the bernstein package - see the module docstring above.
 
 DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json"
 IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
@@ -93,7 +93,7 @@ class VerifyResult:
 
 
 # ---------------------------------------------------------------------------
-# DSSE primitives — re-implemented from the spec (no bernstein import)
+# DSSE primitives - re-implemented from the spec (no bernstein import)
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +123,7 @@ def verify_envelope_signature(
 ) -> CheckResult:
     """Verify an Ed25519 signature over the DSSE PAE input.
 
-    Returns a :class:`CheckResult`; never raises on bad input — the calling
+    Returns a :class:`CheckResult`; never raises on bad input - the calling
     CLI prints the message and exits with the right status.
     """
     payload_type = envelope.get("payloadType")
@@ -255,7 +255,7 @@ def verify_subject_digest(
 
 
 # ---------------------------------------------------------------------------
-# HMAC chain walk — re-implemented from the audit module spec
+# HMAC chain walk - re-implemented from the audit module spec
 # ---------------------------------------------------------------------------
 
 
@@ -287,7 +287,7 @@ def verify_hmac_chain(bundle_path: Path, hmac_key: bytes) -> CheckResult:
                 return CheckResult(
                     name="hmac_chain",
                     ok=False,
-                    detail="events.jsonl not present — bundle does not look like an Article 12 zip",
+                    detail="events.jsonl not present - bundle does not look like an Article 12 zip",
                 )
     except zipfile.BadZipFile as exc:
         return CheckResult(name="hmac_chain", ok=False, detail=f"bundle is not a zip: {exc}")
@@ -305,7 +305,7 @@ def verify_hmac_chain(bundle_path: Path, hmac_key: bytes) -> CheckResult:
             return CheckResult(
                 name="hmac_chain",
                 ok=False,
-                detail=f"events.jsonl:{line_no}: invalid JSON — {exc}",
+                detail=f"events.jsonl:{line_no}: invalid JSON - {exc}",
             )
         stored = entry.pop("hmac", "")
         recorded_prev = entry.get("prev_hmac", "")
@@ -340,7 +340,7 @@ def _print_check(check: CheckResult, *, verbose: bool, stream: io.TextIOBase) ->
     status = "PASS" if check.ok else "FAIL"
     line = f"[{status}] {check.name}"
     if check.detail and (not check.ok or verbose):
-        line += f" — {check.detail}"
+        line += f" - {check.detail}"
     print(line, file=stream)
 
 
@@ -402,7 +402,7 @@ def run_verify(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Build the CLI parser — kept top-level so ``--help`` works on import."""
+    """Build the CLI parser - kept top-level so ``--help`` works on import."""
     parser = argparse.ArgumentParser(
         description=("Verify a DSSE-wrapped bernstein audit bundle without importing the bernstein package."),
     )

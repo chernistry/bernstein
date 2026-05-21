@@ -16,8 +16,8 @@ Output protocol
 
 All output is line-delimited JSON written to ``stdout``.  Each event is a
 single JSON object with a ``type`` field.  The spawner does not parse
-events strictly — they are persisted to the session log and exposed via
-the existing log tail + hooks plumbing — but the schema below is what
+events strictly - they are persisted to the session log and exposed via
+the existing log tail + hooks plumbing - but the schema below is what
 tests and downstream cost-tracking code rely on::
 
     {"type": "start", "session_id": "...", "model": "gpt-5-mini"}
@@ -31,11 +31,11 @@ tests and downstream cost-tracking code rely on::
 Exit codes
 ----------
 
-* ``0`` — completion event emitted successfully
-* ``2`` — manifest missing or malformed
-* ``3`` — optional ``openai-agents`` SDK not installed
-* ``4`` — provider rate-limit detected (maps to Bernstein's back-off)
-* ``1`` — any other runtime error
+* ``0`` - completion event emitted successfully
+* ``2`` - manifest missing or malformed
+* ``3`` - optional ``openai-agents`` SDK not installed
+* ``4`` - provider rate-limit detected (maps to Bernstein's back-off)
+* ``1`` - any other runtime error
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Exit codes are part of the public contract with the adapter — keep in sync
+# Exit codes are part of the public contract with the adapter - keep in sync
 # with the module docstring above.
 EXIT_OK: int = 0
 EXIT_GENERIC: int = 1
@@ -280,12 +280,12 @@ def run(manifest: RunnerManifest) -> int:
     try:
         agent: Any = agent_cls(**_build_agent_kwargs(manifest))
         run_config = _build_run_config(manifest)
-        # ``Runner.run_sync`` is the SDK's synchronous API — we avoid
+        # ``Runner.run_sync`` is the SDK's synchronous API - we avoid
         # ``asyncio.run`` here so the runner stays compatible with
         # environments where the event loop is already running
         # (e.g. pytest-asyncio tests that import this module).
         result: Any = runner_cls.run_sync(agent, manifest.prompt, run_config=run_config)
-    except Exception as exc:  # SDK errors are varied — catch broadly
+    except Exception as exc:  # SDK errors are varied - catch broadly
         if _is_rate_limit(exc):
             emit_event(
                 {
@@ -375,5 +375,5 @@ def main(argv: list[str] | None = None) -> int:
     return run(manifest)
 
 
-if __name__ == "__main__":  # pragma: no cover — executed via ``python -m``
+if __name__ == "__main__":  # pragma: no cover - executed via ``python -m``
     sys.exit(main())

@@ -8,11 +8,11 @@ required.
 Environment variables
 ---------------------
 
-- ``VERCEL_TOKEN`` — required. Personal/team API token from
+- ``VERCEL_TOKEN`` - required. Personal/team API token from
   ``https://vercel.com/account/tokens``.
-- ``VERCEL_TEAM_ID`` — optional team scope id; required for tokens
+- ``VERCEL_TEAM_ID`` - optional team scope id; required for tokens
   scoped to a team.
-- ``VERCEL_API_URL`` — optional override of the API root. Defaults to
+- ``VERCEL_API_URL`` - optional override of the API root. Defaults to
   ``https://api.vercel.com``.
 
 Capabilities

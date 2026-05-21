@@ -30,7 +30,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # pragma: no cover — typing only
+if TYPE_CHECKING:  # pragma: no cover - typing only
     from bernstein.core.spawner import AgentSpawner
     from bernstein.core.workflows.workflow_spec import LoopSpec, WorkflowNode, WorkflowSpec
 
@@ -122,7 +122,7 @@ class WorkflowExecution:
 # elsewhere in core (handlers in core/protocols/acp use the same shape):
 # ``(event_type, resource_id, details)``.  Keeping it as a Callable
 # instead of importing :class:`AuditLog` avoids a hard dependency on the
-# security stack — the runner runs fine without it.
+# security stack - the runner runs fine without it.
 AuditEmitter = Callable[[str, str, dict[str, Any]], None]
 
 
@@ -130,7 +130,7 @@ def _default_audit_emitter(event_type: str, resource_id: str, details: dict[str,
     """Log audit events at INFO level when no real audit log is wired in.
 
     This keeps workflow runs observable in production without forcing the
-    user to bring up the HMAC chain — which is wired in higher layers
+    user to bring up the HMAC chain - which is wired in higher layers
     (orchestrator boot) and not always present in CLI-direct runs.
     """
     logger.info("workflow.audit event=%s resource=%s details=%s", event_type, resource_id, details)
@@ -474,7 +474,7 @@ class WorkflowRunner:
                 status=NodeStatus.FAILED,
                 error="agent-typed node requires a configured AgentSpawner",
             )
-        if node.agent is None or node.prompt is None:  # pragma: no cover — guarded by validator
+        if node.agent is None or node.prompt is None:  # pragma: no cover - guarded by validator
             return NodeExecution(
                 node_id=node.id,
                 status=NodeStatus.FAILED,
@@ -487,7 +487,7 @@ class WorkflowRunner:
         # Carry workflow context inside the description so audit / token
         # accounting can attribute the spend to the manifest, and so a
         # ``fresh_context`` loop creates a distinct task id per iteration
-        # — the spawner uses task id as the session correlation key.
+        # - the spawner uses task id as the session correlation key.
         suffix = f"@iter{iteration}" if node.fresh_context or iteration > 1 else ""
         task_id = f"wf-{node.id}-{run_id}{suffix}"
         task = Task(
@@ -522,7 +522,7 @@ class WorkflowRunner:
 def _substitute_goal(prompt: str, goal: str) -> str:
     """Substitute ``{goal}`` placeholders without breaking literal braces.
 
-    A single-pass ``str.replace`` is sufficient — workflow prompts don't
+    A single-pass ``str.replace`` is sufficient - workflow prompts don't
     use full Python ``str.format`` because nodes routinely embed shell
     snippets and curly braces in code samples that we must not interpret.
 

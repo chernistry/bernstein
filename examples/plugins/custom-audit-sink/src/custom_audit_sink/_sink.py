@@ -2,7 +2,7 @@
 
 The sink subscribes to bernstein's ``on_audit_event`` hookspec and
 forwards each event as a single-line JSON blob to a configurable MQTT
-topic. The broker connection itself is stubbed in this example —
+topic. The broker connection itself is stubbed in this example -
 replace :meth:`_publish` with a real client (e.g. ``paho.mqtt``) when
 wiring this into your environment.
 
@@ -10,12 +10,12 @@ The plugin reads its configuration from environment variables so an
 operator can drop the package into a CI image and toggle the sink
 on/off without touching code:
 
-* ``BERNSTEIN_AUDIT_MQTT_URL`` — broker URL (``mqtt://host:1883``).
-* ``BERNSTEIN_AUDIT_MQTT_TOPIC`` — topic name (default ``bernstein/audit``).
-* ``BERNSTEIN_AUDIT_MQTT_ENABLED`` — gate flag; the sink no-ops when unset.
+* ``BERNSTEIN_AUDIT_MQTT_URL`` - broker URL (``mqtt://host:1883``).
+* ``BERNSTEIN_AUDIT_MQTT_TOPIC`` - topic name (default ``bernstein/audit``).
+* ``BERNSTEIN_AUDIT_MQTT_ENABLED`` - gate flag; the sink no-ops when unset.
 
 The hook is registered with ``@hookspec(background=True)`` upstream so
-the publish path runs off the main orchestrator tick — a slow broker
+the publish path runs off the main orchestrator tick - a slow broker
 cannot block the orchestrator's main loop.
 """
 
@@ -68,7 +68,7 @@ class MqttAuditSink:
     needing a live broker.
     """
 
-    # Class-level metadata — easy for tests to assert against and for
+    # Class-level metadata - easy for tests to assert against and for
     # operators to surface in ``bernstein plugins list`` output.
     plugin_name: ClassVar[str] = "custom-audit-sink"
     hook_target: ClassVar[str] = "on_audit_event"
@@ -93,7 +93,7 @@ class MqttAuditSink:
     ) -> None:
         """Mirror a single audit event to the configured MQTT topic."""
         if not self._config.enabled or not self._config.url:
-            # Sink is dormant — operator hasn't enabled it yet. Hooks
+            # Sink is dormant - operator hasn't enabled it yet. Hooks
             # still fire but the publish path is a no-op so a partial
             # configuration cannot crash the orchestrator.
             return
@@ -107,7 +107,7 @@ class MqttAuditSink:
         try:
             self._publish(self._config.topic, json.dumps(envelope, sort_keys=True))
         except Exception as exc:
-            # NEVER let a broker failure escape — audit sinks are
+            # NEVER let a broker failure escape - audit sinks are
             # downstream of orchestrator decisions and should not block
             # them. Operators rely on the bernstein audit log itself
             # for correctness; this sink is best-effort mirroring.

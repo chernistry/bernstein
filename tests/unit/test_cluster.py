@@ -238,7 +238,7 @@ def test_best_node_label_affinity() -> None:
         )
     )
     best = registry.best_node_for_task(preferred_labels={"gpu": "true"})
-    # gpu-node matches preferred label — it wins despite fewer slots
+    # gpu-node matches preferred label - it wins despite fewer slots
     assert best is not None
     assert best.id == gpu.id
 

@@ -1,4 +1,4 @@
-"""Tests for abort_chain — registration, propagation, cleanup, and SHUTDOWN writing."""
+"""Tests for abort_chain - registration, propagation, cleanup, and SHUTDOWN writing."""
 
 from __future__ import annotations
 

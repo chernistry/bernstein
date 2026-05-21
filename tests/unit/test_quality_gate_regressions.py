@@ -1,4 +1,4 @@
-"""TEST-007: Quality gate regression tests — gates that should fail DO fail.
+"""TEST-007: Quality gate regression tests - gates that should fail DO fail.
 
 Negative test cases verifying that deliberately bad code (syntax errors,
 type violations, failing tests, leaked secrets) correctly triggers gate
@@ -34,7 +34,7 @@ def _make_task(*, id: str = "T-reg-001", role: str = "backend") -> Task:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007a: Lint gate — real ruff violations trigger failure
+# TEST-007a: Lint gate - real ruff violations trigger failure
 # ---------------------------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ class TestLintGateRegressions:
         assert not ok, f"Expected ruff to fail on unused imports, but it passed. Output: {output}"
 
     def test_clean_python_passes_lint(self, tmp_path: Path) -> None:
-        """A clean Python file passes the lint gate — baseline control test."""
+        """A clean Python file passes the lint gate - baseline control test."""
         clean_py = tmp_path / "clean_code.py"
         clean_py.write_text(
             '"""Clean module."""\n\n\ndef add(a: int, b: int) -> int:\n    """Add two numbers."""\n    return a + b\n',
@@ -106,7 +106,7 @@ class TestLintGateRegressions:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007b: PII / secret scan gate — leaked secrets trigger failure
+# TEST-007b: PII / secret scan gate - leaked secrets trigger failure
 # ---------------------------------------------------------------------------
 
 
@@ -119,7 +119,7 @@ class TestPiiGateRegressions:
         secret_py.parent.mkdir(parents=True, exist_ok=True)
         secret_py.write_text(
             textwrap.dedent("""\
-                # Production config — DO NOT COMMIT
+                # Production config - DO NOT COMMIT
                 AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"
                 AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
             """),
@@ -130,7 +130,7 @@ class TestPiiGateRegressions:
             enabled=True,
             pii_scan=True,
             pii_scan_paths=["src/"],
-            pii_allowlist_prefixes=[],  # No allowlist — must catch real keys
+            pii_allowlist_prefixes=[],  # No allowlist - must catch real keys
             lint=False,
             type_check=False,
             tests=False,
@@ -185,7 +185,7 @@ class TestPiiGateRegressions:
         assert result.blocked, f"PII gate should block hardcoded password. Detail: {result.detail}"
 
     def test_pii_gate_passes_clean_code(self, tmp_path: Path) -> None:
-        """A file with no secrets passes the PII gate — baseline control test."""
+        """A file with no secrets passes the PII gate - baseline control test."""
         clean_py = tmp_path / "src" / "utils.py"
         clean_py.parent.mkdir(parents=True, exist_ok=True)
         clean_py.write_text(
@@ -262,7 +262,7 @@ class TestPiiGateRegressions:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007c: PII scan_text unit — raw detection coverage
+# TEST-007c: PII scan_text unit - raw detection coverage
 # ---------------------------------------------------------------------------
 
 
@@ -312,7 +312,7 @@ class TestScanTextRegressions:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007d: Mutation score parsing — below-threshold triggers failure
+# TEST-007d: Mutation score parsing - below-threshold triggers failure
 # ---------------------------------------------------------------------------
 
 
@@ -357,13 +357,13 @@ class TestMutationScoreRegressions:
         assert score is None, f"Expected None for unparseable output, got {score}"
 
     def test_zero_mutants_returns_none(self) -> None:
-        """Zero total mutants is undefined — returns None (not a score)."""
+        """Zero total mutants is undefined - returns None (not a score)."""
         score = _parse_mutation_score("🎉 0/0  🤔 0  🙁 0  🔇 0")
         assert score is None, f"Expected None for zero-mutant run, got {score}"
 
 
 # ---------------------------------------------------------------------------
-# TEST-007e: Test gate — failing pytest triggers gate failure
+# TEST-007e: Test gate - failing pytest triggers gate failure
 # ---------------------------------------------------------------------------
 
 
@@ -402,7 +402,7 @@ class TestTestGateRegressions:
         assert test_result.blocked
 
     def test_passing_pytest_allows_gate(self, tmp_path: Path) -> None:
-        """A test file with all passing tests allows the gate through — control test."""
+        """A test file with all passing tests allows the gate through - control test."""
         test_file = tmp_path / "test_passing.py"
         test_file.write_text(
             textwrap.dedent("""\
@@ -430,7 +430,7 @@ class TestTestGateRegressions:
         """A test file with a syntax error causes pytest collection error, blocking the gate."""
         test_file = tmp_path / "test_syntax_error.py"
         test_file.write_text(
-            "def test_broken(\n    # missing close paren — syntax error\nx = 1\n",
+            "def test_broken(\n    # missing close paren - syntax error\nx = 1\n",
             encoding="utf-8",
         )
 
@@ -451,7 +451,7 @@ class TestTestGateRegressions:
 
 
 # ---------------------------------------------------------------------------
-# TEST-007f: Multiple failing gates — all gates run even when first fails
+# TEST-007f: Multiple failing gates - all gates run even when first fails
 # ---------------------------------------------------------------------------
 
 
@@ -460,7 +460,7 @@ class TestMultipleGateRegressions:
 
     def test_pii_failure_does_not_skip_lint_gate(self, tmp_path: Path) -> None:
         """Even when PII scan blocks, the lint gate still runs and is checked."""
-        # Create a src/ with a secret — PII gate will block
+        # Create a src/ with a secret - PII gate will block
         src_dir = tmp_path / "src"
         src_dir.mkdir()
         (src_dir / "secret.py").write_text(

@@ -1,4 +1,4 @@
-"""SSH execution backend — run agents on remote machines.
+"""SSH execution backend - run agents on remote machines.
 
 Agents are spawned on a remote host via SSH. The local workspace is
 synced to the remote using rsync before execution and synced back
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # How long to wait between process-alive polls (seconds).
 _POLL_INTERVAL_S: float = 5.0
 
-# Default rsync excludes — keeps sync fast and avoids transmitting large dirs.
+# Default rsync excludes - keeps sync fast and avoids transmitting large dirs.
 _DEFAULT_RSYNC_EXCLUDES: tuple[str, ...] = (
     ".git",
     ".venv",
@@ -106,7 +106,7 @@ class SSHHostConfig:
             try:
                 result[key] = Template(value).substitute(os.environ)
             except (KeyError, ValueError):
-                logger.warning("SSH env var %r: could not expand %r — skipping", key, value)
+                logger.warning("SSH env var %r: could not expand %r - skipping", key, value)
         return result
 
     def all_rsync_excludes(self) -> tuple[str, ...]:
@@ -287,7 +287,7 @@ class SSHBackend:
             stderr = log_fh.fileno()
 
         logger.info(
-            "ssh-backend: spawning on %s — session=%s cmd=%s",
+            "ssh-backend: spawning on %s - session=%s cmd=%s",
             self._config.host,
             self._session_id,
             shlex.join(cmd[:3]),
@@ -403,10 +403,10 @@ class SSHBackend:
         except subprocess.TimeoutExpired as exc:
             raise SSHError(f"{desc}: timed out after {timeout}s") from exc
         except OSError as exc:
-            raise SSHError(f"{desc}: OS error — {exc}") from exc
+            raise SSHError(f"{desc}: OS error - {exc}") from exc
         if result.returncode != 0:
             stderr_text = result.stderr.decode(errors="replace").strip()
-            raise SSHError(f"{desc}: exit {result.returncode} — {stderr_text[:300]}")
+            raise SSHError(f"{desc}: exit {result.returncode} - {stderr_text[:300]}")
 
 
 def run_agent_over_ssh(
@@ -454,7 +454,7 @@ def run_agent_over_ssh(
             break
         if time.monotonic() > deadline:
             proc.kill()
-            logger.warning("ssh-backend: agent timed out after %ds — killed", timeout_seconds)
+            logger.warning("ssh-backend: agent timed out after %ds - killed", timeout_seconds)
             exit_code = -1
             break
         time.sleep(_POLL_INTERVAL_S)

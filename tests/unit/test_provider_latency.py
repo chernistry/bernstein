@@ -158,7 +158,7 @@ class TestProviderLatencyTracker:
 
     def test_no_alert_before_min_samples(self, tmp_path: Path) -> None:
         tracker = ProviderLatencyTracker(tmp_path)
-        # Only 5 samples — below the 10-sample minimum
+        # Only 5 samples - below the 10-sample minimum
         for _ in range(5):
             result = tracker.record("anthropic", "sonnet", 9999.0)
         # No alert should fire without sufficient baseline

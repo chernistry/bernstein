@@ -2,10 +2,10 @@
 
 Covers the two deferred items closed in v2:
 
-* **Public-key signature over head_sha256** — Ed25519 signature, JWK
+* **Public-key signature over head_sha256** - Ed25519 signature, JWK
   advertisement, KMS-adapter substitution (file vs. env), tamper
   detection on each field, deterministic round-trip, back-compat with v1.
-* **RFC 3161 cryptographic chain validation** — verifier confirms the
+* **RFC 3161 cryptographic chain validation** - verifier confirms the
   TSA token covers ``head_sha256`` end-to-end (TSA chain + CMS signature
   + messageImprint). Uses the real FreeTSA fixture.
 
@@ -288,7 +288,7 @@ class TestKMSAdapterSubstitution:
         _seed_two_tenants(audit_dir)
         since, until = _today_window()
 
-        # File adapter — fresh key on disk.
+        # File adapter - fresh key on disk.
         file_adapter = _make_file_adapter(tmp_path)
         file_export = export_tenant_slice(
             audit_dir=audit_dir,
@@ -302,7 +302,7 @@ class TestKMSAdapterSubstitution:
         )
         assert verify_tenant_slice(file_export.bundle_bytes, key=_TEST_KEY).ok
 
-        # Env adapter — write the same key into an env var.
+        # Env adapter - write the same key into an env var.
         pem = _write_pem_key(tmp_path / "for_env").read_text()
         monkeypatch.setenv("LINEAGE_TEST_KEY", pem)
         env_adapter = EnvBasedKMSAdapter(
@@ -329,7 +329,7 @@ class TestKMSAdapterSubstitution:
 
 
 class TestV2Determinism:
-    """v2 inherits v1's byte determinism — same key + window → same bytes."""
+    """v2 inherits v1's byte determinism - same key + window → same bytes."""
 
     def test_pubkey_export_is_byte_deterministic(self, tmp_path: Path) -> None:
         audit_dir = tmp_path / ".sdd" / "audit"
@@ -441,7 +441,7 @@ class TestRFC3161ChainValidation:
             write=False,
         )
         # The fixture token covers sha256(freetsa_payload), not the
-        # bundle's actual head_sha256 — so we override head_sha256 to
+        # bundle's actual head_sha256 - so we override head_sha256 to
         # match the TSA's imprint and recompute the head_hmac/anchor
         # only minimally. We rely on test_audit_multitenant.py to cover
         # the chain-integrity surface; here we focus on RFC 3161.
@@ -505,7 +505,7 @@ class TestRFC3161ChainValidation:
         """An empty trust bundle skips RFC 3161 validation gracefully.
 
         We treat ``[]`` the same as ``None`` (operator did not enable
-        chain validation) instead of failing — matches the v1 verifier's
+        chain validation) instead of failing - matches the v1 verifier's
         opt-in story.
         """
         from bernstein.core.security.audit_multitenant import _verify_rfc3161_chain
@@ -531,13 +531,13 @@ class TestRFC3161ChainValidation:
         import hashlib
 
         audit_dir = tmp_path / ".sdd" / "audit"
-        # Empty audit dir — head_sha256 is sha256(b"") for an empty slice.
+        # Empty audit dir - head_sha256 is sha256(b"") for an empty slice.
         # We synthesise a bundle whose head matches the FreeTSA imprint
         # and feed it through verify_tenant_slice with full v2 trust.
         audit_dir.mkdir(parents=True, exist_ok=True)
         target_hash = hashlib.sha256(freetsa_payload).hexdigest()
 
-        # Build a synthetic minimal bundle — empty events list; head_sha256
+        # Build a synthetic minimal bundle - empty events list; head_sha256
         # patched to the TSA imprint. We disable envelope checks that
         # require since < until by using a valid window.
         bundle = {
@@ -574,7 +574,7 @@ class TestRFC3161ChainValidation:
             rfc3161_trusted_tsa_certs=trust,
         )
         # Anchor consistency will fail (we hand-patched head_sha256) but
-        # rfc3161 chain validation should succeed — confirm via error filter.
+        # rfc3161 chain validation should succeed - confirm via error filter.
         assert result.bundle["chain_anchor"]["head_sha256"] == target_hash
         # No errors from the rfc3161 layer:
         rfc3161_errors = [e for e in result.errors if e.startswith("rfc3161")]

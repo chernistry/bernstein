@@ -1,7 +1,7 @@
 """Persistent Ed25519 keystore for the A2A v1.0 agent-card signer.
 
 The first iteration of the v1.0 ``/.well-known/agent.json`` route cached its
-Ed25519 keypair in process memory — fine for one-shot integration tests but
+Ed25519 keypair in process memory - fine for one-shot integration tests but
 not for production: every restart minted a fresh ``kid`` and broke verifiers
 that had cached the old JWK.
 
@@ -34,7 +34,7 @@ Security notes
 
 * The private file is created with ``os.O_EXCL`` so two concurrent first-run
   processes cannot race each other into overwriting a freshly minted key.
-* The private file is forced to ``0o600`` after write — both at generation
+* The private file is forced to ``0o600`` after write - both at generation
   time and on every load (a load that finds wider-than-owner permissions
   raises so the operator notices the misconfiguration).
 * No envelope encryption today; on-disk plaintext is the same shape as the
@@ -85,7 +85,7 @@ _ROTATED_AT_FILENAME: str = "rotated_at.txt"
 class ArchivedKey:
     """A previously-active keypair retained during the rotation grace window.
 
-    The ``private_pem`` is loaded but never returned outside this module —
+    The ``private_pem`` is loaded but never returned outside this module -
     the JWKS endpoint only needs ``public_pem`` to publish the legacy JWK.
     Keeping it on disk lets operators replay or audit the historic
     signature surface without re-deriving keys.
@@ -112,7 +112,7 @@ class AgentCardKeystore:
     Designed for the single-process Bernstein server: a per-instance lock
     serialises first-run generation and rotation. Multi-process deployments
     should either share the directory (and accept the small race on first
-    boot — ``O_EXCL`` guarantees only one writer wins) or pre-provision the
+    boot - ``O_EXCL`` guarantees only one writer wins) or pre-provision the
     keypair before fanout.
     """
 
@@ -156,7 +156,7 @@ class AgentCardKeystore:
         On first call (or when the keystore directory is empty) generates a
         fresh keypair atomically with ``O_EXCL`` and ``0o600`` permissions.
         Subsequent calls re-read from disk so multiple processes converge
-        on the same key — the in-memory cache is intentionally absent here;
+        on the same key - the in-memory cache is intentionally absent here;
         ``well_known.py`` is the cache layer.
 
         Raises:
@@ -233,7 +233,7 @@ class AgentCardKeystore:
         """Mint a fresh keypair, refusing to clobber an existing private key.
 
         Uses ``os.O_EXCL`` so two processes racing into first-run cannot
-        both win — the loser sees ``FileExistsError`` and falls through to
+        both win - the loser sees ``FileExistsError`` and falls through to
         :meth:`_load_existing`.
         """
         self._dir.mkdir(parents=True, exist_ok=True)
@@ -257,8 +257,8 @@ class AgentCardKeystore:
         os.chmod(self._private_path, 0o600)
 
         # Public key may already exist (e.g. half-rolled-back rotation). It's
-        # safe to overwrite — it always derives from the private one.
-        # Use owner-only perms even on the public key — external consumers
+        # safe to overwrite - it always derives from the private one.
+        # Use owner-only perms even on the public key - external consumers
         # fetch it via the JWKS HTTP endpoint, never directly off disk, so
         # there's no operational need to grant other local users FS access.
         self._public_path.write_bytes(public_pem)

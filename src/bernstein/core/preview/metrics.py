@@ -2,11 +2,11 @@
 
 Two metric families:
 
-* ``preview_active_total{provider,sandbox}`` — gauge tracking how many
+* ``preview_active_total{provider,sandbox}`` - gauge tracking how many
   previews are currently live, partitioned by tunnel provider and
   sandbox backend so an operator can see whether the cluster is shy of
   e.g. Cloudflared sessions or Modal sandboxes.
-* ``preview_link_issued_total{auth_mode}`` — counter incremented every
+* ``preview_link_issued_total{auth_mode}`` - counter incremented every
   time a preview link is issued, partitioned by the auth mode (``basic``,
   ``token``, ``none``) so security teams can audit how many links are
   being shared with no authentication.
@@ -14,7 +14,7 @@ Two metric families:
 The metrics live on the shared :data:`bernstein.core.observability.prometheus.registry`
 collector so they show up next to the rest of the bernstein metrics on
 ``/metrics``. Importing this module is safe even when prometheus_client
-is unavailable — the underlying metric stubs are no-ops.
+is unavailable - the underlying metric stubs are no-ops.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ preview_link_issued_total: Counter = Counter(
 def record_preview_started(*, provider: str, sandbox: str) -> None:
     """Increment the active-preview gauge for *(provider, sandbox)*.
 
-    Safe to call from hot paths — never raises and absorbs prometheus
+    Safe to call from hot paths - never raises and absorbs prometheus
     stub no-ops cleanly.
 
     Args:

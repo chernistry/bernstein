@@ -2,7 +2,7 @@
 
 Verifies that the orchestrator produces identical scheduling, dependency
 resolution, role assignment, and model selection given the same inputs.
-These are pure logic tests — no server, no agents, no IO.
+These are pure logic tests - no server, no agents, no IO.
 """
 
 from __future__ import annotations

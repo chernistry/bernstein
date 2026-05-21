@@ -68,7 +68,7 @@ def _job_name(run_name: str, stage_idx: int, step_idx: int) -> str:
 
 
 class PlanReconciler:
-    """Reconciles BernsteinPlan resources — validates and updates status."""
+    """Reconciles BernsteinPlan resources - validates and updates status."""
 
     def __init__(self, crd_api: Any, cfg: OperatorConfig) -> None:
         self._api = crd_api
@@ -112,7 +112,7 @@ class PlanReconciler:
 
 
 class RunReconciler:
-    """Reconciles BernsteinRun resources — creates and monitors agent Jobs."""
+    """Reconciles BernsteinRun resources - creates and monitors agent Jobs."""
 
     def __init__(
         self,
@@ -549,7 +549,7 @@ def _reconcile_resources(
 
 
 class BernsteinOperator:
-    """Main operator loop — watches CRDs and delegates to reconcilers."""
+    """Main operator loop - watches CRDs and delegates to reconcilers."""
 
     def __init__(self, cfg: OperatorConfig | None = None) -> None:
         if not K8S_AVAILABLE:

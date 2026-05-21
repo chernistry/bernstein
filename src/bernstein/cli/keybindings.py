@@ -21,7 +21,7 @@ from textual.binding import Binding
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Reserved keys — these cannot be overridden by the user
+# Reserved keys - these cannot be overridden by the user
 # ---------------------------------------------------------------------------
 
 RESERVED_KEYS: frozenset[str] = frozenset({"ctrl+c", "ctrl+d"})

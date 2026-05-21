@@ -3,10 +3,10 @@
 Two manifest flavours coexist under ``bernstein workflow``:
 
 * The legacy **DSL** (conditional task DAGs that plug into the
-  orchestrator's deterministic crew-routing model — see
+  orchestrator's deterministic crew-routing model - see
   :mod:`bernstein.core.planning.workflow_dsl`).  Surface: the original
   ``validate``/``list``/``show`` commands keep working unchanged.
-* The new **YAML manifest** flavour added in #1108 — Archon-inspired
+* The new **YAML manifest** flavour added in #1108 - Archon-inspired
   agent / command / loop nodes executed via
   :class:`bernstein.core.workflows.WorkflowRunner`.  Surface:
   ``run``/``init`` plus dual-mode ``validate``/``list`` that auto-detect
@@ -28,7 +28,7 @@ import click
 def _detect_kind(path: Path) -> str:
     """Sniff a YAML file and return ``'spec'``, ``'dsl'``, or ``'unknown'``.
 
-    The sniff stays purely structural — it doesn't import either parser
+    The sniff stays purely structural - it doesn't import either parser
     so a malformed file in one schema can't blow up the other path.
 
     Args:

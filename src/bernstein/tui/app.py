@@ -283,7 +283,7 @@ class BernsteinApp(App[None]):
         self._replay_timer: object | None = None
         # Track seen task IDs to detect completions
         self._seen_done: set[str] = set()
-        # TUI-011: theme — load persisted preference, fall back to auto-detect
+        # TUI-011: theme - load persisted preference, fall back to auto-detect
         self._theme_mode: ThemeMode = load_theme_config()
         # TUI-010: cached task progress entries for aggregate run bar
         self._task_progresses: list[TaskProgress] = []

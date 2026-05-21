@@ -1,17 +1,17 @@
-"""``bernstein identity`` — operator-side install-rev fingerprint commands.
+"""``bernstein identity`` - operator-side install-rev fingerprint commands.
 
 Subcommands:
 
-* ``bernstein identity show`` — print the current install's token (or the
+* ``bernstein identity show`` - print the current install's token (or the
   disabled sentinel when emission is off / kill switch is set).  Used to
   let users see exactly what string lands in their public artefacts.
-* ``bernstein identity decode <token>`` — alias for ``verify``.  Confirms
+* ``bernstein identity decode <token>`` - alias for ``verify``.  Confirms
   a discovered token came from a real Bernstein install.  Requires the
   operator's seed in ``BERNSTEIN_IDENTITY_SEED`` (hex-encoded 32 bytes).
 * ``bernstein identity verify <token> [--nonce HEX] [--version-major N]``
-  — same as ``decode`` but accepts an optional debug-bundle nonce for
+  - same as ``decode`` but accepts an optional debug-bundle nonce for
   full HMAC-strength verification.
-* ``bernstein identity disable`` — print the env-var line the user can
+* ``bernstein identity disable`` - print the env-var line the user can
   paste into their shell to suppress all emit sites.
 
 The CLI is read-only and never opens a network connection.  This is the
@@ -44,7 +44,7 @@ def identity_group() -> None:
     \b
     The install-rev token is a 16-character base32 string embedded in
     artefacts the user voluntarily publishes (yaml configs, trace JSONL,
-    role-prompt md footers).  No network egress, ever — operator-side
+    role-prompt md footers).  No network egress, ever - operator-side
     discovery uses public GitHub code search (``gh search code
     'bernstein-rev:'``).
 
@@ -65,13 +65,13 @@ def show_cmd() -> None:
     click.echo(token)
     if not _identity.IDENTITY_EMISSION_ENABLED:
         click.echo(
-            "(emission disabled — set IDENTITY_EMISSION_ENABLED=True after "
+            "(emission disabled - set IDENTITY_EMISSION_ENABLED=True after "
             "operator seed is in place; users do not need this)",
             err=True,
         )
     elif token == DISABLED_SENTINEL:
         click.echo(
-            "(token is the disabled sentinel — kill switch is set, or BERNSTEIN_IDENTITY_SEED is unset/malformed)",
+            "(token is the disabled sentinel - kill switch is set, or BERNSTEIN_IDENTITY_SEED is unset/malformed)",
             err=True,
         )
 

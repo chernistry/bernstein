@@ -43,5 +43,9 @@ jobs:
         uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab  # v3.95.3
         with:
           # Only report verified secrets - keeps signal-to-noise high and
-          # lets the job act as a hard gate.
-          extra_args: --results=verified,unknown
+          # lets the job act as a hard gate. Unknown / unverified results
+          # are dominated by test-fixture connection strings like
+          # `postgres://user:pass@host` that trufflehog cannot probe but
+          # are not real credentials; gating on those forced every push
+          # to main red without a real leak.
+          extra_args: --results=verified

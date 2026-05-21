@@ -893,7 +893,7 @@ class AgentBackend(StrEnum):
     SUBPROCESS (default) launches each agent as a separate OS process.
     TMUX runs the agent in a tmux session for manual inspection.
     IN_PROCESS runs the agent as a Python thread in the same process
-    for lightweight, fast tasks — use with caution, crashes can take
+    for lightweight, fast tasks - use with caution, crashes can take
     down the task server.
     SSH runs the agent on a remote machine via SSH; requires a ``remote:``
     section in bernstein.yaml.
@@ -1209,22 +1209,22 @@ class OrchestratorConfig:
     budget_aware_routing_enabled: bool = True  # downgrade opus→sonnet near budget cap
     dry_run: bool = False  # Preview planned spawns without actually spawning agents
     auth_token: str | None = None  # Bearer token for authenticated API calls
-    merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch
+    merge_strategy: str = "pr"  # "pr" | "direct" - how agent work reaches the main branch
     auto_merge: bool = True  # Auto-merge PR after code review passes (requires gh CLI)
     pr_labels: list[str] = field(default_factory=lambda: ["bernstein", "auto-generated"])
     approval: Any = "auto"  # "auto" | "review" | "pr" or dict for workflow
     approval_workflow: ApprovalWorkflowConfig | None = field(default=None, repr=False)
-    recovery: str = "resume"  # "resume" | "restart" | "escalate" — crash recovery strategy
+    recovery: str = "resume"  # "resume" | "restart" | "escalate" - crash recovery strategy
     max_crash_retries: int = 2  # Max times to resume in same worktree before escalating
     cross_model_verify: Any | None = None  # CrossModelVerifierConfig | None
-    context_degradation: Any | None = None  # ContextDegradationConfig | None — restart agents on quality drop
-    force_parallel: bool = False  # Skip complexity advisor — always decompose/parallelize
+    context_degradation: Any | None = None  # ContextDegradationConfig | None - restart agents on quality drop
+    force_parallel: bool = False  # Skip complexity advisor - always decompose/parallelize
     plan_mode: bool = False  # When True, tasks start as PLANNED and require approval before execution
     workflow: str | None = None  # "governed" activates governed workflow mode; None = adaptive (default)
     container_isolation: ContainerIsolationConfig = field(
         default_factory=ContainerIsolationConfig,
     )  # Container-based agent isolation settings
-    compliance: Any | None = None  # ComplianceConfig | None — compliance preset configuration
+    compliance: Any | None = None  # ComplianceConfig | None - compliance preset configuration
     max_tokens_per_task: dict[str, int] = field(
         default_factory=lambda: {"small": 10_000, "medium": 50_000, "large": 200_000},
     )  # Per-task token budget by scope; agents warned at 80%, hard-killed at 2x
@@ -1237,8 +1237,8 @@ class OrchestratorConfig:
     test_agent: TestAgentConfig = field(default_factory=TestAgentConfig)
     convergence: ConvergenceGuardConfig = field(default_factory=ConvergenceGuardConfig)
     ci_autofix: CIAutofixConfig = field(default_factory=CIAutofixConfig)
-    permission_mode: str | None = None  # "bypass" | "plan" | "auto" | "default" — see permission_mode.py
-    agent_resource_limits: Any | None = None  # ResourceLimits | None — OS-level limits for non-sandboxed spawns
+    permission_mode: str | None = None  # "bypass" | "plan" | "auto" | "default" - see permission_mode.py
+    agent_resource_limits: Any | None = None  # ResourceLimits | None - OS-level limits for non-sandboxed spawns
     shutdown_stagger_delay_s: float = 5.0  # Seconds between SHUTDOWN signals during drain
     # Single source of truth lives in ``defaults.ORCHESTRATOR``; using ``default_factory`` with a
     # module-attribute lookup (not a captured reference) ensures ``override()`` and ``reset()``
@@ -1549,7 +1549,7 @@ class LifecycleEvent:
     """Typed event emitted on every task or agent status transition.
 
     This is the single source of truth for replay, audit, and metrics.
-    Every status change — task or agent — produces exactly one event.
+    Every status change - task or agent - produces exactly one event.
 
     Attributes:
         timestamp: Unix epoch when the transition occurred.

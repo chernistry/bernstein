@@ -249,7 +249,7 @@ class McpHealthMonitor:
                 state.given_up = False
             return HealthProbeResult(ts=now, server_name=name, alive=True)
 
-        # Server is dead — check restart state
+        # Server is dead - check restart state
         state = self._restart_states.setdefault(name, _RestartState())
 
         if state.given_up:

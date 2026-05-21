@@ -20,7 +20,7 @@ def _import_harness():  # type: ignore[return]
     spec = importlib.util.spec_from_file_location("run_benchmark", _HARNESS)
     if spec is None or spec.loader is None:
         pytest.skip("benchmarks/run_benchmark.py not found")
-        return None  # unreachable — helps static analysers see the None-path ends
+        return None  # unreachable - helps static analysers see the None-path ends
     loader = spec.loader
     mod = importlib.util.module_from_spec(spec)
     # Register in sys.modules so dataclass field type resolution works
@@ -96,7 +96,7 @@ def test_subtask_count_matches_list_length() -> None:
 
 
 # ---------------------------------------------------------------------------
-# simulate_schedule — single agent
+# simulate_schedule - single agent
 # ---------------------------------------------------------------------------
 
 
@@ -112,7 +112,7 @@ def test_simulate_schedule_single_agent_equals_total_minutes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# simulate_schedule — multi-agent
+# simulate_schedule - multi-agent
 # ---------------------------------------------------------------------------
 
 
@@ -187,7 +187,7 @@ def test_estimate_cost_single_uses_sonnet_for_all_roles() -> None:
             SubTask(id="b", role="qa", description="b", estimated_minutes=10.0),
         ]
     )
-    # Both roles use Sonnet in single mode — cost should be same for both subtasks
+    # Both roles use Sonnet in single mode - cost should be same for both subtasks
     cost = estimate_cost(task, "single")
     assert cost > 0.0
 

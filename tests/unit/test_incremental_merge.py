@@ -1,4 +1,4 @@
-"""Tests for incremental_merge module — partial branch merges for long-running agents."""
+"""Tests for incremental_merge module - partial branch merges for long-running agents."""
 
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ class TestFilesCommittedInBranch:
 
 
 # ---------------------------------------------------------------------------
-# incremental_merge_files — unit tests with mocked git
+# incremental_merge_files - unit tests with mocked git
 # ---------------------------------------------------------------------------
 
 
@@ -251,7 +251,7 @@ class TestIncrementalMergeFiles:
         assert not lock.locked()
 
     def test_partial_success_mixed_files(self, tmp_path: Path) -> None:
-        """Some files already merged, some uncommitted, some new — correct partition."""
+        """Some files already merged, some uncommitted, some new - correct partition."""
         runtime_dir = tmp_path / "runtime"
 
         # Pre-populate state with one already-merged file
@@ -315,7 +315,7 @@ class TestStateSerialisation:
 
 
 # ---------------------------------------------------------------------------
-# _dirty_target_files — guards main workdir against operator-edit clobber
+# _dirty_target_files - guards main workdir against operator-edit clobber
 # ---------------------------------------------------------------------------
 
 
@@ -365,7 +365,7 @@ class TestDirtyTargetFiles:
 
     def test_status_failure_is_conservative(self, tmp_path: Path) -> None:
         # If `git status` cannot be run we must NOT proceed with the clobbering
-        # checkout — treat every requested file as dirty.
+        # checkout - treat every requested file as dirty.
         with patch(
             "bernstein.core.incremental_merge.run_git",
             return_value=_fail("fatal: not a git repository"),
@@ -384,7 +384,7 @@ class TestDirtyTargetFiles:
 
 
 # ---------------------------------------------------------------------------
-# incremental_merge_files — concurrent write / operator-edit guard (audit-090)
+# incremental_merge_files - concurrent write / operator-edit guard (audit-090)
 # ---------------------------------------------------------------------------
 
 
@@ -409,9 +409,9 @@ class TestAuditNinetyConcurrentWrite:
         runtime_dir = tmp_path / "runtime"
 
         call_results = [
-            # 1) ls-tree — src/api.py is committed in the agent branch
+            # 1) ls-tree - src/api.py is committed in the agent branch
             _ok("src/api.py\n"),
-            # 2) status --porcelain — operator has an unstaged edit to src/api.py
+            # 2) status --porcelain - operator has an unstaged edit to src/api.py
             _ok(" M src/api.py\n"),
             # Any further calls would be a bug: checkout/add/commit must NOT run.
         ]
@@ -429,7 +429,7 @@ class TestAuditNinetyConcurrentWrite:
         assert "uncommitted" in result.error.lower() or "refusing" in result.error.lower()
 
         # Exactly two git calls: ls-tree and status.  No checkout, add, or
-        # commit — otherwise operator edits would have been overwritten.
+        # commit - otherwise operator edits would have been overwritten.
         assert mock_git.call_count == 2
         commands = [call.args[0][0] for call in mock_git.call_args_list]
         assert "checkout" not in commands
@@ -483,7 +483,7 @@ class TestAuditNinetyConcurrentWrite:
                 return _ok("src/api.py\n")
             if args[0] == "status":
                 return _ok(" M src/api.py\n")
-            # Should not be reached — dirty check aborts first.
+            # Should not be reached - dirty check aborts first.
             return _ok("")
 
         with patch(
@@ -502,7 +502,7 @@ class TestAuditNinetyConcurrentWrite:
         assert result.dirty_files == ["src/api.py"]
         # Both the ls-tree call and the status call must have been made with
         # the merge lock held (ls-tree happens before merge_lock acquisition
-        # only if we moved code — current impl holds merge_lock during status).
+        # only if we moved code - current impl holds merge_lock during status).
         # We require AT LEAST the status call (index 1) to be under the lock.
         assert len(lock_state) >= 2
         assert lock_state[1] is True, "status --porcelain must run under merge_lock"

@@ -23,11 +23,11 @@ from bernstein.core.models import ModelConfig
 
 from bernstein.adapters.openai_agents import OpenAIAgentsAdapter
 
-# Gate on the API key — this keeps the test skipped in CI and any
+# Gate on the API key - this keeps the test skipped in CI and any
 # environment that has not explicitly opted into real OpenAI calls.
 pytestmark = pytest.mark.skipif(
     not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set — smoke test requires real OpenAI credentials",
+    reason="OPENAI_API_KEY not set - smoke test requires real OpenAI credentials",
 )
 
 
@@ -49,7 +49,7 @@ def test_smoke_agent_runs_end_to_end(tmp_path: Path) -> None:
     * the log contains at least one ``completion`` event.
 
     We deliberately do **not** assert on tool-call accuracy or the exact
-    summary — those are properties of the model, not the adapter.
+    summary - those are properties of the model, not the adapter.
     """
     adapter = OpenAIAgentsAdapter()
     session_id = f"smoke-{int(time.time())}"
@@ -74,7 +74,7 @@ def test_smoke_agent_runs_end_to_end(tmp_path: Path) -> None:
 
     log_contents = result.log_path.read_text(encoding="utf-8", errors="replace")
     # The runner always emits a "start" event; "completion" appears on
-    # success.  A rate-limit exit is also acceptable — we don't want this
+    # success.  A rate-limit exit is also acceptable - we don't want this
     # smoke test to be flaky on quota exhaustion.
     assert '"type": "start"' in log_contents
     assert '"type": "completion"' in log_contents or '"kind": "rate_limit"' in log_contents

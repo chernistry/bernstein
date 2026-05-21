@@ -136,7 +136,7 @@ class TestManagedKey:
 
 
 # ---------------------------------------------------------------------------
-# KeyRotationManager — registration and queries
+# KeyRotationManager - registration and queries
 # ---------------------------------------------------------------------------
 
 
@@ -171,7 +171,7 @@ class TestKeyRotationManagerBasic:
 
 
 # ---------------------------------------------------------------------------
-# KeyRotationManager — state persistence
+# KeyRotationManager - state persistence
 # ---------------------------------------------------------------------------
 
 
@@ -199,7 +199,7 @@ class TestKeyRotationManagerPersistence:
 
 
 # ---------------------------------------------------------------------------
-# KeyRotationManager — rotation
+# KeyRotationManager - rotation
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +310,7 @@ class TestKeyRotationManagerRotation:
 
 
 # ---------------------------------------------------------------------------
-# KeyRotationManager — leak detection
+# KeyRotationManager - leak detection
 # ---------------------------------------------------------------------------
 
 
@@ -382,7 +382,7 @@ class TestKeyRotationManagerLeakDetection:
 
 
 # ---------------------------------------------------------------------------
-# KeyRotationManager — revocation
+# KeyRotationManager - revocation
 # ---------------------------------------------------------------------------
 
 

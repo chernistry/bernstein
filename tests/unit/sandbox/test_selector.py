@@ -1,6 +1,6 @@
 """Unit tests for the sandbox selection policy.
 
-The selector is pure, so the tests use lightweight stub backends —
+The selector is pure, so the tests use lightweight stub backends -
 duck-typing against :class:`SandboxBackend` rather than spinning up
 real worktree/docker instances. This keeps the suite fast and lets us
 exercise edge cases (missing credentials, capability gaps, override

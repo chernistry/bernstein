@@ -4,7 +4,7 @@ Demonstrates how to emit run reports in a custom format by hooking into
 Bernstein's lifecycle events. This example posts a Slack summary when
 the orchestrator finishes a batch of tasks.
 
-Usage — add to bernstein.yaml:
+Usage - add to bernstein.yaml:
 
     plugins:
       - examples.plugins.reporter_plugin:SlackReporter
@@ -72,7 +72,7 @@ class SlackReporter:
         """Post a run summary when the orchestrator stops."""
         elapsed = datetime.now(UTC).timestamp() - self._summary.started_at
         lines = [
-            f":white_check_mark: *Bernstein run finished* (session `{session_id}`) — {elapsed:.0f}s",
+            f":white_check_mark: *Bernstein run finished* (session `{session_id}`) - {elapsed:.0f}s",
             f"Completed: {len(self._summary.completed)}  Failed: {len(self._summary.failed)}",
         ]
         if self._summary.failed:

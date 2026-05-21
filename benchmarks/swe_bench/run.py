@@ -50,7 +50,7 @@ from bernstein.benchmark.head_to_head import CANONICAL_COMPARISON, generate_full
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger("bernstein.swe_bench")

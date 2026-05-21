@@ -39,7 +39,7 @@ class _StubBody:
 
 
 class _StubPaginator:
-    """Mimics the S3 paginator — yields dict pages with ``Contents``."""
+    """Mimics the S3 paginator - yields dict pages with ``Contents``."""
 
     def __init__(self, pages: list[dict[str, Any]]) -> None:
         self._pages = pages

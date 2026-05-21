@@ -92,7 +92,7 @@ def _format_existing_tasks(tasks: list[Task]) -> str:
         Summary string or a 'none' placeholder.
     """
     if not tasks:
-        return "(none — this is a fresh plan)"
+        return "(none - this is a fresh plan)"
     lines: list[str] = []
     for t in tasks:
         dep_str = f" [depends: {', '.join(t.depends_on)}]" if t.depends_on else ""
@@ -163,7 +163,7 @@ def render_queue_review_prompt(
     def _fmt_task(t: Task) -> str:
         age = ""
         agent = f" claimed by {t.assigned_agent}" if t.assigned_agent else ""
-        return f'  - [{t.role}] [{t.id}] "{t.title}" — {t.status.value}{agent}{age}'
+        return f'  - [{t.role}] [{t.id}] "{t.title}" - {t.status.value}{agent}{age}'
 
     lines: list[str] = [
         f"{completed_count} task(s) completed, {failed_count} failed since last review.",
@@ -186,7 +186,7 @@ def render_queue_review_prompt(
         "Review the queue for problems: wrong role assignments, stalled agents, tasks that are "
         "too large, or missing work. Issue ONLY corrections that are clearly needed.",
         "",
-        "Respond with a JSON object — no markdown, no preamble:",
+        "Respond with a JSON object - no markdown, no preamble:",
         "{",
         '  "reasoning": "<one sentence overall assessment>",',
         '  "corrections": [',
@@ -203,7 +203,7 @@ def render_queue_review_prompt(
         "}",
         "",
         "Rules:",
-        "- Empty corrections list is fine — only add what is genuinely needed.",
+        "- Empty corrections list is fine - only add what is genuinely needed.",
         "- Never cancel an in-progress task unless it has been stuck for >5 minutes.",
         "- Only reassign tasks that are clearly in the wrong role bucket.",
         "- Max 500 tokens total output.",

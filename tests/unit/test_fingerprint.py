@@ -24,7 +24,7 @@ def _fn_v1(x: int, y: int) -> int:
 
 
 def _fn_v2(x: int, y: int) -> int:
-    # same signature, different body — fingerprint MUST diverge
+    # same signature, different body - fingerprint MUST diverge
     return x + y + 1
 
 

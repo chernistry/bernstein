@@ -2,7 +2,7 @@
 
 Prevents concurrent gate runs from clobbering shared state (git index, cache
 directories, metrics files) by serializing execution through a single FIFO
-queue.  Every caller's task is validated against its own diff — no request is
+queue.  Every caller's task is validated against its own diff - no request is
 silently dropped or masked with a spurious ``passed=True``.
 
 Flow:
@@ -15,7 +15,7 @@ Flow:
   wakes up and returns its own real result.
 
 Previously this class returned a lightweight ``passed=True`` for coalesced
-callers — a silent gate bypass under concurrent completions. The
+callers - a silent gate bypass under concurrent completions. The
 "trailing-run-only" optimisation is unsafe because each task has its own
 worktree and its own diff; reusing one run's result for another task means
 gates are never actually executed against the second task's changes.
@@ -178,19 +178,19 @@ class QualityGateCoalescer:
                 queued = _QueuedRun(task=task, run_dir=run_dir, workdir=workdir, kwargs=kwargs)
                 self._queue.append(queued)
                 logger.debug(
-                    "quality_gate_coalescer: run in progress — queued task=%s at position %d",
+                    "quality_gate_coalescer: run in progress - queued task=%s at position %d",
                     task.id,
                     len(self._queue),
                 )
             else:
-                # No run in progress — claim the slot and run immediately.
+                # No run in progress - claim the slot and run immediately.
                 self._in_progress = True
                 queued = None
 
         if queued is not None:
             return self._wait_for_queued(queued)
 
-        # We are the active runner — execute our own task, then drain the queue.
+        # We are the active runner - execute our own task, then drain the queue.
         try:
             result = self._execute(task, run_dir, workdir, config, **kwargs)
         finally:
@@ -212,7 +212,7 @@ class QualityGateCoalescer:
         if not queued.event.wait(timeout=self._queue_timeout_s):
             # Best-effort cleanup: remove the entry so it isn't executed later.
             with self._lock, contextlib.suppress(ValueError):
-                # ValueError means the runner already popped us — benign race.
+                # ValueError means the runner already popped us - benign race.
                 self._queue.remove(queued)
             raise TimeoutError(
                 f"quality_gate_coalescer: task {queued.task.id} timed out "

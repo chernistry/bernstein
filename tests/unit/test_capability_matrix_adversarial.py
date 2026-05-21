@@ -3,8 +3,8 @@
 This module exists to *try to break* the structural rule that no spawned
 agent may carry the union of all three capabilities (PRIVATE_DATA,
 UNTRUSTED_INPUT, EXTERNAL_COMM) on a single execution path.  Each test
-encodes a bypass vector — tool aliasing, capability mutation, runtime
-scope escalation, surface mismatch, race-against-spawn — and asserts
+encodes a bypass vector - tool aliasing, capability mutation, runtime
+scope escalation, surface mismatch, race-against-spawn - and asserts
 that the matrix fails closed.
 
 If any of these tests starts *passing the chain* without the matching
@@ -75,7 +75,7 @@ def declared_registry() -> CapabilityRegistry:
 
 
 # ---------------------------------------------------------------------------
-# Bypass vector 1: aliasing — agent renames a denied tool to look benign
+# Bypass vector 1: aliasing - agent renames a denied tool to look benign
 # ---------------------------------------------------------------------------
 
 
@@ -100,7 +100,7 @@ class TestAliasingBypass:
         with the alias.  Reverse case: passing the unknown alias only.
         """
         reg = CapabilityRegistry()
-        # Alias declared with empty caps — *declared*, so unknown=False
+        # Alias declared with empty caps - *declared*, so unknown=False
         reg.register(
             ToolCapabilities(
                 tool_name="fs.read_pretty",
@@ -111,13 +111,13 @@ class TestAliasingBypass:
         # unknown tool must default-deny and trip the trifecta on its own.
         decision_alias_only = reg.evaluate_chain(["fs.read_pretty"])
         assert decision_alias_only.allowed is True, (
-            "An empty-cap alias on its own must NOT trip the trifecta — but it must also not contribute capabilities."
+            "An empty-cap alias on its own must NOT trip the trifecta - but it must also not contribute capabilities."
         )
         # Now an agent uses BOTH the alias AND the real (unknown) tool.
         # The unknown tool default-denies because we have no declaration.
         decision_with_unknown = reg.evaluate_chain(["fs.read_pretty", "fs.read_secret"])
         assert decision_with_unknown.allowed is False, (
-            "Real tool fs.read_secret is unknown to this registry — "
+            "Real tool fs.read_secret is unknown to this registry - "
             "default-deny must kick in regardless of any alias entry."
         )
         assert "fs.read_secret" in decision_with_unknown.unknown_tools
@@ -147,7 +147,7 @@ class TestAliasingBypass:
         # Alias is declared with no caps; only the real tool contributes.
         decision = reg.evaluate_chain(["fs.read_secret_alias"])
         assert Capability.PRIVATE_DATA not in decision.triggered, (
-            "Alias entry must NOT inherit caps from the real tool — "
+            "Alias entry must NOT inherit caps from the real tool - "
             "but the operator must declare them explicitly to keep the chain safe."
         )
 
@@ -209,7 +209,7 @@ class TestEmptyAndMalformedDeclarations:
     def test_empty_capability_list_means_zero_caps_not_all_caps(self) -> None:
         """A *declared* tool with ``capabilities: []`` must contribute zero caps.
 
-        This is the same shape as ``git.commit`` in the bundled YAML —
+        This is the same shape as ``git.commit`` in the bundled YAML -
         if it were silently elevated to all-caps we would refuse legitimate
         chains.  Conversely, any *missing* declaration must fall through
         to default-deny.  This test pins the "declared empty == zero caps"
@@ -236,14 +236,14 @@ class TestEmptyAndMalformedDeclarations:
         test pins that contract.  We craft a file whose Python-tagged
         block, if instantiated, would set a sentinel attribute.  Under
         ``safe_load`` the parse raises ``YAMLError`` and the loader logs
-        a warning and returns ``[]`` — so the registry stays empty.
+        a warning and returns ``[]`` - so the registry stays empty.
         """
         path = tmp_path / "evil.yaml"
         path.write_text(
             "tools:\n  - name: x.read\n    capabilities: !!python/object/apply:os.system ['echo pwned']\n",
             encoding="utf-8",
         )
-        # Sanity: confirm the loader does not raise — it absorbs the YAMLError.
+        # Sanity: confirm the loader does not raise - it absorbs the YAMLError.
         assert _load_yaml_file(path) == []
         # And confirm yaml.safe_load itself rejects the same payload.
         with pytest.raises(yaml.YAMLError):
@@ -333,7 +333,7 @@ class TestMutationAfterCheck:
     *registry mutation between check and spawn does not retroactively
     relax a denied decision*.
 
-    The decision is a frozen dataclass — once it says ``allowed=False``,
+    The decision is a frozen dataclass - once it says ``allowed=False``,
     later writes to ``registry.tools`` cannot un-deny it.  The integration
     seam in :func:`record_spawn_capabilities` raises eagerly on the
     ``ChainDecision`` before any caller can look at the manifest.
@@ -344,8 +344,8 @@ class TestMutationAfterCheck:
 
         Even if the registry is mutated after the fact, the previously
         returned decision object cannot be mutated to relax the deny.
-        The deeper invariant — that ``record_spawn_capabilities`` always
-        re-evaluates from the current registry — is covered separately.
+        The deeper invariant - that ``record_spawn_capabilities`` always
+        re-evaluates from the current registry - is covered separately.
         """
         decision = declared_registry.evaluate_chain(_trifecta_chain())
         assert decision.allowed is False
@@ -364,7 +364,7 @@ class TestMutationAfterCheck:
 
     def test_record_spawn_reevaluates_at_call_time(self, tmp_path: Path, declared_registry: CapabilityRegistry) -> None:
         """``record_spawn_capabilities`` must re-evaluate against the
-        registry at call time — *not* trust any external decision blob.
+        registry at call time - *not* trust any external decision blob.
 
         We verify the inverse direction: starting with a relaxed registry,
         we re-tighten and confirm the spawn deny fires.  This pins down
@@ -435,15 +435,15 @@ class TestMutationAfterCheck:
 
 
 # ---------------------------------------------------------------------------
-# Bypass vector 6: surface scope — fs.read pointing at /etc/passwd
+# Bypass vector 6: surface scope - fs.read pointing at /etc/passwd
 # ---------------------------------------------------------------------------
 
 
 class TestSurfaceScope:
     """The matrix is *capability-aware*, not *path-aware*: a tool tagged
     ``private_data`` carries that capability regardless of which file the
-    agent reads.  This is intentional — path-level filtering belongs to
-    the worker tool allowlist (T578) — but it means the trifecta check
+    agent reads.  This is intentional - path-level filtering belongs to
+    the worker tool allowlist (T578) - but it means the trifecta check
     cannot be tricked by a "small file" path.
     """
 
@@ -459,7 +459,7 @@ class TestSurfaceScope:
         reg = CapabilityRegistry.load_default()
         decision = reg.evaluate_chain(["fs.read", "github.fetch_issue", "github.post_comment"])
         assert decision.allowed is False, (
-            "fs.read must carry PRIVATE_DATA — re-tagging it to empty caps "
+            "fs.read must carry PRIVATE_DATA - re-tagging it to empty caps "
             "would silently allow the lethal trifecta with /etc/passwd-style reads."
         )
 
@@ -469,7 +469,7 @@ class TestSurfaceScope:
         """``shell.exec`` is tagged with both PRIVATE_DATA and EXTERNAL_COMM.
 
         That way *any* untrusted-input tool combined with shell.exec
-        already covers all three capabilities — there is no "but I only
+        already covers all three capabilities - there is no "but I only
         used shell.exec" loophole.
         """
         reg = CapabilityRegistry.load_default()
@@ -488,7 +488,7 @@ class TestSurfaceScope:
 class TestSubprocessShellEscalation:
     """A "read-only" tool that can shell out is still gated.
 
-    The matrix has no concept of "read-only" surfaces — it tags
+    The matrix has no concept of "read-only" surfaces - it tags
     capabilities, not modes.  Any tool that *could* trigger a shell
     must carry both PRIVATE_DATA (it can read repo secrets) and
     EXTERNAL_COMM (it can dial out).  This test pins ``shell.exec``
@@ -505,19 +505,19 @@ class TestSubprocessShellEscalation:
 
 
 # ---------------------------------------------------------------------------
-# Bypass vector 8: DNS rebinding — egress allowlist is a runtime concern,
+# Bypass vector 8: DNS rebinding - egress allowlist is a runtime concern,
 # but the structural rule still holds at the capability layer
 # ---------------------------------------------------------------------------
 
 
 class TestDnsRebindingAtCapabilityLayer:
-    """The capability matrix does not validate DNS targets — that is the
+    """The capability matrix does not validate DNS targets - that is the
     network policy layer's job.  But ``EXTERNAL_COMM`` is the structural
     flag that ANY outbound call carries, regardless of where it resolves
     to at use-time.
 
     Even a "localhost-only" tool that *could* be DNS-rebinded into a
-    public IP would still be tagged ``EXTERNAL_COMM`` — and combining it
+    public IP would still be tagged ``EXTERNAL_COMM`` - and combining it
     with PRIVATE_DATA + UNTRUSTED_INPUT therefore trips the trifecta at
     spawn time, before the rebind can happen at runtime.  This is the
     "fail before, not after" property we want.
@@ -546,7 +546,7 @@ class TestDnsRebindingAtCapabilityLayer:
         decision = reg.evaluate_chain(["loopback.fetch", "prompt.from_user", "db.read_credentials"])
         assert decision.allowed is False, (
             "A 'localhost-only' fetcher tagged EXTERNAL_COMM must still trip "
-            "the trifecta — the structural check fires before the agent "
+            "the trifecta - the structural check fires before the agent "
             "can DNS-rebind localhost to a public address."
         )
 
@@ -677,7 +677,7 @@ class TestLookupSideEffects:
         result = reg.lookup("phantom.tool")
         assert result.source == "default"
         assert reg.tools == before, (
-            "lookup() must not auto-register the queried tool — that would "
+            "lookup() must not auto-register the queried tool - that would "
             "leak unknown-tool warnings into the declared set."
         )
 
@@ -692,7 +692,7 @@ class TestBundledYamlSafety:
     def test_no_bundled_tool_carries_all_three_capabilities_alone(self) -> None:
         """If anyone tags a bundled tool with all three caps, the registry
         becomes a single-call trifecta.  We pin that none currently do
-        — except adapters, which are intentionally tagged that way to
+        - except adapters, which are intentionally tagged that way to
         force a tool-allowlist scope before spawn.
 
         The spawner_core path filters out the adapter envelope precisely
@@ -708,7 +708,7 @@ class TestBundledYamlSafety:
             if entry.capabilities == all_three and not name.startswith("adapter.")
         ]
         assert offenders == [], (
-            f"Non-adapter bundled tools that union all three caps: {offenders} — "
+            f"Non-adapter bundled tools that union all three caps: {offenders} - "
             "this would let a single tool name trip the lethal trifecta. "
             "Either narrow the tags or move the entry under the adapter.* namespace."
         )
@@ -730,11 +730,11 @@ class TestBundledYamlSafety:
         for path in files:
             entries = _load_yaml_file(path)
             # Every bundled file is expected to declare *some* tools.
-            assert entries, f"Bundled YAML {path} parsed empty — possible YAML error"
+            assert entries, f"Bundled YAML {path} parsed empty - possible YAML error"
 
 
 # ---------------------------------------------------------------------------
-# Bypass vector 15: integration with full DecisionGraph — bypass cannot
+# Bypass vector 15: integration with full DecisionGraph - bypass cannot
 # wash out the IMMUNE decision regardless of layer ordering
 # ---------------------------------------------------------------------------
 

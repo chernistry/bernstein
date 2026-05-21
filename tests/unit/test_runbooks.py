@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.runbooks — Runbook automation."""
+"""Tests for bernstein.core.runbooks - Runbook automation."""
 
 from __future__ import annotations
 

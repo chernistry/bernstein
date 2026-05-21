@@ -1,4 +1,4 @@
-"""Cascading token count strategy — three-level fallback.
+"""Cascading token count strategy - three-level fallback.
 
 Attempts to count tokens with increasing cost and decreasing accuracy:
 1. Anthropic API ``/v1/messages/count_tokens`` (exact, free if you have a key).
@@ -121,7 +121,7 @@ def count_tokens_via_estimation(text: str, file_type: str = "code") -> int:
 
     Args:
         text: Text content to estimate.
-        file_type: Content category — one of ``"code"``, ``"json"``,
+        file_type: Content category - one of ``"code"``, ``"json"``,
             ``"text"``, ``"markup"``, or ``"default"``.
 
     Returns:
@@ -162,7 +162,7 @@ async def count_tokens(
     """
     effective_model = model or _DEFAULT_MODEL
 
-    # Level 1 — Anthropic API
+    # Level 1 - Anthropic API
     try:
         tokens = await count_tokens_via_api(text, model=effective_model)
         log.debug("Token count via API: %d", tokens)
@@ -172,7 +172,7 @@ async def count_tokens(
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         log.debug("API token count failed (%s); trying cheap model", exc)
 
-    # Level 2 — Cheap LLM
+    # Level 2 - Cheap LLM
     try:
         tokens = await count_tokens_via_cheap_model(text, model=effective_model)
         log.debug("Token count via cheap model: %d", tokens)
@@ -182,7 +182,7 @@ async def count_tokens(
         # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         log.debug("Cheap-model token count failed (%s); falling back to estimation", exc)
 
-    # Level 3 — Bytes estimation (never fails)
+    # Level 3 - Bytes estimation (never fails)
     tokens = count_tokens_via_estimation(text, file_type=file_type)
     log.debug("Token count via bytes estimation: %d", tokens)
     return tokens

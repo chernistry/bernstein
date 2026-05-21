@@ -24,9 +24,9 @@ type RGB = tuple[int, int, int]
 
 # ── Bernstein default palette ──────────────────────────────────────────────────
 
-PALETTE_NAVY: RGB = (0x0A, 0x0E, 0x1A)  # #0a0e1a — dark navy
-PALETTE_TEAL: RGB = (0x0A, 0x3D, 0x62)  # #0a3d62 — teal
-PALETTE_BLACK: RGB = (0x00, 0x00, 0x00)  # #000000 — black
+PALETTE_NAVY: RGB = (0x0A, 0x0E, 0x1A)  # #0a0e1a - dark navy
+PALETTE_TEAL: RGB = (0x0A, 0x3D, 0x62)  # #0a3d62 - teal
+PALETTE_BLACK: RGB = (0x00, 0x00, 0x00)  # #000000 - black
 
 #: Default Bernstein gradient: dark navy → teal → black
 BERNSTEIN_COLORS: list[RGB] = [PALETTE_NAVY, PALETTE_TEAL, PALETTE_BLACK]

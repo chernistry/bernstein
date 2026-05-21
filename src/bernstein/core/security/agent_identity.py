@@ -9,7 +9,7 @@ A2A v1.0 dataclass migration
 
 The route layer (``bernstein.core.routes.well_known``) has been emitting
 A2A v1.0 fields (``protocolVersion``, ``supportedInterfaces``,
-``securitySchemes``, ``signatures``) since the JWKS PR — but those fields
+``securitySchemes``, ``signatures``) since the JWKS PR - but those fields
 were synthesised at route render time, not stored on
 :class:`AgentIdentityCard` itself. This module now carries them on the
 dataclass so spawned agents can declare them once, sign once, and federate.
@@ -22,10 +22,10 @@ keep validating; once the flag flips the hash covers the full v1.0 surface
 including the new fields.
 
 For verifiers that only understand the pre-v1.0 shape, :meth:`AgentIdentityCard.to_legacy_dict`
-strips the v1.0 fields and returns the original 11-key dict — that's the
+strips the v1.0 fields and returns the original 11-key dict - that's the
 shape ``agent_card_signer.sign_agent_card`` consumed before this PR.
 
-The migration is intentionally additive — new fields default to empty
+The migration is intentionally additive - new fields default to empty
 collections so older callers who construct the dataclass via positional or
 plain ``AgentIdentityCard(**data)`` paths keep working without code
 changes.
@@ -54,7 +54,7 @@ AGENT_CARD_V1_0_HASH_ENV: str = "BERNSTEIN_AGENT_CARD_V1_0_HASH"
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 #: A2A v1.0 protocol version string emitted on cards by default. The route
-#: layer's ``_PROTOCOL_VERSION`` resolves to the same string — keeping the
+#: layer's ``_PROTOCOL_VERSION`` resolves to the same string - keeping the
 #: literal here makes the dataclass self-contained when used outside the
 #: HTTP server (CLI tools, federation tests).
 A2A_PROTOCOL_VERSION_V1_0: str = "1.0"
@@ -107,7 +107,7 @@ TASK_BUDGETS_BETA_HEADER: str = "task-budgets-2026-03-13"
 
 #: Default per-turn token budget visible to the agent in the countdown
 #: banner. 64k mirrors Anthropic's published per-task context surface for
-#: Opus 4.7 — callers may override on a per-card basis.
+#: Opus 4.7 - callers may override on a per-card basis.
 DEFAULT_MAX_TOKENS: int = 64_000
 
 #: Default per-turn step budget. ~30 turns matches the typical role budget
@@ -167,7 +167,7 @@ class InterfaceSpec:
 class SecurityScheme:
     """Single A2A v1.0 ``securitySchemes[]`` entry.
 
-    Mirrors the route-level shape — verifiers consume the same dict either
+    Mirrors the route-level shape - verifiers consume the same dict either
     way, so dataclass-generated cards can be served straight to clients.
     """
 
@@ -223,7 +223,7 @@ class AgentIdentityCard:
     expires_at: float = 0.0
 
     # ------------------------------------------------------------------
-    # A2A v1.0 fields (additive — default to empty so legacy callers still
+    # A2A v1.0 fields (additive - default to empty so legacy callers still
     # work via plain ``AgentIdentityCard(**data)`` round-trips).
     # ------------------------------------------------------------------
     #: Protocol version this card declares. Empty string keeps pre-v1.0

@@ -1,6 +1,6 @@
 """End-to-end retry-with-fresh-context tests using the fake-CLI harness.
 
-Closes #1109 — exercises the spawner's retry path when a task opts into
+Closes #1109 - exercises the spawner's retry path when a task opts into
 ``agent_restart_between_retries``.  Configures the fake CLI to fail twice
 then succeed, drives three sequential spawns through ``spawn_for_tasks``,
 and asserts that every retry argv carries no resume-tokens / continuation
@@ -8,12 +8,12 @@ flags and no failure-replay payload from prior attempts.
 
 Two scenarios:
 
-1. ``test_fresh_restart_drops_failure_replay`` — flag on, three spawns,
+1. ``test_fresh_restart_drops_failure_replay`` - flag on, three spawns,
    the 2nd and 3rd are retries.  The audit chain records both restarts
    and the rendered prompt never contains the prior-attempt failure
    markers.
 
-2. ``test_default_off_preserves_replay`` — flag off (the default for
+2. ``test_default_off_preserves_replay`` - flag off (the default for
    every existing task), three spawns, the failure-replay text survives
    into the rendered prompt as it does today.  Regression guard.
 """
@@ -65,7 +65,7 @@ class _FakeCLIBackedAdapter(CLIAdapter):
 
     Records every prompt / argv pair so tests can verify the absence of
     accumulated state across retries.  Distinct from the production claude
-    adapter — we only need the spawn surface for this regression.
+    adapter - we only need the spawn surface for this regression.
     """
 
     def __init__(self, wrapper_dir: Path) -> None:
@@ -183,7 +183,7 @@ def spawner(
         use_worktrees=False,
         spawn_rate_limiter=rate_limiter,
     )
-    # Stub the heavy auth/JWT path — production wires it up but unit-style
+    # Stub the heavy auth/JWT path - production wires it up but unit-style
     # integration tests don't have an identity store on disk.
     sp._issue_agent_token = MagicMock(return_value=workdir / ".sdd" / "stub.token")  # type: ignore[method-assign]
     return sp, adapter
@@ -233,7 +233,7 @@ class TestFreshRestartIntegration:
     """Three sequential spawns: success → success after two failures.
 
     The fake CLI is configured to fail twice and then succeed.  We don't
-    actually drive the failure-classifier loop here — that is covered by
+    actually drive the failure-classifier loop here - that is covered by
     unit tests in ``tests/unit/test_failure_aware_retry.py``.  This test
     verifies the *spawner's* contribution: when a retry is fresh-context,
     the prompt argv contains no replay text and the audit log records
@@ -294,14 +294,14 @@ class TestFreshRestartIntegration:
                 f"Retry attempt {idx} leaked retry meta-message into the prompt"
             )
 
-        # argv shape stays canonical across retries — no resume tokens
+        # argv shape stays canonical across retries - no resume tokens
         # nor continuation flags piggy-back on the fresh restart.
         for idx, argv in enumerate(adapter.spawned_argv):
             assert "--resume" not in argv, f"spawn {idx} carried --resume"
             assert "--continue" not in argv, f"spawn {idx} carried --continue"
             assert "--session-id" not in argv, f"spawn {idx} carried --session-id"
 
-        # Two audit events — one per retry restart, in order.
+        # Two audit events - one per retry restart, in order.
         log = AuditLog(audit_dir=workdir / ".sdd" / "audit")
         events = log.query(event_type=AGENT_FRESH_RESTART_ON_RETRY)
         assert len(events) == 2

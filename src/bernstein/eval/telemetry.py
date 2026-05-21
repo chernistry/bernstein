@@ -1,4 +1,4 @@
-"""Telemetry contract — strict schema for agent output metadata.
+"""Telemetry contract - strict schema for agent output metadata.
 
 Every eval run validates agent telemetry against this schema.
 Schema violations degrade the reliability gate.

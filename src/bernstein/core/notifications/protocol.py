@@ -100,7 +100,7 @@ class NotificationEvent:
         event_id: Stable identifier used for dedup and audit. Callers
             SHOULD derive this deterministically from the underlying
             event so a restart-loop cannot spam a sink. The bridge
-            falls back to a ``uuid4`` if missing — that path is
+            falls back to a ``uuid4`` if missing - that path is
             intentionally non-deduplicated.
         kind: One of :class:`NotificationEventKind`.
         title: Short single-line headline (e.g. "Task t-42 failed").

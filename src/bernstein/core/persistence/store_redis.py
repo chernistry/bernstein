@@ -2,7 +2,7 @@
 
 Used by :class:`~bernstein.core.store_postgres.PostgresTaskStore` to prevent
 two nodes from claiming the same task concurrently (Redlock-style, single
-Redis node variant — sufficient for most deployments).
+Redis node variant - sufficient for most deployments).
 
 When Redis is not available the :class:`PostgresTaskStore` falls back to
 PostgreSQL advisory locks, which are slower but fully correct.
@@ -16,7 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# ``redis`` is an optional dependency — only imported when cluster mode is
+# ``redis`` is an optional dependency - only imported when cluster mode is
 # enabled.  We guard the import so the rest of Bernstein keeps working with
 # zero extra packages.
 _redis_available: bool

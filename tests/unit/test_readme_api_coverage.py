@@ -1,4 +1,4 @@
-"""README API coverage test — detects undocumented public CLI commands.
+"""README API coverage test - detects undocumented public CLI commands.
 
 When a new CLI command or command group is added to the Bernstein CLI, this
 test fails with a clear message pointing to the README and the list of commands
@@ -8,7 +8,7 @@ How it works
 ------------
 1. Walk the top-level ``cli`` Click group to collect every registered command
    name.
-2. Compare that set against ``DOCUMENTED_COMMANDS`` — the known set of
+2. Compare that set against ``DOCUMENTED_COMMANDS`` - the known set of
    commands that appear in the README.
 3. If any command name is absent from both lists, the test fails and names
    the undocumented command explicitly.
@@ -21,7 +21,7 @@ When you add a new top-level command:
    section, with a one-line description and example).
 2. Add the command name to ``DOCUMENTED_COMMANDS`` below.
 
-This file is the contract surface — adding to ``DOCUMENTED_COMMANDS`` without
+This file is the contract surface - adding to ``DOCUMENTED_COMMANDS`` without
 updating the README defeats the purpose.
 """
 
@@ -287,7 +287,7 @@ def test_documented_commands_allowlist_has_no_phantoms() -> None:
     """Every name in DOCUMENTED_COMMANDS must correspond to an actual registered command.
 
     If this test fails, a command was removed or renamed without updating the
-    allowlist — clean it up to keep the allowlist accurate.
+    allowlist - clean it up to keep the allowlist accurate.
     """
     registered = _collect_top_level_commands()
     phantoms = DOCUMENTED_COMMANDS - registered

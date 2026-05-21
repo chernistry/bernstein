@@ -1,4 +1,4 @@
-"""custom-guardrail — fail-closed no-secrets-in-prompt guardrail.
+"""custom-guardrail - fail-closed no-secrets-in-prompt guardrail.
 
 Worked example of the bernstein guardrail extension point. The plugin
 contributes a :class:`Guardrail` implementation that scans incoming

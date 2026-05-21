@@ -1,4 +1,4 @@
-"""Custom eval metrics — each metric is a dataclass with a compute method.
+"""Custom eval metrics - each metric is a dataclass with a compute method.
 
 Metrics feed into the multiplicative scoring formula:
     Score = (0.5*TaskSuccess + 0.3*CodeQuality + 0.2*Efficiency) * Reliability * Safety

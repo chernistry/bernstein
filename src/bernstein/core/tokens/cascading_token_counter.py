@@ -1,6 +1,6 @@
 """Cascading token count strategy: API → cheap model → bytes/4 estimation.
 
-Provides ``count_tokens_cascading()`` — an async function that tries progressively
+Provides ``count_tokens_cascading()`` - an async function that tries progressively
 cheaper (but less accurate) token counting strategies in order:
 
 1. **API tier**: Call the Anthropic ``/v1/messages/count_tokens`` endpoint for an
@@ -45,7 +45,7 @@ _API_MAX_CHARS: int = 500_000
 
 
 # ---------------------------------------------------------------------------
-# Tier 1 — Anthropic API count_tokens endpoint
+# Tier 1 - Anthropic API count_tokens endpoint
 # ---------------------------------------------------------------------------
 
 
@@ -104,7 +104,7 @@ def _count_tokens_via_api(text: str, model: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Tier 2 — Cheap model via OpenRouter/OpenAI
+# Tier 2 - Cheap model via OpenRouter/OpenAI
 # ---------------------------------------------------------------------------
 
 
@@ -137,7 +137,7 @@ async def _count_tokens_via_cheap_model(text: str) -> int | None:
 
         prompt = (
             f"Count the approximate number of LLM tokens in the following text. "
-            f"Reply with ONLY a single integer — no explanation, no units, just the number.\n\n"
+            f"Reply with ONLY a single integer - no explanation, no units, just the number.\n\n"
             f"{'[First 8000 chars of text:]' if is_truncated else '[Text:]'}\n{sample}"
         )
 
@@ -171,14 +171,14 @@ async def _count_tokens_via_cheap_model(text: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Tier 3 — bytes/4 estimation
+# Tier 3 - bytes/4 estimation
 # ---------------------------------------------------------------------------
 
 
 def _count_tokens_bytes_estimate(text: str) -> int:
     """Estimate token count via bytes/4 heuristic.
 
-    This is the final fallback tier — always available, no I/O, no API keys.
+    This is the final fallback tier - always available, no I/O, no API keys.
 
     Args:
         text: Text to estimate.
@@ -209,11 +209,11 @@ async def count_tokens_cascading(
 
     Tries tiers in order until one succeeds:
 
-    1. **API tier** — Anthropic ``/v1/messages/count_tokens`` (exact, requires
+    1. **API tier** - Anthropic ``/v1/messages/count_tokens`` (exact, requires
        ``ANTHROPIC_API_KEY``).
-    2. **Cheap model tier** — Ask a haiku-class model via OpenRouter (requires
+    2. **Cheap model tier** - Ask a haiku-class model via OpenRouter (requires
        ``OPENROUTER_API_KEY_PAID`` or ``OPENROUTER_API_KEY_FREE``).
-    3. **bytes/4 estimation** — Offline heuristic, always available.
+    3. **bytes/4 estimation** - Offline heuristic, always available.
 
     Args:
         text: Text to count tokens for.
@@ -228,7 +228,7 @@ async def count_tokens_cascading(
     if not text:
         return 0
 
-    # Tier 1: Anthropic API (sync but fast enough — no event loop blocking concern
+    # Tier 1: Anthropic API (sync but fast enough - no event loop blocking concern
     # for typical prompt sizes, and avoids adding async to the HTTP call).
     if not skip_api:
         result = _count_tokens_via_api(text, model)
@@ -241,5 +241,5 @@ async def count_tokens_cascading(
         if result is not None:
             return result
 
-    # Tier 3: bytes/4 estimate — always succeeds.
+    # Tier 3: bytes/4 estimate - always succeeds.
     return _count_tokens_bytes_estimate(text)

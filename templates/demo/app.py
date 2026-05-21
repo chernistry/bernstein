@@ -1,10 +1,10 @@
 """Simple Flask web application for the Bernstein demo.
 
 This file contains four intentional bugs that ``bernstein demo`` will fix:
-  Bug 1 — off-by-one: get_item() uses ITEMS[n] (0-indexed) on a 1-indexed route.
-  Bug 2 — missing import: request is used in /echo but not imported from flask.
-  Bug 3 — wrong status code: /health returns 201 (Created) instead of 200 (OK).
-  Bug 4 — broken test: test_hello_returns_200 asserts status_code == 404.
+  Bug 1 - off-by-one: get_item() uses ITEMS[n] (0-indexed) on a 1-indexed route.
+  Bug 2 - missing import: request is used in /echo but not imported from flask.
+  Bug 3 - wrong status code: /health returns 201 (Created) instead of 200 (OK).
+  Bug 4 - broken test: test_hello_returns_200 asserts status_code == 404.
 """
 
 from flask import Flask, jsonify  # BUG 2: 'request' is missing from this import
@@ -24,7 +24,7 @@ def hello() -> object:
 def get_item(n: int) -> object:
     """Return the nth item (1-indexed).
 
-    BUG 1: uses ITEMS[n] (zero-indexed) — should be ITEMS[n - 1].
+    BUG 1: uses ITEMS[n] (zero-indexed) - should be ITEMS[n - 1].
     Accessing n=1 returns 'banana' instead of 'apple'.
     Accessing n=4 raises IndexError.
     """

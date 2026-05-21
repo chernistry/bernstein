@@ -1,4 +1,4 @@
-"""Tests for the elicitation protocol — mocked stdin/stdout and non-interactive paths."""
+"""Tests for the elicitation protocol - mocked stdin/stdout and non-interactive paths."""
 
 from __future__ import annotations
 

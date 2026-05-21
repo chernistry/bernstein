@@ -25,7 +25,7 @@ records (PR #996) carry only the producer/prompt/cost fields; v2
 records add ``regulatory_class`` (free-text class for compliance
 filtering) and ``customer_signature`` (base64-encoded detached
 signature produced by an injected :class:`LineageSigner`). The reader
-accepts both — missing v2 fields are read as ``None`` so a chain
+accepts both - missing v2 fields are read as ``None`` so a chain
 written before v2 keeps walking.
 """
 
@@ -178,7 +178,7 @@ def _artifact_from_dict(data: Any) -> ArtifactRef:
     still useful in the bundle export and signature-verification paths
     because they keep producer/prompt metadata intact.
 
-    Parameter is typed ``Any`` because callers feed us untyped JSON —
+    Parameter is typed ``Any`` because callers feed us untyped JSON -
     a corrupt WAL row could land us a list, scalar, or null. The
     isinstance narrowing converts the input into a concrete dict
     before field extraction; non-dict values short-circuit to the
@@ -290,7 +290,7 @@ def canonical_record_bytes(record: LineageRecord) -> bytes:
     Uses sorted-key UTF-8 JSON without whitespace so the bytes a signer
     produces are stable across writes/reads and across Python versions.
     The ``customer_signature`` field is excluded from the canonical
-    payload — a signer cannot sign over its own output.
+    payload - a signer cannot sign over its own output.
     """
     payload: dict[str, Any] = {
         "schema_version": record.schema_version,

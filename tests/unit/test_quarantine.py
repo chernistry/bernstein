@@ -60,7 +60,7 @@ def test_load_returns_entries_from_file(tmp_path: Path) -> None:
     path = tmp_path / "quarantine.json"
     data = [
         {
-            "task_title": "519 — Distributed cluster mode",
+            "task_title": "519 - Distributed cluster mode",
             "fail_count": 3,
             "last_failure": _today(),
             "reason": "Agent died; no files modified",
@@ -71,7 +71,7 @@ def test_load_returns_entries_from_file(tmp_path: Path) -> None:
     store = QuarantineStore(path)
     entries = store.load()
     assert len(entries) == 1
-    assert entries[0].task_title == "519 — Distributed cluster mode"
+    assert entries[0].task_title == "519 - Distributed cluster mode"
     assert entries[0].fail_count == 3
     assert entries[0].action == "skip"
 
@@ -79,7 +79,7 @@ def test_load_returns_entries_from_file(tmp_path: Path) -> None:
 def test_save_then_load_round_trips(tmp_path: Path) -> None:
     store = _store(tmp_path)
     entry = QuarantineEntry(
-        task_title="533 — WASM fast-path",
+        task_title="533 - WASM fast-path",
         fail_count=3,
         last_failure=_today(),
         reason="Scope too large",
@@ -88,7 +88,7 @@ def test_save_then_load_round_trips(tmp_path: Path) -> None:
     store.save([entry])
     loaded = store.load()
     assert len(loaded) == 1
-    assert loaded[0].task_title == "533 — WASM fast-path"
+    assert loaded[0].task_title == "533 - WASM fast-path"
     assert loaded[0].action == "decompose"
 
 

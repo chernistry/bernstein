@@ -2,8 +2,8 @@
 """Generate Python and TypeScript client SDKs from the Bernstein OpenAPI spec.
 
 Reads docs/openapi.json (produced by scripts/generate_openapi.py) and writes:
-  - docs/sdk/client.py       — Python SDK
-  - docs/sdk/client.ts       — TypeScript SDK
+  - docs/sdk/client.py       - Python SDK
+  - docs/sdk/client.ts       - TypeScript SDK
 
 Usage:
     uv run python scripts/generate_sdk.py [--spec PATH]

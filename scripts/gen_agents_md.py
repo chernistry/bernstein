@@ -21,7 +21,7 @@ from pathlib import Path
 _INIT_PY = "__init__.py"
 
 # ---------------------------------------------------------------------------
-# Package metadata — human-curated package descriptions (not auto-derived)
+# Package metadata - human-curated package descriptions (not auto-derived)
 # ---------------------------------------------------------------------------
 
 PACKAGE_META: dict[str, str] = {
@@ -79,7 +79,7 @@ SKIP_IN_MULTI: set[str] = {"store_redis.py", "store_postgres.py"}
 # Non-package directories to document (relative to repo root)
 NON_PACKAGE_DIRS: list[tuple[str, str]] = [
     ("templates/roles/", "Jinja2 role prompts (manager, backend, qa, security, devops, etc.)"),
-    ("templates/prompts/", "Prompt templates (judge.md, etc.) — bundled into wheel"),
+    ("templates/prompts/", "Prompt templates (judge.md, etc.) - bundled into wheel"),
     (".sdd/", "All runtime state (never commit `.sdd/runtime/`)"),
     (".sdd/backlog/open/", "YAML task specs waiting to be picked up"),
     (".sdd/backlog/claimed/", "Tasks currently being worked"),
@@ -240,7 +240,7 @@ def generate_module_map() -> str:
         rows = _collect_package(pkg)
         if not rows:
             continue
-        sections.append(f"\n### `src/bernstein/{pkg}/` — {meta}\n")
+        sections.append(f"\n### `src/bernstein/{pkg}/` - {meta}\n")
         sections.append("\n" + _render_table(rows) + "\n")
 
     sections.append("\n### Key non-package directories\n")

@@ -1,9 +1,9 @@
 """Run commands: init, conduct, downbeat (legacy start), and the main CLI group.
 
 This module is a thin re-export shim.  The actual implementations live in:
-- ``run_preflight`` — cost estimation, preflight checks, quality-gate bypass
-- ``run_bootstrap`` — main Click commands, plan helpers, execution bootstrap
-- ``run_confirm``   — recipe/cook commands, demo command, confirmation helpers
+- ``run_preflight`` - cost estimation, preflight checks, quality-gate bypass
+- ``run_bootstrap`` - main Click commands, plan helpers, execution bootstrap
+- ``run_confirm``   - recipe/cook commands, demo command, confirmation helpers
 """
 
 # pyright: reportPrivateUsage=false

@@ -146,7 +146,7 @@ def test_task_fail_request_fields_stable() -> None:
 
     fields = TaskFailRequest.model_fields
     assert "reason" in fields
-    # reason should have a default (empty string) — changing this to required is breaking
+    # reason should have a default (empty string) - changing this to required is breaking
     assert not fields["reason"].is_required(), "TaskFailRequest.reason must keep its default"
 
 
@@ -187,14 +187,14 @@ def test_keyword_only_to_positional_only_is_breaking() -> None:
 
     from bernstein.core.api_compat import ChangeKind, compare_signatures
 
-    # before: def f(a: int, b: str) — b is POSITIONAL_OR_KEYWORD
+    # before: def f(a: int, b: str) - b is POSITIONAL_OR_KEYWORD
     before_params = [
         inspect.Parameter("a", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
         inspect.Parameter("b", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
     ]
     before_sig = inspect.Signature(before_params)
 
-    # after: def f(a: int, b: str, /) — b is POSITIONAL_ONLY
+    # after: def f(a: int, b: str, /) - b is POSITIONAL_ONLY
     after_params = [
         inspect.Parameter("a", inspect.Parameter.POSITIONAL_ONLY, annotation=int),
         inspect.Parameter("b", inspect.Parameter.POSITIONAL_ONLY, annotation=str),

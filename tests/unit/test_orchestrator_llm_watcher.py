@@ -3,7 +3,7 @@
 These tests use a thin stand-in for ``Orchestrator`` that exercises
 just the ``_dispatch_watcher_events`` code path on a fake watcher.
 The full ``Orchestrator.__init__`` requires httpx, an
-:class:`AgentSpawner`, and a workdir with seed config — too heavy
+:class:`AgentSpawner`, and a workdir with seed config - too heavy
 for a focused unit test.  Spinning up the full object is exercised
 elsewhere in :mod:`tests.unit.test_orchestrator`.
 
@@ -53,7 +53,7 @@ class _FakeOrchestrator:
 
 
 class _ExplodingWatcher(LLMWatcher):
-    """Watcher whose ``observe`` actively raises — used for the (d) case.
+    """Watcher whose ``observe`` actively raises - used for the (d) case.
 
     We bypass the normal ``observe`` body to confirm that even an
     LLMWatcher subclass that breaks the contract cannot crash the
@@ -168,7 +168,7 @@ class TestDispatcherFailureSafety:
         result = TickResult()
         result.spawned = ["t-1"]
 
-        # MUST NOT raise — orchestrator stability is the contract.
+        # MUST NOT raise - orchestrator stability is the contract.
         orch._dispatch_watcher_events(result)
 
         # Nothing collected because every observe() failed.

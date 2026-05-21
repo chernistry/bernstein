@@ -10,7 +10,7 @@ from bernstein.core.models import TransitionReason
 from prometheus_client import CollectorRegistry, Counter, generate_latest
 
 # ---------------------------------------------------------------------------
-# Helpers — fresh registry per test to avoid cross-test pollution
+# Helpers - fresh registry per test to avoid cross-test pollution
 # ---------------------------------------------------------------------------
 
 

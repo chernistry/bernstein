@@ -1,13 +1,13 @@
-"""SandboxValidator — isolated testing of evolution proposals.
+"""SandboxValidator - isolated testing of evolution proposals.
 
 Runs proposals in a git worktree to validate they don't break anything
 before applying to the main branch.
 
 Validation strategy by risk level:
-  L0 (Config)    — schema validation only, no worktree needed
-  L1 (Templates) — git worktree + synthetic task replay
-  L2 (Logic)     — git worktree + full test suite + golden dataset
-  L3 (Structural)— never sandboxed, human-only
+  L0 (Config)    - schema validation only, no worktree needed
+  L1 (Templates) - git worktree + synthetic task replay
+  L2 (Logic)     - git worktree + full test suite + golden dataset
+  L3 (Structural)- never sandboxed, human-only
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ class SandboxValidator:
     4. Compare metrics against baseline
     5. git worktree remove .sdd/sandboxes/{proposal_id}
 
-    For L0 proposals only simple schema validation is performed — no
+    For L0 proposals only simple schema validation is performed - no
     git worktree is needed for pure config changes.
 
     Args:
@@ -77,7 +77,7 @@ class SandboxValidator:
         - L0_CONFIG: schema check only (fast, no git worktree)
         - L1_TEMPLATE: git worktree + smoke tests
         - L2_LOGIC: git worktree + full test suite
-        - L3_STRUCTURAL: immediately fails — human review required
+        - L3_STRUCTURAL: immediately fails - human review required
 
         Args:
             proposal: The upgrade proposal to validate.
@@ -94,7 +94,7 @@ class SandboxValidator:
         if proposal.risk_level == RiskLevel.L2_LOGIC:
             return self._run_in_worktree(proposal, start, full_tests=True)
 
-        # L3_STRUCTURAL — never auto-sandboxed
+        # L3_STRUCTURAL - never auto-sandboxed
         return SandboxResult(
             proposal_id=proposal.id,
             passed=False,
@@ -106,7 +106,7 @@ class SandboxValidator:
             delta=0.0,
             duration_seconds=0.0,
             log_path="",
-            error="L3_STRUCTURAL changes cannot be auto-sandboxed — human review required",
+            error="L3_STRUCTURAL changes cannot be auto-sandboxed - human review required",
         )
 
     # ------------------------------------------------------------------
@@ -187,7 +187,7 @@ class SandboxValidator:
 
         if not proposal.diff.strip():
             passed = False
-            error = "Empty diff for L0 proposal — nothing to apply"
+            error = "Empty diff for L0 proposal - nothing to apply"
 
         duration = time.time() - start
         return SandboxResult(
@@ -234,7 +234,7 @@ class SandboxValidator:
         log_path = str(log_dir / f"{proposal.id}.log")
 
         try:
-            # Step 1 — create git worktree via git_ops
+            # Step 1 - create git worktree via git_ops
             wt_result = worktree_add(self.repo_root, sandbox_dir, branch_name)
             if not wt_result.ok:
                 return SandboxResult(
@@ -251,11 +251,11 @@ class SandboxValidator:
                     error=f"git worktree add failed: {wt_result.stderr.strip()}",
                 )
 
-            # Step 2 — apply diff
+            # Step 2 - apply diff
             if proposal.diff.strip():
                 self._apply_diff(sandbox_dir, proposal.diff)
 
-            # Step 3 — run tests
+            # Step 3 - run tests
             test_cmd = self.test_command if full_tests else "uv run python scripts/run_tests.py -x"
             passed_count, failed_count, total, output = self._run_tests(sandbox_dir, cmd=test_cmd)
 

@@ -1,4 +1,4 @@
-"""Tests for context_tokens — context token accounting."""
+"""Tests for context_tokens - context token accounting."""
 
 from __future__ import annotations
 

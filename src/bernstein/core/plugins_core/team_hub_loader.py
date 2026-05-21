@@ -127,7 +127,7 @@ def load_team_hub(root: Path) -> LoadedTeamHub | None:
     if not team_dir.is_dir():
         # The convention is explicit about *where* shipped artefacts live.
         # Treat the manifest-only case as "hub not yet populated" rather
-        # than as a hard error — a freshly-initialised hub repo will pass
+        # than as a hard error - a freshly-initialised hub repo will pass
         # through this branch on its first commit.
         return None
 
@@ -149,7 +149,7 @@ def _resolve_entries(root: Path, manifest: TeamHubManifest) -> tuple[TeamHubEntr
 
     Raises:
         TeamHubLoaderError: When an entry would resolve outside ``root``
-            (defence in depth — :class:`TeamHubShips` already filters
+            (defence in depth - :class:`TeamHubShips` already filters
             ``..`` in the schema) or when the target path does not exist.
     """
     real_root = root.resolve()

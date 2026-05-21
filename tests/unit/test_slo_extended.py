@@ -39,7 +39,7 @@ class TestApplyErrorBudgetAdjustments:
         assert override is None
 
     def test_throttling_disabled(self) -> None:
-        """SLO throttling is disabled — always returns config values."""
+        """SLO throttling is disabled - always returns config values."""
         tracker = SLOTracker()
         tracker.error_budget.total_tasks = 20
         tracker.error_budget.failed_tasks = 4
@@ -54,7 +54,7 @@ class TestApplyErrorBudgetAdjustments:
         assert override is None
 
     def test_model_override_disabled(self) -> None:
-        """SLO throttling disabled — no model override even when depleted."""
+        """SLO throttling disabled - no model override even when depleted."""
         tracker = SLOTracker()
         tracker.error_budget.total_tasks = 10
         tracker.error_budget.failed_tasks = 4

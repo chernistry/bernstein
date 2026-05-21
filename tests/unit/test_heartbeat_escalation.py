@@ -75,7 +75,7 @@ class TestEscalationThresholds:
 
 
 # ---------------------------------------------------------------------------
-# HeartbeatEscalationLadder — basic escalation
+# HeartbeatEscalationLadder - basic escalation
 # ---------------------------------------------------------------------------
 
 
@@ -156,7 +156,7 @@ class TestIdempotency:
         # Same age, should not re-warn
         r2 = ladder.check_and_escalate("agent-1", heartbeat_age_s=70.0)
         assert r2 is None
-        # Jump to sigkill age directly — should escalate through skipped tiers
+        # Jump to sigkill age directly - should escalate through skipped tiers
         with patch("bernstein.core.platform_compat.kill_process_group"):
             r3 = ladder.check_and_escalate("agent-1", heartbeat_age_s=150.0)
         assert r3 is not None and r3.tier == EscalationTier.SIGKILL

@@ -1,12 +1,12 @@
-"""``bernstein remote`` — drive agents on an SSH-reachable host.
+"""``bernstein remote`` - drive agents on an SSH-reachable host.
 
 Three subcommands:
 
-* ``remote test <host>`` — reachability smoke test; runs ``uptime`` on
+* ``remote test <host>`` - reachability smoke test; runs ``uptime`` on
   the remote and reports round-trip time.
-* ``remote run <host> <path>`` — equivalent of the top-level
+* ``remote run <host> <path>`` - equivalent of the top-level
   ``bernstein run`` routed through the SSH sandbox backend.
-* ``remote forget <host>`` — delete the ``ControlMaster`` socket for a
+* ``remote forget <host>`` - delete the ``ControlMaster`` socket for a
   host so the next command opens a fresh connection.
 
 Errors are surfaced with actionable hints so operators know which

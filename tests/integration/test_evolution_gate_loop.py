@@ -2,7 +2,7 @@
 
 These tests exercise the full evolution-cycle wiring with the
 :class:`PromptPatchGate` enabled vs disabled. They are kept lightweight
-(no real LLM calls, no real prompt template files) — the goal is to
+(no real LLM calls, no real prompt template files) - the goal is to
 verify the gate's effect on the proposal stream, audit log, and applied
 patches, not to re-test individual evolution components.
 """
@@ -53,7 +53,7 @@ class FakeEvolutionLoop:
 
     With ``gate`` provided, each proposal goes through the predicted-delta
     + oscillation guards. With ``gate=None``, every proposal is applied
-    unconditionally — mirroring the *pre-#1348* behaviour.
+    unconditionally - mirroring the *pre-#1348* behaviour.
     """
 
     store: FakePromptStore
@@ -184,7 +184,7 @@ class TestEvolutionLoopWithGate:
         # Cycle N: same proposal, predicted_delta clears threshold.
         loop.run_cycle(_proposal(to_content="A", predicted_delta=0.10))
         assert len(loop.applied) == 0  # pending
-        # Cycle N+1: same proposal again — confirmed and applied.
+        # Cycle N+1: same proposal again - confirmed and applied.
         loop.run_cycle(_proposal(to_content="A", predicted_delta=0.10))
         assert len(loop.applied) == 1
         assert store.current("judge") == "A"

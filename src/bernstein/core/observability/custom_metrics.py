@@ -12,7 +12,7 @@ Users define custom metrics in bernstein.yaml::
         unit: "ratio"
 
 Formulas reference built-in variables from tick and cumulative metrics.
-Only safe arithmetic is supported — no function calls or attribute access.
+Only safe arithmetic is supported - no function calls or attribute access.
 """
 
 from __future__ import annotations
@@ -124,7 +124,7 @@ def evaluate_formula(formula: str, variables: dict[str, float]) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Variable registry — maps names to metric sources
+# Variable registry - maps names to metric sources
 # ---------------------------------------------------------------------------
 
 

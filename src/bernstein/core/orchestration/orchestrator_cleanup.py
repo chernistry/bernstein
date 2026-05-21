@@ -183,7 +183,7 @@ def cleanup(orch: Any) -> None:
         except Exception:
             logger.warning("Merkle seal generation on shutdown failed", exc_info=True)
 
-    # Full git hygiene on shutdown. Never force-delete unmerged branches —
+    # Full git hygiene on shutdown. Never force-delete unmerged branches -
     # agents shutting down may have unpushed work we need to preserve.
     try:
         from bernstein.core.git_hygiene import run_hygiene

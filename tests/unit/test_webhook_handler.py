@@ -1,4 +1,4 @@
-"""Tests for HOOK-003 — HTTP webhook handler (webhook_handler.py)."""
+"""Tests for HOOK-003 - HTTP webhook handler (webhook_handler.py)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for incident timeline — correlating incidents with metrics and traces."""
+"""Tests for incident timeline - correlating incidents with metrics and traces."""
 
 from __future__ import annotations
 

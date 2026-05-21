@@ -1,4 +1,4 @@
-"""Formal verification gateway — Z3 SMT solver and Lean4 theorem prover integration.
+"""Formal verification gateway - Z3 SMT solver and Lean4 theorem prover integration.
 
 Translates properties defined in bernstein.yaml ``formal_verification`` section
 into proof obligations and submits them to the configured solver. Integrates into
@@ -10,11 +10,11 @@ Supported checkers:
            with pre-written lemma files.
 
 Properties are expressions referencing task context variables:
-  files_modified    int   — number of files changed by the agent
-  test_passed       bool  — whether the task's test_results indicate pass
-  has_result        bool  — whether result_summary is non-empty
-  result_length     int   — len(result_summary)
-  title_length      int   — len(task.title)
+  files_modified    int   - number of files changed by the agent
+  test_passed       bool  - whether the task's test_results indicate pass
+  has_result        bool  - whether result_summary is non-empty
+  result_length     int   - len(result_summary)
+  title_length      int   - len(task.title)
 
 Example bernstein.yaml:
   formal_verification:
@@ -57,7 +57,7 @@ class FormalProperty:
         name: Human-readable identifier for this property.
         invariant: Property expression. For Z3: Python boolean expression
             referencing context variables. For Lean4: theorem statement.
-        checker: Solver to use — ``"z3"`` (default) or ``"lean4"``.
+        checker: Solver to use - ``"z3"`` (default) or ``"lean4"``.
         lemmas_file: Path to a Lean4 lemmas file (lean4 only).
             Resolved relative to the project workdir.
     """
@@ -226,7 +226,7 @@ def _verify_z3(
             )
         if check_result == z3.unsat:
             return None  # property always holds
-        # z3.unknown — timeout or undecidable; treat as warning, not failure
+        # z3.unknown - timeout or undecidable; treat as warning, not failure
         logger.warning("Z3 returned unknown for property %r (timeout or undecidable)", prop.name)
         return None
     finally:
@@ -236,7 +236,7 @@ def _verify_z3(
 def _verify_python_eval(prop: FormalProperty, context: dict[str, Any]) -> PropertyViolation | None:
     """Evaluate the invariant as a plain Python boolean expression.
 
-    Used as a fallback when z3-solver is unavailable. No symbolic reasoning —
+    Used as a fallback when z3-solver is unavailable. No symbolic reasoning -
     just evaluates the expression against the concrete context values.
 
     Args:
@@ -282,7 +282,7 @@ def _generate_lean4_theorem(prop: FormalProperty, context: dict[str, Any], lemma
     """
     imports = ["import Lean"]
     if lemmas_file is not None:
-        # Use a relative import alias — caller places the file in the same dir
+        # Use a relative import alias - caller places the file in the same dir
         imports.append(f"import {lemmas_file.stem}")
 
     context_comment = "\n".join(f"-- {k} = {v!r}" for k, v in context.items())

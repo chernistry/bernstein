@@ -348,7 +348,7 @@ def _check_port_free(port: int) -> None:
             sock.bind(("127.0.0.1", port))
             return  # Port is free.
 
-    # Port is occupied — try to identify and kill a stale Bernstein server.
+    # Port is occupied - try to identify and kill a stale Bernstein server.
     try:
         result = subprocess.run(
             ["lsof", "-ti", f":{port}"],

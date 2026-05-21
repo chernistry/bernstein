@@ -1,6 +1,6 @@
 """Plugin command hook fixture harness (T601).
 
-This module provides ``CommandHookHarness`` — a reusable test harness for
+This module provides ``CommandHookHarness`` - a reusable test harness for
 validating Bernstein's command-hook JSON contract.  Hook scripts receive
 arguments via stdin JSON and ``BERNSTEIN_HOOK_*`` environment variables;
 this harness makes it trivial to verify both channels and catch protocol
@@ -30,7 +30,7 @@ import pytest
 from bernstein.plugins.manager import CommandHook, HookBlockingError
 
 # ---------------------------------------------------------------------------
-# CommandHookHarness — the reusable harness
+# CommandHookHarness - the reusable harness
 # ---------------------------------------------------------------------------
 
 
@@ -218,7 +218,7 @@ def hook_harness(tmp_path: Path) -> CommandHookHarness:
 
 
 # ---------------------------------------------------------------------------
-# Tests — harness self-validation
+# Tests - harness self-validation
 # ---------------------------------------------------------------------------
 
 
@@ -311,7 +311,7 @@ class TestCommandHookHarnessExitCodes:
 
 
 class TestCommandHookHarnessRegressionDetection:
-    """The harness catches protocol drift — the key regression scenario.
+    """The harness catches protocol drift - the key regression scenario.
 
     If Bernstein renames a kwarg (e.g. ``task_id`` → ``id``), these tests
     will fail, surfacing the contract break before it reaches production.

@@ -119,7 +119,7 @@ async def test_spawner_ok_when_pid_alive(app, sdd_dir: Path) -> None:
 async def test_spawner_down_when_pid_dead(app, sdd_dir: Path) -> None:
     """Spawner is 'down' when pid file contains a dead process."""
     pid_file = sdd_dir / "runtime" / "spawner.pid"
-    # PID 0 is the kernel — os.kill(0, 0) sends to the process group, which
+    # PID 0 is the kernel - os.kill(0, 0) sends to the process group, which
     # we don't want. Use a high PID that almost certainly doesn't exist.
     pid_file.write_text("9999999")
 

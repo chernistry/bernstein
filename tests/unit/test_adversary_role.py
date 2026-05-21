@@ -63,7 +63,7 @@ class TestAdversaryRoleFilesExist:
         assert "default_model" in parsed
         assert "default_effort" in parsed
         assert "max_tasks_per_session" in parsed
-        # Adversary runs as the last gate before merge — keep its
+        # Adversary runs as the last gate before merge - keep its
         # session short so it cannot drift onto unrelated tickets.
         assert parsed["max_tasks_per_session"] == 1
 

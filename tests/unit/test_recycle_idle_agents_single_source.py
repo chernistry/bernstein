@@ -54,7 +54,7 @@ def test_idle_recycling_helpers_single_source() -> None:
         lifecycle_ref = getattr(agent_lifecycle, name)
         recycling_ref = getattr(agent_recycling, name)
         assert lifecycle_ref is recycling_ref, (
-            f"{name} diverged between agent_lifecycle and agent_recycling — see audit-005"
+            f"{name} diverged between agent_lifecycle and agent_recycling - see audit-005"
         )
         assert recycling_ref.__module__ == "bernstein.core.agents.agent_recycling"
 
@@ -63,7 +63,7 @@ def test_idle_threshold_constants_single_source() -> None:
     """Idle-threshold module constants have a single definition.
 
     Values are compared (not identities, since floats are interned
-    inconsistently) — the important invariant is that both modules agree.
+    inconsistently) - the important invariant is that both modules agree.
     """
     for name in (
         "_IDLE_GRACE_S",

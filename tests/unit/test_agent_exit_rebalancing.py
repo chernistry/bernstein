@@ -122,7 +122,7 @@ class TestAgentExitRebalancing:
             "blocked": [],
         }
 
-        # Call recycle_idle_agents — should detect idle and send SHUTDOWN
+        # Call recycle_idle_agents - should detect idle and send SHUTDOWN
         recycle_idle_agents(orch, tasks_snapshot)
 
         # Verify SHUTDOWN signal was written
@@ -163,7 +163,7 @@ class TestAgentExitRebalancing:
 
         recycle_idle_agents(orch, tasks_snapshot)
 
-        # Verify NO SHUTDOWN signal (role not drained — still has active tasks)
+        # Verify NO SHUTDOWN signal (role not drained - still has active tasks)
         orch._signal_mgr.write_shutdown.assert_not_called()
 
     def test_agent_shutdown_when_claimed_task_completed(self, tmp_path: Path) -> None:
@@ -206,7 +206,7 @@ class TestAgentExitRebalancing:
         4. s-idle-01 triggers Case 3: role_queue_empty_no_tasks → SHUTDOWN
         5. s-active-02 has assigned task → Case 1 doesn't trigger → not SHUTDOWN
 
-        Note: This tests Case 3 (role_queue_empty_no_tasks) — agent with no
+        Note: This tests Case 3 (role_queue_empty_no_tasks) - agent with no
         tasks gets SHUTDOWN when role has no open/pending tasks.
         """
         orch = _make_orch(tmp_path)
@@ -223,7 +223,7 @@ class TestAgentExitRebalancing:
         tasks_snapshot = {
             "done": [],
             "failed": [],
-            "open": [],  # No open tasks — role queue is empty
+            "open": [],  # No open tasks - role queue is empty
             "claimed": [],
             "blocked": [],
             "in_progress": [in_progress_task],

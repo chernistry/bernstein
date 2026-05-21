@@ -1,9 +1,9 @@
-"""Hypothesis bug-hunt — lineage v2 + EU AI Act Article 12 + KMS + EU residency.
+"""Hypothesis bug-hunt - lineage v2 + EU AI Act Article 12 + KMS + EU residency.
 
 Single-file battery. Each ``Test*`` class corresponds to a *finding
 bucket* surfaced during the bug hunt; each test maps to a single failure
 mode (or near-miss) in the production surface. Tests are grouped by
-severity — regulatory-claim violators first, then operational bugs,
+severity - regulatory-claim violators first, then operational bugs,
 then harder-to-explain near-misses.
 
 Findings index:
@@ -15,15 +15,15 @@ Findings index:
   ``public_key_jwk()`` but the only concrete signer exposes
   ``public_key_bytes()``; auditors who consume JWK-shaped attestations
   cannot ingest signatures (xfail, not silent).
-* No HSM/KMS concrete stub — ``signer_from_config`` rejects
+* No HSM/KMS concrete stub - ``signer_from_config`` rejects
   ``key_kind='hsm'`` with a generic config error rather than a
   meaningful "implement me" :class:`NotImplementedError` (xfail).
 * Article 12(3) retention floor for high-risk: 10 years rendered as
-  ``round(10 * 365.25) == 3653`` days — boundary tested.
+  ``round(10 * 365.25) == 3653`` days - boundary tested.
 * Article 12(5) integrity holds across legitimate compaction
   (``compress_rotated_lineage`` only touches rotated backups, never the
   active chain).
-* Bundle determinism — same window, same key → byte-identical zip.
+* Bundle determinism - same window, same key → byte-identical zip.
 * Clause map: every shipped clause has a non-empty subsystem mapping
   and an evidence artefact.
 * IPv6 residency: ``::1``, ``fe80::*``, ``fc00::/7`` accepted; public
@@ -147,7 +147,7 @@ class TestDnsRebindingBypass:
     """Bypass class: hostname-text matching vs wire-form IP semantics.
 
     Pre-fix behaviour: ``host.startswith("10.")`` accepted any FQDN whose
-    first label began with ``10`` — including public-DNS-resolvable
+    first label began with ``10`` - including public-DNS-resolvable
     names the attacker controls (``10.example.com``, ``192.168.evil.tld``,
     ``172.20.foo.com``). An EU-residency-tagged spawn would happily
     egress to that endpoint because the guard never resolved the
@@ -233,7 +233,7 @@ class TestDnsRebindingBypass:
 
 
 class TestIpv6Residency:
-    """IPv6 path was added by the fix — pin every accepted/rejected case.
+    """IPv6 path was added by the fix - pin every accepted/rejected case.
 
     The original code matched ``host == "::1"`` literally; v6 link-local
     (``fe80::*``) and ULA (``fc00::/7``) were silently rejected even
@@ -258,7 +258,7 @@ class TestIpv6Residency:
     @pytest.mark.parametrize(
         "url",
         [
-            # Public IPv6 — fail closed.
+            # Public IPv6 - fail closed.
             "http://[2606:4700:4700::1111]:443",
             "http://[2001:4860:4860::8888]:443",
             "http://[2a00:1450:4001:830::200e]:443",
@@ -270,7 +270,7 @@ class TestIpv6Residency:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #3 — regulatory-claim violator:
+# Finding bucket #3 - regulatory-claim violator:
 #   Article 12(3) retention math.
 # ---------------------------------------------------------------------------
 
@@ -288,7 +288,7 @@ class TestArticle12Retention:
     def test_high_risk_retention_floor_matches_round_365_25(self) -> None:
         """10 years of high-risk retention is ``round(10*365.25)`` days.
 
-        Python's ``round`` does banker's rounding — ``round(3652.5)`` is
+        Python's ``round`` does banker's rounding - ``round(3652.5)`` is
         ``3652``, not ``3653``. The bug-hunt initially asserted 3653 (naive
         math); the test now asserts the actual implementation contract so
         a future swap of ``round`` for ``math.ceil`` or ``int`` (each
@@ -361,7 +361,7 @@ class TestArticle12Retention:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #4 — regulatory-claim violator:
+# Finding bucket #4 - regulatory-claim violator:
 #   Article 12(5) integrity end-to-end (after compaction).
 # ---------------------------------------------------------------------------
 
@@ -389,7 +389,7 @@ class TestArticle12IntegrityAfterCompaction:
 
         compressed = compress_rotated_lineage(sdd)
         assert "run-bughunt.wal.jsonl.1" in compressed
-        # Active chain still present — writer didn't race.
+        # Active chain still present - writer didn't race.
         assert active.is_file()
         # Backup gzipped, original removed.
         assert not backup.exists()
@@ -418,7 +418,7 @@ class TestArticle12IntegrityAfterCompaction:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #5 — regulatory-claim violator:
+# Finding bucket #5 - regulatory-claim violator:
 #   Tamper detection on the lineage chain.
 # ---------------------------------------------------------------------------
 
@@ -427,8 +427,8 @@ class TestLineageTamperDetection:
     """Single-byte mutation in any record must fail :func:`verify_run_chain`.
 
     Every customer signature is computed over canonical bytes, so any
-    field flip — ``cost_usd``, ``regulatory_class``, ``output_artifact.sha256``
-    — must invalidate the signature *and* the WAL hash chain.
+    field flip - ``cost_usd``, ``regulatory_class``, ``output_artifact.sha256``
+    - must invalidate the signature *and* the WAL hash chain.
     """
 
     def test_byte_flip_in_cost_breaks_chain(self, tmp_path: Path) -> None:
@@ -473,7 +473,7 @@ class TestLineageTamperDetection:
 
         wal = _wal_path(sdd, "run-bughunt")
         lines = wal.read_text().splitlines()
-        # Drop the second record — the third's prev_hash points at #1's hash.
+        # Drop the second record - the third's prev_hash points at #1's hash.
         kept = [lines[0], lines[2], lines[3]]
         wal.write_text("\n".join(kept) + "\n")
 
@@ -482,7 +482,7 @@ class TestLineageTamperDetection:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #6 — regulatory-claim violator:
+# Finding bucket #6 - regulatory-claim violator:
 #   Bundle determinism (same input → byte-identical zip).
 # ---------------------------------------------------------------------------
 
@@ -555,7 +555,7 @@ class TestBundleDeterminism:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #7 — regulatory-claim violator:
+# Finding bucket #7 - regulatory-claim violator:
 #   Clause map well-formedness.
 # ---------------------------------------------------------------------------
 
@@ -583,7 +583,7 @@ class TestClauseMap:
     def test_every_clause_has_subsystem_module(self) -> None:
         parsed = self._clause_map()
         mappings = parsed.get("mappings") or []
-        assert mappings, "clause map has no mappings — auditor would see an empty conformance file"
+        assert mappings, "clause map has no mappings - auditor would see an empty conformance file"
         for m in mappings:
             sub = m.get("subsystem") or {}
             module = sub.get("module")
@@ -597,7 +597,7 @@ class TestClauseMap:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #8 — operational bug:
+# Finding bucket #8 - operational bug:
 #   Lineage run_id path-traversal guard.
 # ---------------------------------------------------------------------------
 
@@ -632,7 +632,7 @@ class TestLineageRunIdGuard:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #9 — operational bug:
+# Finding bucket #9 - operational bug:
 #   SOC 2 evidence pack must degrade, not crash, on an empty .sdd/.
 # ---------------------------------------------------------------------------
 
@@ -661,7 +661,7 @@ class TestSoc2EmptyEvidence:
 
 # ---------------------------------------------------------------------------
 # Finding bucket #10 (xfail):
-#   KMS adapter contract drift — public_key_jwk vs public_key_bytes.
+#   KMS adapter contract drift - public_key_jwk vs public_key_bytes.
 # ---------------------------------------------------------------------------
 
 
@@ -672,7 +672,7 @@ class TestKmsContractDrift:
     public key as a JWK (RFC 7517) so it can be cross-referenced with
     a JWKS endpoint. The current concrete signer
     (:class:`Ed25519FileKeySigner`) only exposes ``public_key_bytes()``
-    — raw 32 bytes, not a JWK envelope.
+    - raw 32 bytes, not a JWK envelope.
 
     Marked xfail rather than silently fixed because adding ``public_key_jwk``
     is a public API change that should land in a separate, reviewed
@@ -684,7 +684,7 @@ class TestKmsContractDrift:
         reason=(
             "KMS-adapter contract drift: Ed25519FileKeySigner exposes "
             "public_key_bytes() but auditors using JWK-based attestation "
-            "flows want public_key_jwk(). Tracked as a follow-up — see "
+            "flows want public_key_jwk(). Tracked as a follow-up - see "
             "the PR body for the proposed JWK shape."
         ),
         strict=True,
@@ -713,11 +713,11 @@ class TestKmsContractDrift:
 class TestHsmStubMissing:
     """Operator wires ``key_kind: hsm`` and gets a generic config error.
 
-    A concrete stub class — say ``HSMSigner`` — that raises
+    A concrete stub class - say ``HSMSigner`` - that raises
     :class:`NotImplementedError` with a docstring pointing at the HSM
     integration ticket would be a clearer signal. Today's
     :func:`signer_from_config` rejects any ``key_kind != 'ed25519'``
-    with a :class:`LineageSignerError` — fail-loud, but the operator
+    with a :class:`LineageSignerError` - fail-loud, but the operator
     can't tell whether HSM is "not yet implemented" or "rejected on
     purpose".
 
@@ -749,7 +749,7 @@ class TestHsmStubMissing:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #12 — regulatory-claim violator (xfail):
+# Finding bucket #12 - regulatory-claim violator (xfail):
 #   Article 12(4) automatic recording of high-risk artefacts.
 # ---------------------------------------------------------------------------
 
@@ -798,7 +798,7 @@ class TestArticle12AutomaticRecording:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #13 — operational hardening:
+# Finding bucket #13 - operational hardening:
 #   Canonical record bytes are stable under Python repr noise.
 # ---------------------------------------------------------------------------
 
@@ -808,7 +808,7 @@ class TestCanonicalBytesStability:
     re-canonicalises to the same bytes.
 
     Without this, ``customer_signature`` would re-verify only against
-    the bytes the *original* writer produced — a Python upgrade or a
+    the bytes the *original* writer produced - a Python upgrade or a
     JSON-encoder swap could silently invalidate every legacy signature.
     """
 
@@ -845,7 +845,7 @@ class TestCanonicalBytesStability:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #14 — operational bug:
+# Finding bucket #14 - operational bug:
 #   Mixed-internal+external endpoint (an operator concatenates two URLs).
 # ---------------------------------------------------------------------------
 
@@ -855,7 +855,7 @@ class TestMixedEndpointHandling:
     the parsed hostname, not whatever appears in the path.
 
     Pin the behaviour: a URL like ``http://10.0.0.1@evil.com:8000``
-    (userinfo masking) parses ``evil.com`` as the host — must be
+    (userinfo masking) parses ``evil.com`` as the host - must be
     rejected.
     """
 
@@ -869,7 +869,7 @@ class TestMixedEndpointHandling:
     )
     def test_userinfo_masking_does_not_grant_self_hosted(self, url: str) -> None:
         adapter = OllamaAdapter()
-        # urllib.parse extracts the host AFTER the '@' — that's the real
+        # urllib.parse extracts the host AFTER the '@' - that's the real
         # destination. Asserting False here pins the right semantics.
         assert adapter._is_self_hosted_endpoint(url) is False, url
 

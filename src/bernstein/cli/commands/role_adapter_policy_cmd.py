@@ -4,7 +4,7 @@ Wires :mod:`bernstein.core.security.role_adapter_policy` into the user-facing
 ``bernstein security role-adapter-policy show|set|test`` verbs.
 
 The policy is persisted to ``.sdd/security/role_adapter_policy.json`` (per
-the module's :data:`DEFAULT_POLICY_PATH`) and reloaded on each invocation —
+the module's :data:`DEFAULT_POLICY_PATH`) and reloaded on each invocation -
 the CLI does not assume the orchestrator is running.
 """
 
@@ -67,7 +67,7 @@ def show_policy(policy_file: Path, as_json: bool) -> None:
         if allowed:
             click.echo(f"  {role}: {', '.join(allowed)}")
         else:
-            click.echo(f"  {role}: (empty allow-list — all adapters allowed)")
+            click.echo(f"  {role}: (empty allow-list - all adapters allowed)")
 
 
 @role_adapter_policy_group.command("set")
@@ -136,7 +136,7 @@ def set_policy(role: str, allow: tuple[str, ...], policy_file: Path) -> None:
 def test_policy(role: str, adapter: str, policy_file: Path) -> None:
     """Print whether *role* may spawn *adapter* under the current policy.
 
-    Exit code is 0 when allowed, 1 when denied — useful for shell guards.
+    Exit code is 0 when allowed, 1 when denied - useful for shell guards.
     """
     policy = load_policy_file(policy_file)
     if policy.is_allowed(role, adapter):

@@ -7,11 +7,11 @@ every descendant.
 
 Three distinct abort scopes are supported:
 
-* **TOOL** — :meth:`AbortChain.abort_tool` writes a ``TOOL_ABORT`` signal for
+* **TOOL** - :meth:`AbortChain.abort_tool` writes a ``TOOL_ABORT`` signal for
   a single tool invocation; the agent session itself is not stopped.
-* **SIBLING** — :meth:`AbortChain.abort_siblings` sends ``SHUTDOWN`` to every
+* **SIBLING** - :meth:`AbortChain.abort_siblings` sends ``SHUTDOWN`` to every
   peer agent spawned by the same parent, without touching the parent session.
-* **SESSION** — :meth:`AbortChain.propagate_abort` cascades ``SHUTDOWN`` to all
+* **SESSION** - :meth:`AbortChain.propagate_abort` cascades ``SHUTDOWN`` to all
   descendant sessions in the subtree (existing behaviour).
 
 Scopes compose via :class:`AbortPolicy`::
@@ -125,13 +125,13 @@ class AbortChain:
     represent "spawned by" relationships.  The chain supports three composable
     abort scopes (see :class:`AbortScope`):
 
-    * **per-tool** — :meth:`abort_tool` — writes a ``TOOL_ABORT`` signal file
+    * **per-tool** - :meth:`abort_tool` - writes a ``TOOL_ABORT`` signal file
       in the session's signals directory.  The agent may continue after reading
       the file.  Optionally cascades to siblings via :class:`AbortPolicy`.
-    * **sibling** — :meth:`abort_siblings` — sends ``SHUTDOWN`` to every peer
+    * **sibling** - :meth:`abort_siblings` - sends ``SHUTDOWN`` to every peer
       of the triggering session (other children of the same parent) without
       touching the parent session.  Optionally cascades to the parent session.
-    * **session** — :meth:`propagate_abort` — cascades ``SHUTDOWN`` to the
+    * **session** - :meth:`propagate_abort` - cascades ``SHUTDOWN`` to the
       full descendant subtree of the aborted session.
 
     Cleanup at each level is independent: a session-level abort cleans up the
@@ -170,7 +170,7 @@ class AbortChain:
             self._graph[parent_session_id].add(child_session_id)
             # Maintain reverse index for sibling-discovery.
             # If the child already has a different parent (diamond graph),
-            # we keep the first registration — sibling abort uses this for
+            # we keep the first registration - sibling abort uses this for
             # a single canonical parent lookup.
             self._parent_of.setdefault(child_session_id, parent_session_id)
 
@@ -277,7 +277,7 @@ class AbortChain:
             parent_id = self._parent_of.get(session_id)
 
         if parent_id is None:
-            logger.debug("AbortChain: sibling abort for %s — no parent found, nothing to abort", session_id)
+            logger.debug("AbortChain: sibling abort for %s - no parent found, nothing to abort", session_id)
             return []
 
         with self._lock:
@@ -291,7 +291,7 @@ class AbortChain:
 
         if aborted:
             logger.info(
-                "AbortChain: sibling abort from %s — sent SHUTDOWN to %d sibling(s): %s",
+                "AbortChain: sibling abort from %s - sent SHUTDOWN to %d sibling(s): %s",
                 triggering_session_id,
                 len(aborted),
                 ", ".join(aborted),
@@ -347,7 +347,7 @@ class AbortChain:
         """Remove *session_id* from the abort chain.
 
         Removes *session_id* as a parent key.  Children of this session are
-        **not** removed from the graph — they may still be running and need
+        **not** removed from the graph - they may still be running and need
         independent cleanup.  If *session_id* appears as a child of another
         parent, that edge is also removed.
 
@@ -475,7 +475,7 @@ class AbortChain:
             signal_dir = self._signals_dir / child_session_id
             signal_dir.mkdir(parents=True, exist_ok=True)
             content = (
-                f"# ABORT CHAIN — Parent killed/aborted\n"
+                f"# ABORT CHAIN - Parent killed/aborted\n"
                 f"Parent session: {parent_session_id}\n"
                 f"Your session: {child_session_id}\n"
                 f"Your parent agent was killed or aborted.\n"
@@ -519,7 +519,7 @@ class AbortChain:
             signal_dir = self._signals_dir / sibling_session_id
             signal_dir.mkdir(parents=True, exist_ok=True)
             content = (
-                f"# ABORT CHAIN — Sibling aborted\n"
+                f"# ABORT CHAIN - Sibling aborted\n"
                 f"Triggering session: {triggering_session_id}\n"
                 f"Your session: {sibling_session_id}\n"
                 f"Reason: {reason}\n"

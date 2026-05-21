@@ -1,4 +1,4 @@
-"""Tests for disaster_recovery — backup/restore .sdd/ state."""
+"""Tests for disaster_recovery - backup/restore .sdd/ state."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _create_test_sdd(tmp_path: Path) -> Path:
     (sdd / "traces/trace.jsonl").write_text("{}", encoding="utf-8")
     (sdd / "config.yaml").write_text("workspace: test\n", encoding="utf-8")
 
-    # Durable runtime state — MUST be included in backups.
+    # Durable runtime state - MUST be included in backups.
     (sdd / "runtime/wal").mkdir(parents=True, exist_ok=True)
     (sdd / "runtime/wal/20260101-000000.wal.jsonl").write_text('{"event": "task_started"}\n', encoding="utf-8")
     (sdd / "runtime/file_locks.json").write_text('{"locks": []}', encoding="utf-8")
@@ -48,7 +48,7 @@ def _create_test_sdd(tmp_path: Path) -> Path:
     (sdd / "runtime/completion_budgets.json").write_text("{}", encoding="utf-8")
     (sdd / "runtime/watchdog_incidents.jsonl").write_text('{"incident": "stall"}\n', encoding="utf-8")
 
-    # Transient runtime state — MUST be excluded from backups.
+    # Transient runtime state - MUST be excluded from backups.
     (sdd / "runtime/pids").mkdir(parents=True, exist_ok=True)
     (sdd / "runtime/pids/worker-99479").write_text("99479\n", encoding="utf-8")
     (sdd / "runtime/signals").mkdir(parents=True, exist_ok=True)
@@ -115,7 +115,7 @@ class TestBackupSdd:
         """Regression for audit-074: backup MUST capture ``runtime/`` state.
 
         WAL, file locks, session, team roster, task graph, budgets, and
-        incident history drive warm-restart behaviour — excluding them
+        incident history drive warm-restart behaviour - excluding them
         turned restores into cold starts.
         """
         sdd = _create_test_sdd(tmp_path)
@@ -139,7 +139,7 @@ class TestBackupSdd:
             assert any(path in n for n in names), f"missing from backup: {path}"
 
     def test_excludes_transient_runtime_artifacts(self, tmp_path: Path) -> None:
-        """Logs, pids, signals, hooks, heartbeats — stay out of backups."""
+        """Logs, pids, signals, hooks, heartbeats - stay out of backups."""
         sdd = _create_test_sdd(tmp_path)
         dest = tmp_path / "backup.tar.gz"
         backup_sdd(sdd, dest)
@@ -211,7 +211,7 @@ class TestBackupSdd:
         """Regression for audit-075: encrypt=True without a password must fail.
 
         Previously, ``_get_crypto`` silently fell back to an ephemeral
-        ``Fernet.generate_key()`` — the random key was never persisted, so
+        ``Fernet.generate_key()`` - the random key was never persisted, so
         restore could never succeed (silent data-loss bug).
         """
         sdd = _create_test_sdd(tmp_path)
@@ -295,7 +295,7 @@ class TestRestoreSdd:
         """Regression for audit-079: non-decrypt restore must close source fd.
 
         Previously, ``tarfile.open(fileobj=source.open('rb'), mode='r:*')``
-        left the underlying file descriptor dangling — tarfile does not own
+        left the underlying file descriptor dangling - tarfile does not own
         fds passed via ``fileobj``.  Repeated restores accumulated leaked
         fds until the process hit ``EMFILE``.
         """

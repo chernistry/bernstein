@@ -137,7 +137,7 @@ async def test_close_drains_pending(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_read_prefers_remote(tmp_path: Path) -> None:
-    """Read paths hit remote first — critical for crash recovery."""
+    """Read paths hit remote first - critical for crash recovery."""
     local = LocalFsSink(tmp_path / "local")
     remote = _CountingSink(tmp_path / "remote")
     sink = BufferedSink(local=local, remote=remote)
@@ -302,7 +302,7 @@ async def test_crash_recovery_preserves_local_data(tmp_path: Path) -> None:
     remote = LocalFsSink(tmp_path / "remote")
     sink = BufferedSink(local=local, remote=remote, max_pending=16)
 
-    # Simulate "WAL append" — durable=True
+    # Simulate "WAL append" - durable=True
     await sink.write("runtime/wal/r.wal.jsonl", b'{"seq":0}\n')
 
     # Simulate orchestrator crash: we don't drain or close gracefully

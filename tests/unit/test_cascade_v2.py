@@ -1,4 +1,4 @@
-"""Tests for cascade fallback v2 — configurable order, sticky fallback, expanded triggers, metrics."""
+"""Tests for cascade fallback v2 - configurable order, sticky fallback, expanded triggers, metrics."""
 
 from __future__ import annotations
 

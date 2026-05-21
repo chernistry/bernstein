@@ -8,7 +8,7 @@ parallel-edit fork that `bernstein-verify forks` is expected to detect.
 Run:
     uv run python examples/lineage/scripts/gen_demo_fintech.py
 
-All output is deterministic — same seed + same fixed timestamps every run.
+All output is deterministic - same seed + same fixed timestamps every run.
 """
 
 from __future__ import annotations

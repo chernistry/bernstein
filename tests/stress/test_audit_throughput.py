@@ -1,7 +1,7 @@
 """Audit-chain sustained throughput.
 
 10k appends should sustain at least 100 events/sec on a developer
-laptop — slower than that and any operator deploying Bernstein at
+laptop - slower than that and any operator deploying Bernstein at
 real scale (~5k events/day per agent) hits a backlog within hours.
 
 We also re-run ``verify()`` at the end so a regression that trades
@@ -26,7 +26,7 @@ def test_audit_log_sustained_throughput_and_chain_integrity(tmp_path: Path) -> N
 
     Headroom: the budget here is 50 s for 10k appends = 200 events/sec
     floor.  Local development typically clocks 1-3 ms per append
-    (~500-1000/sec) — the 200/sec floor gives us 3-5x headroom for
+    (~500-1000/sec) - the 200/sec floor gives us 3-5x headroom for
     slow CI runners while still catching genuine throughput collapse
     (e.g. someone re-reading the entire log on every append).
     """
@@ -81,7 +81,7 @@ def test_audit_log_recover_chain_tail_scales_with_n_files(tmp_path: Path) -> Non
     elapsed = time.perf_counter() - start
 
     assert elapsed < 5.0, (
-        f"AuditLog reopen took {elapsed:.2f}s (cap 5 s) — chain-tail recovery may have regressed to non-linear scan"
+        f"AuditLog reopen took {elapsed:.2f}s (cap 5 s) - chain-tail recovery may have regressed to non-linear scan"
     )
     # And the recovered tail must let further appends keep verifying.
     reopened.log("post-reopen", "actor", "task", "post-0")

@@ -435,7 +435,7 @@ class TestAudit001Regression:
 
 
 # ---------------------------------------------------------------------------
-# audit-073: WALReplayEngine wiring — claim-but-never-spawned → FAILED + retry
+# audit-073: WALReplayEngine wiring - claim-but-never-spawned → FAILED + retry
 # ---------------------------------------------------------------------------
 
 
@@ -588,7 +588,7 @@ class TestAudit073WALReplayEngineWiring:
         if closed_marker.exists():
             closed_marker.unlink()
 
-        # Second boot — idempotency store must short-circuit the /fail POST.
+        # Second boot - idempotency store must short-circuit the /fail POST.
         orch2, requests2 = self._build_with_handler(tmp_path, _handler)
         orch2._recover_from_wal()
         fails_second = [r for r in requests2 if r.method == "POST" and r.url.path == "/tasks/T-idem/fail"]

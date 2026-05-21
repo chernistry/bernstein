@@ -1,12 +1,12 @@
-"""``bernstein tunnel`` — one wrapper around four tunnel providers.
+"""``bernstein tunnel`` - one wrapper around four tunnel providers.
 
 Subcommands:
 
-* ``tunnel start <port>`` — launch a tunnel using ``--provider`` or
+* ``tunnel start <port>`` - launch a tunnel using ``--provider`` or
   auto-detection (prefers cloudflared, then bore, ngrok, tailscale).
-* ``tunnel list`` — show every active tunnel tracked in
+* ``tunnel list`` - show every active tunnel tracked in
   ``.sdd/runtime/tunnels.json``.
-* ``tunnel stop <name>`` / ``tunnel stop --all`` — tear tunnels down,
+* ``tunnel stop <name>`` / ``tunnel stop --all`` - tear tunnels down,
   sending SIGTERM to the owning PID.
 """
 
@@ -53,7 +53,7 @@ def _sigterm_pid(pid: int) -> bool:
         # (Sonar python:S4828).
         os.kill(pid, signal.SIGTERM)  # NOSONAR python:S4828
     except OSError:
-        # ProcessLookupError is a subclass of OSError — catching both
+        # ProcessLookupError is a subclass of OSError - catching both
         # would be redundant (Sonar python:S5713).
         return False
     return True

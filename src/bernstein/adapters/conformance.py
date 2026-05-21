@@ -430,7 +430,7 @@ class ConformanceHarness:
                     f"log_path {result.log_path!s} does not end with expected suffix {step.expected_log_suffix!r}"
                 ),
             )
-        return StepResult(step_index=step_index, passed=True, message=f"OK — pid={result.pid}")
+        return StepResult(step_index=step_index, passed=True, message=f"OK - pid={result.pid}")
 
     def replay_step(
         self,

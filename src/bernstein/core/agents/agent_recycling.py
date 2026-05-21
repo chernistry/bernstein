@@ -1,6 +1,6 @@
 """Idle detection, stale checks, signal management.
 
-Extracted from ``agent_lifecycle`` — recycling idle agents, processing
+Extracted from ``agent_lifecycle`` - recycling idle agents, processing
 kill signals, sending shutdown signals, and stale/stall detection.
 """
 
@@ -33,11 +33,11 @@ _IDLE_GRACE_S: float = 30.0
 
 #: Default no-heartbeat idle threshold (seconds).
 #: CLI agents (claude, qwen) need time to boot, read context, and start
-#: producing heartbeats — 90s was too aggressive and caused a death spiral.
+#: producing heartbeats - 90s was too aggressive and caused a death spiral.
 _IDLE_HEARTBEAT_THRESHOLD_S: float = 300.0
 
 #: Idle threshold used when evolve mode is active.
-#: Was 120s which was too aggressive — agents killed before their first
+#: Was 120s which was too aggressive - agents killed before their first
 #: stream-json event, causing a WIP-commit / resume / kill death spiral.
 _IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S: float = 300.0
 
@@ -88,7 +88,7 @@ def recycle_idle_agents(
       slot can be used by under-served roles (rebalancing).
 
     Recycling protocol:
-    1. Send SHUTDOWN signal — agent has 30 s to save WIP and exit cleanly.
+    1. Send SHUTDOWN signal - agent has 30 s to save WIP and exit cleanly.
     2. If still alive after 30 s → SIGKILL.
     3. Clear signal files and release the slot.
 
@@ -109,7 +109,7 @@ def recycle_idle_agents(
 
         completion_file = completed_dir / session.id
         if completion_file.exists():
-            logger.info("Agent %s has completion marker — reaping immediately", session.id)
+            logger.info("Agent %s has completion marker - reaping immediately", session.id)
             _reap_completed_agent(orch, session, completion_file)
             continue
 
@@ -217,21 +217,21 @@ def _recycle_or_kill(orch: Any, session: AgentSession, now: float, reason: str) 
     shutdown_sent_ts: float = orch._idle_shutdown_ts.get(session.id, 0.0)
 
     if shutdown_sent_ts == 0:
-        # First detection — send SHUTDOWN and record timestamp
+        # First detection - send SHUTDOWN and record timestamp
         task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
         with contextlib.suppress(OSError):
             orch._signal_mgr.write_shutdown(session.id, reason=reason, task_title=task_title)
         orch._idle_shutdown_ts[session.id] = now
         logger.info(
-            "Idle agent %s detected (%s) — SHUTDOWN signal sent, waiting %ds",
+            "Idle agent %s detected (%s) - SHUTDOWN signal sent, waiting %ds",
             session.id,
             reason,
             int(_IDLE_GRACE_S),
         )
     elif now - shutdown_sent_ts >= _IDLE_GRACE_S:
-        # Grace period elapsed — force-kill
+        # Grace period elapsed - force-kill
         logger.warning(
-            "Recycled idle agent %s (%s — no exit after %ds SHUTDOWN grace)",
+            "Recycled idle agent %s (%s - no exit after %ds SHUTDOWN grace)",
             session.id,
             reason,
             int(_IDLE_GRACE_S),
@@ -359,7 +359,7 @@ def _recover_loops(orch: Any, detector: Any, lock_mgr: Any) -> None:
         if session is None or session.status == "dead":
             continue
         logger.warning(
-            "Loop detected: agent %s edited '%s' %d times in %.0fs — killing agent",
+            "Loop detected: agent %s edited '%s' %d times in %.0fs - killing agent",
             loop.agent_id,
             loop.file_path,
             loop.edit_count,
@@ -376,13 +376,13 @@ def _recover_loops(orch: Any, detector: Any, lock_mgr: Any) -> None:
 def check_loops_and_deadlocks(orch: Any) -> None:
     """Detect and recover from agent edit loops and file-lock deadlocks.
 
-    **Loop detection** — polls modification times of files currently locked by
+    **Loop detection** - polls modification times of files currently locked by
     active agents.  When a file's mtime advances since the last poll, the edit
     is recorded.  If the same agent edits the same file more than
     :data:`~bernstein.core.loop_detector.LOOP_EDIT_THRESHOLD` times within the
     detection window, the agent is killed so the task can be retried.
 
-    **Deadlock detection** — builds a wait-for graph from the
+    **Deadlock detection** - builds a wait-for graph from the
     :class:`~bernstein.core.file_locks.FileLockManager` and any pending
     lock-wait entries recorded via
     :meth:`~bernstein.core.loop_detector.LoopDetector.record_lock_wait`.
@@ -416,7 +416,7 @@ def check_loops_and_deadlocks(orch: Any) -> None:
 
     for deadlock in detector.detect_deadlocks(lock_mgr):
         logger.warning(
-            "%s — releasing locks for victim agent %s",
+            "%s - releasing locks for victim agent %s",
             deadlock.description,
             deadlock.victim_agent_id,
         )

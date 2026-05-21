@@ -3,12 +3,12 @@
 Exercises the verifier against the real FreeTSA fixture checked into
 ``tests/fixtures/rfc3161/``. Covers:
 
-* Valid chain — token + payload + trust bundle → ``ok=True``.
-* Tampered token — flipped bytes → signature failure surfaces.
-* Wrong payload — messageImprint mismatch flagged.
-* Missing trust bundle — empty list rejected with explicit error.
-* TSA EKU surface — ``id-kp-timeStamping`` is detected.
-* Trust bundle loader — PEM and DER paths parsed.
+* Valid chain - token + payload + trust bundle → ``ok=True``.
+* Tampered token - flipped bytes → signature failure surfaces.
+* Wrong payload - messageImprint mismatch flagged.
+* Missing trust bundle - empty list rejected with explicit error.
+* TSA EKU surface - ``id-kp-timeStamping`` is detected.
+* Trust bundle loader - PEM and DER paths parsed.
 """
 
 from __future__ import annotations

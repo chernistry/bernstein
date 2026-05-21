@@ -58,7 +58,7 @@ def sse_events(request: Request) -> StreamingResponse:
     sse_bus = _get_sse_bus(request)
     queue = sse_bus.subscribe()
 
-    # Timeout for individual queue.get() calls — if no message arrives
+    # Timeout for individual queue.get() calls - if no message arrives
     # within this window (including heartbeats), the connection is dead.
     _READ_TIMEOUT_S = 60.0
 
@@ -74,7 +74,7 @@ def sse_events(request: Request) -> StreamingResponse:
                 try:
                     message = await asyncio.wait_for(queue.get(), timeout=_READ_TIMEOUT_S)
                 except TimeoutError:
-                    # No message (not even a heartbeat) in _READ_TIMEOUT_S — client likely disconnected
+                    # No message (not even a heartbeat) in _READ_TIMEOUT_S - client likely disconnected
                     logger.debug("SSE client timed out after %.0fs, closing", _READ_TIMEOUT_S)
                     break
                 sse_bus.mark_read(queue)

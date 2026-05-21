@@ -115,7 +115,7 @@ class ComplexityAdvisor:
         if force_parallel:
             return ComplexityAdvice(
                 mode=ComplexityMode.MULTI_AGENT,
-                reason="force_parallel override — skipping complexity analysis",
+                reason="force_parallel override - skipping complexity analysis",
                 file_count=len(task.owned_files),
                 cross_file_dep_score=0.0,
                 force_parallel=True,
@@ -128,7 +128,7 @@ class ComplexityAdvisor:
         if file_count == 0:
             return ComplexityAdvice(
                 mode=ComplexityMode.MULTI_AGENT,
-                reason="no owned_files declared — cannot assess coupling",
+                reason="no owned_files declared - cannot assess coupling",
                 file_count=0,
                 cross_file_dep_score=0.0,
             )
@@ -137,12 +137,12 @@ class ComplexityAdvisor:
         if file_count >= FEW_FILES_THRESHOLD:
             return ComplexityAdvice(
                 mode=ComplexityMode.MULTI_AGENT,
-                reason=f"{file_count} files ≥ threshold ({FEW_FILES_THRESHOLD}) — parallelism beneficial",
+                reason=f"{file_count} files ≥ threshold ({FEW_FILES_THRESHOLD}) - parallelism beneficial",
                 file_count=file_count,
                 cross_file_dep_score=0.0,
             )
 
-        # Few files — check coupling
+        # Few files - check coupling
         dep_score = _cross_file_dep_score(files, workdir)
 
         if dep_score >= TIGHT_COUPLING_THRESHOLD:
@@ -150,7 +150,7 @@ class ComplexityAdvisor:
                 mode=ComplexityMode.SINGLE_AGENT,
                 reason=(
                     f"{file_count} files with coupling score {dep_score:.2f} ≥ "
-                    f"{TIGHT_COUPLING_THRESHOLD} — single agent avoids coordination overhead"
+                    f"{TIGHT_COUPLING_THRESHOLD} - single agent avoids coordination overhead"
                 ),
                 file_count=file_count,
                 cross_file_dep_score=dep_score,
@@ -160,7 +160,7 @@ class ComplexityAdvisor:
             mode=ComplexityMode.MULTI_AGENT,
             reason=(
                 f"{file_count} files but coupling score {dep_score:.2f} < "
-                f"{TIGHT_COUPLING_THRESHOLD} — files are loosely coupled, parallelism OK"
+                f"{TIGHT_COUPLING_THRESHOLD} - files are loosely coupled, parallelism OK"
             ),
             file_count=file_count,
             cross_file_dep_score=dep_score,

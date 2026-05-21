@@ -143,7 +143,7 @@ async def test_create_task_auto_estimate(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_claim_next_task(client: AsyncClient) -> None:
     """GET /tasks/next/{role} returns and claims the highest-priority task."""
-    # Create two tasks — priority 1 (critical) and priority 3.
+    # Create two tasks - priority 1 (critical) and priority 3.
     await client.post("/tasks", json=TASK_PAYLOAD | {"priority": 3})
     await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Critical fix", "priority": 1})
 
@@ -238,18 +238,18 @@ async def test_depends_on_valid_chain(client: AsyncClient) -> None:
 async def test_simple_cycle_rejected(client: AsyncClient) -> None:
     """POST /tasks returns 422 when a simple A -> B -> A cycle is detected."""
     # Create A with no deps, then B depending on A, then try to create A's twin
-    # that depends on B — simulated by creating two independent tasks first,
+    # that depends on B - simulated by creating two independent tasks first,
     # then attempting a task that would close a cycle.
     a = (await client.post("/tasks", json=TASK_PAYLOAD)).json()["id"]
     (await client.post("/tasks", json=TASK_PAYLOAD | {"depends_on": [a]})).json()["id"]
-    # Now attempt a task that depends on B and on A — not a cycle by itself.
+    # Now attempt a task that depends on B and on A - not a cycle by itself.
     # To get a real cycle we need to create task C that depends on B,
-    # then a task D that depends on C and C depends back on D — but tasks are
+    # then a task D that depends on C and C depends back on D - but tasks are
     # immutable after creation.  The real cycle case arises if task A was
     # somehow given B in its depends_on.  We test the direct cycle path via
     # a fresh pair: X depends on Y, Y depends on X (impossible via HTTP since Y
     # doesn't exist when X is created, but we can test X -> Y -> X transitively).
-    # Create X, then Y depends on X, then Z depends on Y and X — valid chain.
+    # Create X, then Y depends on X, then Z depends on Y and X - valid chain.
     # Cycle: create P, Q depends on P, then attempt R that P itself depends on Q.
     # Since tasks are immutable we simulate with _detect_cycle directly.
     from bernstein.core.models import Task, TaskStatus, TaskType
@@ -271,7 +271,7 @@ async def test_simple_cycle_rejected(client: AsyncClient) -> None:
         )
 
     p = _make(p_id, [q_id])  # P depends on Q
-    q = _make(q_id, [p_id])  # Q depends on P  — cycle!
+    q = _make(q_id, [p_id])  # Q depends on P  - cycle!
     existing = {p_id: p}
     cycle = TaskStore._detect_cycle(existing, q)
     assert cycle is not None
@@ -661,7 +661,7 @@ async def test_task_counts_empty(client: AsyncClient) -> None:
     data = resp.json()
     # Every TaskStatus field must be surfaced (smoke-test follow-up #4):
     # closed/in_progress/planned/pending_approval/waiting_for_subtasks/orphaned
-    # used to be missing, which caused the GUI status chips to render ``—``.
+    # used to be missing, which caused the GUI status chips to render ``-``.
     for field in (
         "open",
         "claimed",
@@ -931,7 +931,7 @@ def test_stale_agent_detection(tmp_path: Path) -> None:
     store._agents["old-agent"] = __import__("bernstein.core.models", fromlist=["AgentSession"]).AgentSession(
         id="old-agent",
         role="backend",
-        heartbeat_ts=0.0,  # epoch — definitely stale
+        heartbeat_ts=0.0,  # epoch - definitely stale
         status="working",
     )
     count = store.mark_stale_dead()
@@ -1607,7 +1607,7 @@ async def test_claim_by_id_already_claimed(client: AsyncClient) -> None:
     """Claiming an already-claimed task returns 409 Conflict (audit-014).
 
     Previously the server silently re-returned the unchanged task,
-    enabling double-claim — two agents both believed they owned the
+    enabling double-claim - two agents both believed they owned the
     same task. The second claim must now fail with 409.
     """
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
@@ -1725,7 +1725,7 @@ async def test_create_task_with_invalid_scope(client: AsyncClient) -> None:
     try:
         resp = await client.post("/tasks", json=TASK_PAYLOAD | {"scope": "bogus"})
     except ValueError:
-        pass  # ValueError propagated through ASGI transport — server rejected input
+        pass  # ValueError propagated through ASGI transport - server rejected input
     else:
         assert resp.status_code != 201, f"Expected rejection for invalid scope, got {resp.status_code}"
 
@@ -1736,14 +1736,14 @@ async def test_create_task_with_invalid_complexity(client: AsyncClient) -> None:
     try:
         resp = await client.post("/tasks", json=TASK_PAYLOAD | {"complexity": "bogus"})
     except ValueError:
-        pass  # ValueError propagated through ASGI transport — server rejected input
+        pass  # ValueError propagated through ASGI transport - server rejected input
     else:
         assert resp.status_code != 201, f"Expected rejection for invalid complexity, got {resp.status_code}"
 
 
 @pytest.mark.anyio
 async def test_complete_already_completed_task(client: AsyncClient) -> None:
-    """Completing an already-done task returns 409 — DONE->DONE is illegal."""
+    """Completing an already-done task returns 409 - DONE->DONE is illegal."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
@@ -1756,7 +1756,7 @@ async def test_complete_already_completed_task(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_fail_already_failed_task(client: AsyncClient) -> None:
-    """Failing an already-failed task returns 409 — FAILED->FAILED is illegal."""
+    """Failing an already-failed task returns 409 - FAILED->FAILED is illegal."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
@@ -1775,7 +1775,7 @@ async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> No
     1. A dep-blocked task is absent from GET /tasks?status=open while its dep is open.
     2. After the dep is completed, GET /tasks/next/{role} can claim the previously blocked task.
     """
-    # Create the dependency task (qa role — stays open, different from backend)
+    # Create the dependency task (qa role - stays open, different from backend)
     dep_resp = await client.post("/tasks", json=TASK_PAYLOAD | {"role": "qa", "title": "Dep task"})
     dep_id = dep_resp.json()["id"]
 
@@ -1795,7 +1795,7 @@ async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> No
     open_ids = {t["id"] for t in open_resp.json()}
     assert blocked_id not in open_ids, "dep-blocked task should be hidden while dep is open"
 
-    # Complete the dep — now blocked task's dep is satisfied
+    # Complete the dep - now blocked task's dep is satisfied
     await client.post(f"/tasks/{dep_id}/claim")
     await client.post(f"/tasks/{dep_id}/complete", json={"result_summary": "done"})
 
@@ -1999,7 +1999,7 @@ async def test_jsonl_write_buffering(tmp_path: Path) -> None:
     """Every mutation must flush to disk immediately (_BUFFER_MAX=1).
 
     With immediate flushing, 20 creates produce exactly 20 file-open
-    operations — no data is left in the buffer that could be lost on crash.
+    operations - no data is left in the buffer that could be lost on crash.
     """
     jsonl = tmp_path / "tasks.jsonl"
     store = TaskStore(jsonl_path=jsonl)
@@ -2236,7 +2236,7 @@ async def test_auth_wrong_token_returns_401(auth_client: AsyncClient) -> None:
     """Requests with a bearer that no strategy accepts are rejected 401.
 
     Per audit-113 the middleware returns 401 when every strategy (SSO JWT,
-    agent JWT, legacy static token) rejects the header — there is no
+    agent JWT, legacy static token) rejects the header - there is no
     "authenticated-but-forbidden" state, so 403 is never produced here.
     """
     resp = await auth_client.get("/status", headers={"Authorization": "Bearer wrong"})

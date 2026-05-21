@@ -399,7 +399,7 @@ class TestRenderImage:
     def test_auto_detect_caps_when_none(self, red_image: Image.Image) -> None:
         """render_image must not raise when caps=None (auto-detection path)."""
         out = io.StringIO()
-        # Patch is_tty to False so NullRenderer is chosen — avoids terminal queries
+        # Patch is_tty to False so NullRenderer is chosen - avoids terminal queries
         with patch.object(TerminalCaps, "detect", return_value=TerminalCaps.null()):
             render_image(red_image, width=4, height=2, file=out)
         assert out.getvalue() == ""

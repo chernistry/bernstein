@@ -177,7 +177,7 @@ class TestHealthCheck:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — trigger_sync
+# GitOpsClient - trigger_sync
 # ---------------------------------------------------------------------------
 
 
@@ -211,7 +211,7 @@ class TestTriggerSync:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — build_argocd_sync_payload
+# GitOpsClient - build_argocd_sync_payload
 # ---------------------------------------------------------------------------
 
 
@@ -244,7 +244,7 @@ class TestBuildArgocdSyncPayload:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — build_flux_reconcile_payload
+# GitOpsClient - build_flux_reconcile_payload
 # ---------------------------------------------------------------------------
 
 
@@ -277,7 +277,7 @@ class TestBuildFluxReconcilePayload:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — check_health
+# GitOpsClient - check_health
 # ---------------------------------------------------------------------------
 
 
@@ -300,7 +300,7 @@ class TestCheckHealth:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — get_api_url
+# GitOpsClient - get_api_url
 # ---------------------------------------------------------------------------
 
 
@@ -327,7 +327,7 @@ class TestGetApiUrl:
 
 
 # ---------------------------------------------------------------------------
-# GitOpsClient — get_headers
+# GitOpsClient - get_headers
 # ---------------------------------------------------------------------------
 
 

@@ -64,7 +64,7 @@ def test_wiki_build_streams_markdown_to_stdout(fixture_repo: Path) -> None:
     result = runner.invoke(wiki_group, ["build", "--repo", str(fixture_repo)])
 
     assert result.exit_code == 0, result.output
-    assert result.output.startswith(f"# {fixture_repo.name} — Repo Wiki\n")
+    assert result.output.startswith(f"# {fixture_repo.name} - Repo Wiki\n")
     assert "public_api" in result.output
     assert "## Test layout" in result.output
 
@@ -80,7 +80,7 @@ def test_wiki_build_writes_file_with_flag(fixture_repo: Path) -> None:
     written = fixture_repo / "WIKI.md"
     assert written.exists()
     content = written.read_text(encoding="utf-8")
-    assert content.startswith(f"# {fixture_repo.name} — Repo Wiki\n")
+    assert content.startswith(f"# {fixture_repo.name} - Repo Wiki\n")
     assert "public_api" in content
 
 

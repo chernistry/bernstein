@@ -1,13 +1,13 @@
 """Tests for the prompted-app scaffold generator.
 
 Covers:
-* Template registry contract — every template renders into a non-empty
+* Template registry contract - every template renders into a non-empty
   file tree using only the documented placeholders.
-* Heuristic ``pick_template`` — keyword routing is deterministic and
+* Heuristic ``pick_template`` - keyword routing is deterministic and
   case-insensitive, with a sensible default fallback.
-* ``materialize_template`` — produces the expected file tree on disk and
+* ``materialize_template`` - produces the expected file tree on disk and
   refuses to overwrite a non-empty target without ``--force``.
-* CLI surface — ``bernstein scaffold "<prompt>"`` exits 0, picks a
+* CLI surface - ``bernstein scaffold "<prompt>"`` exits 0, picks a
   template, and writes the expected files. Unknown templates exit non-zero.
 """
 

@@ -1,4 +1,4 @@
-"""Terminal color mode detection — auto-detect truecolor/256-color/ANSI.
+"""Terminal color mode detection - auto-detect truecolor/256-color/ANSI.
 
 Probes the terminal environment to determine the best color rendering
 mode so that Rich-based TUI output uses the optimal palette available.
@@ -54,7 +54,7 @@ def detect_color_mode() -> ColorMode:
         if "color" in term:
             return ColorMode.ANSI
 
-    # Conservative default — assume at least ANSI colors
+    # Conservative default - assume at least ANSI colors
     return ColorMode.ANSI
 
 

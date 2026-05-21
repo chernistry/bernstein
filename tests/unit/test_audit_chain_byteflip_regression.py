@@ -5,7 +5,7 @@ The Hypothesis property
 test_single_byte_flip_breaks_verification`` enforces that any single-byte
 flip in any persisted entry surfaces as a verification error. Hypothesis
 shrunk the failing case to byte positions occupied by the line terminator
-``\\n`` (``0x0A``) — flipping them to ``\\v`` (``0x0B``) survived the
+``\\n`` (``0x0A``) - flipping them to ``\\v`` (``0x0B``) survived the
 previous verifier because ``str.splitlines()`` treats the two bytes as
 equivalent line separators.
 
@@ -106,14 +106,14 @@ def test_canonical_form_drift_is_detected(audit_log: AuditLog) -> None:
     ``\\t`` or extra spaces). The verifier guards against this by
     re-canonicalising each entry via ``json.dumps(..., sort_keys=True)``
     and comparing the bytes to the on-disk line. This test simulates an
-    attacker injecting a single space inside a JSON object literal — the
+    attacker injecting a single space inside a JSON object literal - the
     resulting entry still parses cleanly, but the canonical form check
     catches the drift.
     """
     audit_log.log("evt", "actor", "task", "rid", {})
     target = sorted(audit_log._audit_dir.glob("*.jsonl"))[0]  # pyright: ignore[reportPrivateUsage]
     raw = target.read_bytes()
-    # Insert an extra space after the opening ``{`` — survives json.loads
+    # Insert an extra space after the opening ``{`` - survives json.loads
     # but breaks bytewise equality with the canonical re-serialisation.
     mutated = raw.replace(b'{"', b'{ "', 1)
     assert mutated != raw, "test setup: replacement did not change bytes"

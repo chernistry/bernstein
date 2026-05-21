@@ -41,17 +41,17 @@ DEFAULT_TTL_SECONDS: float = 86_400.0  # 24 hours
 MAX_CACHE_ENTRIES: int = 500
 
 # ---------------------------------------------------------------------------
-# Response cache constants (higher bar — agent spawns are expensive)
+# Response cache constants (higher bar - agent spawns are expensive)
 # ---------------------------------------------------------------------------
 
 # Cosine threshold for agent-output response cache.  0.95 requires very close
 # semantic overlap before we skip spawning an agent.
 RESPONSE_CACHE_SIMILARITY_THRESHOLD: float = 0.95
 
-# 7-day TTL for agent results — implementations are more stable than plans.
+# 7-day TTL for agent results - implementations are more stable than plans.
 RESPONSE_CACHE_TTL_SECONDS: float = 604_800.0
 
-# Maximum cached agent results (larger pool — results are worth keeping longer).
+# Maximum cached agent results (larger pool - results are worth keeping longer).
 RESPONSE_CACHE_MAX_ENTRIES: int = 1_000
 
 _PUNCT_RE = re.compile(r"[^\w\s]")
@@ -363,7 +363,7 @@ class ResponseCacheManager:
 
     Target: 20-40% reduction in agent spawns via result reuse.
 
-    The cache is model-agnostic — it stores *what was accomplished*, not an
+    The cache is model-agnostic - it stores *what was accomplished*, not an
     AI response, so the producing model is irrelevant for lookup.
 
     Storage: ``.sdd/caching/response_cache.jsonl`` (one JSON line).
@@ -371,7 +371,7 @@ class ResponseCacheManager:
     Args:
         workdir: Project root (cache stored under workdir/.sdd/caching/).
         similarity_threshold: Cosine similarity required for a cache hit.
-            Default 0.95 — deliberately high to prevent incorrect reuse.
+            Default 0.95 - deliberately high to prevent incorrect reuse.
         ttl_seconds: Entries older than this (in seconds) are ignored.
             Default 7 days.  Set to 0.0 to disable expiry.
     """
@@ -511,7 +511,7 @@ class ResponseCacheManager:
             key_text=key_text,
             response=result_summary,
             word_vector=_embed(key_text),
-            model="agent",  # model-agnostic — result caching only
+            model="agent",  # model-agnostic - result caching only
             hit_count=0,
             created_at=time.time(),
             verified=verified,

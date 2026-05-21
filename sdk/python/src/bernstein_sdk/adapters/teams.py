@@ -1,4 +1,4 @@
-"""Microsoft Teams adapter — send Bernstein task events via Incoming Webhooks.
+"""Microsoft Teams adapter - send Bernstein task events via Incoming Webhooks.
 
 Teams supports Incoming Webhooks with an Adaptive Cards payload.
 
@@ -49,7 +49,7 @@ class TeamsAdapter:
         self._webhook_url = webhook_url
         if not webhook_url:
             log.warning(
-                "TeamsAdapter: no webhook URL configured — "
+                "TeamsAdapter: no webhook URL configured - "
                 "set TEAMS_WEBHOOK_URL or pass webhook_url= at construction time"
             )
 

@@ -186,7 +186,7 @@ def write_claude_md(
     # Ensure the agent-specific CLAUDE.md never lands in merge commits.
     # The project-level CLAUDE.md is tracked, so .gitignore alone does not
     # suppress the modification.  Mark it as skip-worktree in the worktree's
-    # index — git will then ignore local edits and salvage's ``git add -A``
+    # index - git will then ignore local edits and salvage's ``git add -A``
     # will not stage the override.
     _mark_claude_md_skip_worktree(worktree_path)
 
@@ -200,7 +200,7 @@ def _mark_claude_md_skip_worktree(worktree_path: Path) -> None:
     override would otherwise show up in ``git diff`` and be staged by
     ``git add -A``.  Setting the skip-worktree bit tells git to treat the
     file as if it were untracked locally without untracking it in the
-    shared ref — so the override stays out of the ``agent/<id>`` branch
+    shared ref - so the override stays out of the ``agent/<id>`` branch
     and never reaches the merge queue.
 
     The call is best-effort: a failure is logged but does not propagate.

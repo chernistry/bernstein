@@ -18,7 +18,7 @@ from bernstein.compliance.eu_ai_act import (
 
 
 def minimal_descriptor(**overrides: object) -> SystemDescriptor:
-    """Minimal-risk system — no flags set."""
+    """Minimal-risk system - no flags set."""
     return SystemDescriptor(
         name="TestBot",
         version="1.0.0",

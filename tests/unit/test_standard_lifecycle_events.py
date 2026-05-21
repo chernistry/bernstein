@@ -80,7 +80,7 @@ def test_validate_payload_rejects_missing_key() -> None:
 
 
 def test_validate_payload_ignores_extra_keys() -> None:
-    """Extra keys are forward-compatible — schemas are additive."""
+    """Extra keys are forward-compatible - schemas are additive."""
     validate_payload(
         LifecycleEvent.IDLE,
         {"session_id": "s1", "idle_duration_s": 5, "extra": "ok"},

@@ -13,7 +13,7 @@ flow:
 
 The bridge also keeps a small JSON registry under
 ``.sdd/routines/registry.json`` that maps Routine trigger ids to scenario
-ids — so a webhook arriving with ``X-Trigger-Id: <id>`` resolves to a known
+ids - so a webhook arriving with ``X-Trigger-Id: <id>`` resolves to a known
 scenario without operator hand-holding.
 """
 
@@ -173,7 +173,7 @@ def build_task_payloads(
         orchestration_id: Reuse an id (for retries). Generated when omitted.
 
     Returns:
-        A list of payloads — one per scenario task template, in scenario
+        A list of payloads - one per scenario task template, in scenario
         order. Empty when the scenario has no tasks.
     """
     orch_id = orchestration_id or f"scn-{uuid.uuid4().hex[:12]}"
@@ -228,7 +228,7 @@ class RoutineBridge:
     The bridge owns:
 
     * a :class:`ScenarioLibrary` (loaded from disk),
-    * a :class:`RoutineProvisioner` (Direction A — export configs),
+    * a :class:`RoutineProvisioner` (Direction A - export configs),
     * a Routine binding registry persisted under ``state_dir``.
 
     Attributes:
@@ -310,7 +310,7 @@ class RoutineBridge:
             branch: Branch override.
 
         Returns:
-            ``(invocation, payloads)``. ``invocation.task_ids`` is empty —
+            ``(invocation, payloads)``. ``invocation.task_ids`` is empty -
             populate it via :func:`spawn_scenario_tasks` once tasks are POSTed.
 
         Raises:

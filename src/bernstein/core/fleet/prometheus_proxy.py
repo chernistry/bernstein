@@ -6,7 +6,7 @@ those endpoints concurrently and rewrites every metric line to add a
 ``project="<name>"`` label so a single Grafana dashboard can chart the
 fleet without per-project boards.
 
-The merge is text-only — we never deserialise into prometheus_client
+The merge is text-only - we never deserialise into prometheus_client
 because injecting labels through that API requires the original metric
 definitions, which the fleet aggregator does not have.
 """

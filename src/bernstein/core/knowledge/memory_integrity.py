@@ -16,7 +16,7 @@ Integrity fields written to every lesson entry
 ``content_hash``
     SHA-256 of the *immutable* lesson fields: lesson_id, tags (sorted),
     content, created_timestamp, filed_by_agent, task_id.
-    Confidence and version are intentionally excluded — legitimate updates
+    Confidence and version are intentionally excluded - legitimate updates
     must not invalidate the hash.
 
 ``prev_hash``
@@ -330,7 +330,7 @@ def _verify_content_hash(data: dict[str, Any], lineno: int, lesson_id: str, resu
     if stored != recomputed:
         result.errors.append(
             f"Line {lineno} ({lesson_id}): content_hash MISMATCH "
-            f"— stored={stored[:12]}… computed={recomputed[:12]}… (immutable fields tampered)"
+            f"- stored={stored[:12]}… computed={recomputed[:12]}… (immutable fields tampered)"
         )
         if result.broken_at < 0:
             result.broken_at = lineno
@@ -353,7 +353,7 @@ def _verify_prev_hash(
     if stored != expected:
         result.errors.append(
             f"Line {lineno} ({lesson_id}): prev_hash MISMATCH "
-            f"— stored={stored[:12] if stored else '(empty)'}… "
+            f"- stored={stored[:12] if stored else '(empty)'}… "
             f"expected={expected[:12]}… (entry inserted, deleted, or reordered)"
         )
         if result.broken_at < 0:
@@ -384,7 +384,7 @@ def _verify_chain_hash(data: dict[str, Any], lineno: int, lesson_id: str, result
     expected = _sha256(f"chain:{stored_content}:{stored_prev}")
     if stored != expected:
         result.errors.append(
-            f"Line {lineno} ({lesson_id}): chain_hash MISMATCH — stored={stored[:12]}… expected={expected[:12]}… "
+            f"Line {lineno} ({lesson_id}): chain_hash MISMATCH - stored={stored[:12]}… expected={expected[:12]}… "
         )
         if result.broken_at < 0:
             result.broken_at = lineno
@@ -554,7 +554,7 @@ def audit_provenance(lessons_path: Path) -> list[ProvenanceEntry]:
             if stored_chain:
                 expected_prev = stored_chain
             elif stored_content:
-                # Partially-formed entry — best effort
+                # Partially-formed entry - best effort
                 expected_prev = stored_content
 
     return trail

@@ -22,7 +22,7 @@ __all__ = ["DEFAULT_TIMEOUT_S", "post_json"]
 DEFAULT_TIMEOUT_S: float = 10.0
 
 # 4xx codes that we treat as transient even though they're client errors.
-# 408 (timeout), 425 (too early), 429 (rate-limited) — retrying may help.
+# 408 (timeout), 425 (too early), 429 (rate-limited) - retrying may help.
 _TRANSIENT_4XX = frozenset({408, 425, 429})
 
 

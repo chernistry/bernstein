@@ -256,7 +256,7 @@ class TestCapabilityRouter:
         router = CapabilityRouter(discovery=discovery)
         match = router.best_match(["security", "design"])
         assert match is not None
-        # Should pick strongest model — non-empty string
+        # Should pick strongest model - non-empty string
         assert match.model
 
     def test_model_selection_cheap_caps(self, discovery: DiscoveryResult) -> None:
@@ -268,7 +268,7 @@ class TestCapabilityRouter:
 
 
 # ===================================================================
-# Issue #647 — CapabilityRegistry with typed capabilities
+# Issue #647 - CapabilityRegistry with typed capabilities
 # ===================================================================
 
 # ---------------------------------------------------------------------------
@@ -402,7 +402,7 @@ class TestRegistryMatchDataclass:
 
 
 # ---------------------------------------------------------------------------
-# CapabilityRegistry — registration
+# CapabilityRegistry - registration
 # ---------------------------------------------------------------------------
 
 
@@ -444,7 +444,7 @@ class TestRegistryRegistration:
 
 
 # ---------------------------------------------------------------------------
-# CapabilityRegistry — find_agents
+# CapabilityRegistry - find_agents
 # ---------------------------------------------------------------------------
 
 
@@ -553,7 +553,7 @@ class TestRegistryFindAgents:
 
 
 # ---------------------------------------------------------------------------
-# CapabilityRegistry — best_match
+# CapabilityRegistry - best_match
 # ---------------------------------------------------------------------------
 
 

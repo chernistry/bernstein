@@ -103,7 +103,7 @@ def _parse_candidates(
         content = backlog_file.read_text(encoding="utf-8")
         parsed_task = parse_backlog_text(backlog_file.name, content)
         if parsed_task is None:
-            logger.warning("ingest_backlog: could not parse %s — skipping", backlog_file.name)
+            logger.warning("ingest_backlog: could not parse %s - skipping", backlog_file.name)
             _claim_backlog_file(orch, backlog_file, open_dir, claimed_dir)
             continue
 
@@ -163,7 +163,7 @@ def ingest_backlog(orch: Any) -> int:
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in (404, 422):
             # 404: older server build without the batch endpoint.
-            # 422: one task in the batch fails pydantic validation — fall
+            # 422: one task in the batch fails pydantic validation - fall
             # back so valid tasks still land instead of poisoning the whole
             # batch every tick.
             return _ingest_backlog_one_by_one(orch, batch_files, open_dir, claimed_dir)
@@ -173,7 +173,7 @@ def ingest_backlog(orch: Any) -> int:
         logger.warning("ingest_backlog: batch POST failed: %s", exc)
         return 0
 
-    # Phase 3: Mark files as claimed — only on success
+    # Phase 3: Mark files as claimed - only on success
     count = 0
     for backlog_file, parsed in batch_files:
         title_key = parsed.title.lower().strip()
@@ -189,7 +189,7 @@ def _claim_backlog_file(_orch: Any, backlog_file: Path, open_dir: Path, claimed_
     """Mark a backlog file as claimed.
 
     Files from ``open/`` are moved into ``claimed/``.
-    Files from ``issues/`` stay in place — only a marker is created in
+    Files from ``issues/`` stay in place - only a marker is created in
     ``claimed/`` so they are not re-ingested.
 
     Args:

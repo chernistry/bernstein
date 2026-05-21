@@ -96,7 +96,7 @@ class TestForecastCompletionRate:
         assert result is None
 
     def test_declining_rate_detected(self) -> None:
-        # Simulate: tasks get slower over time — fewer completions per bucket
+        # Simulate: tasks get slower over time - fewer completions per bucket
         now = time.time()
         timestamps: list[float] = []
         # Early: 4 tasks per 5-minute bucket (x8 buckets)
@@ -194,7 +194,7 @@ class TestPredictiveAlertEngine:
         assert "warning" in severities or "critical" in severities
 
     def test_critical_alert_at_10_minutes(self) -> None:
-        # Very high spend rate — budget exhausted in < 10 minutes
+        # Very high spend rate - budget exhausted in < 10 minutes
         now = time.time()
         # $1/min, budget $10, $9.50 already spent → 0.5 min remaining
         history = [(now - 300 + i * 60, 9.50 + i * 1.0) for i in range(6)]
@@ -216,7 +216,7 @@ class TestPredictiveAlertEngine:
 
         alerts = self.engine.evaluate_completion_rate(timestamps)
         # If trend is detected as declining, we get an alert
-        # (may be 0 if not enough signal — that's OK)
+        # (may be 0 if not enough signal - that's OK)
         for a in alerts:
             assert a.kind == AlertKind.COMPLETION_RATE_DECLINE
 

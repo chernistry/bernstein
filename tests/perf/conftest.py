@@ -1,4 +1,4 @@
-"""Perf-suite conftest — ensure local src/ takes priority on sys.path.
+"""Perf-suite conftest - ensure local src/ takes priority on sys.path.
 
 Mirrors ``tests/unit/conftest.py``: in git worktrees a parent project's
 venv may appear earlier on sys.path than the worktree's own ``src/``,

@@ -1,7 +1,7 @@
 """End-to-end webhook+mapping tests using captured fixture payloads.
 
 These tests exercise the GitLab webhook ingress + parser + mapper as a
-pipeline.  They do *not* spin up an HTTP server — instead they import the
+pipeline.  They do *not* spin up an HTTP server - instead they import the
 public functions and run them against the JSON fixtures committed under
 ``tests/integration/gitlab/fixtures/``.
 """
@@ -112,7 +112,7 @@ class TestSnapshotOutputs:
 
     def test_cost_summary_snapshot(self) -> None:
         out = build_cost_summary(cost_usd=0.1234, task_count=3, model="claude-sonnet-4-6")
-        # Strip dynamic bits — we just check stable structure.
+        # Strip dynamic bits - we just check stable structure.
         assert "bernstein-cost-annotation" in out
         assert "Tasks completed: 3" in out
         assert "$0.1234" in out

@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.manager — parsing, rendering, task construction.
+"""Tests for bernstein.core.manager - parsing, rendering, task construction.
 
 LLM calls are mocked; these tests verify prompt rendering and response parsing.
 """
@@ -756,12 +756,12 @@ def manager_agent(tmp_path: Path) -> ManagerAgent:
         templates_dir=tmp_path,
     )
 
-    # TestParseUpgradeChanges, TestDetermineUpgradeType removed —
+    # TestParseUpgradeChanges, TestDetermineUpgradeType removed -
     # these methods were decomposed into upgrade_executor.py
 
 
 # ---------------------------------------------------------------------------
-# raw_dicts_to_tasks — additional branch coverage
+# raw_dicts_to_tasks - additional branch coverage
 # ---------------------------------------------------------------------------
 
 
@@ -802,7 +802,7 @@ class TestRawDictsToTasksBranches:
 
 
 # ---------------------------------------------------------------------------
-# parse_review_response — non-dict branch
+# parse_review_response - non-dict branch
 # ---------------------------------------------------------------------------
 
 
@@ -816,7 +816,7 @@ class TestParseReviewResponseBranches:
 
 
 # ---------------------------------------------------------------------------
-# ManagerAgent.review — LLM failure
+# ManagerAgent.review - LLM failure
 # ---------------------------------------------------------------------------
 
 
@@ -848,7 +848,7 @@ class TestManagerAgentReviewFailure:
 # ---------------------------------------------------------------------------
 
 
-# TestExecuteUpgrade, TestGenerateUpgradeChanges removed —
+# TestExecuteUpgrade, TestGenerateUpgradeChanges removed -
 # these methods were decomposed into reviewer.py and upgrade_executor.py
 
 

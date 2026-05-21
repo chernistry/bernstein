@@ -3,7 +3,7 @@
 ``LineageStore`` owns the on-disk layout described in ADR-009 §4:
 
   ``.sdd/lineage/``
-    ├── ``log.jsonl``                 — source of truth, append-only
+    ├── ``log.jsonl``                 - source of truth, append-only
     ├── ``by-artefact/<aa>/<full>.jsonl``
     ├── ``tips/<full>.json``
     └── ``signatures/<aa>/<full>/<entry-hash>.jws``
@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING
 # ``fcntl`` is POSIX-only. On Windows the module doesn't exist; the lock
 # context manager below becomes a no-op (Windows CI runs are single-process
 # so cross-process serialisation isn't load-bearing for our tests). Real
-# multi-process safety on Windows would route through ``msvcrt.locking`` —
+# multi-process safety on Windows would route through ``msvcrt.locking`` -
 # wire that in when the orchestrator actually runs on Windows in anger.
 if sys.platform == "win32":
     fcntl = None  # type: ignore[assignment]
@@ -61,7 +61,7 @@ _SIGNATURES_DIR = "signatures"
 def _hash_path(artefact_path: str) -> tuple[str, str]:
     """Return (shard, full-hex) for ``sha256(artefact_path.utf-8)``.
 
-    The shard is the first two hex characters — keeps directory fanout bounded
+    The shard is the first two hex characters - keeps directory fanout bounded
     even when a repo has many artefacts.
     """
     h = hashlib.sha256(artefact_path.encode("utf-8")).hexdigest()
@@ -72,7 +72,7 @@ def _atomic_write_text(target: Path, payload: str) -> None:
     """Write ``payload`` to ``target`` via tempfile + ``os.replace``.
 
     The tempfile lives in the same directory so ``os.replace`` is a same-fs
-    rename — atomic on POSIX. ``fsync`` is called on the tempfile before
+    rename - atomic on POSIX. ``fsync`` is called on the tempfile before
     rename so the rename either reveals fully-written bytes or nothing at all.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -94,14 +94,14 @@ def _atomic_write_text(target: Path, payload: str) -> None:
 def _exclusive_lock(path: Path) -> Iterator[int]:
     """Yield an fd holding ``flock(LOCK_EX)`` on ``path``.
 
-    The lock fd is distinct from the file we ultimately write to — this keeps
+    The lock fd is distinct from the file we ultimately write to - this keeps
     the lock lifecycle clean even when the writer opens the log in append
     mode multiple times for fsync.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     # ``os.open`` with ``O_CREAT`` to make the lockfile if absent. We lock the
     # log file itself (per the spec), so re-opening the same path here is fine.
-    # 0o600 — lineage log holds signed audit entries; operator-only readable.
+    # 0o600 - lineage log holds signed audit entries; operator-only readable.
     # CodeQL py/overly-permissive-file flags 0o644 as world-readable.
     fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
     try:
@@ -121,9 +121,9 @@ def _compute_tips_from_entries(entry_hashes_in_order: list[tuple[str, list[str]]
 
     Semantics (ADR-009 §4, §6):
 
-      * ``open`` — heads of the DAG: entries that no other entry has named as
+      * ``open`` - heads of the DAG: entries that no other entry has named as
         a parent.
-      * ``merged`` — entries that were *fork siblings* (i.e. became unresolved
+      * ``merged`` - entries that were *fork siblings* (i.e. became unresolved
         tips at some point) and are now subsumed by a multi-parent merge
         entry. A normal linear successor does not populate ``merged``.
 
@@ -149,7 +149,7 @@ def _compute_tips_from_entries(entry_hashes_in_order: list[tuple[str, list[str]]
                 seen_open.discard(p)
                 # Only record as ``merged`` when a multi-parent merge entry
                 # consumed it. A plain linear successor just demotes the
-                # parent silently — it was never a fork.
+                # parent silently - it was never a fork.
                 if is_merge and p not in seen_merged:
                     merged_set.append(p)
                     seen_merged.add(p)
@@ -160,7 +160,7 @@ def _compute_tips_from_entries(entry_hashes_in_order: list[tuple[str, list[str]]
 class LineageStore:
     """File-backed lineage store rooted at ``root`` (typically ``.sdd/lineage/``).
 
-    The store is safe to share across threads and across processes — all
+    The store is safe to share across threads and across processes - all
     state-modifying operations take ``flock(LOCK_EX)`` over ``log.jsonl``.
     """
 
@@ -315,7 +315,7 @@ class LineageStore:
         """Walk the by-artefact projection and recompute the tip set.
 
         ``also_include`` lets ``append`` factor in the just-added entry before
-        its bytes have been re-read from disk — saves a redundant read.
+        its bytes have been re-read from disk - saves a redundant read.
         """
         proj = self._projection_path(artefact_path)
         sequence: list[tuple[str, list[str]]] = []
@@ -327,7 +327,7 @@ class LineageStore:
                 entry = _entry_from_dict(payload)
                 h = entry_hash(entry)
                 if also_include is not None and h == also_include[0]:
-                    # Already represented by the in-memory tuple — skip the dupe.
+                    # Already represented by the in-memory tuple - skip the dupe.
                     continue
                 sequence.append((h, list(entry.parent_hashes)))
         if also_include is not None:

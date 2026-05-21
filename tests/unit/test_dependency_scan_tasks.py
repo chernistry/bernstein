@@ -5,7 +5,7 @@ defined a never-called duplicate of ``Orchestrator.tick`` plus these three
 dependency-scan helpers that *were* called from ``orchestrator_run``.
 
 If the helpers silently regress (e.g. they rename, lose deduplication, or
-drop server-post errors), these tests fail — they previously would have
+drop server-post errors), these tests fail - they previously would have
 passed because the dead duplicate in ``orchestrator_tick`` absorbed them.
 """
 
@@ -219,7 +219,7 @@ def test_create_fix_task_returns_none_on_http_error() -> None:
     title = dependency_scan_tasks.create_dependency_fix_task(orch, _finding(), existing)
 
     assert title is None
-    # Dedup set must NOT be populated when the post fails — otherwise the
+    # Dedup set must NOT be populated when the post fails - otherwise the
     # next scan would silently skip re-trying.
     assert existing == set()
 

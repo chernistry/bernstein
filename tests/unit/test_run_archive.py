@@ -113,7 +113,7 @@ def test_collect_archive_files_section_filter(tmp_path: Path) -> None:
 
 
 def test_collect_archive_files_empty_directory(tmp_path: Path) -> None:
-    # No .sdd/ at all — should return empty list without error
+    # No .sdd/ at all - should return empty list without error
     files = collect_archive_files(tmp_path)
     assert files == []
 

@@ -1,4 +1,4 @@
-"""Tests for worktree symlink support — happy path and failure handling.
+"""Tests for worktree symlink support - happy path and failure handling.
 
 Covers T482: symlink heavy directories (node_modules, .venv, build output)
 from the main repository into agent worktrees to save disk and setup time.
@@ -301,7 +301,7 @@ class TestWorktreeSymlinksIntegration:
             if worktree_path.exists():
                 shutil.rmtree(worktree_path, ignore_errors=True)
 
-            # Recreate — should symlink again without error
+            # Recreate - should symlink again without error
             path2 = manager.create(session_id)
             assert (path2 / "node_modules").is_symlink()
 

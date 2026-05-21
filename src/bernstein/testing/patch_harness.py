@@ -1,7 +1,7 @@
 """Patch application harness for protocol and extension testing.
 
-Provides ``extract_patch`` and ``apply_patch`` — the canonical implementations
-used by the SWE-Bench harness and any adapter that produces unified diffs —
+Provides ``extract_patch`` and ``apply_patch`` - the canonical implementations
+used by the SWE-Bench harness and any adapter that produces unified diffs -
 together with a ``PatchGenerator`` that drives parametrised property tests.
 
 The harness is the seam: callers that validate patch protocols import from here
@@ -42,7 +42,7 @@ def extract_patch(text: str) -> str:
     Returns an empty string when no such block exists.  The result is always
     stripped of leading and trailing whitespace.
 
-    This is the canonical implementation — the SWE-Bench harness delegates
+    This is the canonical implementation - the SWE-Bench harness delegates
     to this function so the contract lives in exactly one place.
     """
     m = _DIFF_BLOCK_RE.search(text)
@@ -113,7 +113,7 @@ class ExtractionScenario:
 
 
 # ---------------------------------------------------------------------------
-# PatchGenerator — drives parametrised property tests
+# PatchGenerator - drives parametrised property tests
 # ---------------------------------------------------------------------------
 
 

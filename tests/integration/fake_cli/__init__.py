@@ -11,5 +11,5 @@ prepend a tempdir of symlinks pointing at this script onto ``PATH`` so
 adapters spawn the fake binary when they call ``subprocess.Popen([
 'claude', ...])``.
 
-The harness is stdlib-only — no extra dependencies.
+The harness is stdlib-only - no extra dependencies.
 """

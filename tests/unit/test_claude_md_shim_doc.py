@@ -2,7 +2,7 @@
 
 audit-012: CLAUDE.md used to claim that ``orchestrator.py``, ``spawner.py``,
 ``task_lifecycle.py`` were top-level shim files under ``src/bernstein/core/``.
-They are not — back-compat is provided by a ``sys.meta_path`` finder
+They are not - back-compat is provided by a ``sys.meta_path`` finder
 (``_CoreRedirectFinder``) driven by ``_REDIRECT_MAP`` inside
 ``src/bernstein/core/__init__.py``.
 
@@ -51,7 +51,7 @@ def test_redirect_map_covers_documented_names() -> None:
             f"_REDIRECT_MAP is missing {name!r}; legacy import path bernstein.core.{name} will break."
         )
         target = redirect_map[name]
-        # Importing the target must succeed — the finder relies on it.
+        # Importing the target must succeed - the finder relies on it.
         importlib.import_module(target)
 
 
@@ -68,10 +68,10 @@ def test_legacy_import_paths_still_work() -> None:
 
 def test_claude_md_does_not_claim_physical_shims() -> None:
     """CLAUDE.md must not describe orchestrator.py/spawner.py/task_lifecycle.py
-    as real files — that is the exact drift audit-012 flagged.
+    as real files - that is the exact drift audit-012 flagged.
     """
     text = _claude_md_text()
-    # The old drifted bullet — must be gone.
+    # The old drifted bullet - must be gone.
     assert "Top-level shims:" not in text, (
         "CLAUDE.md still uses the drifted 'Top-level shims:' phrasing. "
         "See audit-012: these files don't exist; back-compat is via "

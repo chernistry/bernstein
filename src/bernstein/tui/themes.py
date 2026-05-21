@@ -150,7 +150,7 @@ def detect_terminal_theme() -> ThemeMode:
     if explicit in ("high_contrast", "highcontrast", "hc"):
         return ThemeMode.HIGH_CONTRAST
 
-    # COLORFGBG: "fg;bg" — if bg is a bright value, it's a light terminal
+    # COLORFGBG: "fg;bg" - if bg is a bright value, it's a light terminal
     colorfgbg = os.environ.get("COLORFGBG", "")
     if colorfgbg:
         parts = colorfgbg.split(";")

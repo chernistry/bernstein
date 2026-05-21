@@ -1,4 +1,4 @@
-"""Notification sink registry — first-party drivers + pluggy entry points.
+"""Notification sink registry - first-party drivers + pluggy entry points.
 
 The registry is the single lookup surface for notification drivers. It
 loads first-party drivers eagerly (``telegram``, ``slack``, ``discord``,
@@ -10,7 +10,7 @@ packages register a new driver by declaring an entry point in their
     [project.entry-points."bernstein.notification_sinks"]
     pagerduty = "my_package.pagerduty:PagerDutyDriver"
 
-The driver may be either a class — instantiated zero-arg lazily — or an
+The driver may be either a class - instantiated zero-arg lazily - or an
 instance. The registry stores a *driver factory*: the user instantiates
 a configured sink with :func:`build_sink` against a config dict, then
 registers the live instance under a unique ``sink_id``.
@@ -68,10 +68,10 @@ class Registry:
 
     Two distinct namespaces live here:
 
-    * **Driver factories** (``kind``) — classes that *build* a sink
+    * **Driver factories** (``kind``) - classes that *build* a sink
       from a configuration dict. The kind is the value the user puts
       under ``bernstein.yaml::notifications.sinks[*].kind``.
-    * **Live sinks** (``sink_id``) — already-configured instances
+    * **Live sinks** (``sink_id``) - already-configured instances
       ready to receive events. The id is the value the user puts
       under ``bernstein.yaml::notifications.sinks[*].id``.
     """
@@ -276,6 +276,6 @@ def build_sink(config: dict[str, Any]) -> NotificationSink:
 
 
 def _reset_for_tests() -> None:
-    """Drop cached state. Tests only — not part of the public API."""
+    """Drop cached state. Tests only - not part of the public API."""
     global _default_registry_instance
     _default_registry_instance = Registry()

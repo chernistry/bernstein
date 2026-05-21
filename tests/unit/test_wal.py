@@ -1,4 +1,4 @@
-"""Tests for WAL (Write-Ahead Log) — writer, reader, chain verification, fingerprint."""
+"""Tests for WAL (Write-Ahead Log) - writer, reader, chain verification, fingerprint."""
 
 from __future__ import annotations
 
@@ -640,7 +640,7 @@ class TestWALRecoveryScanAll:
         w.append("task_spawn_confirmed", {"task_id": "T-1"}, {}, "lifecycle", committed=True)
         # Tick 2: crash after claim, before spawn
         w.append("task_claimed", {"task_id": "T-2"}, {}, "lifecycle", committed=False)
-        # (process crashes here — no committed=True follow-up)
+        # (process crashes here - no committed=True follow-up)
 
         result = WALRecovery.scan_all_uncommitted(sdd)
         # T-1's claim is uncommitted but has a matching commit; T-2 has no commit.
@@ -824,7 +824,7 @@ class TestWALStreaming:
         next_entry = writer2.append("after_reopen", {}, {}, "a")
         assert next_entry.seq == last.seq + 1
         assert next_entry.prev_hash == last.entry_hash
-        # Generous bound — streaming backward read should be < 100ms even
+        # Generous bound - streaming backward read should be < 100ms even
         # on slow CI.  Old implementation materialized ~5k lines into a
         # list on every construction.
         assert elapsed < 0.5, f"_load_tail too slow: {elapsed:.3f}s"

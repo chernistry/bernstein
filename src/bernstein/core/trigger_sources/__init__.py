@@ -1,4 +1,4 @@
-"""Trigger source adapters — normalize raw events into TriggerEvent."""
+"""Trigger source adapters - normalize raw events into TriggerEvent."""
 
 from __future__ import annotations
 

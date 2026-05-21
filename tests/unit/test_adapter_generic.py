@@ -33,7 +33,7 @@ def _inner_cmd(full_cmd: list[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# GenericAdapter.spawn() — command construction
+# GenericAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -348,7 +348,7 @@ class TestGenericSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

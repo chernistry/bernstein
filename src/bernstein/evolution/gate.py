@@ -1,10 +1,10 @@
-"""ApprovalGate and EvalGate — risk-stratified routing for evolution proposals.
+"""ApprovalGate and EvalGate - risk-stratified routing for evolution proposals.
 
 ApprovalGate routes proposals through L0/L1/L2/L3 risk levels:
-  L0 (Config)     — auto-apply after schema check
-  L1 (Templates)  — sandbox A/B test, auto-apply if metrics improve
-  L2 (Logic)      — git worktree + tests + PR + human review
-  L3 (Structural) — NEVER auto-apply, human only
+  L0 (Config)     - auto-apply after schema check
+  L1 (Templates)  - sandbox A/B test, auto-apply if metrics improve
+  L2 (Logic)      - git worktree + tests + PR + human review
+  L3 (Structural) - NEVER auto-apply, human only
 
 Confidence thresholds for L0/L1:
   >=95% on reversible changes: auto-approve
@@ -382,12 +382,12 @@ class ApprovalGate:
             if confidence >= CONFIDENCE_HUMAN_4H:
                 return (
                     ApprovalOutcome.HUMAN_REVIEW_4H,
-                    f"L2_LOGIC change (confidence={confidence:.2f}) — human review within 4h",
+                    f"L2_LOGIC change (confidence={confidence:.2f}) - human review within 4h",
                     True,
                 )
             return (
                 ApprovalOutcome.HUMAN_REVIEW_IMMEDIATE,
-                f"L2_LOGIC change with low confidence ({confidence:.2f}) — immediate human review",
+                f"L2_LOGIC change with low confidence ({confidence:.2f}) - immediate human review",
                 True,
             )
 
@@ -395,27 +395,27 @@ class ApprovalGate:
         if confidence >= CONFIDENCE_AUTO:
             return (
                 ApprovalOutcome.AUTO_APPROVED,
-                f"High confidence ({confidence:.2f}) reversible {risk_level.value} change — auto-approved",
+                f"High confidence ({confidence:.2f}) reversible {risk_level.value} change - auto-approved",
                 False,
             )
 
         if confidence >= CONFIDENCE_AUTO_AUDIT:
             return (
                 ApprovalOutcome.AUTO_APPROVED_AUDIT,
-                f"Confidence {confidence:.2f} — auto-approved with async audit",
+                f"Confidence {confidence:.2f} - auto-approved with async audit",
                 False,
             )
 
         if confidence >= CONFIDENCE_HUMAN_4H:
             return (
                 ApprovalOutcome.HUMAN_REVIEW_4H,
-                f"Moderate confidence ({confidence:.2f}) — human review within 4h",
+                f"Moderate confidence ({confidence:.2f}) - human review within 4h",
                 True,
             )
 
         return (
             ApprovalOutcome.HUMAN_REVIEW_IMMEDIATE,
-            f"Low confidence ({confidence:.2f}) — immediate human review required",
+            f"Low confidence ({confidence:.2f}) - immediate human review required",
             True,
         )
 
@@ -457,7 +457,7 @@ class ApprovalGate:
 
 
 # ======================================================================
-# EvalGate — eval-harness-based quality gate for evolution proposals
+# EvalGate - eval-harness-based quality gate for evolution proposals
 # ======================================================================
 
 # Thresholds for eval gate decisions.
@@ -469,7 +469,7 @@ _EVAL_TIER_FOR_RISK: dict[RiskLevel, str | None] = {
     RiskLevel.L0_CONFIG: None,  # Skip eval for config tweaks
     RiskLevel.L1_TEMPLATE: "smoke",  # Smoke eval for prompt changes
     RiskLevel.L2_LOGIC: "standard",  # Standard eval for routing logic
-    RiskLevel.L3_STRUCTURAL: None,  # Blocked anyway — never reaches eval
+    RiskLevel.L3_STRUCTURAL: None,  # Blocked anyway - never reaches eval
 }
 
 
@@ -634,7 +634,7 @@ class EvalGate:
                 f"(baseline={baseline_score:.4f}, delta={delta:+.4f})"
             )
 
-        logger.info("Eval gate [%s]: %s — %s", proposal.id, "ACCEPT" if accepted else "REJECT", reason)
+        logger.info("Eval gate [%s]: %s - %s", proposal.id, "ACCEPT" if accepted else "REJECT", reason)
 
         # Log trajectory.
         self._log_trajectory(proposal, baseline_score, candidate_score, accepted)
@@ -694,7 +694,7 @@ def eval_gate(
     regression_tolerance: float = EVAL_REGRESSION_TOLERANCE,
     promotion_threshold: float = EVAL_PROMOTION_THRESHOLD,
 ) -> EvalGateResult:
-    """Convenience function — run the eval gate for a single proposal.
+    """Convenience function - run the eval gate for a single proposal.
 
     Creates a temporary EvalGate and evaluates the proposal. Useful for
     one-shot evaluation without managing an EvalGate instance.
@@ -722,7 +722,7 @@ def eval_gate(
 
 
 # ======================================================================
-# PromptPatchGate — predicted-delta + oscillation guard wiring
+# PromptPatchGate - predicted-delta + oscillation guard wiring
 # ======================================================================
 
 # Veto message format. Pinned so the snapshot test can detect regressions.
@@ -907,7 +907,7 @@ class PromptPatchGate:
             self._log_decision(decision)
             return decision
 
-        # Delta passed — run the oscillation guard.
+        # Delta passed - run the oscillation guard.
         osc_result = self._oscillation.evaluate(proposal)
         outcome = _oscillation_to_outcome(osc_result.verdict)
         applied = outcome == PromptPatchOutcome.APPLIED

@@ -10,11 +10,11 @@ Environment variables
 
 The backend reads the following variables on construction:
 
-- ``BLAXEL_API_KEY`` — required. Bearer token issued by the Blaxel
+- ``BLAXEL_API_KEY`` - required. Bearer token issued by the Blaxel
   control plane (Workspace Settings -> API Keys).
-- ``BLAXEL_WORKSPACE`` — required. Workspace slug that owns the
+- ``BLAXEL_WORKSPACE`` - required. Workspace slug that owns the
   sandboxes.
-- ``BLAXEL_API_URL`` — optional override for the API root. Defaults to
+- ``BLAXEL_API_URL`` - optional override for the API root. Defaults to
   ``https://api.blaxel.ai/v0``.
 
 Capabilities
@@ -28,7 +28,7 @@ declares :class:`SandboxCapability` accordingly.
 Honest limitations
 ------------------
 
-The current Blaxel public REST API does not stream exec output —
+The current Blaxel public REST API does not stream exec output -
 the backend polls the exec endpoint until the command finishes, which
 caps end-to-end latency at the provider's poll interval rather than the
 caller's wall clock. For interactive workloads (tail-style log

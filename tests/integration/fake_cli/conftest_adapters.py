@@ -36,7 +36,7 @@ _FAKE_CLI_PATH: Path = (Path(__file__).resolve().parent / "fake_cli.py").resolve
 
 # Profiles the harness ships with.  Each entry is (profile, [bin names]).
 # A profile may install multiple wrapper binaries when the upstream CLI's
-# argv[0] name differs from the bernstein-side adapter slug — e.g.
+# argv[0] name differs from the bernstein-side adapter slug - e.g.
 # Cursor's binary is ``cursor-agent`` but the bernstein registry slug is
 # ``cursor``. The fake_cli auto-detects the profile from argv[0]
 # basename via :data:`fake_cli._BINARY_TO_PROFILE`.
@@ -55,7 +55,7 @@ _PROFILE_BINARIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("mistral", ("vibe", "mistral")),
 )
 
-# Backwards-compatible flat tuple of profile names — older tests reference
+# Backwards-compatible flat tuple of profile names - older tests reference
 # this directly.
 SUPPORTED_PROFILES: tuple[str, ...] = tuple(profile for profile, _ in _PROFILE_BINARIES)
 
@@ -130,7 +130,7 @@ class FakeCLIHandle:
     def read_argv(self) -> list[str]:
         """Return the argv recorded by the most recent fake-CLI invocation.
 
-        Returns ``[]`` when the fake hasn't run yet — handy for tests
+        Returns ``[]`` when the fake hasn't run yet - handy for tests
         that want to confirm a spawn happened at all.
         """
         if not self.argv_dump.exists():
@@ -171,7 +171,7 @@ def _write_wrapper(
     Args:
         bin_dir: Directory the wrapper is created under.
         binary_name: Wrapper file name (typically the upstream CLI's
-            argv[0] basename — ``cursor-agent``, ``vibe``, etc.).
+            argv[0] basename - ``cursor-agent``, ``vibe``, etc.).
         config_path: Path to the shared per-fixture config file.
         profile: Profile slug to bake into the wrapper. Defaults to
             ``binary_name`` so callers passing the profile slug directly

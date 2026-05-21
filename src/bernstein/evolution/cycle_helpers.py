@@ -1,13 +1,13 @@
-"""Evolution cycle helper logic — community, creative, and GitHub sync.
+"""Evolution cycle helper logic - community, creative, and GitHub sync.
 
 Extracted from cycle_runner.py to keep cycle_runner.py under the 800-line
 hard limit.  All helpers operate on an EvolutionLoop-like host object passed
 as ``self`` (they are mixed into EvolutionLoop via inheritance).
 
 Public surface:
-  - CommunityCreativeMixin — community/creative cycle runners + GitHub helpers
-  - run_creative_cycle      — standalone function (delegates to mixin)
-  - run_community_cycle     — standalone function (delegates to mixin)
+  - CommunityCreativeMixin - community/creative cycle runners + GitHub helpers
+  - run_creative_cycle      - standalone function (delegates to mixin)
+  - run_community_cycle     - standalone function (delegates to mixin)
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Cost estimate per proposal generation (LLM call) — mirrors cycle_runner constant.
+# Cost estimate per proposal generation (LLM call) - mirrors cycle_runner constant.
 _COST_PER_PROPOSAL_USD = 0.05
 
 
@@ -95,7 +95,7 @@ class CommunityCreativeMixin:
         pending_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not pending_path.exists() or pending_path.stat().st_size == 0:
-            logger.debug("Creative vision: no pending proposals — skipping cycle")
+            logger.debug("Creative vision: no pending proposals - skipping cycle")
             return None
 
         proposals: list[VisionaryProposal] = []
@@ -183,7 +183,7 @@ class CommunityCreativeMixin:
 
         gh = self._gh  # type: ignore[attr-defined]
         if gh is None or not gh.available:
-            logger.debug("Community cycle: GitHub unavailable — skipping")
+            logger.debug("Community cycle: GitHub unavailable - skipping")
             return None
 
         issues = gh.fetch_community_issues()
@@ -262,7 +262,7 @@ class CommunityCreativeMixin:
             )
             gh.close_issue(selected.number, comment=closing_comment)
         else:
-            # Pipeline rejected or no tasks — unmark so it can be retried.
+            # Pipeline rejected or no tasks - unmark so it can be retried.
             gh.unmark_in_progress(selected.number)
             logger.info("Community cycle: pipeline produced no tasks for issue #%d", selected.number)
 
@@ -289,7 +289,7 @@ class CommunityCreativeMixin:
     def _gh(self) -> GitHubClient | None:
         """Return the lazily-initialised GitHubClient, or None if sync disabled.
 
-        Deferred import keeps the ``gh`` CLI optional — the evolution loop
+        Deferred import keeps the ``gh`` CLI optional - the evolution loop
         works without it.
         """
         if not self._github_sync:
@@ -300,7 +300,7 @@ class CommunityCreativeMixin:
             self._github = GitHubClient()
             if not self._github.available:
                 logger.warning(
-                    "GitHub sync requested but gh CLI is unavailable or unauthenticated — running without GitHub sync"
+                    "GitHub sync requested but gh CLI is unavailable or unauthenticated - running without GitHub sync"
                 )
         return self._github
 
@@ -309,7 +309,7 @@ class CommunityCreativeMixin:
 
         If an unclaimed issue exists, claim it and track its number so we
         can close it on success.  Returns the issue title as a hint (for
-        logging purposes only — the proposal generator still runs normally).
+        logging purposes only - the proposal generator still runs normally).
 
         Returns:
             Title of the claimed issue, or None if none available or GitHub
@@ -356,14 +356,14 @@ class CommunityCreativeMixin:
         existing = gh.find_by_hash(title)
         if existing is not None:
             logger.info(
-                "GitHub sync: duplicate detected — claiming existing issue #%d",
+                "GitHub sync: duplicate detected - claiming existing issue #%d",
                 existing.number,
             )
             if gh.claim_issue(existing.number):
                 self._current_issue_number = existing.number
             return
 
-        # No duplicate — create a new issue.
+        # No duplicate - create a new issue.
         body = (
             f"## Auto-generated evolution proposal\n\n"
             f"{description}\n\n"

@@ -87,7 +87,7 @@ def _make_orch(tmp_path: Path, *, evolve_mode: bool = False) -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# Task already resolved — SHUTDOWN sent immediately
+# Task already resolved - SHUTDOWN sent immediately
 # ---------------------------------------------------------------------------
 
 
@@ -135,7 +135,7 @@ def test_shutdown_sent_when_task_already_failed(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Grace period elapsed — force kill
+# Grace period elapsed - force kill
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +175,7 @@ def test_no_kill_before_grace_period(tmp_path: Path) -> None:
     session = _make_session(["T-done-3"], session_id="s-idle-03")
     orch._agents["s-idle-03"] = session
 
-    # SHUTDOWN sent only 5s ago — still within grace window
+    # SHUTDOWN sent only 5s ago - still within grace window
     orch._idle_shutdown_ts["s-idle-03"] = time.time() - 5.0
 
     tasks_snapshot = {
@@ -193,7 +193,7 @@ def test_no_kill_before_grace_period(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Active task — agent must not be recycled
+# Active task - agent must not be recycled
 # ---------------------------------------------------------------------------
 
 
@@ -218,7 +218,7 @@ def test_active_agent_not_recycled(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Dead agent — skip
+# Dead agent - skip
 # ---------------------------------------------------------------------------
 
 
@@ -261,7 +261,7 @@ def test_shutdown_sent_on_heartbeat_idle(tmp_path: Path) -> None:
     stale_hb = AgentHeartbeat(timestamp=stale_ts)
     orch._signal_mgr.read_heartbeat.return_value = stale_hb
 
-    # Task is still open — heartbeat idle is the trigger
+    # Task is still open - heartbeat idle is the trigger
     tasks_snapshot = {
         "done": [],
         "failed": [],
@@ -286,7 +286,7 @@ def test_heartbeat_idle_threshold_lower_in_evolve_mode(tmp_path: Path) -> None:
     # Heartbeat must exceed the evolve threshold *plus* the liveness-extension
     # window. Same reason as test_shutdown_sent_on_heartbeat_idle (b5da11a6):
     # PID 12345 is system-occupied on Ubuntu CI runners, so _is_process_alive
-    # returns True and the agent stays inside the 600s liveness extension —
+    # returns True and the agent stays inside the 600s liveness extension -
     # the recycle path only fires when the heartbeat is stale enough to
     # exceed *both* gates.
     stale_ts = time.time() - (_IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S + _IDLE_LIVENESS_EXTENSION_S + 5)
@@ -376,7 +376,7 @@ def test_no_shutdown_when_no_tasks_but_role_has_open_work(tmp_path: Path) -> Non
 
 
 def test_exit_by_role_queue_no_orphans(tmp_path: Path) -> None:
-    """Case 3 exit leaves zero orphaned tasks — zero-data-loss invariant holds.
+    """Case 3 exit leaves zero orphaned tasks - zero-data-loss invariant holds.
 
     Full lifecycle: SHUTDOWN sent → grace period elapses → agent force-killed.
     Because task_ids is empty, handle_orphaned_task is never triggered and
@@ -439,20 +439,20 @@ def test_no_shutdown_when_tasks_assigned_role_queue_empty(tmp_path: Path) -> Non
     tasks_snapshot = {
         "done": [],
         "failed": [],
-        "open": [],  # role queue empty — but agent has active tasks
+        "open": [],  # role queue empty - but agent has active tasks
         "claimed": [_make_task(id="T-inprogress-1", status="claimed")],
         "blocked": [],
     }
 
     recycle_idle_agents(orch, tasks_snapshot)
 
-    # Agent is still working on T-inprogress-1 — neither Case 1 nor Case 3 should fire
+    # Agent is still working on T-inprogress-1 - neither Case 1 nor Case 3 should fire
     orch._signal_mgr.write_shutdown.assert_not_called()
     orch._spawner.kill.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# Case 4: role fully drained — rebalancing exit (#333d-03)
+# Case 4: role fully drained - rebalancing exit (#333d-03)
 # ---------------------------------------------------------------------------
 
 
@@ -528,7 +528,7 @@ def test_rebalance_exit_when_all_tasks_done_role_empty(tmp_path: Path) -> None:
 
     recycle_idle_agents(orch, tasks_snapshot)
 
-    # Case 1 fires (task_already_resolved) — agent exits either way
+    # Case 1 fires (task_already_resolved) - agent exits either way
     orch._signal_mgr.write_shutdown.assert_called_once()
 
 
@@ -577,12 +577,12 @@ def test_multiple_agents_same_drained_role_all_exit(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Completion marker — instant reap (CRITICAL-002)
+# Completion marker - instant reap (CRITICAL-002)
 # ---------------------------------------------------------------------------
 
 
 def test_instant_reap_on_completion_marker(tmp_path: Path) -> None:
-    """Agent with completion marker is reaped immediately — no SHUTDOWN, no grace period."""
+    """Agent with completion marker is reaped immediately - no SHUTDOWN, no grace period."""
     orch = _make_orch(tmp_path)
     session = _make_session(["T-comp-1"], session_id="s-comp-01")
     orch._agents["s-comp-01"] = session
@@ -656,7 +656,7 @@ def test_no_instant_reap_without_completion_marker(tmp_path: Path) -> None:
 
     recycle_idle_agents(orch, tasks_snapshot)
 
-    # Agent has active task and no marker — should not be touched
+    # Agent has active task and no marker - should not be touched
     orch._spawner.kill.assert_not_called()
     orch._signal_mgr.write_shutdown.assert_not_called()
 

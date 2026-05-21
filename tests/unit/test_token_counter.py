@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.token_counter — cascading token count strategy."""
+"""Tests for bernstein.core.token_counter - cascading token count strategy."""
 
 from __future__ import annotations
 

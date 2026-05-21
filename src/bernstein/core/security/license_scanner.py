@@ -5,7 +5,7 @@ introduced by added lines.  Hard-blocks strong copyleft (GPL/AGPL/OSL);
 soft-flags weak copyleft (LGPL/MPL/EUPL).
 
 Design constraints:
-- No external API calls — 100% offline, regex + static database.
+- No external API calls - 100% offline, regex + static database.
 - Only inspects *added* diff lines; removed lines are ignored.
 - One result per diff (aggregates all hits into worst-case severity).
 """
@@ -22,8 +22,8 @@ from bernstein.core.security.policy_engine import DecisionType, PermissionDecisi
 # ---------------------------------------------------------------------------
 
 # SPDX identifier → (display name, copyleft strength)
-# "strong" : GPL/AGPL/OSL — derivative work must be licensed under the same terms
-# "weak"   : LGPL/MPL/EUPL/CDDL — obligations exist but are not fully viral
+# "strong" : GPL/AGPL/OSL - derivative work must be licensed under the same terms
+# "weak"   : LGPL/MPL/EUPL/CDDL - obligations exist but are not fully viral
 _SPDX_LICENSE_DB: dict[str, tuple[str, str]] = {
     "GPL-2.0": ("GNU General Public License v2", "strong"),
     "GPL-2.0-only": ("GNU General Public License v2.0 only", "strong"),
@@ -172,7 +172,7 @@ def _check_prose_line(
 def _scan_diff_for_licenses(diff: str) -> list[_LicenseHit]:
     """Extract copyleft license indicators from *added* lines in a git diff.
 
-    Removal lines (``-``) are ignored — a project removing a license header
+    Removal lines (``-``) are ignored - a project removing a license header
     has no new obligations.  Deduplication prevents one multi-line boilerplate
     block from generating dozens of hits.
 
@@ -244,7 +244,7 @@ def check_license_obligations(diff: str) -> list[PermissionDecision]:
             PermissionDecision(
                 type=DecisionType.DENY,
                 reason=(
-                    f"Strong copyleft license(s) detected — merge BLOCKED: {ids}. "
+                    f"Strong copyleft license(s) detected - merge BLOCKED: {ids}. "
                     "GPL/AGPL-licensed code infects the entire codebase. "
                     "Remove or replace before merging."
                 ),
@@ -258,7 +258,7 @@ def check_license_obligations(diff: str) -> list[PermissionDecision]:
         PermissionDecision(
             type=DecisionType.ASK,
             reason=(
-                f"Weak copyleft license(s) detected — review required: {ids}. "
+                f"Weak copyleft license(s) detected - review required: {ids}. "
                 "LGPL/MPL code may be linked but distribution obligations apply."
             ),
             files=tuple(affected_files),

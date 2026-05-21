@@ -145,7 +145,7 @@ def apply_dp_to_export(data: dict[str, Any], config: DPConfig) -> dict[str, Any]
         config: Privacy parameters.
 
     Returns:
-        New dict — original *data* is never mutated.
+        New dict - original *data* is never mutated.
     """
     result: dict[str, Any] = copy.deepcopy(data)
 

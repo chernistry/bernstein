@@ -14,7 +14,7 @@ Each line is a JSON object with ``ts`` (epoch seconds), ``surface``
 (``terminal``/``chat``/``dashboard``), and ``text`` (the raw line that
 was streamed to the user). Writers call :meth:`StreamTailBuffer.append`
 which trims older lines once the file crosses
-``max_entries`` records — this keeps replay cheap and bounds the on-disk
+``max_entries`` records - this keeps replay cheap and bounds the on-disk
 footprint regardless of run length.
 """
 
@@ -43,7 +43,7 @@ class TailEntry:
 
     Attributes:
         ts: Epoch seconds when the line was emitted.
-        surface: Origin surface — ``"terminal"``, ``"chat"`` or
+        surface: Origin surface - ``"terminal"``, ``"chat"`` or
             ``"dashboard"``.
         text: Raw line as it was rendered to the operator. Trailing
             newlines are stripped on append so the wire format stays
@@ -86,7 +86,7 @@ class TailEntry:
 class StreamTailBuffer:
     """File-backed ring buffer for one session's recent stream output.
 
-    The buffer is intentionally simple — append-only JSONL with a hard
+    The buffer is intentionally simple - append-only JSONL with a hard
     cap on the line count. We trim by rewriting the tail when the line
     count would exceed ``max_entries``; this is O(N) on trim but the
     cap keeps N small (default 500 lines).

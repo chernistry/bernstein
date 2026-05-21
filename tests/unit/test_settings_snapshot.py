@@ -1,4 +1,4 @@
-"""Tests for settings_snapshot — settings capture and serialization."""
+"""Tests for settings_snapshot - settings capture and serialization."""
 
 from __future__ import annotations
 

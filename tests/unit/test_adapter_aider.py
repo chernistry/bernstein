@@ -361,7 +361,7 @@ class TestAiderSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

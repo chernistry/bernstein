@@ -56,7 +56,7 @@ def _make_github_api_response(asset_name: str, download_url: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# PluginSource union — structural tests
+# PluginSource union - structural tests
 # ---------------------------------------------------------------------------
 
 
@@ -205,7 +205,7 @@ class TestDirectorySourceInstall:
 
 
 # ---------------------------------------------------------------------------
-# GitHubSource — mocked network
+# GitHubSource - mocked network
 # ---------------------------------------------------------------------------
 
 
@@ -312,7 +312,7 @@ class TestGitHubSourceInstall:
 
 
 # ---------------------------------------------------------------------------
-# GitSource — mocked subprocess
+# GitSource - mocked subprocess
 # ---------------------------------------------------------------------------
 
 

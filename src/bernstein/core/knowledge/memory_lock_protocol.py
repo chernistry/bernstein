@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Lock TTL — how long before a lock is considered stale
-DEFAULT_TTL_SECONDS = 120  # 2 minutes — memory operations are fast
+# Lock TTL - how long before a lock is considered stale
+DEFAULT_TTL_SECONDS = 120  # 2 minutes - memory operations are fast
 
 # Retry parameters for lock acquisition
 _LOCK_ACQUIRE_RETRIES = 3
@@ -125,7 +125,7 @@ class MemoryFileGuard:
             _safe_unlink(Path(tmp_path_str) if tmp_path_str else None)
             raise
 
-        # NB: Do NOT delete the backup here — it's needed for rollback if the
+        # NB: Do NOT delete the backup here - it's needed for rollback if the
         # caller raises before exiting the with-block. Cleanup happens in the
         # happy path of guarded_memory_write (finally block, no exception).
 
@@ -200,7 +200,7 @@ def _is_lock_stale(lock_path: Path, ttl_seconds: int) -> bool:
             logger.debug("Lock %s belongs to dead process %d", lock_path, pid)
             return True
     except (OSError, ValueError):
-        # Corrupt lock file — treat as stale
+        # Corrupt lock file - treat as stale
         return True
 
     return False
@@ -270,7 +270,7 @@ def _acquire_lock(lock_path: Path, ttl_seconds: int) -> LockInfo:
             info = _try_create_lock(lock_path)
             if info is not None:
                 return info
-            # Lost the race — fall through to retry
+            # Lost the race - fall through to retry
 
         is_last_attempt = attempt >= _LOCK_ACQUIRE_RETRIES - 1
         if is_last_attempt:
@@ -304,7 +304,7 @@ def renew_lock(lock_info: LockInfo) -> bool:
     ``DEFAULT_TTL_SECONDS``.  Only renews if the lock file still belongs
     to the calling process.
 
-    On POSIX this is safe and race-free — if another process has already
+    On POSIX this is safe and race-free - if another process has already
     reclaimed the lock (PID mismatch), the renewal is silently skipped
     and the caller receives ``False``.
 
@@ -329,7 +329,7 @@ def renew_lock(lock_info: LockInfo) -> bool:
     try:
         data = json.loads(lock_path.read_text(encoding="utf-8"))
         if data.get("pid") != lock_info.pid:
-            # Another process reclaimed the lock — do not touch it
+            # Another process reclaimed the lock - do not touch it
             return False
         # Update mtime to reset the TTL clock
         lock_path.touch()

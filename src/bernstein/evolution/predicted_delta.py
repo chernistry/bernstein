@@ -1,6 +1,6 @@
 """Predicted-delta gate for prompt-evolution proposals.
 
-Origin: Synapse port — the agent_refinement_cycle.md patch-engine section.
+Origin: Synapse port - the agent_refinement_cycle.md patch-engine section.
 Today the evolution loop accepts any proposed prompt patch. This gate
 adds an *epsilon* check: a patch must declare a predicted win-rate
 improvement at or above ``BERNSTEIN_PROMPT_MIN_DELTA`` (default
@@ -13,7 +13,7 @@ Design notes
   :class:`DeltaPredictor` protocol exists so an LLM-judge or heuristic
   scorer can fill the value in when the proposer leaves it blank.
 - The default :class:`HeuristicDeltaPredictor` is fully deterministic
-  (no LLM calls, no network) — it derives a small synthetic score
+  (no LLM calls, no network) - it derives a small synthetic score
   from proposal features so unit tests stay hermetic.
 - The gate hooks ``pre_prompt_patch_apply``; if rejected, the proposal
   is logged with reason ``below_threshold`` and the version is not
@@ -170,7 +170,7 @@ class HeuristicDeltaPredictor:
       ``[-0.1, 0.1]`` so a heuristic guess never alone unlocks a
       contested patch.
 
-    The exact formula is intentionally simple — it exists to keep the
+    The exact formula is intentionally simple - it exists to keep the
     pipeline moving when ``predicted_delta`` is not yet wired up, NOT to
     be a real predictor.
     """
@@ -209,7 +209,7 @@ def resolve_min_delta(default: float = DEFAULT_MIN_DELTA) -> float:
     """Resolve the active minimum delta from the environment.
 
     Returns ``default`` when ``BERNSTEIN_PROMPT_MIN_DELTA`` is unset,
-    empty, or unparseable. Values below 0 are clamped to 0 — a negative
+    empty, or unparseable. Values below 0 are clamped to 0 - a negative
     threshold has no useful semantics for this gate.
     """
     raw = os.environ.get("BERNSTEIN_PROMPT_MIN_DELTA")
@@ -218,10 +218,10 @@ def resolve_min_delta(default: float = DEFAULT_MIN_DELTA) -> float:
     try:
         parsed = float(raw)
     except ValueError:
-        logger.warning("Invalid BERNSTEIN_PROMPT_MIN_DELTA=%r — falling back to %s", raw, default)
+        logger.warning("Invalid BERNSTEIN_PROMPT_MIN_DELTA=%r - falling back to %s", raw, default)
         return default
     if not math.isfinite(parsed):
-        logger.warning("Non-finite BERNSTEIN_PROMPT_MIN_DELTA=%r — falling back to %s", raw, default)
+        logger.warning("Non-finite BERNSTEIN_PROMPT_MIN_DELTA=%r - falling back to %s", raw, default)
         return default
     return max(parsed, 0.0)
 

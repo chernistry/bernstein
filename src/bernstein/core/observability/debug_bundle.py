@@ -268,7 +268,7 @@ def collect_logs(workdir: Path, config: BundleConfig) -> dict[str, str]:
             redacted, _ = redact_secrets(raw)
             result[name] = redacted
 
-    # Agent logs — pick the most recent ones
+    # Agent logs - pick the most recent ones
     agent_max = 0 if config.extended else config.max_agent_log_lines
     agent_logs = sorted(log_dir.glob("agent_*.log"), key=_mtime_safe, reverse=True)
     for agent_log in agent_logs[: config.max_agent_logs]:

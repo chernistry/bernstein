@@ -1,8 +1,8 @@
 """WEB-012: Dashboard task detail view with live log streaming via SSE.
 
-GET /dashboard/tasks/{task_id} — task detail JSON
-GET /dashboard/tasks/{task_id}/logs/stream — SSE log stream
-GET /dashboard/tasks/{task_id}/diff — task diff (unified + structured)
+GET /dashboard/tasks/{task_id} - task detail JSON
+GET /dashboard/tasks/{task_id}/logs/stream - SSE log stream
+GET /dashboard/tasks/{task_id}/diff - task diff (unified + structured)
 """
 
 from __future__ import annotations
@@ -418,7 +418,7 @@ def _resolve_branch_for_task(workdir: Path, assigned_agent: str | None) -> str |
     rc, _, _ = _run_git(["rev-parse", "--verify", candidate], workdir, timeout=5)
     if rc == 0:
         return candidate
-    # Fall back to a refs/heads/agent/* glob match — the session prefix may
+    # Fall back to a refs/heads/agent/* glob match - the session prefix may
     # not be a complete branch name.
     rc, out, _ = _run_git(
         ["for-each-ref", "--format=%(refname:short)", "refs/heads/agent/"],

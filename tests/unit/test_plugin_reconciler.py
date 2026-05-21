@@ -1,4 +1,4 @@
-"""Tests for plugin reconciler — T2: auto-uninstall delisted plugins."""
+"""Tests for plugin reconciler - T2: auto-uninstall delisted plugins."""
 
 from __future__ import annotations
 
@@ -187,7 +187,7 @@ class TestReconcilePlugins:
         result = reconcile_plugins(plugins_dir, mp, dry_run=True)
 
         assert "delisted" in result.removed
-        # Directory must still exist — dry run only
+        # Directory must still exist - dry run only
         assert (plugins_dir / "delisted").exists()
 
     def test_no_plugins_dir_returns_empty(self, tmp_path: Path) -> None:

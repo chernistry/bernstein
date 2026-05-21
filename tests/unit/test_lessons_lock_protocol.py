@@ -1,4 +1,4 @@
-"""Tests for lessons lock protocol — concurrent filing, crash rollback."""
+"""Tests for lessons lock protocol - concurrent filing, crash rollback."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ class TestConcurrentLessonFiling:
                 with lock:
                     lesson_ids.append(lid)
             except TimeoutError:
-                # Expected under high contention — lock protocol works correctly
+                # Expected under high contention - lock protocol works correctly
                 pass
             except Exception as exc:
                 with lock:
@@ -113,7 +113,7 @@ class TestConcurrentLessonFiling:
                 with lock:
                     lesson_ids.append(lid)
             except TimeoutError:
-                # Expected under contention — some callers may time out
+                # Expected under contention - some callers may time out
                 pass
             except Exception as exc:
                 with lock:
@@ -239,7 +239,7 @@ class TestLockProtocolInLessons:
         lock_data = {"pid": 999_999_999, "acquired_at": time.time() - 600}
         lock_path.write_text(json.dumps(lock_data), encoding="utf-8")
 
-        # File a lesson — should reclaim the stale lock
+        # File a lesson - should reclaim the stale lock
         file_lesson(
             sdd_dir=temp_sdd_dir,
             task_id="task_1",

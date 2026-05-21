@@ -1,10 +1,10 @@
-"""Spawn rate limiter — prevent API throttling from too-rapid spawns.
+"""Spawn rate limiter - prevent API throttling from too-rapid spawns.
 
 Limits the number of agent spawns per provider within a configurable time
 window.  Default: max 2 spawns per 10 seconds per provider.
 
 This is a local, in-memory token-bucket-style rate limiter scoped to the
-orchestrator process.  It does NOT replace provider-side rate limits — it
+orchestrator process.  It does NOT replace provider-side rate limits - it
 prevents hitting them in the first place.
 """
 
@@ -101,7 +101,7 @@ class SpawnRateLimiter:
     def check(self, provider: str) -> float:
         """Check if a spawn is allowed for the given provider.
 
-        Does NOT record a spawn — call ``record()`` after a successful spawn.
+        Does NOT record a spawn - call ``record()`` after a successful spawn.
 
         Args:
             provider: Provider name to check.
@@ -119,7 +119,7 @@ class SpawnRateLimiter:
             if len(timestamps) < max_spawns:
                 return 0.0
 
-            # Earliest timestamp in the window — retry after it expires
+            # Earliest timestamp in the window - retry after it expires
             oldest = min(timestamps)
             retry_after = (oldest + self._config.window_seconds) - now
             return max(0.0, retry_after)

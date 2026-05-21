@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 class TipSet(TypedDict):
     """`{"open": [...], "merged": [...]}` per artefact path.
 
-    `open`   — entries with no descendant.
-    `merged` — entries that were the parent of a merge entry (resolved forks).
+    `open`   - entries with no descendant.
+    `merged` - entries that were the parent of a merge entry (resolved forks).
     """
 
     open: list[str]

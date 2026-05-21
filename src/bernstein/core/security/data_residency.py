@@ -171,7 +171,7 @@ class DataResidencyController:
         """
         policy = self._policies.get(tenant_id)
         if policy is None:
-            # No policy configured — allow by default
+            # No policy configured - allow by default
             return ResidencyCheckResult(
                 allowed=True,
                 tenant_id=tenant_id,

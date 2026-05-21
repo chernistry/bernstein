@@ -36,7 +36,7 @@ from typing import Any, cast
 
 import httpx
 
-from bernstein.core.hook_events import HookPayload  # noqa: TC001 — used at runtime
+from bernstein.core.hook_events import HookPayload  # noqa: TC001 - used at runtime
 
 logger = logging.getLogger(__name__)
 

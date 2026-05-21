@@ -72,7 +72,7 @@ class SandboxRunner:
 
     The default implementation uses :func:`subprocess.run` against a
     fresh tempdir. Tests can swap in a fake by passing a callable to
-    :func:`run_install_preview`. We keep the surface minimal — the
+    :func:`run_install_preview`. We keep the surface minimal - the
     catalog only needs ``run`` semantics (capture stdout/stderr/exit)
     plus a directory snapshot to compute diffs.
 

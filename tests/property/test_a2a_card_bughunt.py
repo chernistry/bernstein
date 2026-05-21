@@ -9,62 +9,62 @@ surface. Findings:
     ``"str"``). Network-controlled input → 500 / unhandled exception. Now
     returns ``False`` defensively (``isinstance(header, dict)`` guard).
 
-#2 (xfail — RFC 8785 §3.2.2.3 number divergence):
+#2 (xfail - RFC 8785 §3.2.2.3 number divergence):
     JCS-canonicalised numbers differ from the spec for integer-valued
     floats (``10.0`` → ``"10.0"`` should be ``"10"``), small scientific
     (``1e-7`` → ``"1e-07"`` should be ``"1e-7"``), and negative zero. Cards
     today carry ``max_budget_usd``, ``created_at``, ``expires_at`` as
-    floats — a strictly RFC-8785-compliant verifier will compute different
+    floats - a strictly RFC-8785-compliant verifier will compute different
     bytes than the signer when those values are integer-valued.
-    Verified against the official RFC 8785 reference test vectors —
+    Verified against the official RFC 8785 reference test vectors -
     ``structures.json`` fails for exactly this reason (``56.0`` ≠ ``56``).
 
-#3 (xfail — RFC 8785 §3.2.3 key-sort order):
+#3 (xfail - RFC 8785 §3.2.3 key-sort order):
     Object keys are sorted by Unicode code point (Python ``sort_keys``)
     rather than UTF-16 code units (RFC 8785 §3.2.3). For BMP-only keys this
     is identical; once a key crosses U+FFFF (surrogate pair) the bytes
     diverge from spec. The reference ``weird.json`` test vector fails for
-    this reason — ``😂`` (U+1F602, UTF-16 high-surrogate 0xD83D) sorts
+    this reason - ``😂`` (U+1F602, UTF-16 high-surrogate 0xD83D) sorts
     before ``שּ`` (U+FB33) under UTF-16 but after under codepoint order.
 
-#4 (operational, xfail — verifier accepts expired cards):
-    ``verify_agent_card`` does not consult ``card.is_expired()`` —
+#4 (operational, xfail - verifier accepts expired cards):
+    ``verify_agent_card`` does not consult ``card.is_expired()`` -
     integrators must remember to call it themselves. Replay-by-stale-card
     is not addressed at the cryptographic verifier layer.
 
-#5 (operational, documented — ephemeral per-process keypair):
+#5 (operational, documented - ephemeral per-process keypair):
     Each orchestrator process mints a fresh keypair on first JWKS hit. A
     federated verifier polling JWKS from a different replica than the one
     that signed will fail verification. Tracked in well_known.py docstring
-    — persistence is deferred.
+    - persistence is deferred.
 
-#6 (operational, xfail — no JWKS rotation grace window):
+#6 (operational, xfail - no JWKS rotation grace window):
     The orchestrator publishes exactly one key today. A rotation event
     therefore breaks every in-flight verifier holding the previous key
     until they refetch JWKS. RFC 7517 expects rotation windows to publish
     BOTH keys simultaneously so verifiers cached on the old kid keep
     succeeding for the grace period. xfailed pending the persistence work.
 
-#7 (operational, xfail — private signing key file mode not enforced):
+#7 (operational, xfail - private signing key file mode not enforced):
     Once persistence lands, the PEM dropped under
     ``.sdd/security/keys/agent_signing/`` must be ``0600``. No code path
     enforces this today. xfailed as a placeholder so when persistence
     arrives the test starts failing and forces the chmod call.
 
-#8 (xfail — RFC 8707 resource indicators not enforced):
+#8 (xfail - RFC 8707 resource indicators not enforced):
     ``auth_middleware`` does not consult the JWT ``resource``/``aud``
     claim. A token minted for ``https://other.example`` is accepted by
     Bernstein's task API as long as the signature verifies. RFC 8707
     requires audience-binding so a stolen Bearer cannot be replayed at a
     sibling resource server.
 
-#9 (FIXED — ``typ`` cross-context replay):
+#9 (FIXED - ``typ`` cross-context replay):
     Confirmed via :class:`TestTypReplayContext`. The verifier rejects any
     JWS whose protected header carries a different ``typ`` value, even if
     signed by the same Ed25519 key.
 
-#10 (operational — DOS / archive leak on rotation): no rotation today, so
-    no leak — guarded by xfail until rotation lands.
+#10 (operational - DOS / archive leak on rotation): no rotation today, so
+    no leak - guarded by xfail until rotation lands.
 
 The ``typ: agent-card+jws`` cross-context replay invariant is verified
 positively in :class:`TestTypReplayContext`.
@@ -73,8 +73,8 @@ RFC 8785 reference vector status (cyberphone/json-canonicalization):
     arrays.json    PASS
     french.json    PASS
     values.json    PASS
-    structures.json FAIL (#2 — integer-valued float ``56.0`` ≠ ``56``)
-    weird.json     FAIL (#3 — UTF-16 surrogate-pair sort)
+    structures.json FAIL (#2 - integer-valued float ``56.0`` ≠ ``56``)
+    weird.json     FAIL (#3 - UTF-16 surrogate-pair sort)
 """
 
 from __future__ import annotations
@@ -167,7 +167,7 @@ def test_property_byte_flip_in_signature_breaks_verify(flip_index: int) -> None:
 
 def test_field_reordering_produces_identical_canonical_bytes() -> None:
     """JCS object-key sort means ``{a:1,b:2}`` and ``{b:2,a:1}`` canonicalise
-    bit-identically — the signing input must not depend on insertion order.
+    bit-identically - the signing input must not depend on insertion order.
     """
     a = canonicalize_jcs({"alpha": 1, "beta": 2, "gamma": 3})
     b = canonicalize_jcs({"gamma": 3, "alpha": 1, "beta": 2})
@@ -176,7 +176,7 @@ def test_field_reordering_produces_identical_canonical_bytes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# #1: malformed-header crash (FIXED — defensive in verifier)
+# #1: malformed-header crash (FIXED - defensive in verifier)
 # ---------------------------------------------------------------------------
 
 
@@ -232,7 +232,7 @@ def test_jws_with_invalid_base64_header_returns_false() -> None:
 
 
 # ---------------------------------------------------------------------------
-# #2: RFC 8785 §3.2.2.3 — integer-valued floats and small scientific
+# #2: RFC 8785 §3.2.2.3 - integer-valued floats and small scientific
 # ---------------------------------------------------------------------------
 
 
@@ -255,7 +255,7 @@ def test_rfc_8785_integer_valued_floats_lose_decimal() -> None:
 
 
 @pytest.mark.xfail(
-    reason=("RFC 8785 §3.2.2.3 small-scientific exponent has no leading zero — 1e-7, not 1e-07."),
+    reason=("RFC 8785 §3.2.2.3 small-scientific exponent has no leading zero - 1e-7, not 1e-07."),
     strict=True,
 )
 def test_rfc_8785_small_scientific_exponent_format() -> None:
@@ -271,7 +271,7 @@ def test_rfc_8785_negative_zero_normalised() -> None:
 
 
 # ---------------------------------------------------------------------------
-# #3: RFC 8785 §3.2.3 — UTF-16 code-unit key sort
+# #3: RFC 8785 §3.2.3 - UTF-16 code-unit key sort
 # ---------------------------------------------------------------------------
 
 
@@ -296,13 +296,13 @@ def test_rfc_8785_utf16_keysort() -> None:
 
 
 # ---------------------------------------------------------------------------
-# #4: verifier doesn't enforce expiry — replay-by-stale-card
+# #4: verifier doesn't enforce expiry - replay-by-stale-card
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.xfail(
     reason=(
-        "verify_agent_card is a pure crypto primitive — it does not consult "
+        "verify_agent_card is a pure crypto primitive - it does not consult "
         "AgentIdentityCard.is_expired(). Integrators MUST also call "
         "card.is_expired() after verifying the signature, otherwise an "
         "attacker who captured an old card can replay it indefinitely. "
@@ -339,7 +339,7 @@ class TestTypReplayContext:
         priv = serialization.load_pem_private_key(priv_pem, password=None)
         card = _stable_card()
         body_b64 = _b64url(canonicalize_jcs(asdict(card)))
-        # Cross-context header — same alg + same key, different typ.
+        # Cross-context header - same alg + same key, different typ.
         hdr_b64 = _b64url(canonicalize_jcs({"alg": "EdDSA", "typ": "jwt"}))
         signing_input = f"{hdr_b64}.{body_b64}".encode("ascii")
         sig_bytes = priv.sign(signing_input)
@@ -350,7 +350,7 @@ class TestTypReplayContext:
         assert verify_agent_card(card, forged, pub_pem) is False
 
     def test_typ_with_trailing_whitespace_rejected(self) -> None:
-        """Defends against header-normalisation games — exact match required."""
+        """Defends against header-normalisation games - exact match required."""
         priv_pem, pub_pem = generate_ed25519_keypair()
         priv = serialization.load_pem_private_key(priv_pem, password=None)
         card = _stable_card()
@@ -431,7 +431,7 @@ def test_jcs_control_chars_use_lowercase_hex_short_form_where_defined() -> None:
 
 
 def test_jcs_does_not_escape_forward_slash() -> None:
-    """RFC 8785 §3.2.2.2 — / is not on the escape list."""
+    """RFC 8785 §3.2.2.2 - / is not on the escape list."""
     assert canonicalize_jcs("https://example.com/x") == b'"https://example.com/x"'
 
 
@@ -473,7 +473,7 @@ def test_dataclass_asdict_roundtrip_is_stable_under_permutation() -> None:
 
 
 def test_rfc_8785_vector_arrays() -> None:
-    """RFC 8785 reference vector ``arrays.json`` — numeric and string keys
+    """RFC 8785 reference vector ``arrays.json`` - numeric and string keys
     sort lexicographically; nested empty arrays preserved.
     """
     inp: Any = [56, {"d": True, "10": None, "1": []}]
@@ -482,7 +482,7 @@ def test_rfc_8785_vector_arrays() -> None:
 
 
 def test_rfc_8785_vector_french() -> None:
-    """RFC 8785 reference vector ``french.json`` — locale-independent sort
+    """RFC 8785 reference vector ``french.json`` - locale-independent sort
     over Latin-with-diacritics keys; UTF-8 byte output, no escaping.
     """
     inp = {
@@ -501,7 +501,7 @@ def test_rfc_8785_vector_french() -> None:
 
 
 def test_rfc_8785_vector_values_numbers() -> None:
-    """RFC 8785 reference vector ``values.json`` — numbers known to
+    """RFC 8785 reference vector ``values.json`` - numbers known to
     round-trip via Python ``json.dumps`` (the easy slice of the vector).
     """
     assert canonicalize_jcs(333333333.33333329) == b"333333333.3333333"
@@ -515,14 +515,14 @@ def test_rfc_8785_vector_values_numbers() -> None:
     reason=(
         "RFC 8785 reference vector ``structures.json`` uses ``56.0`` as an "
         "integer-valued float and the canonical output is ``56``. Python "
-        "json.dumps emits ``56.0``. Same root cause as #2 — flagged "
+        "json.dumps emits ``56.0``. Same root cause as #2 - flagged "
         "separately so the failure points at the reference vector, not "
         "just an ad-hoc number we picked."
     ),
     strict=True,
 )
 def test_rfc_8785_vector_structures() -> None:
-    """RFC 8785 reference vector ``structures.json`` — fails on ``56.0``."""
+    """RFC 8785 reference vector ``structures.json`` - fails on ``56.0``."""
     inp = {
         "1": {"f": {"f": "hi", "F": 5}, "\n": 56.0},
         "10": {},
@@ -570,11 +570,11 @@ def test_rfc_8785_vector_weird() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Numeric equivalence — the JCS-classic gotcha
+# Numeric equivalence - the JCS-classic gotcha
 # ---------------------------------------------------------------------------
 # The classic JCS gotcha: per RFC 8785 §3.2.2.3, ``1``, ``1.0``, ``1e0``,
 # ``100e-2`` MUST canonicalise identically. We get this right for the int
-# value ``1`` but Python emits ``1.0`` for every float-typed equivalent —
+# value ``1`` but Python emits ``1.0`` for every float-typed equivalent -
 # meaning a card whose ``max_budget_usd`` lands on an integer boundary
 # signs to different bytes than a Java verifier following the spec.
 
@@ -585,7 +585,7 @@ def test_rfc_8785_vector_weird() -> None:
 )
 @pytest.mark.xfail(
     reason=(
-        "RFC 8785 §3.2.2.3 — these float literals must canonicalise to "
+        "RFC 8785 §3.2.2.3 - these float literals must canonicalise to "
         "``1``. Python json.dumps emits ``1.0``. Same root cause as #2; "
         "flagged separately as the canonical-form gotcha."
     ),
@@ -596,12 +596,12 @@ def test_rfc_8785_numeric_equivalence_floats_canonicalise_to_int(value: float) -
 
 
 def test_rfc_8785_numeric_equivalence_int_one_works() -> None:
-    """The int ``1`` canonicalises correctly — only the float path is broken."""
+    """The int ``1`` canonicalises correctly - only the float path is broken."""
     assert canonicalize_jcs(1) == b"1"
 
 
 # ---------------------------------------------------------------------------
-# Unicode in JCS — no NFC normalisation
+# Unicode in JCS - no NFC normalisation
 # ---------------------------------------------------------------------------
 
 
@@ -610,7 +610,7 @@ def test_jcs_no_nfc_normalisation_on_string_value() -> None:
 
     Composed (``é`` U+00E9) and decomposed (``e`` + ``́``) MUST hash
     differently. If the canonicaliser silently NFC-normalised both, two
-    semantically-identical cards would sign to different bytes — a very
+    semantically-identical cards would sign to different bytes - a very
     subtle source of verification failures across platforms with different
     default normalisation.
     """
@@ -622,7 +622,7 @@ def test_jcs_no_nfc_normalisation_on_string_value() -> None:
 
 
 def test_jcs_emoji_emitted_as_utf8_4_byte_sequence() -> None:
-    """Emoji (SMP) should serialise as raw UTF-8 bytes — NOT \\uXXXX escape."""
+    """Emoji (SMP) should serialise as raw UTF-8 bytes - NOT \\uXXXX escape."""
     assert canonicalize_jcs("\U0001f916") == b'"\xf0\x9f\xa4\x96"'
 
 
@@ -633,7 +633,7 @@ def test_jcs_emoji_emitted_as_utf8_4_byte_sequence() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "Finding #6 — JWKS today publishes exactly one key. RFC 7517 "
+        "Finding #6 - JWKS today publishes exactly one key. RFC 7517 "
         "expects rotation windows to publish BOTH keys so cached verifiers "
         "keep succeeding during the grace period. The orchestrator has no "
         "rotation hook today; persistence work is tracked separately. "
@@ -661,7 +661,7 @@ def test_jwks_rotation_grace_window_keeps_old_key_verifying() -> None:
     assert new_pub != old_pub  # rotation actually rotated
     jwks = agent_json_keys()
     advertised = {jwk["x"] for jwk in jwks["keys"]}
-    # Today only the new key is advertised — this is the bug.
+    # Today only the new key is advertised - this is the bug.
     expected_old_x = (
         base64.urlsafe_b64encode(
             serialization.load_pem_public_key(old_pub).public_bytes(
@@ -671,13 +671,13 @@ def test_jwks_rotation_grace_window_keeps_old_key_verifying() -> None:
         .rstrip(b"=")
         .decode("ascii")
     )
-    assert expected_old_x in advertised, "Old key dropped from JWKS at rotation — verifiers cached on it 401."
+    assert expected_old_x in advertised, "Old key dropped from JWKS at rotation - verifiers cached on it 401."
 
 
 def test_jwks_cold_start_under_concurrent_load_does_not_500() -> None:
     """Repeated cold-starts followed by immediate JWKS calls must not 500.
 
-    DOS-adjacent — confirms the lazy-init path is bounded in time and the
+    DOS-adjacent - confirms the lazy-init path is bounded in time and the
     per-call cost stays cheap.
     """
     import time
@@ -705,7 +705,7 @@ def test_jwks_cold_start_under_concurrent_load_does_not_500() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "Finding #7 — once persistence lands, the PEM under "
+        "Finding #7 - once persistence lands, the PEM under "
         "``.sdd/security/keys/agent_signing/`` MUST be ``0600``. No "
         "persistence today, so no permissions to check. Test xfailed as a "
         "placeholder so the day persistence lands without the chmod, this "
@@ -718,7 +718,7 @@ def test_persisted_signing_key_file_mode_is_0600() -> None:
     from pathlib import Path
 
     expected = Path(".sdd/security/keys/agent_signing/private.pem")
-    assert expected.exists(), "no persisted key file — persistence not landed yet"
+    assert expected.exists(), "no persisted key file - persistence not landed yet"
     assert (expected.stat().st_mode & 0o777) == 0o600
 
 
@@ -729,7 +729,7 @@ def test_persisted_signing_key_file_mode_is_0600() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "Finding #8 — auth_middleware does not consult the JWT "
+        "Finding #8 - auth_middleware does not consult the JWT "
         "``resource``/``aud`` claim. A token minted for ``other.example`` "
         "verifies fine on Bernstein's API today. RFC 8707 mandates "
         "audience-binding so a stolen Bearer cannot be replayed at a "
@@ -749,7 +749,7 @@ def test_rfc_8707_resource_indicator_mismatch_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Replay scenarios — across processes, after rotation
+# Replay scenarios - across processes, after rotation
 # ---------------------------------------------------------------------------
 
 
@@ -758,7 +758,7 @@ def test_card_minted_in_process_a_verifies_with_pubkey_from_process_a() -> None:
     in-memory keypair is reset (i.e. the orchestrator process restarted).
 
     Confirms the verifier is purely a function of (card, signature, pubkey)
-    — there is no hidden process-local state that would tie a verification
+    - there is no hidden process-local state that would tie a verification
     to the signing process. This is what makes JWKS-based federation work.
     """
     priv, pub = generate_ed25519_keypair()
@@ -786,13 +786,13 @@ def test_card_does_not_verify_with_post_rotation_pubkey() -> None:
 
 
 # ---------------------------------------------------------------------------
-# DOS — repeated rotation must not leak archive files
+# DOS - repeated rotation must not leak archive files
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.xfail(
     reason=(
-        "Finding #10 — no on-disk rotation today, so no archive directory "
+        "Finding #10 - no on-disk rotation today, so no archive directory "
         "to grow. Once persistence lands, repeated rotation MUST garbage-"
         "collect old archived PEMs after the grace window expires; "
         "otherwise an attacker who can force rotations exhausts disk."
@@ -803,7 +803,7 @@ def test_repeated_rotation_does_not_grow_archive_unboundedly() -> None:
     from pathlib import Path
 
     archive = Path(".sdd/security/keys/agent_signing/archive")
-    assert archive.exists(), "persistence not landed — nothing to bound"
+    assert archive.exists(), "persistence not landed - nothing to bound"
     # Once persistence lands: simulate N rotations and assert the archive
     # size stays under a fixed bound (e.g. grace_window_keys + 1).
     raise AssertionError("rotation archive bound not implemented")
@@ -831,7 +831,7 @@ def test_typ_jwt_signature_does_not_verify_as_agent_card() -> None:
 
 
 def test_typ_missing_in_header_does_not_verify_as_agent_card() -> None:
-    """A signature with NO ``typ`` claim must not verify — defaults are unsafe."""
+    """A signature with NO ``typ`` claim must not verify - defaults are unsafe."""
     priv_pem, pub_pem = generate_ed25519_keypair()
     priv = serialization.load_pem_private_key(priv_pem, password=None)
     card = _stable_card()
@@ -852,7 +852,7 @@ def test_typ_with_unicode_lookalike_rejected() -> None:
     priv = serialization.load_pem_private_key(priv_pem, password=None)
     card = _stable_card()
     body_b64 = _b64url(canonicalize_jcs(asdict(card)))
-    # Cyrillic small a (U+0430) instead of Latin a (U+0061) — the lookalike is
+    # Cyrillic small a (U+0430) instead of Latin a (U+0061) - the lookalike is
     # the entire point of the test, hence the noqa.
     spoof = "аgent-card+jws"  # noqa: RUF001
     hdr_b64 = _b64url(canonicalize_jcs({"alg": "EdDSA", "typ": spoof}))

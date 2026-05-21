@@ -2,28 +2,28 @@
 
 A *whiteboard* is a per-run, append-only JSONL log that any agent in
 the run can write to and read back. This module ships the foundation
-the larger ticket calls for — append + filtered-read + schema
-validation — without the conflict-resolution machinery, MCP wiring,
+the larger ticket calls for - append + filtered-read + schema
+validation - without the conflict-resolution machinery, MCP wiring,
 or watcher integration. Those remain explicitly deferred (see
 ``2026-05-07-feat-multi-agent-shared-whiteboard.md`` follow-ups).
 
 Design notes
 ------------
 
-* Append-only at the line granularity — POSIX append semantics give
+* Append-only at the line granularity - POSIX append semantics give
   us per-line atomicity below ``PIPE_BUF`` (per
   ``atomic_write.py``'s discussion); a process-local
   :class:`threading.Lock` plus an ``fcntl.LOCK_EX`` advisory lock
   keep multi-thread *and* multi-process appends linearised.
-* Read-time visibility filter — the writer declares a list of role
+* Read-time visibility filter - the writer declares a list of role
   names that may read the entry. Readers pass their role; entries
   whose ``visibility`` does not include that role are skipped.
   Empty visibility means "public to the run".
-* No conflict resolution — overlapping subjects are preserved as
+* No conflict resolution - overlapping subjects are preserved as
   separate entries; ordering follows the file. ``last-write-wins``
   / ``merge-union`` / ``human-review`` strategies are deferred.
-* No HMAC envelope yet — ``audit.py`` integration is a later slice.
-* Off-by-default — nothing wires this into the orchestrator. Callers
+* No HMAC envelope yet - ``audit.py`` integration is a later slice.
+* Off-by-default - nothing wires this into the orchestrator. Callers
   opt in by constructing a :class:`Whiteboard` directly.
 
 Schema
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Public role label that overrides per-entry visibility — a reader
+# Public role label that overrides per-entry visibility - a reader
 # whose role is "*" is treated as "see everything", useful for
 # orchestrator-side debugging utilities. Regular agents should always
 # pass a concrete role string.
@@ -133,8 +133,8 @@ class WhiteboardEntry:
 def _validate_entry(raw: dict[str, Any]) -> None:
     """Raise ``ValueError`` if *raw* is not a well-formed entry.
 
-    Validation is intentionally loose — we accept any JSON-serialisable
-    ``value`` — but the structural keys must be the right type so a
+    Validation is intentionally loose - we accept any JSON-serialisable
+    ``value`` - but the structural keys must be the right type so a
     downstream consumer never has to defensively coerce them.
     """
     required = {"key", "scope", "value", "owner_agent_id", "ts_ns"}
@@ -182,7 +182,7 @@ class Whiteboard:
         Args:
             root: Directory that hosts per-run subfolders. Conventionally
                 ``.bernstein/runs`` inside the active workspace, but the
-                caller chooses — nothing in this module assumes the
+                caller chooses - nothing in this module assumes the
                 Bernstein path layout, which keeps it usable from tests
                 and from one-off scripts.
             run_id: Identifier for the current run. Must not contain
@@ -210,7 +210,7 @@ class Whiteboard:
         line = entry.to_json_line() + "\n"
         with self._lock:
             self._run_dir.mkdir(parents=True, exist_ok=True)
-            # 0o600 — consistent with atomic_write defaults; runtime state
+            # 0o600 - consistent with atomic_write defaults; runtime state
             # may carry task metadata that should not be world-readable.
             fd = os.open(
                 str(self._path),
@@ -245,7 +245,7 @@ class Whiteboard:
             key: If set, only return entries whose ``key`` matches.
 
         Returns:
-            Entries in file order — i.e. write order, since each line
+            Entries in file order - i.e. write order, since each line
             is appended atomically. Malformed lines are skipped and
             logged at warning level so a single bad record does not
             poison every reader.
@@ -314,8 +314,8 @@ def _is_visible(entry: WhiteboardEntry, reader_role: str) -> bool:
 
     Visibility rules:
 
-    * Empty ``visibility`` list — entry is public within the run.
-    * ``reader_role == WILDCARD_ROLE`` — bypass filter.
+    * Empty ``visibility`` list - entry is public within the run.
+    * ``reader_role == WILDCARD_ROLE`` - bypass filter.
     * Otherwise the role must appear in ``entry.visibility``.
 
     The owning agent does not get an automatic free pass on the

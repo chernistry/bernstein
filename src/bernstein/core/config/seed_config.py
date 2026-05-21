@@ -222,8 +222,8 @@ class MetricSchema:
         formula: Arithmetic expression using built-in metric variables.
         unit: Display unit label (e.g. ``"lines/$"``).
         description: Human-readable description of what the metric measures.
-        alert_above: Optional threshold — alert when metric exceeds this value.
-        alert_below: Optional threshold — alert when metric falls below this value.
+        alert_above: Optional threshold - alert when metric exceeds this value.
+        alert_below: Optional threshold - alert when metric falls below this value.
     """
 
     formula: str
@@ -268,7 +268,7 @@ class SeedConfig:
         mcp_allowlist: Explicit allowlist of MCP server names permitted for
             this run.  When set, only servers whose names appear in this list
             are included in agent configs; all others are silently blocked.
-            ``None`` (the default) means no restriction — all configured
+            ``None`` (the default) means no restriction - all configured
             servers are allowed.
         notify: Optional webhook notification configuration.
         cells: Number of parallel orchestration cells (1 = single-cell).

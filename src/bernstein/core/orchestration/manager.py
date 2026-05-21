@@ -1,4 +1,4 @@
-"""Manager Intelligence — LLM-powered task decomposition and review.
+"""Manager Intelligence - LLM-powered task decomposition and review.
 
 This module orchestrates the full Manager workflow: task planning, queue review,
 and completion review using LLM calls. It imports lower-level logic from
@@ -267,7 +267,7 @@ class ManagerAgent:
             try:
                 existing = await _fetch_existing_tasks(client, self._server_url)
             except httpx.HTTPError:
-                logger.warning("Could not fetch existing tasks — planning from scratch")
+                logger.warning("Could not fetch existing tasks - planning from scratch")
                 existing = []
 
             # Record metrics start
@@ -688,7 +688,7 @@ Be precise and complete. Include all necessary imports, tests, and documentation
             QueueReviewResult with corrections to apply.
         """
         if budget_remaining_pct < 0.10:
-            logger.info("Manager queue review skipped — budget below 10%%")
+            logger.info("Manager queue review skipped - budget below 10%%")
             return QueueReviewResult(corrections=[], reasoning="skipped: budget < 10%", skipped=True)
 
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -743,7 +743,7 @@ Be precise and complete. Include all necessary imports, tests, and documentation
             return QueueReviewResult(corrections=[], reasoning=f"parse error: {exc}", skipped=True)
 
         logger.info(
-            "Manager queue review: %d correction(s) — %s",
+            "Manager queue review: %d correction(s) - %s",
             len(result.corrections),
             result.reasoning,
         )

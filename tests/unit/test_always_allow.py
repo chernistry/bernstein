@@ -176,7 +176,7 @@ class TestPatternMatching:
     def test_invalid_regex_falls_back_to_glob(self) -> None:
         from bernstein.core.always_allow import _pattern_matches
 
-        # "[test" without closing "]" is invalid regex — should fall back to glob
+        # "[test" without closing "]" is invalid regex - should fall back to glob
         assert _pattern_matches("src/[test", "src/[test")  # glob literal match after fallback
         assert not _pattern_matches("src/[test", "src/any")
 

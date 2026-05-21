@@ -78,7 +78,7 @@ def postmortem_cmd(
         return
 
     if fmt == "pdf":
-        # PDF always writes to a file — print path and return.
+        # PDF always writes to a file - print path and return.
         out_path = Path(output) if output else None
         saved = generator.to_pdf(report, path=out_path)
         console.print(f"[green]PDF report saved to {saved}[/green]")

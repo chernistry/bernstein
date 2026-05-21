@@ -71,7 +71,7 @@ class TestBug1IdleAdapterPropagation:
 class TestBug2PlanFileBypassesPriorSession:
     """When the operator passes ``plan_file``, the prior-session resume
     check must NOT swallow the explicit task list.  Source inspection is
-    enough here — the full bootstrap path needs a server, server takes
+    enough here - the full bootstrap path needs a server, server takes
     >2 s to spin up, and this is a code-level invariant.
     """
 
@@ -119,7 +119,7 @@ class TestBug3OpenAPIJson:
         assert "components" in payload and isinstance(payload["components"], dict)
         # Sanity: at least one real route is documented (e.g. /tasks/counts).
         assert "/tasks/counts" in payload["paths"], (
-            "OpenAPI schema is missing /tasks/counts — schema gen likely regressed under a future Pydantic update"
+            "OpenAPI schema is missing /tasks/counts - schema gen likely regressed under a future Pydantic update"
         )
 
 
@@ -160,8 +160,8 @@ class TestBug4TaskCountsAllStatuses:
         for status in TaskStatus:
             assert status.value in fields, (
                 f"TaskCountsResponse missing field for TaskStatus.{status.name} "
-                f"(value={status.value!r}) — add it so the GUI badge can show "
-                f"a real count instead of —"
+                f"(value={status.value!r}) - add it so the GUI badge can show "
+                f"a real count instead of -"
             )
 
     def test_default_is_zero_for_every_field(self) -> None:
@@ -188,7 +188,7 @@ class TestBug6SafePushNoRemote:
         import subprocess
 
         subprocess.run(["git", "init", "-q", "-b", "main", str(tmp_path)], check=True)
-        # Need at least one commit so HEAD resolves — otherwise rev-list errors
+        # Need at least one commit so HEAD resolves - otherwise rev-list errors
         # and we never even get to the push attempt.
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "--allow-empty", "-m", "init", "-q"],
@@ -233,7 +233,7 @@ class TestBug7ApiV1OpenAPIAlias:
 class TestBug5OrphanShellCleanup:
     """``_collect_repo_processes`` must do a second pass to kill disowned
     shell/curl loops that survive a regular SIGTERM sweep.  Source-level
-    check — exercising the real ps scan would require fork(); keep it light.
+    check - exercising the real ps scan would require fork(); keep it light.
     """
 
     def test_second_pass_implementation_present(self) -> None:
@@ -273,7 +273,7 @@ class TestBug8DevHintAccuracy:
         )
 
 
-# Bug #9 + #10: AppShell sidebar — sidebar contains Settings + Fleet and
+# Bug #9 + #10: AppShell sidebar - sidebar contains Settings + Fleet and
 # the FooterBar pluralises agents correctly.
 
 
@@ -284,7 +284,7 @@ class TestBug9And10AppShell:
 
     def test_sidebar_includes_settings(self) -> None:
         text = self.APPSHELL.read_text(encoding="utf-8")
-        # Sidebar nav uses the NAV array — Settings must appear inside it.
+        # Sidebar nav uses the NAV array - Settings must appear inside it.
         nav_block_start = text.index("const NAV = [")
         nav_block_end = text.index("] as const;", nav_block_start)
         nav_block = text[nav_block_start:nav_block_end]

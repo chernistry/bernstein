@@ -3,24 +3,24 @@
 Invariants under test
 ---------------------
 
-* **Idempotence** — running the predicted-delta gate twice on the same
+* **Idempotence** - running the predicted-delta gate twice on the same
   proposal yields the same verdict, predicted_delta, and threshold.
 
-* **Monotonicity in threshold** — for any fixed proposal, raising the
+* **Monotonicity in threshold** - for any fixed proposal, raising the
   threshold can only keep the verdict the same or flip it from
   *accepted* to *below_threshold* (never the reverse).
 
-* **No false-veto on identical-content proposals** — two proposals
+* **No false-veto on identical-content proposals** - two proposals
   with the same content_hash receive the same delta-gate verdict and,
   for the oscillation guard, identical handling order (second sighting
   is always accepted or pending depending on min_confirmations, never
   flipped to "flip_back" out of nowhere).
 
-* **Session-cap monotone** — total accepted patches in a session never
+* **Session-cap monotone** - total accepted patches in a session never
   exceed ``max_patches_per_session`` (when > 0), regardless of the
   sequence of proposals.
 
-* **Oscillation random sequences <= 20** — the audit row count equals
+* **Oscillation random sequences <= 20** - the audit row count equals
   the number of proposals submitted, and ``session_applied_count`` is
   bounded by the cap.
 """
@@ -176,7 +176,7 @@ class TestSessionCapMonotone:
 
 
 # ---------------------------------------------------------------------------
-# Random sequences <= 20 — oscillation guard invariants
+# Random sequences <= 20 - oscillation guard invariants
 # ---------------------------------------------------------------------------
 
 
@@ -224,7 +224,7 @@ class TestRandomOscillationSequences:
 
 
 # ---------------------------------------------------------------------------
-# Pluggable predictor — return value range
+# Pluggable predictor - return value range
 # ---------------------------------------------------------------------------
 
 
@@ -238,7 +238,7 @@ class TestPredictorRange:
 
 
 # ---------------------------------------------------------------------------
-# Combined gate — symmetric input/output guarantees
+# Combined gate - symmetric input/output guarantees
 # ---------------------------------------------------------------------------
 
 

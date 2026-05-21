@@ -1,4 +1,4 @@
-"""Tests for AgentSpawner — adapter is always mocked."""
+"""Tests for AgentSpawner - adapter is always mocked."""
 
 from __future__ import annotations
 
@@ -366,7 +366,7 @@ class TestSpawnerWithRouter:
         task = make_task(scope=Scope.LARGE, complexity=Complexity.HIGH)
         session = spawner.spawn_for_tasks([task])
 
-        # Router was not consulted — provider falls back to adapter name
+        # Router was not consulted - provider falls back to adapter name
         assert session.provider != "test_provider"
         assert session.pid == 301
 
@@ -524,7 +524,7 @@ class TestSpawnerWithRouter:
 
     def test_per_step_cli_beats_role_policy_provider(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
         """When both task.cli and role_model_policy.provider are set, the
-        per-step value wins — that's the whole point of the field."""
+        per-step value wins - that's the whole point of the field."""
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
 
@@ -1205,7 +1205,7 @@ class TestSpawnForTasksWithCatalog:
         """AgentSession.agent_source is 'built-in' when no catalog agent matches."""
         from bernstein.agents.catalog import CatalogRegistry
 
-        # Register a qa agent; task role is backend — no match
+        # Register a qa agent; task role is backend - no match
         agent = self._make_catalog_agent(role="qa", capabilities=["testing"])
         catalog = CatalogRegistry()
         catalog.register_agent(agent)

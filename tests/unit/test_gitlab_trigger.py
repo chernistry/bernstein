@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.trigger_sources.gitlab — GitLab trigger adapters."""
+"""Tests for bernstein.core.trigger_sources.gitlab - GitLab trigger adapters."""
 
 from __future__ import annotations
 

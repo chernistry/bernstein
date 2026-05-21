@@ -6,9 +6,9 @@ layout is preserved and only one container is touched.
 
 Three buttons per pending entry drive the decision:
 
-* **Approve** — allow this single invocation.
-* **Reject** — deny the call.
-* **Always** — allow and promote the pattern into the operator's
+* **Approve** - allow this single invocation.
+* **Reject** - deny the call.
+* **Always** - allow and promote the pattern into the operator's
   ``always_allow`` rules.
 """
 

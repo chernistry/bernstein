@@ -182,7 +182,7 @@ class TestStripMetadata:
         assert all("recommend" not in name.lower() for name, _ in result)
 
     def test_strips_largest_metadata_first(self) -> None:
-        # Large lessons block, small recommendations block — both should
+        # Large lessons block, small recommendations block - both should
         # be stripped in descending order of size
         sections = [
             _section("lessons", 500),

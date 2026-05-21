@@ -1,4 +1,4 @@
-"""ACP transport layer — stdio JSON-RPC and HTTP/SSE.
+"""ACP transport layer - stdio JSON-RPC and HTTP/SSE.
 
 Both transports decode incoming bytes into JSON, hand the parsed frame
 to :func:`bernstein.core.protocols.acp.schema.validate_request`, dispatch
@@ -50,7 +50,7 @@ MAX_FRAME_BYTES: Final[int] = 1 * 1024 * 1024
 class JsonRpcFraming:
     """Pure helpers for parsing and serialising JSON-RPC frames.
 
-    Stateless — the same instance can be shared across connections.
+    Stateless - the same instance can be shared across connections.
     """
 
     @staticmethod
@@ -126,7 +126,7 @@ async def dispatch_frame(
         result = await registry.dispatch(ctx, parsed.params)
     except ACPSchemaError as exc:
         return make_error(parsed.request_id, exc.code, exc.message, exc.data)
-    except Exception as exc:  # pragma: no cover — defensive
+    except Exception as exc:  # pragma: no cover - defensive
         logger.exception("acp.dispatch crashed method=%s", parsed.method)
         return make_error(parsed.request_id, INTERNAL_ERROR, f"unexpected error: {exc}")
 
@@ -184,7 +184,7 @@ class StdioAcpTransport:
             try:
                 line = await self.reader.readuntil(b"\n")
             except asyncio.IncompleteReadError as exc:
-                # Final unterminated line — process if non-empty, then exit.
+                # Final unterminated line - process if non-empty, then exit.
                 if exc.partial:
                     await self._handle_line(exc.partial)
                 return
@@ -207,7 +207,7 @@ class StdioAcpTransport:
 
     async def _write_frame(self, frame: dict[str, Any]) -> None:
         """Serialise *frame* and flush to the writer."""
-        if self.writer is None:  # pragma: no cover — guarded by serve_forever
+        if self.writer is None:  # pragma: no cover - guarded by serve_forever
             return
         self.writer.write(JsonRpcFraming.encode(frame))
         await self.writer.drain()
@@ -225,9 +225,9 @@ class HttpAcpTransport:
     A single POST to ``/acp`` carries one JSON-RPC frame.  The response
     type depends on the request's ``Accept`` header:
 
-    * ``application/json`` (default) — the response envelope is returned
+    * ``application/json`` (default) - the response envelope is returned
       as a JSON body.
-    * ``text/event-stream`` — the response envelope is sent as the first
+    * ``text/event-stream`` - the response envelope is sent as the first
       ``event: response`` SSE event; subsequent ``streamUpdate`` and
       ``requestPermission`` notifications stream as ``event: notification``
       events until the session closes.
@@ -278,7 +278,7 @@ class HttpAcpTransport:
 
         response = await dispatch_frame(self.registry, frame, peer=peer)
         if response is None:
-            # Notification — return 202 Accepted with empty body.
+            # Notification - return 202 Accepted with empty body.
             return 202, {"content-type": "application/json"}, b""
         return 200, {"content-type": "application/json"}, JsonRpcFraming.encode(response)
 

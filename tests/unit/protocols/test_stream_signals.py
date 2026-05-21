@@ -194,7 +194,7 @@ class TestFormatSignal:
 
     def test_empty_payload_omits_body(self) -> None:
         line = format_signal(SignalKind.COMPLETED, {})
-        # Empty dict still renders as "{}" — round-trip semantics
+        # Empty dict still renders as "{}" - round-trip semantics
         # remain identical. We just assert it parses cleanly.
         parsed = parse_signal(line)
         assert parsed is not None
@@ -286,7 +286,7 @@ class TestConcurrentParsing:
 
         # Each stream must produce the same 4 canonical signals in
         # the same order, with the payload tagged to its own adapter
-        # — proving the parser carried no per-thread state.
+        # - proving the parser carried no per-thread state.
         for idx, signals in results:
             kinds = [s.kind for s in signals]
             assert kinds == [
@@ -307,7 +307,7 @@ class TestConcurrentParsing:
 
 
 def test_signal_prefix_constant_is_stable() -> None:
-    """The wire prefix is a stability contract — pin it explicitly."""
+    """The wire prefix is a stability contract - pin it explicitly."""
     assert SIGNAL_PREFIX == "BERNSTEIN:"
 
 

@@ -329,7 +329,7 @@ class TestPluginManagerPolicy:
         pm = PluginManager()
         pm._policy = load_plugin_policy(tmp_path)
 
-        # Default: no policy check — internal/test registrations are unaffected.
+        # Default: no policy check - internal/test registrations are unaffected.
         pm.register(_DummyPlugin(), name="blocked")
         assert "blocked" in pm.registered_names
 

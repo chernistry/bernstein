@@ -78,7 +78,7 @@ def test_validate_team_hub_dict_accepts_minimal_manifest() -> None:
 
 
 def test_validate_team_hub_dict_rejects_bad_name() -> None:
-    """``name`` must be a lowercase slug — uppercase fails fast."""
+    """``name`` must be a lowercase slug - uppercase fails fast."""
     bad = _good_dict()
     bad["name"] = "AcmeCorp"
 
@@ -160,7 +160,7 @@ def test_parse_team_hub_yaml_round_trip(tmp_path: Path) -> None:
 
 
 def test_parse_team_hub_yaml_missing_file_raises(tmp_path: Path) -> None:
-    """Missing file is a hard error — the loader uses ``is_file()`` first."""
+    """Missing file is a hard error - the loader uses ``is_file()`` first."""
     with pytest.raises(TeamHubManifestError) as exc:
         parse_team_hub_yaml(tmp_path / "team-hub.yaml")
 
@@ -170,7 +170,7 @@ def test_parse_team_hub_yaml_missing_file_raises(tmp_path: Path) -> None:
 def test_parse_team_hub_yaml_rejects_oversize(tmp_path: Path) -> None:
     """Manifests larger than the cap are rejected before YAML parsing."""
     path = tmp_path / "team-hub.yaml"
-    # 64 KiB cap + a single byte over it — YAML noise is fine.
+    # 64 KiB cap + a single byte over it - YAML noise is fine.
     path.write_text("# " + ("a" * (64 * 1024)) + "\nname: x\n", encoding="utf-8")
 
     with pytest.raises(TeamHubManifestError) as exc:
@@ -183,12 +183,12 @@ def test_parse_team_hub_yaml_rejects_oversize(tmp_path: Path) -> None:
 
 
 def test_load_team_hub_missing_root_is_noop(tmp_path: Path) -> None:
-    """A path that doesn't exist returns ``None`` — no exception."""
+    """A path that doesn't exist returns ``None`` - no exception."""
     assert load_team_hub(tmp_path / "does-not-exist") is None
 
 
 def test_load_team_hub_missing_manifest_is_noop(tmp_path: Path) -> None:
-    """An empty directory returns ``None`` — operator hasn't initialised yet."""
+    """An empty directory returns ``None`` - operator hasn't initialised yet."""
     (tmp_path / "team").mkdir()
     assert load_team_hub(tmp_path) is None
 
@@ -248,7 +248,7 @@ def test_load_team_hub_missing_entry_raises(tmp_path: Path) -> None:
         "  bernstein: '>=1.10'\n"
     )
     hub = _write_hub(tmp_path / "hub", manifest_yaml=manifest_text)
-    # Remove the file the schema check can't catch — the path is structurally valid.
+    # Remove the file the schema check can't catch - the path is structurally valid.
     (hub / "team" / "rules" / "no-print.md").unlink()
 
     with pytest.raises(TeamHubLoaderError) as exc:

@@ -37,7 +37,7 @@ class SignalSpec:
     """A single expected signal within a benchmark."""
 
     type: str
-    # Optional fields — semantics depend on type
+    # Optional fields - semantics depend on type
     module: str | None = None
     attribute: str | None = None
     path: str | None = None
@@ -131,8 +131,8 @@ def _eval_signal(spec: SignalSpec) -> SignalResult:
         return _eval_import_succeeds(spec)
     if spec.type == "path_exists":
         return _eval_path_exists(spec)
-    # Unknown signal type — treat as skipped (pass) so unknown types don't break runs
-    return SignalResult(spec.type, True, f"unsupported signal type '{spec.type}' — skipped")
+    # Unknown signal type - treat as skipped (pass) so unknown types don't break runs
+    return SignalResult(spec.type, True, f"unsupported signal type '{spec.type}' - skipped")
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Unit tests for the security-layer hook that enqueues approvals (op-002).
 
-These tests target ``bernstein.core.approval.gate`` — the glue that sits
+These tests target ``bernstein.core.approval.gate`` - the glue that sits
 between the always-allow engine and the approval queue.
 """
 

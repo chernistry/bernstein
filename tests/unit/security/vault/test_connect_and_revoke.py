@@ -76,7 +76,7 @@ class _MemoryVault:
 
 
 # ---------------------------------------------------------------------------
-# perform_connect — token validation
+# perform_connect - token validation
 # ---------------------------------------------------------------------------
 
 
@@ -122,7 +122,7 @@ def test_perform_connect_token_validation_failure(monkeypatch: pytest.MonkeyPatc
 
 
 # ---------------------------------------------------------------------------
-# perform_revoke — idempotency + remote endpoint
+# perform_revoke - idempotency + remote endpoint
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +167,7 @@ def test_perform_revoke_slack_calls_remote(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # ---------------------------------------------------------------------------
-# OAuth device code — cancellation + timeout
+# OAuth device code - cancellation + timeout
 # ---------------------------------------------------------------------------
 
 

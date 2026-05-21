@@ -13,7 +13,7 @@ collapsed everything onto the default adapter + ``sonnet``:
    was overridden by the role default.
 
 3. ``_groups_can_merge`` and ``_can_merge_batches`` only inspected ``model``,
-   never ``cli`` — so two tasks with the same role but different adapters
+   never ``cli`` - so two tasks with the same role but different adapters
    would be merged into a single batch and the second adapter dropped.
 
 This module guards all three regressions.

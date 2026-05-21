@@ -115,7 +115,7 @@ class TestStartupGateCheckpoint:
 
 
 # ---------------------------------------------------------------------------
-# build_startup_gate_checkpoints — provenance precedence
+# build_startup_gate_checkpoints - provenance precedence
 # ---------------------------------------------------------------------------
 
 

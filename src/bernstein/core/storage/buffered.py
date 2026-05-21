@@ -19,7 +19,7 @@ gives deterministic back-pressure rather than silently dropping
 mirrors or unbounded memory growth.
 
 ``close()`` blocks until every pending mirror has either ACKed or
-failed, so shutdown cleanly flushes the tail — the orchestrator uses
+failed, so shutdown cleanly flushes the tail - the orchestrator uses
 this when winding down a run so no uploads are lost on a clean exit.
 """
 
@@ -83,9 +83,9 @@ class BufferedSink(ArtifactSink):
 
     Writes go to *local* synchronously (preserving the WAL fsync
     invariant); a background task then streams the same payload to
-    *remote*. Reads check the remote sink first — on a fresh startup
+    *remote*. Reads check the remote sink first - on a fresh startup
     with an ephemeral local disk this is how the crash-recovery path
-    finds the last committed state — and fall back to local when the
+    finds the last committed state - and fall back to local when the
     remote cannot serve the key.
 
     The buffer is bounded (``max_pending``): producer writes block
@@ -175,7 +175,7 @@ class BufferedSink(ArtifactSink):
         pending = self._queue.qsize()
         oldest_age = 0.0
         # Peek at the head without consuming it. ``asyncio.Queue._queue``
-        # is a ``collections.deque`` — accessing it is safe for an
+        # is a ``collections.deque`` - accessing it is safe for an
         # observational peek but pyright can't see through the private
         # attribute, so the cast to ``list[object]`` keeps strict typing
         # happy.
@@ -206,7 +206,7 @@ class BufferedSink(ArtifactSink):
         if self._closed:
             raise SinkError("BufferedSink already closed")
 
-        # 1. Synchronously commit locally — preserves WAL fsync invariant.
+        # 1. Synchronously commit locally - preserves WAL fsync invariant.
         await self._local.write(
             key,
             data,
@@ -224,7 +224,7 @@ class BufferedSink(ArtifactSink):
         await self._queue.put(pending)
 
     async def read(self, key: str) -> bytes:
-        # Prefer remote — this is the crash-recovery path where the
+        # Prefer remote - this is the crash-recovery path where the
         # local cache may have been on ephemeral storage.
         try:
             return await self._remote.read(key)

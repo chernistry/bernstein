@@ -132,7 +132,7 @@ def _isolate_audit_key(
     """Point the audit HMAC key path at a per-test tmpdir.
 
     Without this, ``AuditLog(...)`` calls that omit ``key=`` would read or
-    create a file at ``~/.local/state/bernstein/audit.key`` — polluting the
+    create a file at ``~/.local/state/bernstein/audit.key`` - polluting the
     developer's home directory with state from the test run. Tests that
     specifically exercise key-path resolution opt out via
     ``pytest.mark.audit_key_real``.
@@ -170,7 +170,7 @@ def _isolate_agent_card_keystore(
     """Point the persistent A2A v1.0 agent-card keystore at a per-test tmpdir.
 
     The keystore (``bernstein.core.routes.well_known._KEYSTORE``) is process
-    global — without isolation, a single test that pointed it at a
+    global - without isolation, a single test that pointed it at a
     ``tmp_path`` directory would leave the cache holding a now-deleted path
     once pytest cleaned the dir up. Subsequent tests would then hang on the
     first ``/.well-known/agent.json`` GET as the keystore tried to read its

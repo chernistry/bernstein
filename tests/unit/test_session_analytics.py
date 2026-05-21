@@ -1,4 +1,4 @@
-"""Tests for session_analytics — trace analysis and insights."""
+"""Tests for session_analytics - trace analysis and insights."""
 
 from __future__ import annotations
 

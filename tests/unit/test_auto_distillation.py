@@ -1,4 +1,4 @@
-"""Tests for AutoDistiller — auto-distillation pipeline.
+"""Tests for AutoDistiller - auto-distillation pipeline.
 
 Covers:
 - DistillationExample: serialisation, distillation key
@@ -202,7 +202,7 @@ class TestDistillationConfig:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — collection
+# AutoDistiller - collection
 # ---------------------------------------------------------------------------
 
 
@@ -284,7 +284,7 @@ class TestAutoDistillerCollection:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — batch management
+# AutoDistiller - batch management
 # ---------------------------------------------------------------------------
 
 
@@ -410,7 +410,7 @@ class TestAutoDistillerBatch:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — model lifecycle
+# AutoDistiller - model lifecycle
 # ---------------------------------------------------------------------------
 
 
@@ -469,7 +469,7 @@ class TestAutoDistillerModelLifecycle:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — routing
+# AutoDistiller - routing
 # ---------------------------------------------------------------------------
 
 
@@ -595,7 +595,7 @@ class TestAutoDistillerRouting:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — persistence
+# AutoDistiller - persistence
 # ---------------------------------------------------------------------------
 
 
@@ -677,7 +677,7 @@ class TestAutoDistillerPersistence:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — statistics
+# AutoDistiller - statistics
 # ---------------------------------------------------------------------------
 
 
@@ -766,7 +766,7 @@ class TestAutoDistillerStats:
 
 
 # ---------------------------------------------------------------------------
-# AutoDistiller — multiple keys
+# AutoDistiller - multiple keys
 # ---------------------------------------------------------------------------
 
 

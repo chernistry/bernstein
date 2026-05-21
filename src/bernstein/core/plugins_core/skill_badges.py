@@ -1,4 +1,4 @@
-"""Agent skill badges — per-agent capability indicators for status display.
+"""Agent skill badges - per-agent capability indicators for status display.
 
 Provides skill proficiency badges (reasoning, tool support, code) that can be
 rendered alongside worker badges in the status dashboard. Each adapter/model

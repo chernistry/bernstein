@@ -1,4 +1,4 @@
-"""CLI command: ``bernstein dep-impact`` — dependency impact analysis.
+"""CLI command: ``bernstein dep-impact`` - dependency impact analysis.
 
 Scans the repository for call sites that will break when a function
 signature changes.  Complements ``bernstein api-check`` (which only

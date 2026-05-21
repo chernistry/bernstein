@@ -5,7 +5,7 @@ Two responsibilities:
 * :func:`capture_port` walks one or more lines of dev-server stdout and
   returns the first port number matched by the configured regexes.
 * :func:`probe_port` performs a TCP probe against ``localhost:<port>``
-  with a configurable timeout — the gate the preview manager uses to
+  with a configurable timeout - the gate the preview manager uses to
   decide whether to open a tunnel.
 """
 

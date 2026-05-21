@@ -1,4 +1,4 @@
-"""Distribution utilities — air-gap wheelhouse build, verify, signing.
+"""Distribution utilities - air-gap wheelhouse build, verify, signing.
 
 The verifier is a pluggable :class:`WheelhouseVerifier` protocol with
 two implementations: :class:`CosignVerifier` (sigstore detached

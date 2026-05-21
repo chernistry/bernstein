@@ -70,7 +70,7 @@ class TestMigrationDowngradeIsPass:
 
 
 # ---------------------------------------------------------------------------
-# migration_reversibility gate — Alembic
+# migration_reversibility gate - Alembic
 # ---------------------------------------------------------------------------
 
 
@@ -140,7 +140,7 @@ class TestMigrationReversibilityAlembic:
 
 
 # ---------------------------------------------------------------------------
-# migration_reversibility gate — SQL up/down pairs
+# migration_reversibility gate - SQL up/down pairs
 # ---------------------------------------------------------------------------
 
 
@@ -204,7 +204,7 @@ class TestLargeFileGate:
         assert result.status == "pass"
 
     def test_required_step_still_never_blocks(self, tmp_path: Path) -> None:
-        """large_file never blocks even when required=True — it's a heuristic."""
+        """large_file never blocks even when required=True - it's a heuristic."""
         f = tmp_path / "huge.py"
         f.write_text("\n".join(f"x = {i}" for i in range(1000)))
         runner = _runner(tmp_path, large_file_threshold=500)

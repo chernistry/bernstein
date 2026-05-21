@@ -148,7 +148,7 @@ def _estimate_task_cost(task: Task) -> TaskCostEstimate:
     Uses scope for token estimation and complexity for model selection,
     then applies the per-1k-token pricing from the cost module.
     """
-    # Determine model — prefer role-specific override, then task.model, then complexity default
+    # Determine model - prefer role-specific override, then task.model, then complexity default
     model = (
         _ROLE_MODEL_OVERRIDES.get(task.role)
         or task.model
@@ -161,7 +161,7 @@ def _estimate_task_cost(task: Task) -> TaskCostEstimate:
     # Estimate tokens
     estimated_tokens = _TOKENS_BY_SCOPE.get(task.scope.value, 80_000)
 
-    # Look up cost rate — free-tier adapters cost $0
+    # Look up cost rate - free-tier adapters cost $0
     _FREE_ADAPTERS = PLAN.free_adapters
     if cli and cli.lower() in _FREE_ADAPTERS:
         rate: float = 0.0
@@ -223,7 +223,7 @@ def create_plan(goal: str, tasks: list[Task]) -> TaskPlan:
 class PlanStore:
     """Persists plans to .sdd/runtime/plans/ as JSON files.
 
-    Plans are lightweight — typically 1-20 per run — so individual
+    Plans are lightweight - typically 1-20 per run - so individual
     JSON files are fine (no JSONL needed).
     """
 

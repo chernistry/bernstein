@@ -252,7 +252,7 @@ def history_cmd(file_path: Path, workdir: Path, limit: int, as_json: bool) -> No
         table.add_row(
             _format_relative_age(row["completed_at"]),
             f"[{status_color}]{status}[/{status_color}]",
-            row["assigned_agent"] or "—",
+            row["assigned_agent"] or "-",
             row["role"],
             f"{row['task_id'][:8]}  {row['title']}",
         )

@@ -44,7 +44,7 @@ def test_peek_returns_recent_tail(tmp_path: Path) -> None:
 
 
 def test_peek_empty_buffer_returns_empty_tail(tmp_path: Path) -> None:
-    """Missing buffers are not an error — the page just renders blank."""
+    """Missing buffers are not an error - the page just renders blank."""
     client = TestClient(_make_app(tmp_path))
     response = client.get("/sessions/sess-2/peek")
     assert response.status_code == 200
@@ -103,7 +103,7 @@ def test_peek_grid_rejects_bad_id(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Send-bar (#1217 — POST /sessions/{id}/send)
+# Send-bar (#1217 - POST /sessions/{id}/send)
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +160,7 @@ def test_send_rejects_bad_session_id(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# HTML surface — send-bar + search wiring
+# HTML surface - send-bar + search wiring
 # ---------------------------------------------------------------------------
 
 

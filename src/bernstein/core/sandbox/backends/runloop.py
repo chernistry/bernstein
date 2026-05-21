@@ -8,11 +8,11 @@ endpoint. This backend speaks the public REST API directly via
 Environment variables
 ---------------------
 
-- ``RUNLOOP_API_KEY`` — required. Bearer token from the Runloop
+- ``RUNLOOP_API_KEY`` - required. Bearer token from the Runloop
   Dashboard.
-- ``RUNLOOP_API_URL`` — optional override of the API root. Defaults to
+- ``RUNLOOP_API_URL`` - optional override of the API root. Defaults to
   ``https://api.runloop.ai/v1``.
-- ``RUNLOOP_PROJECT_ID`` — optional default project id forwarded as
+- ``RUNLOOP_PROJECT_ID`` - optional default project id forwarded as
   ``project_id`` on devbox creation.
 
 Capabilities

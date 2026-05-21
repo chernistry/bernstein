@@ -418,14 +418,14 @@ def check_consistency(implementations: list[AgentImplementation]) -> Consistency
     3. Error codes handled by consumers are a subset of codes declared by the producer.
 
     Args:
-        implementations: List of :class:`AgentImplementation` objects — one per
+        implementations: List of :class:`AgentImplementation` objects - one per
             agent that worked on the feature.
 
     Returns:
         :class:`ConsistencyReport` listing all issues found.
     """
     if len(implementations) < 2:
-        logger.debug("cross_agent_consistency: fewer than 2 implementations — nothing to compare")
+        logger.debug("cross_agent_consistency: fewer than 2 implementations - nothing to compare")
         return ConsistencyReport(issues=[], checked_endpoints=0)
 
     endpoint_index = _build_endpoint_index(implementations)

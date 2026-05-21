@@ -6,11 +6,11 @@ entry is checked for idempotency before replay to avoid double-execution.
 
 The replay pipeline:
 
-1. **Scan** — find all uncommitted entries across WAL files.
-2. **Filter** — check each entry against an idempotency store to skip
+1. **Scan** - find all uncommitted entries across WAL files.
+2. **Filter** - check each entry against an idempotency store to skip
    already-executed actions.
-3. **Replay** — re-execute the delta (entries not yet committed).
-4. **Commit** — mark replayed entries as committed in the current WAL.
+3. **Replay** - re-execute the delta (entries not yet committed).
+4. **Commit** - mark replayed entries as committed in the current WAL.
 
 The idempotency store maps ``(decision_type, entry_hash)`` to a boolean
 indicating whether the action was successfully executed.  This prevents

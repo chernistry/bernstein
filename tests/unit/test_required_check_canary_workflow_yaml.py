@@ -17,7 +17,7 @@ Invariants exercised here:
 3. Exactly two files under ``.github/workflows/*.yml`` emit a check-run
    named ``CI gate``: ``ci.yml`` (real aggregator) and
    ``ci-gate-stub.yml`` (synthetic emitter for PRs whose diff is fully
-   paths-ignored by ci.yml — see PR opening this allow-list). No other
+   paths-ignored by ci.yml - see PR opening this allow-list). No other
    workflow may emit this check name.
 4. The canary workflow file itself exists and is wired to the
    ``pull_request``/``schedule``/``workflow_dispatch`` triggers, with
@@ -51,8 +51,8 @@ MACOS_JOB_NAME = "Test (macos-latest, Python 3.13)"
 # Allow-listed `CI gate` emitters. Branch protection still depends on
 # a single required-context *name*, but two workflow files now legitimately
 # produce it:
-#   - ci.yml::ci-gate       — real rolled-up aggregator
-#   - ci-gate-stub.yml::ci-gate — synthetic success for PRs whose diff is
+#   - ci.yml::ci-gate       - real rolled-up aggregator
+#   - ci-gate-stub.yml::ci-gate - synthetic success for PRs whose diff is
 #     entirely contained in ci.yml's paths-ignore list, otherwise such PRs
 #     are permanently BLOCKED (e.g. Renovate lockfile bumps under
 #     sdk/typescript/** or packages/vscode/**).

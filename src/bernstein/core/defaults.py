@@ -15,7 +15,7 @@ To override at runtime (e.g., from parsed bernstein.yaml)::
 
 Safety model
 ------------------------
-All ``*Defaults`` dataclasses are ``frozen=True`` — direct attribute mutation
+All ``*Defaults`` dataclasses are ``frozen=True`` - direct attribute mutation
 (``COST.foo = 1``) raises :class:`dataclasses.FrozenInstanceError`.  Dict
 default-factory fields are wrapped in :class:`types.MappingProxyType`, so
 inner-item mutation (``COST.effort_base_turns['max'] = 0``) raises
@@ -149,7 +149,7 @@ class TaskDefaults:
     subtask_wait_timeout_s: float = 30 * 60  # 30 min
     max_combined_estimated_minutes: int = 60  # cap batched-task total minutes
     max_tasks_per_compacted_batch: int = 5  # cap tasks per batch for focus
-    min_batch_size: int = 3  # don't batch below this — single-task faster
+    min_batch_size: int = 3  # don't batch below this - single-task faster
 
     max_io_retries: int = 3  # retry transient filesystem ops up to 3x
 
@@ -334,7 +334,7 @@ class PlanDefaults:
 class PhasePipelineDefaults:
     """Opt-in research/plan/implement phase separation.
 
-    The pipeline is OFF by default for back-compat — single-phase plan files
+    The pipeline is OFF by default for back-compat - single-phase plan files
     keep their existing behaviour.  Steps opt in by declaring
     ``phases: [research, plan, implement]`` and the global flag below must be
     True for the orchestrator to route through :class:`PhasedRunner`.
@@ -353,7 +353,7 @@ class PhasePipelineDefaults:
     gate_enabled: bool = True
     # Number of retries the failing phase is re-fired before the task is
     # marked ``failed`` with ``failure_kind="phase_gate"``.  v1 default is
-    # 1 — one retry is the value that actually closes the loop without
+    # 1 - one retry is the value that actually closes the loop without
     # busy-looping on a fundamentally broken artefact.
     gate_max_retries: int = 1
     # ``R005-byte-budget`` rejection counts as a hard fail rather than a
@@ -371,7 +371,7 @@ class PhasePipelineDefaults:
 class BestOfNDefaults:
     """Opt-in best-of-N candidate fan-out.
 
-    OFF by default for back-compat — single-agent task assignment is
+    OFF by default for back-compat - single-agent task assignment is
     unchanged.  Tasks opt in by setting ``Task.best_of_n=K``; callers
     must also flip ``BEST_OF_N.enabled`` (typically via the
     ``best_of_n`` section of ``bernstein.yaml``) for the orchestrator to
@@ -497,15 +497,15 @@ class ActionCacheDefaults:
     """Action-level cache for deterministic LLM/tool replay.
 
     Layered on :class:`bernstein.core.persistence.fingerprint.MemoStore`
-    — the action cache contributes the record schema and key derivation;
+    - the action cache contributes the record schema and key derivation;
     eviction and on-disk format come from MemoStore.
 
     Modes:
-      * ``record`` — always live, append every call to the cache.
-      * ``replay`` — cache-only; misses raise ``CacheMiss``.  Used by the
+      * ``record`` - always live, append every call to the cache.
+      * ``replay`` - cache-only; misses raise ``CacheMiss``.  Used by the
         $0 CI smoke test.
-      * ``hybrid`` — try cache, fall through to live on miss (default).
-      * ``off``   — disable lookups and writes entirely.
+      * ``hybrid`` - try cache, fall through to live on miss (default).
+      * ``off``   - disable lookups and writes entirely.
     """
 
     enabled: bool = True
@@ -538,9 +538,9 @@ class ReworkLedgerDefaults:
     reports a rework-rate that the cascade router consults when picking
     a writer model. Auto-promotion fires when both gates pass:
 
-    * ``samples >= min_samples`` — guard against premature decisions
+    * ``samples >= min_samples`` - guard against premature decisions
       from a handful of noisy observations.
-    * ``rate >= promotion_threshold`` — only promote when the cheap tier
+    * ``rate >= promotion_threshold`` - only promote when the cheap tier
       is observably costing more rework than it saves.
 
     ``window_hours`` bounds the freshness of considered samples so that
@@ -560,7 +560,7 @@ class LineageDefaults:
 
     The customer-signing layer is opt-in: when ``customer_signing_enabled``
     is False (the default), records continue to be written without a
-    ``customer_signature`` field — the writer is fully back-compat with
+    ``customer_signature`` field - the writer is fully back-compat with
     the v1 chain shipped in PR #996. When True, ``customer_signing_key_path``
     must point at a customer-controlled Ed25519 private key (PEM PKCS#8 or
     raw 32 bytes).
@@ -642,7 +642,7 @@ LINEAGE = LineageDefaults()
 REWORK_LEDGER = ReworkLedgerDefaults()
 COMPACTION = CompactionDefaults()
 
-# Module-level constant for direct import — preferred when only the
+# Module-level constant for direct import - preferred when only the
 # numeric cap is needed (no need to import the whole singleton).
 SCHEMA_RETRY_MAX_ATTEMPTS: int = SCHEMA_RETRY.max_attempts
 MCP_TOOL_SEARCH_ENABLED: bool = MCP_TOOL_SEARCH.enabled
@@ -653,7 +653,7 @@ ABSTRACT_DIFF_ENABLED: bool = True
 ABSTRACT_DIFF_MAX_FILES: int = 50
 
 # Per-model agent mode profiles (smart/deep/fast).  When ``False`` the
-# spawner skips preamble injection and tool filtering — useful as a kill
+# spawner skips preamble injection and tool filtering - useful as a kill
 # switch while the feature is rolled out.
 MODE_PROFILES_ENABLED: bool = True
 
@@ -746,7 +746,7 @@ def override(section: str, overrides: dict[str, Any]) -> None:
     """Apply runtime overrides from bernstein.yaml ``tuning:`` section.
 
     The targeted singleton is rebuilt via :func:`dataclasses.replace` and the
-    module-level attribute is rebound atomically — no mutation of the existing
+    module-level attribute is rebound atomically - no mutation of the existing
     frozen instance occurs.  For mapping fields, the override payload is merged
     with the current view (new keys win, omitted keys are preserved) and the
     merged result is re-wrapped in :class:`MappingProxyType` to keep the

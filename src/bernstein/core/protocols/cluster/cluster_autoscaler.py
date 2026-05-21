@@ -190,7 +190,7 @@ class ClusterAutoscaler:
             return decision
 
         if snapshot.node_count == 0:
-            # No nodes at all — must scale up to minimum
+            # No nodes at all - must scale up to minimum
             decision = ScaleDecision(
                 direction=ScaleDirection.UP,
                 current_nodes=0,
@@ -519,7 +519,7 @@ class KubernetesHPABackend(ScalingBackend):
 
 
 # ---------------------------------------------------------------------------
-# Autoscale executor — ties decisions to backends
+# Autoscale executor - ties decisions to backends
 # ---------------------------------------------------------------------------
 
 

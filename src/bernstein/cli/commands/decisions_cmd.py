@@ -1,9 +1,9 @@
-"""CLI command group: ``bernstein decisions`` — inspect the decision log.
+"""CLI command group: ``bernstein decisions`` - inspect the decision log.
 
 Subcommands:
 
-* ``tail`` — print the most recent decisions (default last 20).
-* ``search`` — filter by ``--kind`` and/or ``--since <duration>``.
+* ``tail`` - print the most recent decisions (default last 20).
+* ``search`` - filter by ``--kind`` and/or ``--since <duration>``.
 
 The ledger lives at ``.sdd/runtime/decisions.jsonl`` (override with
 ``--path``). Records are produced by

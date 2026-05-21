@@ -4,12 +4,12 @@ Posts and updates GitHub App check runs on pull requests so that Bernstein
 agent verification results appear as native status checks in the GitHub UI.
 
 Check run lifecycle:
-  1. ``create`` — called when a fix/QA task is picked up; status=in_progress
-  2. ``update`` — called when the task completes; status=completed + conclusion
+  1. ``create`` - called when a fix/QA task is picked up; status=in_progress
+  2. ``update`` - called when the task completes; status=completed + conclusion
 
 All operations degrade gracefully when the required environment variables
 (``GITHUB_APP_ID``, ``GITHUB_APP_PRIVATE_KEY``, ``GITHUB_INSTALLATION_ID``)
-are not set — the methods return ``None`` instead of raising.
+are not set - the methods return ``None`` instead of raising.
 
 GitHub API reference:
   https://docs.github.com/en/rest/checks/runs
@@ -79,7 +79,7 @@ class CheckRunClient:
             configured.
         """
         if not self._configured:
-            logger.debug("CheckRunClient not configured — skipping create")
+            logger.debug("CheckRunClient not configured - skipping create")
             return None
 
         body: dict[str, Any] = {
@@ -117,7 +117,7 @@ class CheckRunClient:
             ``CheckRunResult`` on success, ``None`` on error.
         """
         if not self._configured:
-            logger.debug("CheckRunClient not configured — skipping update")
+            logger.debug("CheckRunClient not configured - skipping update")
             return None
 
         body: dict[str, Any] = {

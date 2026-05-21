@@ -41,7 +41,7 @@ def clean_adapter_state() -> Generator[None, None, None]:
 
 
 # ---------------------------------------------------------------------------
-# build_agents_json() — unit tests
+# build_agents_json() - unit tests
 # ---------------------------------------------------------------------------
 
 
@@ -119,7 +119,7 @@ class TestBuildAgentsJson:
 
 
 # ---------------------------------------------------------------------------
-# _build_command() — --agents flag injection
+# _build_command() - --agents flag injection
 # ---------------------------------------------------------------------------
 
 
@@ -196,7 +196,7 @@ class TestBuildCommandAgentsFlag:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — end-to-end: --agents injected for known roles
+# spawn() - end-to-end: --agents injected for known roles
 # ---------------------------------------------------------------------------
 
 

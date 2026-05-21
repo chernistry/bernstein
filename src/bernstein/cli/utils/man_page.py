@@ -1,4 +1,4 @@
-"""Man page generator — creates troff-format man pages from Click CLI commands.
+"""Man page generator - creates troff-format man pages from Click CLI commands.
 
 Walks the Click command tree and produces one man page per command/subcommand
 in standard troff format suitable for ``man(1)``.

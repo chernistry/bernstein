@@ -1,6 +1,6 @@
 """Centralized git write operations for Bernstein.
 
-Single source of truth for all git mutations — commit, push, merge, revert,
+Single source of truth for all git mutations - commit, push, merge, revert,
 worktree lifecycle, and staging.  Every other module delegates here instead of
 calling ``subprocess.run(["git", ...])`` directly.
 

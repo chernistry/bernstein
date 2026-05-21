@@ -92,19 +92,19 @@ class TestQuadraticGrowth:
 
     def test_returns_false_for_linear_growth(self) -> None:
         monitor = TokenGrowthMonitor()
-        # Constant deltas of 100 — linear
+        # Constant deltas of 100 - linear
         monitor._history["s1"] = _make_history("s1", [100, 200, 300, 400])
         assert not monitor.is_quadratic_growth("s1")
 
     def test_detects_quadratic_growth(self) -> None:
         monitor = TokenGrowthMonitor(quadratic_ratio=2.0)
-        # Deltas: 100, 300 — second delta is 3x first → quadratic
+        # Deltas: 100, 300 - second delta is 3x first → quadratic
         monitor._history["s1"] = _make_history("s1", [100, 200, 500])
         assert monitor.is_quadratic_growth("s1")
 
     def test_no_false_positive_when_prev_delta_zero(self) -> None:
         monitor = TokenGrowthMonitor()
-        # Flat start then jump — prev delta zero, should not divide by zero
+        # Flat start then jump - prev delta zero, should not divide by zero
         monitor._history["s1"] = _make_history("s1", [100, 100, 500])
         # prev delta = 0, function should return False
         assert not monitor.is_quadratic_growth("s1")
@@ -201,7 +201,7 @@ class TestCheckTokenGrowth:
         s.spawn_ts = time.time()
         s.provider = provider
         s.tokens_used = 0
-        s.token_budget = 0  # unlimited — no nudge interference
+        s.token_budget = 0  # unlimited - no nudge interference
         s.context_window_tokens = 0
         s.context_utilization_pct = 0.0
         s.context_utilization_alert = False

@@ -1,7 +1,7 @@
 """Integration tests for the E2B sandbox backend (oai-002).
 
 Gated by ``E2B_API_KEY``; without credentials the suite skips. We do
-not actually start an E2B session in this ticket — that cost belongs
+not actually start an E2B session in this ticket - that cost belongs
 to future CI gates. The test here is a smoke test that the SDK loads
 and the backend class can be constructed. Conformance against a live
 E2B session runs in nightly paid integration, out of scope for this

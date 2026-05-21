@@ -1,4 +1,4 @@
-"""Scenario runner — execute YAML-defined eval scenarios against the live codebase.
+"""Scenario runner - execute YAML-defined eval scenarios against the live codebase.
 
 Each scenario is a small, deterministic task with a known correct outcome. The runner:
 1. Loads scenario definitions from YAML files.
@@ -206,7 +206,7 @@ class ScenarioBatchResult:
 
 
 # ---------------------------------------------------------------------------
-# Agent executor protocol — injectable for testing
+# Agent executor protocol - injectable for testing
 # ---------------------------------------------------------------------------
 
 
@@ -293,7 +293,7 @@ class ScenarioRunner:
         repo_root: Root of the repository. Defaults to ``Path(".")``.
         executor: Optional callable that runs the agent for each scenario.
             When ``None`` (default), signal evaluation is performed without
-            spawning an agent — useful for testing signal-check logic in
+            spawning an agent - useful for testing signal-check logic in
             isolation or for scenarios whose setup already produces the
             expected output.
         command_timeout: Timeout in seconds for individual shell commands
@@ -548,7 +548,7 @@ class ScenarioRunner:
             result = self.run_scenario_once(scenario, run_index=i)
             batch.runs.append(result)
             logger.info(
-                "[%s] run %d/%d — %s (%.2fs)",
+                "[%s] run %d/%d - %s (%.2fs)",
                 scenario.id,
                 i + 1,
                 runs,
@@ -684,7 +684,7 @@ class ScenarioRunner:
             logger.debug("Command timed out: %s", command[:80])
             return False
         except Exception as exc:
-            logger.debug("Command error: %s — %s", command[:80], exc)
+            logger.debug("Command error: %s - %s", command[:80], exc)
             return False
 
     def _check_import(self, module: str) -> bool:

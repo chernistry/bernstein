@@ -5,7 +5,7 @@ fails fast when two sources publish a skill with the same name. This is
 the central piece that makes progressive disclosure safe:
 
 - ``role_resolver`` asks the loader for a skill matching a role; if one
-  exists, its body is NOT injected into the prompt — only the index is.
+  exists, its body is NOT injected into the prompt - only the index is.
 - When an agent calls ``load_skill`` via MCP, the tool delegates to the
   loader to fetch the body / reference / script on demand.
 - Startup conflict detection prevents two plugins from silently shadowing
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 # Signature of ``read_reference`` / ``read_script`` on sources that support
 # on-demand file reads. Sources that can't serve bucketed files simply omit
-# the attribute — see the ``getattr(..., None)`` dance below. The return type
+# the attribute - see the ``getattr(..., None)`` dance below. The return type
 # is ``object`` so third-party plugin implementations cannot trick the static
 # checker into skipping the runtime string-validation in :func:`_call_reader`.
 _ReaderFn = Callable[[str, str], object]
@@ -217,7 +217,7 @@ def default_skills_root(templates_dir: object) -> object:
     """Return the conventional ``templates/skills`` path for a templates dir.
 
     The argument is typed loosely to avoid a circular dependency on
-    :mod:`pathlib` at module load — the caller always passes a ``Path``.
+    :mod:`pathlib` at module load - the caller always passes a ``Path``.
 
     Args:
         templates_dir: Path to ``templates/`` (e.g. ``templates/roles/``'s
@@ -237,14 +237,14 @@ def default_loader_from_templates(
     """Build a :class:`SkillLoader` from the conventional directory layout.
 
     Args:
-        templates_roles_dir: Path to ``templates/roles/`` — the loader looks
+        templates_roles_dir: Path to ``templates/roles/`` - the loader looks
             at the sibling ``skills/`` directory automatically.
         include_plugins: Whether to also load ``bernstein.skill_sources``
             entry points. Tests disable this to isolate behaviour.
 
     Returns:
         Configured :class:`SkillLoader`. When no skills dir exists and no
-        plugins are installed, the loader is empty — callers treat this as
+        plugins are installed, the loader is empty - callers treat this as
         "fall back to the legacy role template".
     """
     from pathlib import Path as _Path  # local import to keep top-level list short
@@ -270,7 +270,7 @@ def _resolve_reader(source: SkillSource, attr: str) -> _ReaderFn:
 
     We attach these methods by duck-typing (rather than adding new abstract
     methods on :class:`SkillSource`) so custom sources that cannot serve
-    bucketed files — a remote MCP source, for instance — can simply omit the
+    bucketed files - a remote MCP source, for instance - can simply omit the
     attribute. This helper centralises the lookup so the caller always sees
     a strictly typed ``Callable``.
 
@@ -297,7 +297,7 @@ def _resolve_reader(source: SkillSource, attr: str) -> _ReaderFn:
 def _call_reader(reader: _ReaderFn, name: str, path: str) -> str:
     """Invoke a bucket reader and validate the return type.
 
-    The call is unconditional here — :func:`_resolve_reader` has already
+    The call is unconditional here - :func:`_resolve_reader` has already
     guaranteed ``reader`` is callable. We still check the return type so a
     misbehaving plugin cannot smuggle a non-string back to the caller.
     """

@@ -72,7 +72,7 @@ def test_normalise_webhook_missing_repo_raises() -> None:
 
 
 def test_normalise_webhook_missing_login_raises() -> None:
-    """Missing user login is rejected — we need a reviewer to mention."""
+    """Missing user login is rejected - we need a reviewer to mention."""
     env = _webhook_envelope()
     inner = env["comment"]
     assert isinstance(inner, dict)

@@ -43,7 +43,7 @@ from bernstein.eval.scenario_generator import (
 _STOCK_IDS = ("cost_spike", "flaky_tests", "large_diff", "prompt_injection", "racing_workers", "slow_adapter")
 _SYN_ID_RE = re.compile(r"^syn-[0-9a-f]{12}$")
 
-# Bounded seeds — Hypothesis explores small + boundary + medium values.
+# Bounded seeds - Hypothesis explores small + boundary + medium values.
 _seeds = st.integers(min_value=0, max_value=2**31 - 1)
 _counts = st.integers(min_value=0, max_value=12)
 _scenarios = st.sampled_from(_STOCK_IDS)
@@ -247,7 +247,7 @@ def test_synthetic_case_yaml_round_trip(prompt: str, outcome: str) -> None:
 def test_distinct_seeds_yield_distinct_corpora(seeds: list[int]) -> None:
     """With unique seeds, at least one case must differ across seed sets."""
     corpora = [tuple(c.id for c in materialise("large_diff", count=4, seed=s)) for s in seeds]
-    # Pairwise inequality — different seeds → different corpora.
+    # Pairwise inequality - different seeds → different corpora.
     distinct = {c for c in corpora}
     assert len(distinct) >= 1  # always trivially true
     # And no single seed produces an empty corpus on a positive count.

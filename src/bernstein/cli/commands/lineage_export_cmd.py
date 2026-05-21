@@ -255,7 +255,7 @@ def render_html(rows: list[dict[str, Any]], *, run_id: str) -> str:
     parts.append("</tr></thead><tbody>")
     for row in rows:
         sig = row["customer_signature"]
-        sig_cell = f'<td class="sig"><code>{html.escape(sig[:24])}…</code></td>' if sig else '<td class="nosig">—</td>'
+        sig_cell = f'<td class="sig"><code>{html.escape(sig[:24])}…</code></td>' if sig else '<td class="nosig">-</td>'
         line_range = ""
         if row["output_line_start"] is not None and row["output_line_end"] is not None:
             line_range = f"{row['output_line_start']}-{row['output_line_end']}"
@@ -273,7 +273,7 @@ def render_html(rows: list[dict[str, Any]], *, run_id: str) -> str:
             f"<td>{html.escape(row['model'])}</td>"
             f"<td>{row['tokens']}</td>"
             f"<td>{row['cost_usd']:.4f}</td>"
-            f"<td>{html.escape(row['regulatory_class']) or '—'}</td>"
+            f"<td>{html.escape(row['regulatory_class']) or '-'}</td>"
             f"{sig_cell}"
             "</tr>"
         )

@@ -339,7 +339,7 @@ class TestSequentialFailures:
 
 
 # ---------------------------------------------------------------------------
-# TEST-005h: Failure injection matrix — each error path → correct category + strategy
+# TEST-005h: Failure injection matrix - each error path → correct category + strategy
 # ---------------------------------------------------------------------------
 
 

@@ -7,7 +7,7 @@ and prints a structured report. Exit codes:
   0 = log absent, OR all invariants pass.
   1 = at least one invariant failed.
 
-Designed for `.github/workflows/ci.yml` — the "Lineage Gate" required
+Designed for `.github/workflows/ci.yml` - the "Lineage Gate" required
 check shells into this script with no arguments.
 """
 

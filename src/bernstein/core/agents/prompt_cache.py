@@ -106,7 +106,7 @@ def mark_cacheable_sections(
     """
     blocks: list[PromptBlock] = []
 
-    # Static prefix — cacheable (same across agents of the same role)
+    # Static prefix - cacheable (same across agents of the same role)
     static_parts: list[str] = []
     if role_template:
         static_parts.append(role_template)
@@ -124,7 +124,7 @@ def mark_cacheable_sections(
             )
         )
 
-    # Dynamic suffix — NOT cacheable (changes per task)
+    # Dynamic suffix - NOT cacheable (changes per task)
     if task_instructions:
         blocks.append(
             PromptBlock(

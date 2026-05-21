@@ -18,7 +18,7 @@ from typing import Final
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Event-type constants — kept as a closed StrEnum-style block so callers
+# Event-type constants - kept as a closed StrEnum-style block so callers
 # import names instead of stringly-typing.  String values match the
 # regulatory-lineage / lethal-trifecta convention (UPPER_SNAKE).
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ _RESOURCE_NODE: Final[str] = "cluster_node"
 _RESOURCE_TASK: Final[str] = "cluster_task"
 _RESOURCE_SCALE: Final[str] = "cluster_scale"
 
-# Reasons for CLUSTER_NODE_LEFT.  Closed set — anything else is bucketed
+# Reasons for CLUSTER_NODE_LEFT.  Closed set - anything else is bucketed
 # under "unknown" before the audit entry is written.
 _KNOWN_LEAVE_REASONS: Final[frozenset[str]] = frozenset(
     {"graceful", "timeout", "unregistered"},
@@ -68,7 +68,7 @@ def _safe_log(
     """Append one event through the wired audit log; swallow errors.
 
     The cluster control plane must never crash because the audit sink is
-    misconfigured — we log at debug and move on.
+    misconfigured - we log at debug and move on.
     """
     log = _audit_log()
     if log is None:

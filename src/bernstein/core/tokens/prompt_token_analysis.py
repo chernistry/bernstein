@@ -3,9 +3,9 @@
 After a prompt is assembled from named sections in :mod:`spawn_prompt`, this
 module categorises each section into one of three buckets:
 
-- **system_prompt** — the role template / persona instructions
-- **context** — project state, lessons, rich context, predecessors
-- **user_prompt** — tasks, instructions, protocol boilerplate (git safety,
+- **system_prompt** - the role template / persona instructions
+- **context** - project state, lessons, rich context, predecessors
+- **user_prompt** - tasks, instructions, protocol boilerplate (git safety,
   heartbeat, signals, coordination, nudges, file ownership)
 
 It estimates the token count of each section, computes per-category totals and

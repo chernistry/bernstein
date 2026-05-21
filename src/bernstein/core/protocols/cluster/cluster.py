@@ -18,7 +18,7 @@ import socket
 import threading
 import time
 from contextlib import suppress
-from pathlib import Path  # noqa: TC003 — used at runtime in _load_persisted/_save
+from pathlib import Path  # noqa: TC003 - used at runtime in _load_persisted/_save
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -230,14 +230,14 @@ class NodeRegistry:
             if node.status == NodeStatus.ONLINE and not node.is_alive(timeout):
                 node.status = NodeStatus.OFFLINE
                 stale.append(node)
-                logger.warning("Node %s (%s) marked offline — no heartbeat for %ds", node.id, node.name, timeout)
+                logger.warning("Node %s (%s) marked offline - no heartbeat for %ds", node.id, node.name, timeout)
                 _audit.record_node_left(node.id, reason="timeout")
         if stale:
             self._sync_node_count_metrics()
         return stale
 
     # ------------------------------------------------------------------
-    # Observability — keep the cluster_nodes_total gauge in sync with the
+    # Observability - keep the cluster_nodes_total gauge in sync with the
     # registry's authoritative view.  Called from every mutation path.
     # ------------------------------------------------------------------
 

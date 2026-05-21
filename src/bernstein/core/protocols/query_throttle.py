@@ -1,4 +1,4 @@
-"""Background query throttling — tag API calls as foreground vs background.
+"""Background query throttling - tag API calls as foreground vs background.
 
 Implements T496:
 
@@ -40,10 +40,10 @@ class QueryPriority(enum.Enum):
     """Priority classification for API queries.
 
     FOREGROUND queries are task-critical: agent spawning, task completion,
-    task decomposition — the core orchestration loop depends on these.
+    task decomposition - the core orchestration loop depends on these.
 
     BACKGROUND queries are housekeeping: session memory updates, cache
-    warming, metrics export, bulletin board sync — these can be deferred
+    warming, metrics export, bulletin board sync - these can be deferred
     or dropped during provider overload.
     """
 
@@ -149,7 +149,7 @@ class QueryThrottle:
             bucket.last_failure_code = response_code
             bucket.last_failure_time = time.time()
 
-            # Detect overload status — triggers background suppression.
+            # Detect overload status - triggers background suppression.
             if response_code in _OVERLOAD_STATUS_CODES:
                 now = time.time()
                 if self._overload_detected_at is None:

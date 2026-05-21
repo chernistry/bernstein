@@ -6,7 +6,7 @@ testable, observable in metrics/logs, and easier to reason about than implicit
 branching scattered across `task_lifecycle.py`, `agent_lifecycle.py`, and
 `tick_pipeline.py`.
 
-The state machine itself holds no runtime state — callers track the current
+The state machine itself holds no runtime state - callers track the current
 state externally and call :func:`validate_transition` to check legality before
 acting.  Entry/exit hooks are supported via an optional callable registered
 through :func:`set_entry_hook` / :func:`set_exit_hook`.
@@ -47,7 +47,7 @@ class AgentTurnState(Enum):
     From ``FAILED`` the only valid exit is ``REAPED``.
     """
 
-    #: No active turn — the agent is idle or not yet assigned a task.
+    #: No active turn - the agent is idle or not yet assigned a task.
     IDLE = "idle"
 
     #: A task has been claimed and a worktree is being prepared.
@@ -82,7 +82,7 @@ class AgentTurnEvent(Enum):
     """Events that drive state transitions in the agent turn.
 
     Each event corresponds to a concrete observable action in the orchestrator
-    — e.g. a task claim, a process spawn, a tool call, a janitor result.
+    - e.g. a task claim, a process spawn, a tool call, a janitor result.
     """
 
     #: Task was claimed from the backlog / server.
@@ -119,7 +119,7 @@ class AgentTurnEvent(Enum):
 
 # Map of (source_state, event) -> target_state.
 # Terminal states (COMPLETING, FAILED, REAPED) have no outgoing transitions
-# here — callers should reset to IDLE after REAPED for a new turn.
+# here - callers should reset to IDLE after REAPED for a new turn.
 _VALID_TRANSITIONS: dict[tuple[AgentTurnState, AgentTurnEvent], AgentTurnState] = {
     # IDLE -> CLAIMING
     (AgentTurnState.IDLE, AgentTurnEvent.TASK_CLAIMED): AgentTurnState.CLAIMING,
@@ -179,7 +179,7 @@ class InvalidTransitionError(Exception):
 class AgentTurnStateMachine:
     """Validate transitions between agent turn states.
 
-    This class does *not* hold state internally — the caller tracks the current
+    This class does *not* hold state internally - the caller tracks the current
     :class:`AgentTurnState` and passes it to :meth:`transition`, which returns
     the new state on success or raises :exc:`InvalidTransitionError`.
 

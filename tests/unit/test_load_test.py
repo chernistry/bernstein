@@ -1,4 +1,4 @@
-"""Tests for the load-testing harness — percentiles, report building, formatting, thresholds."""
+"""Tests for the load-testing harness - percentiles, report building, formatting, thresholds."""
 
 from __future__ import annotations
 

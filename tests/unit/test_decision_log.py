@@ -45,7 +45,7 @@ def _enable_writer(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force-enable the writer for every test (defaults are on anyway).
 
     Defensive against developer shells that have BERNSTEIN_DECISION_LOG=0
-    exported globally — otherwise the whole suite silently passes by
+    exported globally - otherwise the whole suite silently passes by
     writing nothing.
     """
     monkeypatch.delenv(dl.ENV_DISABLE, raising=False)
@@ -91,7 +91,7 @@ def test_env_disable_constant() -> None:
 
 
 def test_max_alternatives_positive() -> None:
-    """The cap must be a positive int — zero would suppress all alternatives."""
+    """The cap must be a positive int - zero would suppress all alternatives."""
     assert dl.MAX_ALTERNATIVES > 0
 
 
@@ -351,7 +351,7 @@ def test_record_decision_rejects_confidence_above_one(tmp_ledger: Path) -> None:
 
 
 def test_record_decision_rejects_confidence_below_zero(tmp_ledger: Path) -> None:
-    """Negative confidence is nonsense — reject at the boundary."""
+    """Negative confidence is nonsense - reject at the boundary."""
     with pytest.raises(ValueError, match=r"confidence must be in"):
         dl.record_decision(kind="model_route", chosen="m", confidence=-0.1, path=tmp_ledger)
 
@@ -496,7 +496,7 @@ def test_iter_records_skips_blank_lines(tmp_ledger: Path) -> None:
 
 
 def test_iter_records_skips_malformed_lines(tmp_ledger: Path) -> None:
-    """Garbage lines are skipped, not raised — replay is best-effort."""
+    """Garbage lines are skipped, not raised - replay is best-effort."""
     dl.record_decision(kind="model_route", chosen="m1", path=tmp_ledger)
     with tmp_ledger.open("a", encoding="utf-8") as fh:
         fh.write("this is not json\n")
@@ -605,7 +605,7 @@ def test_filter_since_returns_only_recent() -> None:
 
 
 def test_filter_since_inclusive_boundary() -> None:
-    """The cutoff is inclusive — a record at the exact cutoff is kept."""
+    """The cutoff is inclusive - a record at the exact cutoff is kept."""
     records = [
         dl.DecisionRecord(
             ts=10.0, decision_id="a", kind="model_route", chosen="m", alternatives=(), confidence=0, rationale=""

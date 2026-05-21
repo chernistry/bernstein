@@ -1,4 +1,4 @@
-"""Release notes display — fetch and format CHANGELOG.md for terminal output.
+"""Release notes display - fetch and format CHANGELOG.md for terminal output.
 
 Provides ``fetch_release_notes()`` that retrieves the project changelog
 from a remote URL with timeout, falling back to a local CHANGELOG.md file

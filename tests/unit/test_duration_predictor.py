@@ -1,4 +1,4 @@
-"""Tests for ML-predicted task duration — feature extraction, training, inference."""
+"""Tests for ML-predicted task duration - feature extraction, training, inference."""
 
 from __future__ import annotations
 
@@ -158,7 +158,7 @@ class TestTaskFeatureExtractor:
 
 
 # ---------------------------------------------------------------------------
-# DurationPredictor — cold start
+# DurationPredictor - cold start
 # ---------------------------------------------------------------------------
 
 
@@ -192,7 +192,7 @@ class TestDurationPredictorColdStart:
 
 
 # ---------------------------------------------------------------------------
-# DurationPredictor — training data recording
+# DurationPredictor - training data recording
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ class TestDurationPredictorRecording:
 
 
 # ---------------------------------------------------------------------------
-# DurationPredictor — training
+# DurationPredictor - training
 # ---------------------------------------------------------------------------
 
 
@@ -324,7 +324,7 @@ class TestDurationPredictorTraining:
         # Train and save
         p1 = DurationPredictor(models_dir)
         p1.train()
-        # Load fresh instance — should reload from disk
+        # Load fresh instance - should reload from disk
         reset_predictor()
         p2 = DurationPredictor(models_dir)
         assert p2.is_trained
@@ -356,7 +356,7 @@ class TestDurationPredictorTraining:
 
 
 # ---------------------------------------------------------------------------
-# DurationPredictor — scikit-learn unavailable
+# DurationPredictor - scikit-learn unavailable
 # ---------------------------------------------------------------------------
 
 

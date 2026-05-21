@@ -2,7 +2,7 @@
 
 These hit the real :class:`AuditLog` so we can assert
 ``bernstein audit verify`` keeps its HMAC chain after every vault
-connect / read / revoke sequence — which is the v1.9 acceptance bar.
+connect / read / revoke sequence - which is the v1.9 acceptance bar.
 The keyring is mocked with an in-memory backend so no real keychain
 prompts appear during ``uv run`` test suites.
 """
@@ -70,7 +70,7 @@ def test_full_lifecycle_keeps_audit_chain_valid(
     fake = _MemKeyring()
     backend = KeyringBackend(service="bernstein-test", keyring_module=fake)
 
-    # 1. connect — emit an audit event for the write
+    # 1. connect - emit an audit event for the write
     backend.put(
         "github",
         StoredSecret(
@@ -89,7 +89,7 @@ def test_full_lifecycle_keeps_audit_chain_valid(
         audit_dir=isolated_audit,
     )
 
-    # 2. read — resolver path with the same audit dir
+    # 2. read - resolver path with the same audit dir
     monkeypatch.setattr(
         "bernstein.core.security.vault.audit.DEFAULT_AUDIT_DIR",
         isolated_audit,
@@ -103,7 +103,7 @@ def test_full_lifecycle_keeps_audit_chain_valid(
     assert resolution.found is True
     assert resolution.source == "vault"
 
-    # 3. revoke — emit the third event
+    # 3. revoke - emit the third event
     audit_event(
         action="revoke",
         provider_id="github",
@@ -121,7 +121,7 @@ def test_full_lifecycle_keeps_audit_chain_valid(
 
     events = log.query()
     actions = [e.event_type for e in events]
-    # We expect at least connect / read / revoke — the read may add a
+    # We expect at least connect / read / revoke - the read may add a
     # second event if open_vault_silent finds a backend, so use >=.
     assert "vault.connect" in actions
     assert "vault.read" in actions

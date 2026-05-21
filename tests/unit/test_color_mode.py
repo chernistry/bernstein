@@ -1,4 +1,4 @@
-"""Tests for color_mode — terminal color detection."""
+"""Tests for color_mode - terminal color detection."""
 
 from __future__ import annotations
 

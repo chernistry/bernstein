@@ -157,7 +157,7 @@ class JWTManager:
             raise ValueError("Invalid token header")
         header_dict = cast("dict[str, Any]", header_obj)
         alg_obj: object = header_dict.get("alg")
-        # Reject unsigned tokens explicitly — even if the configured
+        # Reject unsigned tokens explicitly - even if the configured
         # algorithm somehow matched, "none" means no signature was applied.
         if not isinstance(alg_obj, str) or alg_obj.lower() == "none":
             raise ValueError("Unsigned or missing alg in token header")
@@ -227,7 +227,7 @@ class TokenRefreshScheduler:
     _refresh_buffer: float = field(default=_REFRESH_BUFFER_SECONDS)
     _max_failures: int = field(default=_MAX_REFRESH_FAILURES)
 
-    # mutable state — do not set externally
+    # mutable state - do not set externally
     _token: str = field(init=False, default="")
     _payload: JWTPayload = field(init=False)
     _generation: int = field(init=False, default=0)
@@ -287,7 +287,7 @@ class TokenRefreshScheduler:
                 have occurred.
         """
         with self._lock:
-            if self._fail_count >= self._max_failures:  # _is_fatal inline — no re-entrant lock
+            if self._fail_count >= self._max_failures:  # _is_fatal inline - no re-entrant lock
                 raise TokenRefreshFatalError(
                     f"JWT refresh fatal: {self._fail_count} consecutive failures for session {self._session_id!r}"
                 )

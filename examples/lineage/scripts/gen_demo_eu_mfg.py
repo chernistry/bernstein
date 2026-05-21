@@ -114,7 +114,7 @@ EDITS: list[tuple[str, str, str]] = [
     (ARTEFACT, "agent:safety-threshold-bot", "final calibration: validated on 500 cycles"),
     (ANNEX3_DOC, "agent:annex-iii-docs-bot", "notified body audit response prepared"),
     (ARTEFACT, "agent:safety-threshold-bot", "release-candidate freeze for production"),
-    (ARTEFACT, "agent:hazard-review-bot", "final reviewer sign-off — ready for deployment"),
+    (ARTEFACT, "agent:hazard-review-bot", "final reviewer sign-off - ready for deployment"),
 ]
 
 

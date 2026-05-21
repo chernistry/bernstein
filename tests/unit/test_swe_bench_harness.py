@@ -1,4 +1,4 @@
-"""Unit tests for bernstein.benchmark.swe_bench — SWE-Bench evaluation harness."""
+"""Unit tests for bernstein.benchmark.swe_bench - SWE-Bench evaluation harness."""
 
 from __future__ import annotations
 
@@ -242,7 +242,7 @@ def test_save_results_writes_json(tmp_path: Path) -> None:
 
 def test_save_results_creates_output_directory(tmp_path: Path) -> None:
     sdd_dir = tmp_path / ".sdd"
-    # Do NOT create sdd_dir — save_results must create it
+    # Do NOT create sdd_dir - save_results must create it
     results = [InstanceResult("x", True, 0.01, 5.0, 1, 0, None)]
     report = compute_report(results)
     out_path = save_results(report, sdd_dir)
@@ -257,7 +257,7 @@ def test_save_results_path_is_under_benchmark_dir(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# SWEBenchRunner — construction
+# SWEBenchRunner - construction
 # ---------------------------------------------------------------------------
 
 
@@ -279,7 +279,7 @@ def test_swe_bench_runner_constructs_with_instance_id(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# SWEBenchRunner — filter_instances
+# SWEBenchRunner - filter_instances
 # ---------------------------------------------------------------------------
 
 
@@ -320,7 +320,7 @@ def test_filter_instances_sample_larger_than_list(tmp_path: Path, sample_instanc
 
 
 # ---------------------------------------------------------------------------
-# SWEBenchRunner — build_goal
+# SWEBenchRunner - build_goal
 # ---------------------------------------------------------------------------
 
 
@@ -344,7 +344,7 @@ def test_build_goal_contains_failing_tests(tmp_path: Path, sample_instance: SWEI
 
 
 # ---------------------------------------------------------------------------
-# SWEBenchRunner — evaluate_patch (no subprocess, pure logic)
+# SWEBenchRunner - evaluate_patch (no subprocess, pure logic)
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +366,7 @@ def test_evaluate_patch_returns_false_for_empty_patch(tmp_path: Path, sample_ins
 
 
 # ---------------------------------------------------------------------------
-# SWEBenchRunner — run_instance (mocked)
+# SWEBenchRunner - run_instance (mocked)
 # ---------------------------------------------------------------------------
 
 

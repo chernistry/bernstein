@@ -1,4 +1,4 @@
-"""Tests for compaction pipeline — pure stages, mock plugin manager."""
+"""Tests for compaction pipeline - pure stages, mock plugin manager."""
 
 from __future__ import annotations
 

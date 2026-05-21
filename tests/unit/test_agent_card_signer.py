@@ -1,4 +1,4 @@
-"""Tests for ``agent_card_signer`` — JWS over JCS, EdDSA."""
+"""Tests for ``agent_card_signer`` - JWS over JCS, EdDSA."""
 
 from __future__ import annotations
 
@@ -250,7 +250,7 @@ class TestEd25519PublicJWK:
 
     def test_jwk_round_trips_through_cryptography(self) -> None:
         """The JWK ``x`` must reconstruct an Ed25519PublicKey byte-identical
-        to the SPKI input — this is what verifiers do at runtime.
+        to the SPKI input - this is what verifiers do at runtime.
         """
         from base64 import urlsafe_b64decode
 

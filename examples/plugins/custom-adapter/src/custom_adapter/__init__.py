@@ -1,4 +1,4 @@
-"""custom-adapter — claude-mock adapter for offline CI dev.
+"""custom-adapter - claude-mock adapter for offline CI dev.
 
 Worked example of the bernstein adapter extension point. The package
 contributes a :class:`ClaudeMockAdapter` that returns deterministic,

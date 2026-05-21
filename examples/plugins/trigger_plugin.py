@@ -4,7 +4,7 @@ Demonstrates how to add a new event source that feeds tasks into Bernstein.
 Trigger sources normalize raw webhook payloads into TriggerEvent objects,
 which the orchestrator turns into tasks.
 
-Usage — wire up in your WSGI/ASGI app:
+Usage - wire up in your WSGI/ASGI app:
 
     from examples.plugins.trigger_plugin import JiraTriggerSource
 

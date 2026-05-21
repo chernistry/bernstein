@@ -106,7 +106,7 @@ def _sync_agency_github(provider_cls: type, *, force: bool) -> None:
     agency_agents = asyncio.run(provider.fetch_agents())
     console.print(f"  [green]✓[/green] {len(agency_agents)} specialist agent(s) available")
     for a in agency_agents[:5]:
-        caps = ", ".join(a.capabilities[:3]) if a.capabilities else "—"
+        caps = ", ".join(a.capabilities[:3]) if a.capabilities else "-"
         console.print(f"    [dim]{a.name}[/dim] ({a.role})  {caps}")
     if len(agency_agents) > 5:
         console.print(f"    [dim]… and {len(agency_agents) - 5} more[/dim]")
@@ -268,7 +268,7 @@ def agents_list(source: str, definitions_dir: str, identities: bool, identity_st
         table.add_row(
             name,
             role,
-            caps or "[dim]—[/dim]",
+            caps or "[dim]-[/dim]",
             f"[{src_color}]{src}[/{src_color}]",
         )
 
@@ -358,7 +358,7 @@ def _validate_agency_catalog(issues: list[str]) -> None:
 
 def _format_metrics(m: Any) -> tuple[str, str]:
     """Format metrics for a source into (assigned_count, rate_string)."""
-    rate = f"{m.success_rate * 100:.0f}%" if m and m.tasks_assigned else "—"
+    rate = f"{m.success_rate * 100:.0f}%" if m and m.tasks_assigned else "-"
     assigned = str(m.tasks_assigned) if m else "0"
     return assigned, rate
 
@@ -432,7 +432,7 @@ def agents_showcase(definitions_dir: str) -> None:
     source_order = {"agency": 0, "local": 1, "builtin": 2}
     rows.sort(key=lambda r: (source_order.get(r[3], 9), r[1], r[0]))
 
-    # Identify "featured" agents — top success rates with >= 3 tasks
+    # Identify "featured" agents - top success rates with >= 3 tasks
     top_sources = {m.source for m in discovery.top_sources(min_tasks=3)}
 
     table = Table(
@@ -455,7 +455,7 @@ def agents_showcase(definitions_dir: str) -> None:
         table.add_row(
             name_text,
             role,
-            desc or "[dim]—[/dim]",
+            desc or "[dim]-[/dim]",
             f"[{src_color}]{src}[/{src_color}]",
             assigned,
             rate,
@@ -513,13 +513,13 @@ def agents_match(role: str, task_description: str) -> None:
     t.append("  Name      ", style="dim")
     t.append(f"{match.name}\n", style=_STYLE_BOLD_CYAN)
     t.append("  ID        ", style="dim")
-    t.append(f"{match.id or '—'}\n")
+    t.append(f"{match.id or '-'}\n")
     t.append("  Source    ", style="dim")
     t.append(f"{match.source}\n")
     t.append("  Priority  ", style="dim")
     t.append(f"{match.priority}\n")
     t.append("  Tools     ", style="dim")
-    t.extend((", ".join(match.tools) if match.tools else "—", "\n\n"))
+    t.extend((", ".join(match.tools) if match.tools else "-", "\n\n"))
     t.append("  Description\n", style="dim")
     t.append(f"    {match.description[:120]}\n")
 
@@ -558,7 +558,7 @@ def agents_sandbox_backends() -> None:
 
     for backend in sorted(backends, key=lambda b: b.name):
         caps = ", ".join(sorted(c.value for c in backend.capabilities))
-        table.add_row(backend.name, caps or "[dim]—[/dim]")
+        table.add_row(backend.name, caps or "[dim]-[/dim]")
 
     console.print(table)
     console.print(f"\n[dim]{len(backends)} backend(s) installed[/dim]")

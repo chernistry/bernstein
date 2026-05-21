@@ -4,7 +4,7 @@ The bulletin board is the shared communication channel between cells.
 Agents post messages (alerts, blockers, findings, status updates, dependency
 declarations) and read messages posted since their last check.
 
-Also provides the MessageBoard for agent-to-agent delegation — structured
+Also provides the MessageBoard for agent-to-agent delegation - structured
 requests where one agent asks another (by role/capability) to perform work
 and optionally waits for a response.
 """
@@ -45,7 +45,7 @@ class AgentStatusNotification:
     Attributes:
         agent_id: Unique agent session identifier.
         task_id: Task the agent was working on.
-        status: Terminal status — "completed", "failed", or "killed".
+        status: Terminal status - "completed", "failed", or "killed".
         summary: Human-readable outcome text.
         result: Optional machine-readable result payload (JSON serialisable).
         usage_tokens: Total tokens consumed during the run.

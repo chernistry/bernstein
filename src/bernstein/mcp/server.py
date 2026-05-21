@@ -5,18 +5,18 @@ Exposes Bernstein's orchestration layer as MCP tools so any MCP client
 through Bernstein.
 
 Transport:
-    stdio  — for local IDE integration (default ``bernstein mcp``)
-    sse    — for remote/web integration (``bernstein mcp --transport sse``)
+    stdio  - for local IDE integration (default ``bernstein mcp``)
+    sse    - for remote/web integration (``bernstein mcp --transport sse``)
 
 Tools:
-    bernstein_run     — start an orchestration run with a goal
-    bernstein_status  — get task counts summary
-    bernstein_tasks   — list tasks with optional status filter
-    bernstein_cost    — get cost summary across all roles
-    bernstein_stop    — graceful shutdown (writes SHUTDOWN signal)
-    bernstein_approve — approve a pending/blocked task
-    bernstein_health  — liveness check (always succeeds)
-    load_skill        — load a skill pack body / reference / script (oai-004)
+    bernstein_run     - start an orchestration run with a goal
+    bernstein_status  - get task counts summary
+    bernstein_tasks   - list tasks with optional status filter
+    bernstein_cost    - get cost summary across all roles
+    bernstein_stop    - graceful shutdown (writes SHUTDOWN signal)
+    bernstein_approve - approve a pending/blocked task
+    bernstein_health  - liveness check (always succeeds)
+    load_skill        - load a skill pack body / reference / script (oai-004)
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def _auth_headers() -> dict[str, str]:
 def _error_response(exc: Exception, *, hint: str = "Task server may be restarting") -> str:
     """Return a JSON error string instead of letting the exception propagate.
 
-    This keeps the MCP server alive — a crashed tool handler on stdio
+    This keeps the MCP server alive - a crashed tool handler on stdio
     transport means all Bernstein tools are lost for the rest of the
     agent session (no reconnect).
     """
@@ -116,7 +116,7 @@ def _register_health_tool(mcp: FastMCP[None]) -> None:
     @mcp.tool()
     async def bernstein_health(  # pyright: ignore[reportUnusedFunction]
     ) -> str:
-        """Liveness check — always succeeds if the MCP server is running.
+        """Liveness check - always succeeds if the MCP server is running.
 
         Use this to verify the Bernstein MCP connection is still alive.
 
@@ -144,8 +144,8 @@ def _register_query_tools(mcp: FastMCP[None], server_url: str) -> None:
             goal: Description of what you want Bernstein to accomplish.
             role: Specialist role to assign (backend, frontend, qa, security, …).
             priority: 1=critical, 2=normal, 3=nice-to-have.
-            scope: Task scope — small, medium, or large.
-            complexity: Task complexity — low, medium, or high.
+            scope: Task scope - small, medium, or large.
+            complexity: Task complexity - low, medium, or high.
             estimated_minutes: Rough time estimate in minutes.
 
         Returns:
@@ -210,7 +210,7 @@ def _register_query_tools(mcp: FastMCP[None], server_url: str) -> None:
         """List tasks from the Bernstein server.
 
         Args:
-            status: Optional filter — open, claimed, in_progress, done,
+            status: Optional filter - open, claimed, in_progress, done,
                 failed, blocked, or cancelled.
 
         Returns:
@@ -291,7 +291,7 @@ def _register_action_tools(mcp: FastMCP[None], server_url: str) -> None:
     ) -> str:
         """Approve a pending or blocked task, marking it complete.
 
-        This is used for approval gates — when a task is awaiting human
+        This is used for approval gates - when a task is awaiting human
         sign-off before proceeding.
 
         Args:
@@ -342,8 +342,8 @@ def _register_action_tools(mcp: FastMCP[None], server_url: str) -> None:
             goal: Description of what the subtask should accomplish.
             role: Specialist role to assign (backend, frontend, qa, …).
             priority: 1=critical, 2=normal, 3=nice-to-have.
-            scope: Task scope — small, medium, or large.
-            complexity: Task complexity — low, medium, or high.
+            scope: Task scope - small, medium, or large.
+            complexity: Task complexity - low, medium, or high.
             estimated_minutes: Rough time estimate in minutes.
 
         Returns:
@@ -419,9 +419,9 @@ def _register_skill_tools(mcp: FastMCP[None]) -> None:
 
         Args:
             name: Skill name (matches the index entry, e.g. ``"backend"``).
-            reference: Optional filename under ``references/`` — for
+            reference: Optional filename under ``references/`` - for
                 example ``"python-conventions.md"``.
-            script: Optional filename under ``scripts/`` — for example
+            script: Optional filename under ``scripts/`` - for example
                 ``"lint.sh"``. The script content is returned as text; the
                 MCP harness does not execute it.
 

@@ -1,4 +1,4 @@
-"""Tests for HOOK-001 — hook event taxonomy (hook_events.py)."""
+"""Tests for HOOK-001 - hook event taxonomy (hook_events.py)."""
 
 from __future__ import annotations
 
@@ -395,7 +395,7 @@ class TestBlockingHookPayload:
 
 
 class TestEmitSiteParity:
-    """audit-152 — every task/agent/merge emit site must use HookEvent values.
+    """audit-152 - every task/agent/merge emit site must use HookEvent values.
 
     These regression tests ensure that when a module fires a task / agent /
     merge hook it goes through ``HookEvent.<MEMBER>.value`` (or a constant

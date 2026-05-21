@@ -3,9 +3,9 @@
 The heavy-lifting helpers for MCP config merging, cache-control block
 construction, and the inline wrapper-script source live in three sibling
 modules extracted by
-* :mod:`bernstein.adapters.claude_mcp_loader` — ``load_mcp_config`` / ``_resolve_env_vars``
-* :mod:`bernstein.adapters.claude_cache_control` — ``build_cacheable_system_blocks``
-* :mod:`bernstein.adapters.claude_wrapper_script` — ``build_wrapper_script``
+* :mod:`bernstein.adapters.claude_mcp_loader` - ``load_mcp_config`` / ``_resolve_env_vars``
+* :mod:`bernstein.adapters.claude_cache_control` - ``build_cacheable_system_blocks``
+* :mod:`bernstein.adapters.claude_wrapper_script` - ``build_wrapper_script``
 
 They are re-exported from this module so existing callers (and tests
 that patch symbols via ``bernstein.adapters.claude.<name>``) continue to
@@ -21,7 +21,7 @@ import os
 import subprocess
 import sys
 import time
-from collections.abc import Mapping  # noqa: TC003 — runtime use in ClassVar annotations
+from collections.abc import Mapping  # noqa: TC003 - runtime use in ClassVar annotations
 from pathlib import Path
 from typing import Any, ClassVar, cast
 
@@ -50,7 +50,7 @@ from bernstein.core.platform_compat import kill_process_group_graceful, process_
 
 # task-budgets-2026-03-13 propagation. Inlined (rather than imported from
 # ``bernstein.core.cost.budget_countdown``) to keep this adapter free of
-# scheduler-internal transitive dependencies — see ``.importlinter``
+# scheduler-internal transitive dependencies - see ``.importlinter``
 # contract ``adapters-no-scheduler``. Source of truth for both constants
 # is :mod:`bernstein.core.cost.budget_countdown` / :mod:`bernstein.core.security.agent_identity`.
 _TASK_BUDGETS_OPT_IN_ENV: str = "BERNSTEIN_ANTHROPIC_TASK_BUDGETS"
@@ -77,7 +77,7 @@ _MODEL_MAP: dict[str, str] = {
     "haiku": "claude-haiku-4-5-20251001",
 }
 
-# JSON schema for structured agent output — enforced via --json-schema so
+# JSON schema for structured agent output - enforced via --json-schema so
 # the result is always machine-parseable by the orchestrator.
 _RESULT_SCHEMA = json.dumps(
     {
@@ -130,7 +130,7 @@ class ClaudeCodeAdapter(CLIAdapter):
     _procs: ClassVar[dict[int, subprocess.Popen[bytes]]] = {}
     _wrapper_pids: ClassVar[dict[int, int]] = {}  # claude_pid → wrapper_pid
 
-    # Tool allowlists by role — agents only get the tools they need.
+    # Tool allowlists by role - agents only get the tools they need.
     # Reduces attack surface and prevents agents from using tools outside
     # their scope (e.g. qa agent shouldn't use Write to create new files).
     _ROLE_ALLOWED_TOOLS: ClassVar[dict[str, str]] = {
@@ -156,15 +156,15 @@ class ClaudeCodeAdapter(CLIAdapter):
         """
         now = time.time()
 
-        # Active cooldown — provider is known rate-limited.
+        # Active cooldown - provider is known rate-limited.
         if now < self._rate_limit_until:
             return True
 
-        # Cached negative result — recently checked and was fine.
+        # Cached negative result - recently checked and was fine.
         if now - self._rate_limit_checked_at < _RATE_LIMIT_CACHE_TTL:
             return False
 
-        # Probe with a real API call — `claude --version` doesn't hit the API
+        # Probe with a real API call - `claude --version` doesn't hit the API
         # and can't detect account-level rate limits like "You've hit your limit".
         try:
             result = subprocess.run(
@@ -311,7 +311,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         if agents_json:
             cmd.extend(["--agents", json.dumps(agents_json)])
 
-        # Per-task budget cap — scope-aware to avoid killing large tasks mid-work.
+        # Per-task budget cap - scope-aware to avoid killing large tasks mid-work.
         # Opus models get a 2x multiplier because their tokens cost ~2x more.
         # Retry budget_multiplier (e.g. 2.0 after budget-cap failure) stacks on top.
         base_budget = self._SCOPE_BUDGET_USD.get(task_scope, 5.0)
@@ -542,7 +542,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         # cover the full research → decompose → spawn-workers → track lifecycle.
         batch_mode = prompt.lstrip().startswith("/batch")
         if batch_mode:
-            _logger.info("Batch mode detected for session %s — using %d max-turns", session_id, self.BATCH_MAX_TURNS)
+            _logger.info("Batch mode detected for session %s - using %d max-turns", session_id, self.BATCH_MAX_TURNS)
 
         agents_json = build_agents_json(role)
         cmd = self._build_command(
@@ -623,7 +623,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         return result
 
     def is_alive(self, pid: int) -> bool:
-        # Use poll() to detect zombies — process_alive can't
+        # Use poll() to detect zombies - process_alive can't
         proc = self._procs.get(pid)
         if proc is not None:
             return proc.poll() is None
@@ -633,13 +633,13 @@ class ClaudeCodeAdapter(CLIAdapter):
     def kill(self, pid: int) -> None:
         # The claude process is spawned with start_new_session=True, so
         # its PID equals its PGID.  Use the PID directly as PGID instead
-        # of os.getpgid() which fails when the process is already dead —
+        # of os.getpgid() which fails when the process is already dead -
         # this ensures we kill the entire session group including any
         # child processes (the actual claude CLI) that outlive the wrapper.
         #
         # ``kill_process_group_graceful`` sends SIGTERM, polls briefly, and
         # escalates to SIGKILL if the group is still alive.  Without the
-        # escalation, agents that trap SIGTERM survive reap paths — see
+        # escalation, agents that trap SIGTERM survive reap paths - see
         # .
         kill_process_group_graceful(pid)
         # Also kill the wrapper process with the same TERM→KILL escalation

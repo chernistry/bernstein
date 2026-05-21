@@ -1,6 +1,6 @@
 """Auto-decomposition and conflict resolution for tasks.
 
-Extracted from task_lifecycle.py — contains should_auto_decompose,
+Extracted from task_lifecycle.py - contains should_auto_decompose,
 auto_decompose_task, and create_conflict_resolution_task.
 """
 
@@ -97,11 +97,11 @@ def create_conflict_resolution_task(
     files_list = "\n".join(f"- {f}" for f in conflicting_files)
     description = (
         f"A merge conflict was detected when merging the work of agent session "
-        f"`{session_id}` (task: {conflicting_task.id} — {conflicting_task.title!r}).\n\n"
+        f"`{session_id}` (task: {conflicting_task.id} - {conflicting_task.title!r}).\n\n"
         f"## Conflicting files\n{files_list}\n\n"
         f"## Your job\n"
         f"1. For each conflicting file, read the conflict markers and understand both sides\n"
-        f"2. Resolve each conflict — preserve intent from both sides where possible\n"
+        f"2. Resolve each conflict - preserve intent from both sides where possible\n"
         f"3. After resolving all conflicts, run tests to verify correctness\n"
         f"4. Stage all resolved files and commit with a message explaining what was kept\n\n"
         f"Original task description:\n{conflicting_task.description}\n"

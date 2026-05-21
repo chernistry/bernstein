@@ -33,7 +33,7 @@ AUTO_RISK_LEVELS: frozenset[str] = frozenset(
     }
 )
 
-# Focus area rotation — creative_vision runs every 4th cycle.
+# Focus area rotation - creative_vision runs every 4th cycle.
 # Agents write proposals to .sdd/evolution/creative/pending_proposals.jsonl;
 # the loop picks them up on creative_vision turns.
 FOCUS_ROTATION: tuple[str, ...] = (

@@ -128,7 +128,7 @@ class TestFormatNotesSnapshot:
         assert (
             "https://bernstein.run/changelog?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0" in body
         )
-        # github.com compare link is left raw — different domain.
+        # github.com compare link is left raw - different domain.
         assert "**Full changelog:** https://github.com/sipyourdrink-ltd/bernstein/compare/v0.0.0-pre...v0.0.0" in body
         # No double-tagging anywhere in the snapshot.
         assert body.count("utm_source=") == body.count("utm_source=github.com&utm_medium=release-note")

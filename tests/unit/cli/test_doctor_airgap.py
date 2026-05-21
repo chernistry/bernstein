@@ -165,7 +165,7 @@ def test_doctor_airgap_cli_simulates_airgap_when_env_unset(monkeypatch: pytest.M
     assert "simulated" in result.output.lower()
 
     # And the env vars / socket guard must be exactly as they were
-    # before the doctor ran — no leakage into the operator's process.
+    # before the doctor ran - no leakage into the operator's process.
     assert ENV_PROFILE_MODE not in os.environ or os.environ.get(ENV_PROFILE_MODE, "") == ""
     assert ENV_NETWORK_POLICY not in os.environ or os.environ.get(ENV_NETWORK_POLICY, "") == ""
     assert not is_runtime_socket_guard_installed(), (

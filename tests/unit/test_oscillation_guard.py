@@ -85,7 +85,7 @@ class TestResolveMax:
 
 
 # ---------------------------------------------------------------------------
-# OscillationGuard — consecutive-cycle confirmation
+# OscillationGuard - consecutive-cycle confirmation
 # ---------------------------------------------------------------------------
 
 
@@ -106,7 +106,7 @@ class TestConsecutiveCycleConfirmation:
     def test_different_content_resets_confirmation(self) -> None:
         guard = OscillationGuard()
         guard.evaluate(_make(to_content="A"))
-        # Different content — new pending track.
+        # Different content - new pending track.
         result_b = guard.evaluate(_make(to_content="B"))
         assert result_b.verdict == OscillationVerdict.PENDING_CONFIRMATION
         # A's pending state has not advanced.
@@ -131,7 +131,7 @@ class TestConsecutiveCycleConfirmation:
         guard = OscillationGuard()
         guard.evaluate(_make(prompt_name="judge", to_content="A"))
         result = guard.evaluate(_make(prompt_name="manager", to_content="A"))
-        # Different prompts, same content — manager is fresh pending.
+        # Different prompts, same content - manager is fresh pending.
         assert result.verdict == OscillationVerdict.PENDING_CONFIRMATION
 
     def test_pending_count_tracked(self) -> None:
@@ -184,7 +184,7 @@ class TestFlipBack:
         guard.record_applied(_make(to_content="B"))
         guard.record_applied(_make(to_content="C"))  # evicts A
         result = guard.evaluate(_make(to_content="A"))
-        # A is no longer in the window — A→B→C→A is not a "flip back to A"
+        # A is no longer in the window - A→B→C→A is not a "flip back to A"
         # because A's history was forgotten.
         assert result.verdict != OscillationVerdict.REJECTED_FLIP_BACK
 
@@ -200,7 +200,7 @@ class TestFlipBack:
         guard = OscillationGuard()
         guard.record_applied(_make(prompt_name="judge", to_content="A"))
         guard.record_applied(_make(prompt_name="judge", to_content="B"))
-        # Same content but different prompt — not a flip-back.
+        # Same content but different prompt - not a flip-back.
         result = guard.evaluate(_make(prompt_name="manager", to_content="A"))
         assert result.verdict != OscillationVerdict.REJECTED_FLIP_BACK
 
@@ -217,7 +217,7 @@ class TestSessionCap:
             r = guard.evaluate(_make(to_content=c))
             assert r.verdict == OscillationVerdict.ACCEPTED, f"#{i}"
             guard.record_applied(_make(to_content=c))
-        # 4th — capped.
+        # 4th - capped.
         r4 = guard.evaluate(_make(to_content="D"))
         assert r4.verdict == OscillationVerdict.REJECTED_SESSION_CAP
         assert "session_cap" in r4.reason

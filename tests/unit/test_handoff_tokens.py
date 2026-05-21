@@ -2,9 +2,9 @@
 
 Coverage targets the ticket's three required scenarios:
 
-* token TTL — expired tokens cannot be claimed and are swept on load,
-* duplicate claim — a second claim raises ``HandoffClaimError``,
-* missing session / unknown token — ``HandoffUnknownTokenError``.
+* token TTL - expired tokens cannot be claimed and are swept on load,
+* duplicate claim - a second claim raises ``HandoffClaimError``,
+* missing session / unknown token - ``HandoffUnknownTokenError``.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def test_expired_token_cannot_be_claimed(tmp_path: Path) -> None:
 
 
 def test_session_id_required(tmp_path: Path) -> None:
-    """Issuing without a session_id is rejected — protects against silent corruption."""
+    """Issuing without a session_id is rejected - protects against silent corruption."""
     store, _ = _store(tmp_path)
     with pytest.raises(ValueError):
         store.issue(session_id="")

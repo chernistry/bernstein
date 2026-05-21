@@ -1,10 +1,10 @@
 """Bernstein self-evolution system.
 
 Risk-stratified architecture:
-  L0 (Config)     — auto-apply after schema check
-  L1 (Templates)  — sandbox A/B test, auto-apply if metrics improve
-  L2 (Logic)      — git worktree + tests + PR + human review
-  L3 (Structural) — NEVER auto-apply, human only
+  L0 (Config)     - auto-apply after schema check
+  L1 (Templates)  - sandbox A/B test, auto-apply if metrics improve
+  L2 (Logic)      - git worktree + tests + PR + human review
+  L3 (Structural) - NEVER auto-apply, human only
 
 Safety-critical modules (janitor, server, orchestrator, invariants, circuit)
 are hash-locked and cannot be modified by the evolution system.
@@ -339,7 +339,7 @@ class EvolutionCoordinator:
                     self._applied_upgrades.append(proposal)
                     executed.append(proposal)
                 else:
-                    # Execution failed — attempt rollback
+                    # Execution failed - attempt rollback
                     if self.executor.rollback_upgrade(proposal):
                         proposal.status = UpgradeStatus.ROLLED_BACK
                     else:

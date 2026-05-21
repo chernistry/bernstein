@@ -200,7 +200,7 @@ def test_card_renders_at_80_columns() -> None:
 
 
 # ---------------------------------------------------------------------------
-# print_summary_card — smoke test (no assertion on output, just no error)
+# print_summary_card - smoke test (no assertion on output, just no error)
 # ---------------------------------------------------------------------------
 
 

@@ -849,6 +849,8 @@ def cli(
         # Bot-added: drift autofix (regen_contract_drift.py)
         criterion_profile=None,
         max_blast_radius=None,
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        attach=(),
     )
 
 

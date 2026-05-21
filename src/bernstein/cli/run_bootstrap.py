@@ -1124,6 +1124,20 @@ def exec_restart() -> None:
         "score 1.0. Off by default; existing runs are unaffected."
     ),
 )
+@click.option(
+    "--attach",
+    "attach",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    multiple=True,
+    default=(),
+    help=(
+        "Attach an image / diagram to the run (issue #1797). May be repeated "
+        "for multiple files. The orchestrator builds a MultiModalContext at "
+        "spawn time, records a multimodal.attach event in the audit chain, "
+        "and refuses adapters that do not advertise multimodal capability. "
+        "Capable adapters: claude, gemini."
+    ),
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -1165,6 +1179,7 @@ def run(
     retry_budget_spec: str | None = None,
     criterion_profile: str | None = None,
     max_blast_radius: float | None = None,
+    attach: tuple[Path, ...] = (),
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -1214,6 +1229,7 @@ def run(
             retry_budget_spec=retry_budget_spec,
             criterion_profile=criterion_profile,
             max_blast_radius=max_blast_radius,
+            attach=attach,
         )
     except (click.UsageError, SystemExit):
         raise
@@ -1263,6 +1279,7 @@ def _run_impl(
     retry_budget_spec: str | None,
     criterion_profile: str | None,
     max_blast_radius: float | None,
+    attach: tuple[Path, ...] = (),
 ) -> None:
     """Concrete ``run`` implementation; wrapped by :func:`run` for hinting.
 
@@ -1323,6 +1340,35 @@ def _run_impl(
         except CriterionProfileError as exc:
             raise click.UsageError(f"--criterion-profile {criterion_profile!r}: {exc}") from None
         os.environ["BERNSTEIN_RUN_CRITERION_PROFILE"] = criterion_profile
+
+    # Issue #1797: capability-gate ``--attach`` BEFORE any process is
+    # launched. When the operator selected an adapter that does not
+    # advertise multimodal capability, surface a structured error that
+    # names capable adapters instead of spawning the run and failing
+    # mid-flight.
+    if attach:
+        from bernstein.core.agents.multimodal_attestation import (
+            CapabilityRefusal,
+            refuse_when_incapable,
+        )
+
+        # ``cli`` may be ``None`` (auto-detect) or "auto". When the
+        # operator has not pinned an adapter, only refuse if every
+        # candidate is incapable; with "claude" / "gemini" auto-detect
+        # is allowed.
+        explicit_adapter = (cli or "").strip().lower()
+        if explicit_adapter and explicit_adapter not in {"", "auto"}:
+            try:
+                refuse_when_incapable(
+                    adapter_name=explicit_adapter,
+                    attachments=[str(p) for p in attach],
+                )
+            except CapabilityRefusal as exc:
+                raise click.UsageError(f"--attach requires a multimodal-capable adapter. {exc!s}") from None
+        # Stash the attachments for downstream consumers via env var so
+        # the orchestrator subprocess can pick them up without
+        # additional argument threading.
+        os.environ["BERNSTEIN_RUN_ATTACHMENTS"] = os.pathsep.join(str(p) for p in attach)
 
     # Issue #1320: ``--budget`` is the friendlier alias of ``--max-cost-usd``
     # and shares the same env var. When both are set, the operator's

@@ -251,6 +251,21 @@ def _parse_step(
     raw_signals: list[object] = list(step.get("completion_signals") or [])
     signals = _parse_completion_signals(raw_signals)
     owned_files: list[str] = [str(f) for f in (step.get("files") or [])]
+    # Issue #1797: operator-supplied image attachments. The orchestrator
+    # builds a MultiModalContext at spawn time from these paths.
+    # Reject scalar / non-list shapes so a YAML typo like
+    # ``attachments: ./shot.png`` does not silently iterate the string
+    # character-by-character. (bot-ack: 3284182784 -- CodeRabbit major.)
+    raw_attachments = step.get("attachments")
+    if raw_attachments is None:
+        attachments: list[str] = []
+    elif isinstance(raw_attachments, list):
+        attachments = [str(a) for a in raw_attachments]
+    else:
+        raise PlanLoadError(
+            f"Step {step_index} in stage {stage_name!r}: 'attachments' must be a "
+            f"list of paths, got {type(raw_attachments).__name__}"
+        )
 
     model_raw = step.get("model")
     effort_raw = step.get("effort")
@@ -296,6 +311,7 @@ def _parse_step(
         repo=task_repo,
         depends_on_repo=task_depends_on_repo,
         metadata=metadata,
+        attachments=attachments,
     )
 
 

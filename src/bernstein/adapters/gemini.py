@@ -151,6 +151,51 @@ def resolve_google_cli_binary(
     return _DISCOVERY_CASCADE[0]
 
 
+# ---------------------------------------------------------------------------
+# Multimodal attachment encoding (issue #1797)
+# ---------------------------------------------------------------------------
+
+
+def _inject_multimodal_attachments(prompt: str, multimodal_context: Any) -> str:
+    """Inline encoded attachments at the head of the Gemini prompt.
+
+    Gemini accepts inline image bytes via ``inline_data`` blocks in the
+    Generative Language API request. The CLI surface here forwards the
+    prompt as a single argument so we serialise attachments as
+    ``<attachment>`` XML-ish blocks that the CLI's prompt processor
+    inlines verbatim. This matches the Claude adapter wire format so
+    downstream replay can verify exact bytes for both providers.
+
+    The ``sha256`` attribute is computed over the *decoded* base64
+    payload -- the bytes the API receives -- so the announced digest
+    matches the inlined content even if the source file changes
+    between context construction and spawn time.
+    (bot-ack: 3284182752 -- CodeRabbit major.)
+    """
+    inputs = getattr(multimodal_context, "inputs", ())
+    if not inputs:
+        return prompt
+
+    import base64 as _base64
+    import hashlib as _hashlib
+
+    blocks: list[str] = []
+    for inp in inputs:
+        b64 = getattr(inp, "content_base64", None) or ""
+        mime = getattr(inp, "mime_type", "application/octet-stream")
+        if b64:
+            try:
+                raw = _base64.b64decode(b64, validate=True)
+                digest = _hashlib.sha256(raw).hexdigest()
+            except (ValueError, TypeError):
+                digest = ""
+        else:
+            digest = ""
+        blocks.append(f'<attachment mime="{mime}" sha256="{digest}">\n{b64}\n</attachment>')
+    header = "\n".join(blocks)
+    return f"{header}\n\n{prompt}"
+
+
 class GeminiAdapter(CLIAdapter):
     """Spawn and monitor Google Gemini / Antigravity CLI sessions."""
 
@@ -171,8 +216,15 @@ class GeminiAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         self.enforce_network_policy()
+        # Issue #1797: inline encoded attachments at the head of the
+        # prompt body so the Gemini API receives the bytes alongside
+        # the text. The Antigravity / legacy Gemini CLIs do not accept
+        # attachments as separate arguments.
+        if multimodal_context is not None:
+            prompt = _inject_multimodal_attachments(prompt, multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

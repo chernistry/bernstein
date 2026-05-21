@@ -247,7 +247,7 @@ class ScheduleSupervisor:
         self._store = store
         self._dispatch = dispatch
         self._chain = _AuditChainAdapter(audit_writer) if audit_writer is not None else None
-        self._catch_up_limit = max(1, int(catch_up_limit))
+        self._catch_up_limit = max(1, catch_up_limit)
         self._receipts_dir = store.directory.parent / "schedule_receipts"
         self._receipts_dir.mkdir(parents=True, exist_ok=True)
         self._last_tick_at = 0.0

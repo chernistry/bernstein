@@ -47,7 +47,7 @@ def normalize_schedule_fire(
     metadata: dict[str, Any] = {
         "source_type": "schedule",
         "schedule_id": schedule_id,
-        "fire_time": float(fire_time),
+        "fire_time": fire_time,
         "misfire_policy": misfire_policy,
     }
     if scenario_id:
@@ -66,10 +66,10 @@ def normalize_schedule_fire(
 
     return TriggerEvent(
         source="schedule",
-        timestamp=float(fire_time),
+        timestamp=fire_time,
         raw_payload={
             "schedule_id": schedule_id,
-            "fire_time": float(fire_time),
+            "fire_time": fire_time,
             "goal": goal,
             "scenario_id": scenario_id,
             "projection_hash": projection_hash,

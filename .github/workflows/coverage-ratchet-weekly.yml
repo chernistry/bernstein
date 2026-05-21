@@ -1,0 +1,148 @@
+name: Coverage ratchet (weekly floor bump)
+
+# The "nudges up over time" half of the coverage ratchet. Once a week it
+# raises the LEVEL 1 diff-coverage floor (diff_coverage_floor_percent in
+# .coverage-baseline.json) by a gentle increment, capped, and opens a PR
+# for operator review. The diff-coverage gate in ci.yml reads that same
+# floor, so merging this PR tightens the per-PR coverage requirement.
+#
+# The increment is intentionally small so the floor creeps up without ever
+# becoming a wall. Cap stops it short of demanding near-total diff coverage.
+#
+# The cron trigger ships disabled-by-default. Flip ENABLE_CRON to "1" (in
+# this file, not at run time) only after a clean workflow_dispatch smoke
+# run, mirroring the sweep-sonar-findings.yml rollout. Until then a
+# scheduled fire is a clean no-op.
+
+on:
+  schedule:
+    - cron: "23 7 * * 1"  # 07:23 UTC every Monday; off-peak.
+  workflow_dispatch:
+    inputs:
+      step:
+        description: Percentage points to raise the diff-coverage floor
+        required: false
+        default: "1"
+      cap:
+        description: Hard ceiling the floor may never exceed
+        required: false
+        default: "90"
+
+concurrency:
+  group: coverage-ratchet-weekly
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  # Gated like the Sonar sweeper: a scheduled run is a no-op until an
+  # operator opts in via a follow-up PR that flips this to "1". The job
+  # `if:` cannot read env directly, so the gate is the first job step.
+  ENABLE_CRON: "0"
+
+jobs:
+  bump:
+    name: Bump diff-coverage floor and open review PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Gate cron trigger
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${ENABLE_CRON}" != "1" ]; then
+            echo "Cron trigger fired but ENABLE_CRON is '0'; exiting cleanly."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Harden runner (audit mode)
+        if: steps.gate.outputs.skip != 'true'
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/bootstrap
+        if: steps.gate.outputs.skip != 'true'
+
+      - name: Bump floor
+        if: steps.gate.outputs.skip != 'true'
+        id: bump
+        env:
+          STEP: ${{ inputs.step || '1' }}
+          CAP: ${{ inputs.cap || '90' }}
+        run: |
+          set -euo pipefail
+          uv run python scripts/coverage_ratchet.py bump-floor \
+            --baseline .coverage-baseline.json \
+            --step "${STEP}" \
+            --cap "${CAP}"
+
+      - name: Detect baseline change
+        if: steps.gate.outputs.skip != 'true'
+        id: detect
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- .coverage-baseline.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Floor already at cap; no PR needed."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read new floor
+        if: steps.gate.outputs.skip != 'true' && steps.detect.outputs.changed == 'true'
+        id: floor
+        run: |
+          set -euo pipefail
+          floor=$(uv run python scripts/coverage_ratchet.py show-floor \
+            --baseline .coverage-baseline.json)
+          echo "value=${floor}" >> "$GITHUB_OUTPUT"
+
+      - name: Open PR with the bumped floor
+        if: steps.gate.outputs.skip != 'true' && steps.detect.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: coverage-ratchet/weekly-floor-${{ github.run_id }}
+          delete-branch: true
+          add-paths: |
+            .coverage-baseline.json
+          commit-message: |
+            chore(ci): raise diff-coverage floor to ${{ steps.floor.outputs.value }}%
+          title: "chore(ci): raise diff-coverage floor to ${{ steps.floor.outputs.value }}%"
+          body: |
+            Weekly nudge of the LEVEL 1 diff-coverage floor.
+
+            The diff-coverage gate in `.github/workflows/ci.yml` reads
+            `diff_coverage_floor_percent` from `.coverage-baseline.json`.
+            This PR raises that floor so every subsequent PR must cover a
+            slightly higher share of its changed lines.
+
+            New floor: **${{ steps.floor.outputs.value }}%**.
+
+            The gate stays advisory (`continue-on-error`) until an operator
+            promotes it; see `docs/operations/coverage-ratchet.md` for the
+            promotion and override procedure. If the increment is too steep
+            for the current trunk, close this PR - the floor only moves when
+            the PR merges.
+
+            Generated by `.github/workflows/coverage-ratchet-weekly.yml`.
+          labels: |
+            ci
+            chore

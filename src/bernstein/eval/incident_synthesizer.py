@@ -753,7 +753,7 @@ def _source_incident_from_yaml(path: Path) -> str:
         for line in path.read_text(encoding="utf-8").splitlines():
             if line.startswith("source_incident:"):
                 raw = line.split(":", 1)[1].strip()
-                if len(raw) >= 2 and raw[0] == '"' and raw[-1] == '"':
+                if len(raw) >= 2 and raw[0] == '"' == raw[-1]:
                     raw = raw[1:-1].replace('\\"', '"').replace("\\\\", "\\")
                 return raw
     except OSError:

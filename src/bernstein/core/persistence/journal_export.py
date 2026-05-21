@@ -91,7 +91,7 @@ class ReceiptManifest:
             "steps": self.steps,
             "bernstein_version": self.bernstein_version,
             "created_at": self.created_at,
-            "blob_digests": list(self.blob_digests),
+            "blob_digests": self.blob_digests.copy(),
             "format_version": self.format_version,
         }
         return json.dumps(document, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -105,7 +105,7 @@ class ReceiptManifest:
                 "steps": self.steps,
                 "bernstein_version": self.bernstein_version,
                 "created_at": self.created_at,
-                "blob_digests": list(self.blob_digests),
+                "blob_digests": self.blob_digests.copy(),
                 "format_version": self.format_version,
             },
             sort_keys=True,
@@ -472,6 +472,7 @@ def open_receipt(receipt_path: Path):  # type: ignore[no-untyped-def]
 __all__ = [
     "MANIFEST_NAME",
     "ExportResult",
+    "JournalError",
     "ReceiptError",
     "ReceiptManifest",
     "ReceiptVerificationResult",
@@ -479,7 +480,3 @@ __all__ = [
     "open_receipt",
     "verify_receipt",
 ]
-
-
-# Re-export so callers don't need a separate journal import for the symbol.
-JournalError = JournalError

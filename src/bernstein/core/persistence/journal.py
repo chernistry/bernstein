@@ -206,7 +206,7 @@ class JournalEntry:
             "tool_result": self.tool_result,
             "step_hash": self.step_hash,
             "ts": self.ts,
-            "blob_refs": list(self.blob_refs),
+            "blob_refs": self.blob_refs.copy(),
         }
 
     @classmethod

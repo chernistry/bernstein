@@ -4,10 +4,10 @@ Conforms to :class:`~bernstein.core.chat.bridge.BridgeProtocol` so that
 wiring code, tests, and the CLI can treat every driver uniformly today
 while the real implementation lands in a follow-up.
 
-All network-touching methods raise :class:`NotImplementedError` with a
-pointer to the follow-up ticket. In-memory registration methods
-(``on_command`` / ``on_button``) are no-ops so a caller that wires
-handlers up front does not explode -- they simply have no effect.
+Every method, including the registration entry points
+(``on_command`` / ``on_button``), raises :class:`NotImplementedError`
+with a pointer to the follow-up ticket. Failing fast at wire-up keeps
+operators from believing their handlers are live against a stub.
 """
 
 from __future__ import annotations
@@ -50,7 +50,9 @@ class DiscordBridge(BridgeProtocol):
         raise NotImplementedError(DISCORD_STUB_MESSAGE)
 
     def on_command(self, name: str, handler: CommandHandler) -> None:
-        """No-op: command registrations are silently discarded."""
+        """Reject registrations until the real driver lands."""
+        raise NotImplementedError(DISCORD_STUB_MESSAGE)
 
     def on_button(self, handler: ButtonHandler) -> None:
-        """No-op: button handler registrations are silently discarded."""
+        """Reject registrations until the real driver lands."""
+        raise NotImplementedError(DISCORD_STUB_MESSAGE)

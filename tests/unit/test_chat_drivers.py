@@ -160,11 +160,36 @@ def test_slack_start_raises_stub_message() -> None:
     assert "op-001b" in str(excinfo.value)
 
 
-def test_stub_registrations_are_noops() -> None:
-    """Registering handlers on stubs is a silent no-op."""
+def test_discord_on_command_raises_stub_message() -> None:
+    """Wiring a Discord handler must fail fast, not silently drop."""
     bridge = DiscordBridge()
-    bridge.on_command("run", lambda _m: _async_noop())  # type: ignore[misc,arg-type]
-    bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
+    with pytest.raises(NotImplementedError) as excinfo:
+        bridge.on_command("run", lambda _m: _async_noop())  # type: ignore[misc,arg-type]
+    assert DISCORD_STUB_MESSAGE in str(excinfo.value)
+
+
+def test_discord_on_button_raises_stub_message() -> None:
+    """Wiring a Discord button handler must fail fast, not silently drop."""
+    bridge = DiscordBridge()
+    with pytest.raises(NotImplementedError) as excinfo:
+        bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
+    assert DISCORD_STUB_MESSAGE in str(excinfo.value)
+
+
+def test_slack_on_command_raises_stub_message() -> None:
+    """Wiring a Slack handler must fail fast, not silently drop."""
+    bridge = SlackBridge()
+    with pytest.raises(NotImplementedError) as excinfo:
+        bridge.on_command("run", lambda _m: _async_noop())  # type: ignore[misc,arg-type]
+    assert SLACK_STUB_MESSAGE in str(excinfo.value)
+
+
+def test_slack_on_button_raises_stub_message() -> None:
+    """Wiring a Slack button handler must fail fast, not silently drop."""
+    bridge = SlackBridge()
+    with pytest.raises(NotImplementedError) as excinfo:
+        bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
+    assert SLACK_STUB_MESSAGE in str(excinfo.value)
 
 
 async def _async_noop() -> None:  # NOSONAR — async-signature required by protocol / fixture

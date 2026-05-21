@@ -1059,8 +1059,19 @@ jobs:
           uv run mutmut results || true
 
   diff-coverage:
-    # diff-cover gate: lines touched in this PR must have >=80%
-    # coverage. Reuses coverage.xml uploaded by the main test job.
+    # LEVEL 1 of the coverage ratchet - diff-cover gate: lines touched in
+    # this PR must hit the committed diff-coverage floor. The floor lives
+    # in .coverage-baseline.json (key: diff_coverage_floor_percent) so it
+    # is a single source of truth that the weekly bump workflow nudges up
+    # over time (see docs/operations/coverage-ratchet.md). Reuses the
+    # coverage.xml uploaded by the main test job.
+    #
+    # ADVISORY: the diff-cover step is continue-on-error, so this job's
+    # result stays `success` even when diff coverage is below the floor.
+    # That keeps it safe to leave in the CI-gate `needs` set without
+    # wedging the merge queue. Promote it to blocking by removing the
+    # continue-on-error once coverage is healthy (documented in the ops
+    # runbook).
     name: Diff coverage gate
     needs: [test]
     runs-on: ubuntu-latest
@@ -1083,15 +1094,31 @@ jobs:
         with:
           name: coverage-report
         continue-on-error: true  # main may not have generated coverage on the PR's commit
+      - name: Resolve diff-coverage floor from baseline
+        id: floor
+        # Single source of truth: the floor the weekly bump nudges up.
+        # Falls back to 80 if the baseline file is somehow absent so a
+        # missing file never silently disables the gate.
+        run: |
+          if [ -f .coverage-baseline.json ]; then
+            floor=$(uv run python scripts/coverage_ratchet.py show-floor \
+              --baseline .coverage-baseline.json)
+          else
+            echo "::warning::.coverage-baseline.json missing; defaulting diff floor to 80"
+            floor=80
+          fi
+          echo "value=${floor}" >> "$GITHUB_OUTPUT"
+          echo "Diff-coverage floor: ${floor}%"
       - name: Run diff-cover
         continue-on-error: true  # advisory until all PRs reliably have coverage.xml
         env:
           BASE_REF: ${{ github.base_ref }}
+          FLOOR: ${{ steps.floor.outputs.value }}
         run: |
           if [ -f coverage.xml ]; then
             uv run diff-cover coverage.xml \
               --compare-branch="origin/${BASE_REF}" \
-              --fail-under=80 \
+              --fail-under="${FLOOR}" \
               --markdown-report diff-coverage.md
             cat diff-coverage.md >> "$GITHUB_STEP_SUMMARY" || true
           else

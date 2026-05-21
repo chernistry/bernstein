@@ -543,6 +543,35 @@ def _dynamic_retry_limit(reason: str, default_max: int) -> int:
     return default_max
 
 
+def _capture_dead_letter(entry: Any, *, original_error: str) -> None:
+    """Forward a dead-letter entry to the operator error sink, best-effort.
+
+    A task reaching the DLQ has exhausted every retry; that is an
+    unexpected terminal failure worth surfacing in GlitchTip. The capture
+    helper is fail-closed, but the import is wrapped too so a missing
+    optional dependency cannot disturb the primary failure path.
+    """
+    try:
+        from bernstein.core.observability import error_capture
+
+        error_capture.capture_message(
+            f"task moved to dead-letter queue: {entry.reason}",
+            category="dead_letter",
+            tags={
+                "task_id": str(entry.task_id),
+                "role": str(entry.role),
+                "reason": str(entry.reason),
+            },
+            extra={
+                "title": entry.title,
+                "retry_count": entry.retry_count,
+                "original_error": (original_error or "")[:800],
+            },
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("DLQ telemetry capture skipped for task %s: %s", entry.task_id, exc)
+
+
 def _enqueue_dlq_if_workdir(
     *,
     workdir: Path | None,
@@ -596,6 +625,12 @@ def _enqueue_dlq_if_workdir(
             exc,
         )
         return
+
+    # A task reaching the dead-letter queue is a terminal, unexpected
+    # failure: every retry has been exhausted. Route it to the operator's
+    # error sink so it surfaces in GlitchTip rather than only on disk.
+    # The helper is itself fail-closed; it never breaks this path.
+    _capture_dead_letter(entry, original_error=original_error)
 
     # Synthesise an incident eval case for this terminal failure. Failure
     # to synthesise must never block the primary path either.

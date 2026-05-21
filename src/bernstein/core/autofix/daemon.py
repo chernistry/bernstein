@@ -245,6 +245,31 @@ def read_status(workdir: Path) -> DaemonStatus:
 # ---------------------------------------------------------------------------
 
 
+def _capture_autofix_fault(
+    exc: BaseException,
+    *,
+    stage: str,
+    repo: str,
+    pr_number: int | None = None,
+) -> None:
+    """Forward an unexpected autofix-daemon fault to the operator error sink.
+
+    A repo source or dispatch that raises is an unexpected daemon fault,
+    not a handled CI outcome, so it belongs in GlitchTip. The capture
+    helper is fail-closed, and the call is wrapped so the daemon's own
+    resilience (it logs and continues) is never compromised by telemetry.
+    """
+    try:
+        from bernstein.core.observability import error_capture
+
+        tags = {"stage": stage, "repo": repo}
+        if pr_number is not None:
+            tags["pr_number"] = str(pr_number)
+        error_capture.capture_exception(exc, category="autofix", tags=tags)
+    except Exception as cap_exc:  # pragma: no cover - defensive
+        logger.debug("autofix telemetry capture skipped (%s): %s", stage, cap_exc)
+
+
 def tick_once(
     *,
     config: AutofixConfig,
@@ -282,8 +307,9 @@ def tick_once(
             continue
         try:
             candidates = failing_source(repo_config)
-        except Exception:
+        except Exception as exc:
             logger.exception("autofix: failing-source raised for repo %s", repo_config.name)
+            _capture_autofix_fault(exc, stage="failing_source", repo=repo_config.name)
             continue
 
         for candidate in candidates:
@@ -303,11 +329,17 @@ def tick_once(
                     log=log,
                     session_id=candidate.session_id,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.exception(
                     "autofix: dispatch raised for %s#%s",
                     pr.repo,
                     pr.number,
+                )
+                _capture_autofix_fault(
+                    exc,
+                    stage="dispatch",
+                    repo=pr.repo,
+                    pr_number=pr.number,
                 )
                 continue
 

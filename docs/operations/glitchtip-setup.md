@@ -64,6 +64,64 @@ do.
    * Local operator workstation: `export BERNSTEIN_TELEMETRY_DSN=...` in
      the shell that runs `bernstein`.
 
+## Which runtime contexts carry the DSN
+
+The DSN must be present in the process that actually executes Bernstein
+and crashes, not only in the CLI smoke path. The following CI contexts
+export `BERNSTEIN_TELEMETRY_DSN` (sourced from the `GLITCHTIP_DSN`
+secret) so a real orchestration crash reaches the sink:
+
+| Workflow | Scope | Why |
+|----------|-------|-----|
+| `bernstein-ci-fix.yml` | "Run Bernstein auto-heal" step | Runs the autofix orchestrator on PRs; spawns agents that can crash |
+| `eval-nightly.yml` | `bench` job | Runs the full eval driver across adapters under a budget cap |
+| `auto-heal.yml` | workflow-level `env` | Runs the heal orchestration; LLM-grounded synthesis can fault |
+
+Each is a no-op on forks where the secret is unset, so forks stay green.
+
+Generic test / lint / build jobs deliberately do **not** carry the DSN:
+a unit-test failure is not an orchestration incident.
+
+To point a local run at the sink, export the DSN in the shell that runs
+Bernstein:
+
+```bash
+export BERNSTEIN_TELEMETRY_DSN='https://<public-key>@<host>/<project-id>'
+bernstein run plan.yaml   # any crash now reaches GlitchTip
+```
+
+## How real failure signals route
+
+Two transports share the single `BERNSTEIN_TELEMETRY_DSN` contract, and
+the codebase routes through both so a signal lands whether or not the
+SDK was initialised in that process:
+
+* **sentry-sdk** -- initialised once in
+  `src/bernstein/cli/main.py::_init_error_telemetry`. Gets event
+  grouping and the release tag. Active only in the CLI process.
+* **side channel** -- `bernstein.core.observability.sidechannel`, a
+  dependency-free Sentry-store-protocol emitter over `httpx`. Works in
+  worker subprocesses that never ran the CLI SDK `init`, and in minimal
+  installs without the `observability` extra.
+
+The shared helper
+`bernstein.core.observability.error_capture` (`capture_exception` /
+`capture_message`) fans out to both, fail-closed. Genuine,
+**unexpected** failures route through it; expected control-flow does not:
+
+| Surface | File | Routed? |
+|---------|------|---------|
+| Task exhausts retries -> dead-letter queue | `core/tasks/task_lifecycle.py::_capture_dead_letter` | yes (`category=dead_letter`) |
+| Agent process crashes (timeout, OOM, provider error, non-zero exit) | `core/agents/agent_lifecycle.py::_capture_agent_crash` | yes (`category=agent`) |
+| Autofix daemon fault (repo source / dispatch raises) | `core/autofix/daemon.py::_capture_autofix_fault` | yes (`category=autofix`) |
+| Top-level CLI command exception | `cli/first_run_guard.py::handle_first_run_exception` | yes (sentry-sdk) |
+| Task legitimately fails a quality gate | n/a | no (handled outcome) |
+| User-interrupt / cascaded-shutdown abort | n/a | no (deliberate control-flow) |
+
+Filter one stream by surface in the GlitchTip UI on the
+`logger` field (`bernstein.dead_letter`, `bernstein.agent`,
+`bernstein.autofix`) or the `bernstein.category` tag.
+
 ## Workflow vars (CI insights sweep)
 
 The `.github/workflows/glitchtip-insights.yml` workflow performs a daily

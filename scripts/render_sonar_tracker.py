@@ -99,6 +99,7 @@ from bernstein.core.observability.sonar import (  # noqa: E402
 
 # Hidden marker that uniquely identifies the tracker issue. Searched for in
 # the body of open issues so re-runs edit instead of duplicating.
+# Consolidated SonarQube findings tracker. See docs/operations/sonar-tracker.md.
 TRACKER_MARKER = "<!-- sonar-tracker:bernstein -->"
 
 TRACKER_TITLE = "SonarQube findings tracker"

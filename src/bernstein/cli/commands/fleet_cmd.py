@@ -149,6 +149,8 @@ def _fleet_supervisor_summary_line() -> str:
     inside one workspace, so we surface the supervisor snapshot for that
     workspace as the most actionable signal. Returns an empty string on
     any aggregator failure so the fleet command never errors here.
+    Failures are logged so an operator-visible drop can be debugged from
+    the orchestrator log without restarting the fleet view.
     """
     try:
         from pathlib import Path as _Path
@@ -161,6 +163,7 @@ def _fleet_supervisor_summary_line() -> str:
 
         snapshot = aggregator_snapshot(_Path.cwd(), heartbeat_stale_s=AGENT.heartbeat_stale_s)
     except Exception:  # pragma: no cover - fleet renderer must never raise
+        logger.exception("fleet supervisor-summary aggregation failed")
         return ""
     return format_summary_line(snapshot)
 

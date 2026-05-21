@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import time
@@ -23,6 +24,8 @@ from bernstein.cli.status import collect_rate_limit_snapshots, render_status
 from bernstein.cli.ui import make_console
 from bernstein.core.agent_discovery import AgentCapabilities, DiscoveryResult, discover_agents_cached
 from bernstein.tui.worker_badges import format_worker_badge, get_badge_for_worker
+
+logger = logging.getLogger(__name__)
 
 _NOT_AUTHENTICATED_MSG = "not authenticated"
 
@@ -214,7 +217,9 @@ def _supervisor_status_summary(workdir: Path) -> dict[str, Any]:
     """Return the supervisor stuck-count summary for ``bernstein status --json``.
 
     Returns an empty dict if the aggregator raises - the command must
-    never fail on a missing or malformed runtime tree.
+    never fail on a missing or malformed runtime tree. Failures are
+    logged so an operator can correlate an empty summary with a real
+    cause instead of treating silence as healthy.
     """
     try:
         from bernstein.core.defaults import AGENT
@@ -225,6 +230,7 @@ def _supervisor_status_summary(workdir: Path) -> dict[str, Any]:
 
         snapshot = aggregator_snapshot(workdir, heartbeat_stale_s=AGENT.heartbeat_stale_s)
     except Exception:  # pragma: no cover - status must never error on this
+        logger.exception("supervisor status summary failed")
         return {}
     return snapshot_to_dict(snapshot)
 
@@ -240,6 +246,7 @@ def _supervisor_summary_line(workdir: Path) -> str:
 
         snapshot = aggregator_snapshot(workdir, heartbeat_stale_s=AGENT.heartbeat_stale_s)
     except Exception:  # pragma: no cover - status must never error on this
+        logger.exception("supervisor summary line render failed")
         return ""
     return format_summary_line(snapshot)
 

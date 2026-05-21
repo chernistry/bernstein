@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from rich.markup import escape as _rich_escape
 from rich.text import Text
 from textual.widgets import DataTable, Static
 
@@ -496,11 +497,16 @@ def render_supervisor_pane(rows: list[SupervisorPaneRow]) -> str:
         hb = "-"
         if r.last_heartbeat_age_s is not None:
             hb = f"{int(r.last_heartbeat_age_s)}s"
+        # Escape every dynamic field before interpolating into the Rich
+        # markup string. Worker ids and roles come from upstream callers
+        # and may contain ``[`` / ``]`` which Rich would otherwise parse
+        # as markup, breaking layout and (worse) producing operator-
+        # visible output that does not match the underlying state.
         lines.append(
-            f"  [yellow]{r.worker_id}[/yellow] "
-            f"role={r.role or '-'} "
-            f"reason={r.stall_reason} "
-            f"recommend={r.recommended_action} "
+            f"  [yellow]{_rich_escape(r.worker_id)}[/yellow] "
+            f"role={_rich_escape(r.role or '-')} "
+            f"reason={_rich_escape(r.stall_reason)} "
+            f"recommend={_rich_escape(r.recommended_action)} "
             f"hb={hb} budget={r.respawn_budget_remaining}"
         )
     return "\n".join(lines)

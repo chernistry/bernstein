@@ -179,6 +179,9 @@ def supervisor_escalate(
     ``worker.escalated`` lifecycle event so external notifiers route the
     alert.
     """
+    reason = reason.strip()
+    if not reason:
+        raise click.ClickException("--reason must be a non-empty string")
     root = workdir or Path.cwd()
     snapshot = aggregator_snapshot(root, heartbeat_stale_s=AGENT.heartbeat_stale_s)
     row = next((w for w in snapshot.workers if w.session_id == session_id), None)
@@ -334,14 +337,21 @@ def _load_or_create_install_key(path: Path) -> Any:
 
 
 def _load_install_rev(_root: Path) -> str:
-    """Return the install fingerprint (best-effort)."""
+    """Return the install fingerprint (best-effort).
+
+    Empty string when the identity module is unavailable or raises;
+    failures are logged so a missing fingerprint never silently turns
+    into a tampering false negative during a postmortem.
+    """
     try:
         from bernstein.core.identity.install_rev import get_install_rev
     except ImportError:
+        logger.warning("install_rev module unavailable - receipt identity tokens will be empty")
         return ""
     try:
         return get_install_rev()
     except Exception:  # pragma: no cover - defensive
+        logger.exception("install_rev lookup failed during escalation; using empty fingerprint")
         return ""
 
 
@@ -360,29 +370,41 @@ def _read_chain_anchor(root: Path) -> str:
     """Return the most recent audit-chain HMAC, or the genesis sentinel.
 
     Reads :class:`AuditLog` to recover the chain tail without writing.
-    Returns ``"0" * 64`` (the genesis sentinel) when no audit log exists.
+    Returns ``"0" * 64`` (the genesis sentinel) only when no audit log
+    directory exists. A directory that exists but is unreadable is a
+    structural failure - we refuse to silently reset the chain anchor
+    because doing so would let a fresh receipt skip the previous chain
+    head and break the tamper-evidence guarantee.
     """
     audit_dir = root / SUPERVISOR_AUDIT_DIR
     if not audit_dir.exists():
         return "0" * 64
     try:
         log = AuditLog(audit_dir=audit_dir)
-    except Exception:  # pragma: no cover - audit setup failures
-        return "0" * 64
+    except Exception as exc:  # pragma: no cover - audit setup failures
+        logger.error("Failed to load audit log at %s", audit_dir, exc_info=True)
+        raise click.ClickException(
+            f"cannot read audit chain anchor from {audit_dir}: {exc}",
+        ) from exc
     # ``AuditLog._prev_hmac`` is the recovered chain tail.
     return getattr(log, "_prev_hmac", "0" * 64)
 
 
 def _persist_receipt(root: Path, receipt: EscalationReceipt) -> Path:
-    """Write the receipt to ``.sdd/runtime/supervisor/receipts/<digest>.json``."""
+    """Write the receipt to ``.sdd/runtime/supervisor/receipts/<digest>.json``.
+
+    Filenames use nanosecond timestamps to avoid collisions when the
+    operator escalates the same session twice in the same second. The
+    open is exclusive (``"x"``) so a colliding filename surfaces as an
+    explicit ``FileExistsError`` rather than silently overwriting a
+    prior receipt.
+    """
     dest_dir = root / SUPERVISOR_RECEIPT_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
-    fname = f"{int(time.time())}-{receipt.session_id}-{receipt.payload_digest[:12]}.json"
+    fname = f"{time.time_ns()}-{receipt.session_id}-{receipt.payload_digest[:12]}.json"
     path = dest_dir / fname
-    path.write_text(
-        json.dumps(receipt_to_dict(receipt), sort_keys=True, indent=2),
-        encoding="utf-8",
-    )
+    with path.open("x", encoding="utf-8") as fh:
+        fh.write(json.dumps(receipt_to_dict(receipt), sort_keys=True, indent=2))
     return path
 
 

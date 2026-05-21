@@ -55,6 +55,12 @@ on:
           on the BERNSTEIN_CI_SELF_DRIVE feature flag, so this secret
           is only consulted when the flag is set to "tier3".
         required: false
+      GLITCHTIP_DSN:
+        description: >-
+          Sentry-protocol DSN for the operator error sink. Optional -
+          when unset the heal step runs without routing orchestration
+          crashes, so forks stay green.
+        required: false
 
 # Workflow-level permissions are minimal; each job below declares
 # the narrower scopes it actually needs (zizmor excessive-permissions).

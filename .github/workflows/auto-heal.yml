@@ -62,6 +62,12 @@ on:
       TELEGRAM_CHAT_ID:
         description: Telegram chat id that receives heal alerts.
         required: false
+      GLITCHTIP_DSN:
+        description: >-
+          Sentry-protocol DSN for the operator error sink. Optional -
+          when unset the heal orchestration runs without routing crashes,
+          so forks stay green.
+        required: false
 
 permissions: {}
 

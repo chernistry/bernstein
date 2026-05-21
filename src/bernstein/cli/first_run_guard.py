@@ -69,6 +69,35 @@ def _context_from_exception(exc: BaseException) -> HintContext:
     return ctx
 
 
+def _capture_to_telemetry_sink(exc: BaseException) -> None:
+    """Forward ``exc`` to the operator-managed error sink, if one is wired.
+
+    This is the explicit-capture counterpart to ``sys.excepthook``: the
+    default hook never fires for exceptions caught by the CLI's
+    first-run barrier, so without this call no event reaches GlitchTip
+    even though the SDK is initialised. The function is a no-op when:
+
+    * ``sentry-sdk`` is not installed (minimal install without the
+      ``observability`` extra), or
+    * the SDK was never initialised (operator has not exported a DSN).
+
+    Telemetry is best-effort and must not crash the CLI's exit path:
+    any error raised by the SDK is swallowed.
+    """
+    try:
+        import sentry_sdk  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    try:
+        client = sentry_sdk.get_client()
+        if not client.is_active():
+            return
+        sentry_sdk.capture_exception(exc)
+    except Exception:
+        # Best-effort: a misbehaving SDK must never block the exit path.
+        return
+
+
 def handle_first_run_exception(
     exc: BaseException,
     *,
@@ -99,6 +128,12 @@ def handle_first_run_exception(
     # overwrite the operator's chosen exit code with a categorised one.
     if isinstance(exc, SystemExit):
         raise exc
+
+    # Forward to GlitchTip / Sentry-compatible sink before the pretty
+    # print. The default ``sys.excepthook`` never sees this exception
+    # because we are about to convert it into a SystemExit, so explicit
+    # capture is required to keep the error sink in the loop.
+    _capture_to_telemetry_sink(exc)
 
     category = categorize_exception(exc)
     ctx = _context_from_exception(exc)

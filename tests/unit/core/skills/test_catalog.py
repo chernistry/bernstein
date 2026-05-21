@@ -298,8 +298,12 @@ def test_install_refuses_tampered_signature(tmp_path: Path) -> None:
     priv, pub = generate_signer_keypair()
     entry = _make_entry()
     sig = sign_entry(entry, priv)
-    # Flip a character to corrupt the signature.
-    tampered = sig[:-1] + ("A" if sig[-1] != "A" else "B")
+    # Corrupt the leading character. Flipping the first base64 char always
+    # changes the high-order bits of the first decoded signature byte, so
+    # verification fails deterministically. Flipping the trailing char can be
+    # a no-op because base64 trailing bits are redundant, which let some
+    # random keypairs slip a still-valid signature through to the installer.
+    tampered = ("B" if sig[0] == "A" else "A") + sig[1:]
     signed_entry = attach_signature(entry, tampered)
     catalog = _make_catalog((signed_entry,), signer_pubkey=pub)
     config = SkillCatalogServiceConfig(workdir=tmp_path)

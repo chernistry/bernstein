@@ -33,13 +33,19 @@ _HTTP_AND_HTTPS: Final[frozenset[str]] = frozenset({"http", "https"})
 _LOCAL_HOSTS: Final[frozenset[str]] = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
-def ensure_http_url(
+def ensure_http_url(  # NOSONAR python:S3516 - accept path returns input unchanged; rejection is via raise
     url: str,
     *,
     allow_http: bool = False,
     source: str = "",
 ) -> str:
     """Validate that ``url`` has an http(s) scheme; return it unchanged.
+
+    This is a validate-and-passthrough guard: every accept path returns
+    the same value (the input ``url``), and rejection is signalled by
+    raising :class:`UrlSchemeError` rather than by a sentinel return.
+    That invariant return is intentional (hence the ``S3516`` waiver) and
+    must not be relaxed into an always-allow.
 
     Args:
         url: The candidate URL string.

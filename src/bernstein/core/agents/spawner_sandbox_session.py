@@ -111,7 +111,10 @@ def _run_session_loop(
         except asyncio.CancelledError:
             handle.future.cancel()
             return
-        except BaseException as exc:
+        # Fail-closed: every exception (incl. KeyboardInterrupt/SystemExit)
+        # must reach the blocked caller's future, otherwise the caller's
+        # future.result() hangs forever. Narrowing here would deadlock it.
+        except BaseException as exc:  # NOSONAR python:S5754 - intentional fail-closed handoff to the blocked future
             handle.future.set_exception(exc)
             return
         handle.future.set_result(result)

@@ -318,8 +318,16 @@ def _run_substrate_checks() -> list[dict[str, Any]]:
     return [_substrate_status_for(HOST_REGISTRY[name]) for name in known_host_names()]
 
 
-def _render_substrate_report(rows: list[dict[str, Any]], *, as_json: bool) -> int:
-    """Render the substrate report and return the desired exit code."""
+def _render_substrate_report(  # NOSONAR python:S3516 - advisory surface, always exit 0 by design
+    rows: list[dict[str, Any]], *, as_json: bool
+) -> int:
+    """Render the substrate report and return the desired exit code.
+
+    The substrate report is advisory: it always returns ``0`` regardless
+    of the host states it renders. A non-zero exit code is reserved for a
+    future ``--gate`` flag and is intentionally not produced here (hence
+    the ``S3516`` invariant-return waiver).
+    """
     import json as _json
 
     from rich.table import Table

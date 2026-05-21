@@ -248,10 +248,12 @@ class QualityGateCoalescer:
                     config,
                     **queued.kwargs,
                 )
-            except BaseException as exc:
-                # Capture ANY exception (including KeyboardInterrupt/SystemExit-adjacent
-                # runtime errors from subprocess gates) so the blocked caller receives
-                # it rather than hanging forever on its event.
+            except BaseException as exc:  # NOSONAR python:S5754 - intentional fail-closed handoff to the blocked waiter
+                # Capture ANY exception (incl. KeyboardInterrupt/SystemExit-
+                # adjacent runtime errors from subprocess gates) so the blocked
+                # caller receives it via _wait_for_queued (which re-raises)
+                # rather than hanging forever on its event. Narrowing would
+                # deadlock the waiter.
                 queued.error = exc
             finally:
                 queued.event.set()

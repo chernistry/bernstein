@@ -170,7 +170,7 @@ def _render_json(
     console.print_json(json.dumps(payload))
 
 
-def run_doctor_sonar(
+def run_doctor_sonar(  # NOSONAR python:S3516 - advisory renderer, always exit 0 by design (see docstring)
     *,
     as_json: bool = False,
     smell_threshold: int = DEFAULT_SMELL_NUDGE,

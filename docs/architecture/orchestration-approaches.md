@@ -11,8 +11,8 @@ architecture diagrams showing the structural differences.
 
 An LLM (the "manager agent") sits in the control plane. It reads status from
 running agents, reasons about priorities, assigns tasks, and decides when work
-is complete. This is the model used by CrewAI's hierarchical process, AutoGen's
-GroupChat, and LangGraph's supervisor node.
+is complete. This is the model used by hierarchical-process frameworks,
+group-chat coordinators, and supervisor-node graph runtimes.
 
 ```mermaid
 graph TD

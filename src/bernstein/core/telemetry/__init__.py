@@ -1,7 +1,8 @@
 """Opt-in operator observability for Bernstein.
 
-This subpackage implements the activation-funnel measurement defined in
-``.sdd/backlog/open/2026-05-17-feat-opt-in-first-run-telemetry.yaml``.
+This subpackage implements first-run telemetry: it emits a small set of
+events (install completion, first-run error categories, queued-event
+exit codes) only when the operator has explicitly opted in.
 
 Top-line invariants (enforced by tests):
 

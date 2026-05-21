@@ -370,191 +370,6 @@
   </div>
 </section>
 
-<!-- ── Comparison ── -->
-<section>
-  <div class="container">
-    <div class="section-label">Comparison</div>
-    <h2 class="section-title">How Bernstein differs</h2>
-    <p class="section-sub">Purpose-built for CLI coding agents and file-based codebases — not general LLM pipelines or locked-in SDKs. <a href="doc.html?path=compare/README.md">Compare with CrewAI, AutoGen, LangGraph</a></p>
-    <div class="comparison-wrap">
-      <table class="comparison-table">
-        <thead>
-          <tr>
-            <th>Capability</th>
-            <th>Bernstein</th>
-            <th>CrewAI</th>
-            <th>Ruflo</th>
-            <th>AutoGen</th>
-            <th>LangGraph</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Model-agnostic (any CLI agent)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>Partial</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Short-lived agents (no idle loop)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>File-based state (.sdd/, DONE&rarr;CLOSED verification)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Self-evolution loop</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Completion signal verification</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>HMAC-chained audit trail</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Execution WAL + determinism proof</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>CI autofix (detect failure → fix → PR)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Deterministic orchestrator (not LLM)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td><span class="check">&#10003;</span></td>
-          </tr>
-          <tr>
-            <td>REST task server API</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Agent marketplace / catalog</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>Partial</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>A2A protocol (agent federation)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Per-run cost budgeting</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>GitHub Action (CI integration)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>No vendor lock-in</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td><span class="check">&#10003;</span></td>
-            <td><span class="check">&#10003;</span></td>
-          </tr>
-          <tr>
-            <td>Contextual bandit model routing</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Cross-model verification</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>PII protection + EU AI Act tagging</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Prometheus / OTel / Grafana</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-          <tr>
-            <td>Cluster mode (multi-node)</td>
-            <td class="col-bern"><span class="check">&#10003;</span></td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-            <td>&#8212;</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
 <!-- ── Quick start ── -->
 <section class="section-alt">
   <div class="container">
@@ -604,7 +419,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
   <div class="container">
     <div class="section-label">Enterprise-ready</div>
     <h2 class="section-title">Built for production</h2>
-    <p class="section-sub">Every claim below maps to auditable code. No trust-me marketing — inspect the implementation yourself.</p>
+    <p class="section-sub">Every claim below maps to auditable code. Inspect the implementation yourself.</p>
     <div class="card-grid card-grid-3 trust-grid">
       <div class="card trust-card">
         <div class="trust-icon"><i data-lucide="shield-check"></i></div>
@@ -656,10 +471,6 @@ bernstein run --evolve --max-cycles 10</code></pre>
 
 <section class="faq-section" style="max-width: 720px; margin: 3rem auto; padding: 0 1.5rem;">
   <h2>Common questions about AI agent orchestration</h2>
-  <details>
-    <summary>Is Bernstein better than CrewAI?</summary>
-    <p>Bernstein and CrewAI solve different problems. Bernstein orchestrates real CLI coding agents (Claude Code, Codex, Gemini CLI) with deterministic scheduling — no LLM tokens spent on coordination. CrewAI uses Python SDK classes with LLM-driven scheduling. Choose Bernstein for production-grade multi-agent coding workflows; choose CrewAI for custom Python agent pipelines. <a href="doc.html?path=compare/README.md">Full comparison</a></p>
-  </details>
   <details>
     <summary>What is the best way to orchestrate AI coding agents?</summary>
     <p>The most effective approach uses deterministic scheduling (not LLM-based), git worktree isolation for each agent, and automated verification before merging. Bernstein implements all three: agents work in parallel on isolated copies, the janitor verifies their output, and only verified work lands in main. <a href="concepts.html">Learn the architecture</a></p>

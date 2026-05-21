@@ -271,4 +271,6 @@ async def test_replay_then_recover_requeues_stale_claim(tmp_path: Path) -> None:
     assert replayed is not None
     assert replayed.status is TaskStatus.CLAIMED
     assert fresh.recover_stale_claimed_tasks() == 1
-    assert fresh.get_task(task.id).status is TaskStatus.OPEN  # type: ignore[union-attr]
+    recovered_after_reset = fresh.get_task(task.id)
+    assert recovered_after_reset is not None
+    assert recovered_after_reset.status is TaskStatus.OPEN

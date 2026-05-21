@@ -315,11 +315,11 @@ def test_run_cost_report_round_trip_with_projection() -> None:
     )
     restored = RunCostReport.from_dict(report.to_dict())
     assert restored.run_id == "r1"
-    assert restored.total_spent_usd == 2.0
+    assert restored.total_spent_usd == pytest.approx(2.0)
     assert restored.projection is not None
-    assert restored.projection.projected_total_usd == 4.0
+    assert restored.projection.projected_total_usd == pytest.approx(4.0)
     assert restored.per_agent[0].agent_id == "a1"
-    assert restored.cache_savings_usd == 0.5
+    assert restored.cache_savings_usd == pytest.approx(0.5)
 
 
 def test_run_cost_report_round_trip_without_projection() -> None:

@@ -59,13 +59,19 @@ class _FakeAudit:
 
 @pytest.fixture
 def audit_capture() -> Iterator[_FakeAudit]:
-    """Wire a fake audit log into the module global and restore afterwards."""
+    """Wire a fake audit log into the module global and restore afterwards.
+
+    Captures whatever logger was installed before the test and reinstates it
+    in teardown so randomly-ordered ``tests/unit/**`` runs never clobber
+    preconfigured global state.
+    """
+    prev = lc.get_audit_log()
     fake = _FakeAudit()
     lc.set_audit_log(fake)
     try:
         yield fake
     finally:
-        lc.set_audit_log(None)
+        lc.set_audit_log(prev)
 
 
 # ---------------------------------------------------------------------------

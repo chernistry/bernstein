@@ -8,6 +8,7 @@ to prove the harness catches regressions.
 from __future__ import annotations
 
 import json
+from itertools import count
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -506,10 +507,13 @@ def test_golden_transcripts_all_pass(tmp_path: Path) -> None:
     # discovery cascade started returning ``antigravity`` as the
     # non-strict default, which subprocess.Popen would otherwise try
     # to spawn for real in CI where neither binary is installed.
+    # Use unbounded iterators so the test stays stable as transcript
+    # coverage grows: a fixed-length list would raise ``StopIteration``
+    # once the harness needed more than 100 Popen invocations.
     with (
-        patch("bernstein.adapters.codex.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
-        patch("bernstein.adapters.generic.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
-        patch("bernstein.adapters.gemini.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
+        patch("bernstein.adapters.codex.subprocess.Popen", side_effect=(_make_popen(i) for i in count())),
+        patch("bernstein.adapters.generic.subprocess.Popen", side_effect=(_make_popen(i) for i in count())),
+        patch("bernstein.adapters.gemini.subprocess.Popen", side_effect=(_make_popen(i) for i in count())),
     ):
         report = harness.run_all(transcripts, workdir=tmp_path)
 

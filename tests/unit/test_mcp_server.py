@@ -408,6 +408,7 @@ async def test_crash_protection_bernstein_status() -> None:
     if isinstance(parsed, dict) and "_meter" in parsed:
         parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -430,6 +431,7 @@ async def test_crash_protection_bernstein_tasks() -> None:
     if isinstance(parsed, dict) and "_meter" in parsed:
         parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -452,6 +454,7 @@ async def test_crash_protection_bernstein_cost() -> None:
     if isinstance(parsed, dict) and "_meter" in parsed:
         parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -474,6 +477,7 @@ async def test_crash_protection_bernstein_approve() -> None:
     if isinstance(parsed, dict) and "_meter" in parsed:
         parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio

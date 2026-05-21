@@ -1,0 +1,370 @@
+"""CLI commands for operator-registered recurring schedules.
+
+Commands (issue #1798):
+
+- ``bernstein schedule add --cron <expr> --goal <text> [--scenario <id>]``
+- ``bernstein schedule list [--json]``
+- ``bernstein schedule remove <id>``
+- ``bernstein schedule show <id> [--json]``
+- ``bernstein schedule run``
+- ``bernstein schedule audit [--json]``
+
+The CLI is a thin shell around
+:class:`bernstein.core.planning.schedule_store.ScheduleStore` and
+:class:`bernstein.core.orchestration.schedule_supervisor.ScheduleSupervisor`.
+All business logic lives in the core modules so the same surface drives
+the CLI, the daemon hook, and the tests.
+"""
+
+from __future__ import annotations
+
+import json as _json
+import time
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+import click
+
+from bernstein.core.orchestration.schedule_supervisor import (
+    DEFAULT_TICK_INTERVAL_S,
+    ScheduleSupervisor,
+    load_receipts,
+)
+from bernstein.core.planning.schedule_store import (
+    CronParseError,
+    Schedule,
+    ScheduleStore,
+    validate_cron,
+)
+
+
+def _sdd_dir() -> Path:
+    """Return the project ``.sdd`` directory, exiting if absent.
+
+    Mirrors the convention used by ``triggers_cmd``: failing fast with a
+    friendly message beats a deeper traceback when the operator forgot to
+    run ``bernstein init`` first.
+    """
+    sdd = Path.cwd() / ".sdd"
+    if not sdd.exists():
+        click.echo("error: no .sdd/ directory found. Run 'bernstein init' first.", err=True)
+        raise SystemExit(1)
+    return sdd
+
+
+def _schedule_to_public_dict(schedule: Schedule) -> dict[str, Any]:
+    """Return a stable, JSON-safe view of a schedule.
+
+    Keeping the JSON shape stable across releases is part of the AC's
+    "human and --json output" requirement; downstream operator tooling
+    diffs this output to compare two hosts.
+    """
+    return {
+        "id": schedule.id,
+        "cron": schedule.cron,
+        "goal": schedule.goal,
+        "scenario_id": schedule.scenario_id,
+        "misfire_policy": schedule.misfire_policy,
+        "created_at": schedule.created_at,
+        "last_fire_at": schedule.last_fire_at,
+    }
+
+
+@click.group("schedule")
+def schedule_group() -> None:
+    """Manage operator-registered recurring schedules (#1798)."""
+
+
+@schedule_group.command("add")
+@click.option("--cron", required=True, help="Cron expression in 5-field standard form.")
+@click.option(
+    "--goal",
+    default="",
+    help="Goal text to dispatch when the schedule fires.",
+)
+@click.option(
+    "--scenario",
+    "scenario_id",
+    default="",
+    help="Named scenario id (optional, complements --goal).",
+)
+@click.option(
+    "--misfire-policy",
+    type=click.Choice(["skip", "catch_up"], case_sensitive=False),
+    default="skip",
+    show_default=True,
+    help="Misfire policy (default 'skip'; opt into 'catch_up' explicitly).",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def schedule_add(
+    cron: str,
+    goal: str,
+    scenario_id: str,
+    misfire_policy: str,
+    as_json: bool,
+) -> None:
+    """Register a recurring schedule.
+
+    The cron expression is validated up-front; the schedule is then
+    persisted under ``.sdd/runtime/schedules/<id>.json``.
+    """
+    sdd = _sdd_dir()
+    try:
+        validate_cron(cron)
+    except CronParseError as exc:
+        click.echo(f"error: invalid cron expression: {exc}", err=True)
+        raise SystemExit(2) from exc
+
+    store = ScheduleStore(sdd)
+    try:
+        schedule = store.add(
+            cron=cron,
+            goal=goal,
+            scenario_id=scenario_id,
+            misfire_policy=misfire_policy.lower(),  # type: ignore[arg-type]
+        )
+    except ValueError as exc:
+        click.echo(f"error: {exc}", err=True)
+        raise SystemExit(2) from exc
+
+    payload = _schedule_to_public_dict(schedule)
+    if as_json:
+        click.echo(_json.dumps(payload, sort_keys=True, indent=2))
+    else:
+        click.echo(f"Registered schedule {schedule.id}")
+        click.echo(f"  cron:     {schedule.cron}")
+        if schedule.goal:
+            click.echo(f"  goal:     {schedule.goal}")
+        if schedule.scenario_id:
+            click.echo(f"  scenario: {schedule.scenario_id}")
+        click.echo(f"  misfire:  {schedule.misfire_policy}")
+
+
+@schedule_group.command("list")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def schedule_list(as_json: bool) -> None:
+    """List all registered schedules."""
+    sdd = _sdd_dir()
+    store = ScheduleStore(sdd)
+    schedules = store.list()
+
+    if as_json:
+        click.echo(
+            _json.dumps(
+                {"schedules": [_schedule_to_public_dict(s) for s in schedules]},
+                sort_keys=True,
+                indent=2,
+            ),
+        )
+        return
+
+    if not schedules:
+        click.echo("(no schedules registered)")
+        return
+
+    click.echo(f"{'ID':<24} {'CRON':<24} {'POLICY':<10} GOAL/SCENARIO")
+    for s in schedules:
+        body = s.goal or (f"scenario:{s.scenario_id}" if s.scenario_id else "(empty)")
+        click.echo(f"{s.id:<24} {s.cron:<24} {s.misfire_policy:<10} {body[:60]}")
+
+
+@schedule_group.command("show")
+@click.argument("schedule_id")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def schedule_show(schedule_id: str, as_json: bool) -> None:
+    """Show one schedule's full record."""
+    sdd = _sdd_dir()
+    schedule = ScheduleStore(sdd).get(schedule_id)
+    if schedule is None:
+        click.echo(f"error: schedule {schedule_id!r} not found", err=True)
+        raise SystemExit(1)
+
+    payload = _schedule_to_public_dict(schedule)
+    if as_json:
+        click.echo(_json.dumps(payload, sort_keys=True, indent=2))
+        return
+
+    click.echo(f"id:             {schedule.id}")
+    click.echo(f"cron:           {schedule.cron}")
+    click.echo(f"goal:           {schedule.goal or '(none)'}")
+    click.echo(f"scenario_id:    {schedule.scenario_id or '(none)'}")
+    click.echo(f"misfire_policy: {schedule.misfire_policy}")
+    click.echo(f"created_at:     {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(schedule.created_at))} UTC")
+    last_fire = (
+        time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(schedule.last_fire_at)) if schedule.last_fire_at else "(never)"
+    )
+    click.echo(f"last_fire_at:   {last_fire}")
+
+
+@schedule_group.command("remove")
+@click.argument("schedule_id")
+def schedule_remove(schedule_id: str) -> None:
+    """Remove a schedule by id."""
+    sdd = _sdd_dir()
+    store = ScheduleStore(sdd)
+    if store.remove(schedule_id):
+        click.echo(f"Removed schedule {schedule_id}")
+    else:
+        click.echo(f"error: schedule {schedule_id!r} not found", err=True)
+        raise SystemExit(1)
+
+
+@schedule_group.command("audit")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def schedule_audit(as_json: bool) -> None:
+    """Walk persisted fire receipts and prove the sequence is reproducible.
+
+    The verb iterates ``runtime/schedule_receipts/*.json`` in chronological
+    order and reports the projection_hash + chain digest for each fire.
+    Two operators comparing the same nightly window can diff this output
+    to confirm byte-identical execution.
+    """
+    sdd = _sdd_dir()
+    receipts = load_receipts(sdd)
+
+    if as_json:
+        click.echo(
+            _json.dumps(
+                {"receipts": [asdict(r) for r in receipts]},
+                sort_keys=True,
+                indent=2,
+            ),
+        )
+        return
+
+    if not receipts:
+        click.echo("(no schedule fires recorded)")
+        return
+
+    click.echo(f"{'FIRE_TIME':<20} {'SCHEDULE':<24} {'PROJECTION':<18} CHAIN")
+    for r in receipts:
+        kind = "skip" if r.counterfactual else "fire"
+        ts = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r.fire_time))
+        chain_short = (r.chain_digest or "-")[:16]
+        proj_short = (r.projection_hash or "-")[:16]
+        click.echo(f"{ts:<20} {r.schedule_id:<24} {proj_short:<18} {chain_short}  [{kind}]")
+
+
+@schedule_group.command("run")
+@click.option(
+    "--interval",
+    type=float,
+    default=DEFAULT_TICK_INTERVAL_S,
+    show_default=True,
+    help="Tick interval (seconds) for the standalone supervisor worker.",
+)
+@click.option(
+    "--once",
+    is_flag=True,
+    help="Run a single tick and exit (useful for testing or cron-driven harnesses).",
+)
+def schedule_run(interval: float, once: bool) -> None:
+    """Run the schedule supervisor in the foreground.
+
+    Provides the long-running worker called out in the AC. The same
+    supervisor logic is also wired into the ``bernstein daemon`` hook so
+    operators may choose either lifecycle.
+    """
+    sdd = _sdd_dir()
+    store = ScheduleStore(sdd)
+
+    # The audit chain wiring uses the existing AuditLog primitives.
+    audit_dir = sdd / "audit"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        from bernstein.core.security.audit import AuditLog
+
+        audit_writer: Any | None = AuditLog(audit_dir=audit_dir)
+    except Exception as exc:  # pragma: no cover - defensive
+        click.echo(f"warning: audit log unavailable ({exc}); fires will not chain", err=True)
+        audit_writer = None
+
+    # Wire the production TriggerManager if available. The worker runs
+    # outside the orchestrator process, so TriggerManager.evaluate is the
+    # only seam back into the regular trigger pipeline. When the manager
+    # cannot load (e.g. no triggers.yaml) we fall back to recording the
+    # TriggerEvent on disk; the next orchestrator tick will pick it up.
+    trigger_manager: Any | None = None
+    try:
+        from bernstein.core.orchestration.trigger_manager import TriggerManager
+
+        trigger_manager = TriggerManager(sdd)
+    except Exception as exc:  # pragma: no cover - defensive
+        click.echo(
+            f"warning: trigger manager unavailable ({exc}); fires will queue locally",
+            err=True,
+        )
+
+    fires_dispatched: list[Any] = []
+
+    def _dispatch(event: Any) -> None:
+        fires_dispatched.append(event)
+        # Push the event through the existing trigger pipeline so the
+        # downstream task store sees a normal trigger fire. If no
+        # manager wired, the receipt + audit-chain entry stand on
+        # their own for later replay.
+        if trigger_manager is not None:
+            try:
+                trigger_manager.evaluate(event)
+            except Exception:  # pragma: no cover - defensive
+                logger = __import__("logging").getLogger(__name__)
+                logger.exception("Trigger pipeline dispatch failed for %s", event.metadata)
+
+    supervisor = ScheduleSupervisor(store, _dispatch, audit_writer)
+
+    if once:
+        receipts = supervisor.tick()
+        click.echo(f"tick complete: {len(receipts)} receipt(s), {len(fires_dispatched)} fire(s)")
+        return
+
+    click.echo(f"schedule supervisor started (interval={interval}s)")
+    try:
+        while True:
+            supervisor.tick()
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        click.echo("\nsupervisor stopped")
+
+
+@schedule_group.command("doctor")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def schedule_doctor(as_json: bool) -> None:
+    """Report supervisor liveness, last fire, and next fire.
+
+    Surfaces the doctor check required by the AC. Designed to be
+    composable with the main ``bernstein doctor`` runner; the standalone
+    command is provided so operators can poll the schedule subsystem
+    independently of the full doctor report.
+    """
+    sdd = _sdd_dir()
+    store = ScheduleStore(sdd)
+    supervisor = ScheduleSupervisor(store, lambda _evt: None, None)
+
+    status = supervisor.status()
+    payload = {
+        "alive": status.alive,
+        "last_tick_at": status.last_tick_at,
+        "last_fire_at": status.last_fire_at,
+        "next_fire_at": status.next_fire_at,
+        "next_fire_schedule_id": status.next_fire_schedule_id,
+        "schedules_total": status.schedules_total,
+    }
+    if as_json:
+        click.echo(_json.dumps(payload, sort_keys=True, indent=2))
+        return
+
+    click.echo(f"schedules registered: {status.schedules_total}")
+    click.echo(f"supervisor alive:     {status.alive}")
+    if status.last_fire_at:
+        click.echo(f"last fire at:         {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(status.last_fire_at))}")
+    else:
+        click.echo("last fire at:         (never)")
+    if status.next_fire_at:
+        click.echo(
+            f"next fire at:         "
+            f"{time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(status.next_fire_at))} "
+            f"(schedule {status.next_fire_schedule_id})"
+        )
+    else:
+        click.echo("next fire at:         (no schedules)")

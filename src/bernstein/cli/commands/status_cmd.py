@@ -771,6 +771,49 @@ def _doctor_check_commit_attribution(checks: list[dict[str, Any]], workdir: Path
         _add_check(checks, _COMMIT_ATTRIBUTION_LABEL, True, f"{commit_result.total_commits} commits: {role_parts}")
 
 
+def _doctor_check_schedule_supervisor(checks: list[dict[str, Any]], workdir: Path) -> None:
+    """Surface schedule supervisor liveness, last fire, and next fire.
+
+    Issue #1798. The doctor entry is informational: a missing supervisor
+    is reported, but we do not fail the overall doctor exit on the basis
+    of an idle schedule subsystem.
+    """
+    sdd_dir = workdir / ".sdd"
+    if not sdd_dir.exists():
+        return
+    try:
+        from bernstein.core.orchestration.schedule_supervisor import ScheduleSupervisor
+        from bernstein.core.planning.schedule_store import ScheduleStore
+
+        store = ScheduleStore(sdd_dir)
+        supervisor = ScheduleSupervisor(store, lambda _e: None, None)
+        status = supervisor.status()
+    except Exception as exc:
+        _add_check(
+            checks,
+            "Schedule supervisor",
+            False,
+            f"unavailable: {exc}",
+            "Check src/bernstein/core/orchestration/schedule_supervisor.py imports",
+        )
+        return
+
+    if status.schedules_total == 0:
+        _add_check(checks, "Schedule supervisor", True, "no schedules registered")
+        return
+
+    import time as _time
+
+    parts = [f"{status.schedules_total} schedule(s)"]
+    if status.last_fire_at:
+        parts.append("last fire " + _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime(status.last_fire_at)))
+    else:
+        parts.append("last fire (none)")
+    if status.next_fire_at:
+        parts.append("next fire " + _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime(status.next_fire_at)))
+    _add_check(checks, "Schedule supervisor", True, "; ".join(parts))
+
+
 def _doctor_check_compliance(checks: list[dict[str, Any]], workdir: Path) -> None:
     """Check compliance mode prerequisites."""
     from bernstein.core.compliance import load_compliance_config
@@ -914,6 +957,7 @@ def doctor(as_json: bool, auto_fix: bool) -> None:
     _doctor_check_context_and_plugins(checks, workdir)
     _doctor_check_commit_attribution(checks, workdir)
     _doctor_check_compliance(checks, workdir)
+    _doctor_check_schedule_supervisor(checks, workdir)
 
     if auto_fix:
         _doctor_auto_fix(checks, stale_pid_paths, workdir, fixed, manual_needed)

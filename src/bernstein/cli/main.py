@@ -255,6 +255,7 @@ from bernstein.cli.commands.preview_cmd import preview_group
 from bernstein.cli.commands.remote_cmd import remote_group
 from bernstein.cli.commands.review_responder_cmd import review_responder_group
 from bernstein.cli.commands.sandbox_cmd import sandbox_group
+from bernstein.cli.commands.schedule_cmd import schedule_group
 from bernstein.cli.commands.ticket_cmd import from_ticket, ticket_group
 from bernstein.cli.commands.tunnel_cmd import tunnel_group
 from bernstein.cli.helpers import (
@@ -1028,6 +1029,7 @@ cli.add_command(dep_impact_cmd, "dep-impact")
 cli.add_command(fingerprint_group, "fingerprint")
 cli.add_command(fleet_group, "fleet")
 cli.add_command(triggers_group, "triggers")
+cli.add_command(schedule_group, "schedule")
 
 # Citation/reference existence verifier (closes #1402)
 cli.add_command(citation_quality_group, "quality")

@@ -315,7 +315,7 @@ def test_check_loops_no_detector_is_noop() -> None:
     check_loops_and_deadlocks(orch)
 
 
-def test_check_loops_recovers_edit_loop() -> None:
+def test_check_loops_recovers_edit_loop(tmp_path: Path) -> None:
     """A detected edit loop kills the agent and releases its locks."""
     loop = SimpleNamespace(agent_id="A-1", file_path="src/a.py", edit_count=10, window_seconds=60.0)
     detector = MagicMock()
@@ -327,7 +327,7 @@ def test_check_loops_recovers_edit_loop() -> None:
         _loop_detector=detector,
         _lock_manager=lock_mgr,
         _agents={"A-1": _session("A-1")},
-        _workdir=Path("/tmp"),
+        _workdir=tmp_path,
         _spawner=MagicMock(),
     )
     with patch.object(ar, "_propagate_abort_to_children"):
@@ -337,7 +337,7 @@ def test_check_loops_recovers_edit_loop() -> None:
     detector.clear_wait.assert_called_with("A-1")
 
 
-def test_check_loops_recovers_deadlock_victim() -> None:
+def test_check_loops_recovers_deadlock_victim(tmp_path: Path) -> None:
     """A detected deadlock releases the victim agent's locks."""
     deadlock = SimpleNamespace(description="cycle A->B", victim_agent_id="A-9")
     detector = MagicMock()
@@ -349,7 +349,7 @@ def test_check_loops_recovers_deadlock_victim() -> None:
         _loop_detector=detector,
         _lock_manager=lock_mgr,
         _agents={},
-        _workdir=Path("/tmp"),
+        _workdir=tmp_path,
         _spawner=MagicMock(),
     )
     check_loops_and_deadlocks(orch)

@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from bernstein.core.agents.agent_cost_ledger import (
     AgentCostEntry,
     AgentCostLedger,
@@ -65,7 +67,7 @@ def test_record_task_result_accumulates_duration() -> None:
     entry = ledger.get_entry("a1")
     assert entry is not None
     assert entry.tasks_completed == 2
-    assert entry.total_duration_s == 15.0
+    assert entry.total_duration_s == pytest.approx(15.0)
 
 
 def test_leaderboard_min_tasks_excludes_low_completion() -> None:
@@ -92,9 +94,9 @@ def test_leaderboard_entry_to_dict_rounds_fields() -> None:
     assert d["rank"] == 2
     assert d["agent_id"] == "agent-x"
     assert d["role"] == "qa"
-    assert d["cost_per_task"] == 0.05
-    assert d["success_rate"] == 0.75
-    assert d["efficiency_score"] == 14.9
+    assert d["cost_per_task"] == pytest.approx(0.05)
+    assert d["success_rate"] == pytest.approx(0.75)
+    assert d["efficiency_score"] == pytest.approx(14.9)
 
 
 def test_record_cost_accumulates_tokens() -> None:

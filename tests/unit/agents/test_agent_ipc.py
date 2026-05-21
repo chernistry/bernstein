@@ -125,9 +125,10 @@ def test_send_message_preserves_unicode_content() -> None:
     """Non-ASCII content survives the utf-8 round trip."""
     pipe = _FakePipe()
     ipc.register_stdin_pipe("S1", pipe)
-    ipc.send_message("S1", "emoji and accents")
+    message = "café 🚀 naïve façade"
+    ipc.send_message("S1", message)
     payload = json.loads(pipe.buf.decode("utf-8"))
-    assert payload["content"] == "emoji and accents"
+    assert payload["content"] == message
 
 
 # ---------------------------------------------------------------------------

@@ -61,7 +61,9 @@ def _session(
 
 
 def _git(path: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=str(path), capture_output=True, check=False)
+    # Setup/mutation git steps must succeed; check=True surfaces a broken
+    # fixture (e.g. failed ``git init``) instead of silently masking it.
+    subprocess.run(["git", *args], cwd=str(path), capture_output=True, check=True)
 
 
 def _init_repo(path: Path) -> None:

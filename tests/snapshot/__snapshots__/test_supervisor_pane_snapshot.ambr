@@ -1,0 +1,12 @@
+# serializer version: 1
+# name: test_supervisor_pane_renders_nothing_when_all_healthy
+  ''
+# ---
+# name: test_supervisor_pane_renders_stuck_rows_sorted
+  '''
+  [bold]supervisor[/bold] - stalled workers
+    [yellow]aaa111[/yellow] role=backend reason=respawn_budget_exhausted recommend=park hb=- budget=0
+    [yellow]mmm222[/yellow] role=qa reason=heartbeat_stale recommend=respawn hb=180s budget=2
+    [yellow]zzz999[/yellow] role=manager reason=manager_no_children recommend=escalate hb=120s budget=0
+  '''
+# ---

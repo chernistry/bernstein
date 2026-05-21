@@ -450,3 +450,83 @@ class CoordinatorDashboard(DataTable[Text]):
                 Text(row.elapsed, style="dim"),
                 key=row.task_id,
             )
+
+
+# ---------------------------------------------------------------------------
+# Supervisor pane (#1800)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SupervisorPaneRow:
+    """One row in the TUI supervisor pane.
+
+    Mirrors :class:`bernstein.core.orchestration.supervisor_aggregator.WorkerSupervisionSnapshot`
+    in the fields the TUI cares about. Keeping a dedicated dataclass
+    decouples the widget from a deeper import of the orchestration
+    package - the pane is fed by the dashboard polling layer.
+    """
+
+    worker_id: str
+    session_id: str
+    role: str
+    stall_reason: str
+    recommended_action: str
+    respawn_budget_remaining: int
+    last_heartbeat_age_s: float | None
+    is_stuck: bool
+
+
+def render_supervisor_pane(rows: list[SupervisorPaneRow]) -> str:
+    """Return a Rich-markup block summarising stalled/parked sessions.
+
+    The pane intentionally renders nothing when no worker is stuck so
+    the dashboard stays compact in the happy path. The rendered block
+    is a deterministic string keyed on ``(session_id, stall_reason)``
+    so snapshot tests can assert byte-identical output.
+    """
+    stuck_rows = sorted(
+        (r for r in rows if r.is_stuck),
+        key=lambda r: r.session_id,
+    )
+    if not stuck_rows:
+        return ""
+    lines: list[str] = ["[bold]supervisor[/bold] - stalled workers"]
+    for r in stuck_rows:
+        hb = "-"
+        if r.last_heartbeat_age_s is not None:
+            hb = f"{int(r.last_heartbeat_age_s)}s"
+        lines.append(
+            f"  [yellow]{r.worker_id}[/yellow] "
+            f"role={r.role or '-'} "
+            f"reason={r.stall_reason} "
+            f"recommend={r.recommended_action} "
+            f"hb={hb} budget={r.respawn_budget_remaining}"
+        )
+    return "\n".join(lines)
+
+
+class SupervisorPane(Static):
+    """TUI pane that surfaces stalled / parked / no-progress sessions.
+
+    The pane mirrors ``bernstein supervisor status`` so an operator who
+    notices a wedged worker in the dashboard can drop to a terminal and
+    run ``bernstein supervisor escalate <session_id>`` without needing
+    to reconcile a separate state machine.
+    """
+
+    DEFAULT_CSS = """
+    SupervisorPane {
+        height: auto;
+        min-height: 3;
+        padding: 1;
+    }
+    """
+
+    def refresh_rows(self, rows: list[SupervisorPaneRow]) -> None:
+        """Update the pane with the latest supervisor aggregator rows."""
+        block = render_supervisor_pane(rows)
+        if not block:
+            self.update(Text.from_markup("[dim]supervisor: all workers healthy[/dim]"))
+            return
+        self.update(Text.from_markup(block))

@@ -184,6 +184,11 @@ def status(as_json: bool, no_color: bool, view_mode: str | None) -> None:
     if snapshots:
         data["rate_limit_meters"] = snapshots
 
+    # Attach the supervisor summary (stuck-count + oldest-stall age).
+    # Operators reading ``bernstein status`` should not have to remember
+    # the dedicated supervisor command to spot a wedged worker.
+    data["supervisor"] = _supervisor_status_summary(Path.cwd())
+
     if as_json or is_json():
         print_json(data)
         return
@@ -199,6 +204,44 @@ def status(as_json: bool, no_color: bool, view_mode: str | None) -> None:
     con = make_console(no_color=force_no_color)
 
     render_status(data, console=con, view_config=vc)
+
+    supervisor_line = _supervisor_summary_line(Path.cwd())
+    if supervisor_line:
+        con.print(f"[dim]{supervisor_line}[/dim]")
+
+
+def _supervisor_status_summary(workdir: Path) -> dict[str, Any]:
+    """Return the supervisor stuck-count summary for ``bernstein status --json``.
+
+    Returns an empty dict if the aggregator raises - the command must
+    never fail on a missing or malformed runtime tree.
+    """
+    try:
+        from bernstein.core.defaults import AGENT
+        from bernstein.core.orchestration.supervisor_aggregator import (
+            aggregator_snapshot,
+            snapshot_to_dict,
+        )
+
+        snapshot = aggregator_snapshot(workdir, heartbeat_stale_s=AGENT.heartbeat_stale_s)
+    except Exception:  # pragma: no cover - status must never error on this
+        return {}
+    return snapshot_to_dict(snapshot)
+
+
+def _supervisor_summary_line(workdir: Path) -> str:
+    """Return the one-line supervisor summary string for the human view."""
+    try:
+        from bernstein.core.defaults import AGENT
+        from bernstein.core.orchestration.supervisor_aggregator import (
+            aggregator_snapshot,
+            format_summary_line,
+        )
+
+        snapshot = aggregator_snapshot(workdir, heartbeat_stale_s=AGENT.heartbeat_stale_s)
+    except Exception:  # pragma: no cover - status must never error on this
+        return ""
+    return format_summary_line(snapshot)
 
 
 # ---------------------------------------------------------------------------

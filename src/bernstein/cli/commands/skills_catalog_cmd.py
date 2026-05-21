@@ -147,8 +147,7 @@ def list_cmd(scope: str) -> None:
     """List catalog entries currently installed via the lockfile."""
     from rich.table import Table
 
-    service = _build_service(scope)
-    rows = service.list_installed()
+    rows = _build_service(scope).list_installed()
     if not rows:
         console.print("[dim]No skills installed via catalog.[/dim]")
         return
@@ -206,8 +205,7 @@ def search_cmd(query: str, refresh: bool, scope: str) -> None:
 )
 def info_cmd(entry_id: str, refresh: bool, scope: str) -> None:
     """Show full info for a single catalog entry."""
-    service = _build_service(scope)
-    entry = service.info(entry_id, force_refresh=refresh)
+    entry = _build_service(scope).info(entry_id, force_refresh=refresh)
     if entry is None:
         raise click.ClickException(f"Catalog entry {entry_id!r} not found")
 
@@ -363,8 +361,7 @@ def uninstall_cmd(entry_id: str, scope: str) -> None:
 )
 def sync_cmd(scope: str) -> None:
     """Detect lockfile vs on-disk drift."""
-    service = _build_service(scope)
-    drift = service.sync()
+    drift = _build_service(scope).sync()
     if not drift:
         console.print("[green]no drift detected[/green]")
         return
@@ -381,8 +378,7 @@ def sync_cmd(scope: str) -> None:
 )
 def status_cmd(scope: str) -> None:
     """Show cache + lockfile state for ``skills catalog``."""
-    service = _build_service(scope)
-    status = service.status()
+    status = _build_service(scope).status()
     console.print("[bold cyan]Skill catalog status[/bold cyan]")
     console.print(f"Cache:                {status.cache_path}")
     console.print(f"Last fetch:           {status.last_fetch_at or 'never'}")

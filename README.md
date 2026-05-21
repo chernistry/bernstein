@@ -270,6 +270,7 @@ Highest-value commands; full list in [docs/operations/commands.md](docs/operatio
 | `bernstein backlog claim --role reviewer` | Atomically claims one eligible row from `.sdd/runtime/task-backlog.json` for external workers. |
 | `bernstein chat serve --platform=telegram\|discord\|slack` | Drive runs from chat with `/run`, `/status`, `/approve`, `/reject`. |
 | `bernstein workflow run <name>` | Run a YAML workflow manifest. |
+| `bernstein schedule add\|list\|run` | Manage operator-registered recurring schedules; `schedule audit` walks persisted fire receipts to prove the sequence is replayable. |
 
 ### retrieval & caching: what's actually under the hood
 

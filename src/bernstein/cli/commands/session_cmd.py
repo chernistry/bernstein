@@ -192,13 +192,38 @@ def session_replay(
     help="Short label baked into the fork branch / session id (a-z, 0-9, '.-_').",
 )
 @click.option(
+    "--from-step",
+    "from_step",
+    type=int,
+    default=None,
+    help=(
+        "Zero-based step index on the parent's hash-chained journal to fork at. "
+        "When set, the fork inherits steps [0..N] and the chain becomes a tree "
+        "rooted at the parent step hash. Omit for the pre-#1799 session-level fork."
+    ),
+)
+@click.option(
+    "--prompt",
+    "extra_prompt",
+    default=None,
+    help=(
+        "Optional follow-up instruction recorded in the fork snapshot. Only meaningful in combination with --from-step."
+    ),
+)
+@click.option(
     "--json",
     "as_json",
     is_flag=True,
     default=False,
     help="Emit the fork descriptor as JSON instead of human-readable output.",
 )
-def session_fork(session_id: str, fork_label: str, as_json: bool) -> None:
+def session_fork(
+    session_id: str,
+    fork_label: str,
+    from_step: int | None,
+    extra_prompt: str | None,
+    as_json: bool,
+) -> None:
     """Fork a recorded session into a sibling git worktree.
 
     Creates a new worktree under ``.sdd/worktrees/<fork_session_id>``
@@ -206,9 +231,16 @@ def session_fork(session_id: str, fork_label: str, as_json: bool) -> None:
     of the parent's task state into the fork's sessions directory.  The
     parent session is untouched.
 
+    With ``--from-step N`` the fork additionally inherits the parent's
+    hash-chained journal prefix ``[0..N]`` and the snapshot records the
+    parent ``step_hash`` at that index. Subsequent agent activity in the
+    fork chains on top of that prefix, so the family of forks forms a
+    tree rather than a flat list.
+
     Example::
 
         bernstein session fork 20240101-120000-abc123 --label use-yaml
+        bernstein session fork 20240101-120000-abc123 --from-step 5 --prompt "try alternative"
     """
     from bernstein.core.sessions.fork import SessionForkError, fork_session
 
@@ -218,10 +250,20 @@ def session_fork(session_id: str, fork_label: str, as_json: bool) -> None:
             parent_session_id=session_id,
             fork_label=fork_label,
             repo_root=workdir,
+            from_step=from_step,
         )
     except SessionForkError as exc:
         console.print(f"[red]Fork failed:[/red] {exc}")
         raise SystemExit(1) from exc
+
+    # Record the operator-supplied follow-up prompt alongside the snapshot
+    # so the next agent picking up the fork can see why the branch exists.
+    if extra_prompt:
+        snapshot = json.loads(fork.snapshot_path.read_text(encoding="utf-8"))
+        fork_block = dict(snapshot.get("fork") or {})
+        fork_block["follow_up_prompt"] = extra_prompt
+        snapshot["fork"] = fork_block
+        fork.snapshot_path.write_text(json.dumps(snapshot, indent=2, sort_keys=True), encoding="utf-8")
 
     if as_json:
         click.echo(json.dumps(fork.to_dict(), indent=2, sort_keys=True))
@@ -234,3 +276,7 @@ def session_fork(session_id: str, fork_label: str, as_json: bool) -> None:
     console.print(f"  [bold]worktree:[/bold]  {fork.fork_worktree}")
     console.print(f"  [bold]commit:[/bold]    {fork.fork_commit[:12]}")
     console.print(f"  [bold]snapshot:[/bold]  {fork.snapshot_path}")
+    if fork.from_step is not None:
+        console.print(f"  [bold]from_step:[/bold] {fork.from_step}")
+        if fork.parent_step_hash:
+            console.print(f"  [bold]step hash:[/bold] {fork.parent_step_hash[:16]}...")

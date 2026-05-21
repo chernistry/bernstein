@@ -1655,6 +1655,11 @@ def replay_cmd(
       bernstein replay latest                     # replay most recent run
       bernstein replay 20240315-143022            # replay a specific run
       bernstein replay diff RUN_A RUN_B           # first-divergence finder
+      bernstein replay <AGENT_ID>                 # per-step journal view (#1799)
+      bernstein replay export <AGENT_ID> -o RECEIPT   # portable receipt (#1799)
+      bernstein replay publish <AGENT_ID> -o RECEIPT  # redacted publish (#1799)
+      bernstein replay verify <RECEIPT>           # offline verifier (#1799)
+      bernstein replay diff-journal A B           # per-step divergence finder
     """
     # ``nargs=-1`` lets us implement the pseudo-subcommand ``diff`` without
     # converting ``replay`` to a full :class:`click.Group` (which would
@@ -1663,12 +1668,36 @@ def replay_cmd(
     if args and args[0] == "diff":
         _replay_diff_dispatch(args[1:], sdd_dir=sdd_dir, as_json=as_json)
         return
+    if args and args[0] in {"export", "publish", "verify", "diff-journal"}:
+        _replay_journal_dispatch(args, sdd_dir=sdd_dir, as_json=as_json)
+        return
 
     if len(args) != 1:
         console.print(
-            "[red]Usage:[/red] bernstein replay <RUN_ID | latest | list> OR bernstein replay diff RUN_A RUN_B",
+            "[red]Usage:[/red] bernstein replay <RUN_ID | AGENT_ID | latest | list> "
+            "OR bernstein replay diff RUN_A RUN_B "
+            "OR bernstein replay export|publish|verify|diff-journal ...",
         )
         raise SystemExit(2)
+
+    # When an agent journal exists for this id, prefer the per-step view
+    # over the run-trace view. The journal directory naming is unambiguous
+    # because it always sits under ``.sdd/runtime/journal/`` (a path the
+    # legacy run recorder never wrote to).
+    sdd_path = Path(sdd_dir)
+    journal_dir = sdd_path / "runtime" / "journal" / args[0]
+    if journal_dir.exists():
+        from bernstein.cli.commands.replay_cmd import replay_agent_view
+
+        rc = replay_agent_view(
+            agent_id=args[0],
+            sdd_dir=sdd_path,
+            as_json=as_json,
+            limit=limit,
+        )
+        if rc != 0:
+            raise SystemExit(rc)
+        return
 
     _replay_run_impl(
         run_id=args[0],
@@ -1678,6 +1707,112 @@ def replay_cmd(
         model=model,
         extra_context=extra_context,
     )
+
+
+def _replay_journal_dispatch(
+    args: list[str],
+    *,
+    sdd_dir: str,
+    as_json: bool,
+) -> None:
+    """Dispatch the new ``export | publish | verify | diff-journal`` verbs.
+
+    These touch only the per-step journal under ``.sdd/runtime/journal/``
+    and never the legacy ``.sdd/runs/`` directory; the run-trace replay
+    flow is unchanged.
+    """
+    verb = args[0]
+    sdd_path = Path(sdd_dir)
+
+    if verb == "export":
+        if len(args) < 2:
+            console.print("[red]Usage:[/red] bernstein replay export <AGENT_ID> [-o OUT]")
+            raise SystemExit(2)
+        agent_id = args[1]
+        # Output path can be passed as the third positional or default beside .sdd.
+        output: Path = Path(args[2]) if len(args) >= 3 else sdd_path / "runtime" / "receipts" / f"{agent_id}.tar"
+
+        from bernstein.cli.commands.replay_cmd import replay_export
+
+        rc = replay_export(
+            agent_id=agent_id,
+            sdd_dir=sdd_path,
+            output=output,
+        )
+        if rc != 0:
+            raise SystemExit(rc)
+        return
+
+    if verb == "publish":
+        # Publish requires an explicit ``--yes`` style sentinel positional so
+        # operators cannot accidentally publish from a script that just adds
+        # a verb name.
+        if len(args) < 2:
+            console.print("[red]Usage:[/red] bernstein replay publish <AGENT_ID> [OUT] --opt-in")
+            raise SystemExit(2)
+        agent_id = args[1]
+        opt_in = "--opt-in" in args
+        positional_tail = [a for a in args[2:] if not a.startswith("--")]
+        output = (
+            Path(positional_tail[0])
+            if positional_tail
+            else sdd_path / "runtime" / "receipts" / f"{agent_id}.redacted.tar"
+        )
+
+        from bernstein.cli.commands.replay_cmd import replay_publish
+
+        rc = replay_publish(
+            agent_id=agent_id,
+            sdd_dir=sdd_path,
+            output=output,
+            opt_in=opt_in,
+        )
+        if rc != 0:
+            raise SystemExit(rc)
+        return
+
+    if verb == "verify":
+        if len(args) < 2:
+            console.print("[red]Usage:[/red] bernstein replay verify <RECEIPT> [--head HEX]")
+            raise SystemExit(2)
+        receipt = Path(args[1])
+        expected_head: str | None = None
+        for i, token in enumerate(args[2:], start=2):
+            if token == "--head" and i + 1 < len(args):
+                expected_head = args[i + 1]
+
+        from bernstein.cli.commands.replay_cmd import replay_verify
+
+        rc = replay_verify(
+            receipt_path=receipt,
+            expected_head=expected_head,
+            public_key_path=None,
+        )
+        if rc != 0:
+            raise SystemExit(rc)
+        return
+
+    if verb == "diff-journal":
+        if len(args) != 3:
+            console.print(
+                "[red]Usage:[/red] bernstein replay diff-journal <LEFT_AGENT_ID> <RIGHT_AGENT_ID>",
+            )
+            raise SystemExit(2)
+
+        from bernstein.cli.commands.replay_cmd import replay_diff_journals
+
+        rc = replay_diff_journals(
+            left_agent_id=args[1],
+            right_agent_id=args[2],
+            sdd_dir=sdd_path,
+            as_json=as_json,
+        )
+        if rc != 0:
+            raise SystemExit(rc)
+        return
+
+    console.print(f"[red]Unknown replay verb:[/red] {verb}")
+    raise SystemExit(2)
 
 
 def _replay_diff_dispatch(

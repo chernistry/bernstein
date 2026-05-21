@@ -1,9 +1,9 @@
 """Chat-control bridges for driving Bernstein agents from messaging apps.
 
 This sub-package exposes a small platform-agnostic surface for connecting
-chat clients (Telegram today, Discord and Slack as conformant stubs) to
-the task-server. The pieces are intentionally decoupled so a new driver
-can be added without touching the CLI or the session bookkeeping:
+chat clients (Telegram, Slack, and Discord today) to the task-server.
+The pieces are intentionally decoupled so a new driver can be added
+without touching the CLI or the session bookkeeping:
 
   * :class:`BridgeProtocol` -- the abstract interface every driver
     implements.

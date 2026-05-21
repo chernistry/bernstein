@@ -52,11 +52,13 @@ def mount(app: FastAPI) -> None:
         )
 
     # Bidirectional parity: register on BOTH the root app AND under /api/v1/.
-    # AUDIT-126's `test_every_v1_route_has_root_counterpart` asserts every
-    # versioned route has a root mirror - keeping the router prefix-less and
-    # mounting it twice satisfies both directions of the parity test.
-    router = APIRouter(tags=["gui"])
-
+    # AUDIT-126's ``test_every_v1_route_has_root_counterpart`` asserts every
+    # versioned route has a root mirror. Build two independent ``APIRouter``
+    # instances via a local factory so each mount receives its own object -
+    # FastAPI's ``include_router`` mutates per-route state on the included
+    # instance, so reusing one router for both mounts (or nesting it inside an
+    # aggregator that is then mounted) trips python:S8413.
+    #
     # NB: ``from __future__ import annotations`` (top of this file) turns every
     # return annotation into a string. FastAPI's OpenAPI builder then tries to
     # resolve ``JSONResponse`` / ``FileResponse`` as response *models* (via
@@ -65,25 +67,23 @@ def mount(app: FastAPI) -> None:
     # dropping the return annotation - keeps the endpoint's runtime behaviour
     # identical while signalling to FastAPI that the response is a Starlette
     # ``Response`` subclass that should NOT be schema-modelled.
-    @router.get("/gui-meta", response_class=JSONResponse)
-    def gui_meta():  # pyright: ignore[reportUnusedFunction]
-        return JSONResponse(
-            {
-                "version": _package_version(),
-                "commit": _git_sha(),
-                "build_time": _build_time(),
-            },
-        )
+    def _build_gui_meta_router() -> APIRouter:
+        sub_router = APIRouter(tags=["gui"])
 
-    app.include_router(router)
-    # Mirror the same routes under /api/v1 via a dedicated aggregator router
-    # rather than re-including the ``router`` instance a second time. Including
-    # one ``APIRouter`` object into two parents shares mutable per-route state;
-    # nesting it inside a fresh ``api_v1_router`` keeps the versioned surface in
-    # parity (test_gui_meta_versioned_alias) without that shared-instance reuse.
-    api_v1_router = APIRouter()
-    api_v1_router.include_router(router)
-    app.include_router(api_v1_router, prefix="/api/v1")
+        @sub_router.get("/gui-meta", response_class=JSONResponse)
+        def gui_meta():  # pyright: ignore[reportUnusedFunction]
+            return JSONResponse(
+                {
+                    "version": _package_version(),
+                    "commit": _git_sha(),
+                    "build_time": _build_time(),
+                },
+            )
+
+        return sub_router
+
+    app.include_router(_build_gui_meta_router())
+    app.include_router(_build_gui_meta_router(), prefix="/api/v1")
 
     assets_dir = STATIC_DIR / "assets"
     if assets_dir.exists():

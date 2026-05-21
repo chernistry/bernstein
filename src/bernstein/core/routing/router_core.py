@@ -57,7 +57,9 @@ BUDGET_AWARE_OPUS_MARGIN: float = 2.0
 
 
 _budget_context_state: dict[str, Any] = {
-    "budget_remaining_usd": None,  # float | None - ``None`` = unknown / disabled
+    # ``budget_remaining_usd`` holds an Optional float; the None default means
+    # the budget is unknown or budget-aware routing has been disabled.
+    "budget_remaining_usd": None,
     "enabled": True,
     "estimated_opus_cost_usd": DEFAULT_OPUS_TASK_COST_USD,
 }

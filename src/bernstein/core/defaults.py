@@ -46,16 +46,16 @@ from typing import Any, Literal
 class OrchestratorDefaults:
     """Run loop, tick scheduling, drain, and convergence."""
 
-    tick_interval_s: float = 3.0  # arbitrary; tune in tuning:orchestrator
+    tick_interval_s: float = 3.0
     normal_tick_phase: int = 6  # run normal ops every N ticks
     slow_tick_phase: int = 30  # run slow ops every N ticks
 
     max_consecutive_failures: int = 10  # tick failures before abort
     max_spawn_failures: int = 3  # consecutive spawn failures → mark failed
-    spawn_backoff_base_s: float = 30.0  # arbitrary; tune in tuning:orchestrator
+    spawn_backoff_base_s: float = 30.0
     spawn_backoff_max_s: float = 300.0  # cap exponential backoff at 5 min
 
-    drain_timeout_s: float = 60.0  # arbitrary; tune in tuning:orchestrator
+    drain_timeout_s: float = 60.0
     server_failure_threshold: int = 12  # ticks of server unreachability → stop
     server_failure_warn: int = 3  # warn after N consecutive server failures
 
@@ -97,9 +97,9 @@ class AgentDefaults:
     escalation_sigkill_s: float = 150.0  # 2.5 min → hard SIGKILL
 
     # Escalation count thresholds
-    escalation_kill_count: int = 7  # arbitrary; tune in tuning:agent
-    escalation_high_count: int = 5  # arbitrary; tune in tuning:agent
-    escalation_med_count: int = 3  # arbitrary; tune in tuning:agent
+    escalation_kill_count: int = 7
+    escalation_high_count: int = 5
+    escalation_med_count: int = 3
 
     zombie_pid_max_age_s: float = 7 * 24 * 3600  # 7 days
 
@@ -195,9 +195,9 @@ class CostDefaults:
     scope_budget_usd: Mapping[str, float] = field(
         default_factory=lambda: _freeze_dict_str_float(
             {
-                "small": 2.0,  # arbitrary; tune in tuning:cost
-                "medium": 5.0,  # arbitrary; tune in tuning:cost
-                "large": 15.0,  # arbitrary; tune in tuning:cost
+                "small": 2.0,
+                "medium": 5.0,
+                "large": 15.0,
             }
         )
     )
@@ -213,11 +213,11 @@ class CostDefaults:
     effort_base_turns: Mapping[str, int] = field(
         default_factory=lambda: _freeze_dict_str_int(
             {
-                "max": 100,  # arbitrary; tune in tuning:cost
-                "high": 50,  # arbitrary; tune in tuning:cost
-                "medium": 30,  # arbitrary; tune in tuning:cost
-                "normal": 25,  # arbitrary; tune in tuning:cost
-                "low": 15,  # arbitrary; tune in tuning:cost
+                "max": 100,
+                "high": 50,
+                "medium": 30,
+                "normal": 25,
+                "low": 15,
             }
         )
     )
@@ -290,7 +290,7 @@ class ProtocolDefaults:
 
     cluster_autoscale_cooldown_s: float = 120.0  # 2 min between scale decisions
     cluster_min_nodes: int = 1  # always keep at least one node alive
-    cluster_max_nodes: int = 20  # arbitrary; tune in tuning:protocol
+    cluster_max_nodes: int = 20
     cluster_steal_threshold: int = 3  # steal work if queue >3 deeper than peer
     cluster_steal_cooldown_s: float = 10.0  # 10s between work-steal attempts
 
@@ -307,9 +307,9 @@ class PlanDefaults:
     tokens_by_scope: Mapping[str, int] = field(
         default_factory=lambda: _freeze_dict_str_int(
             {
-                "small": 30_000,  # arbitrary; tune in tuning:plan
-                "medium": 80_000,  # arbitrary; tune in tuning:plan
-                "large": 200_000,  # arbitrary; tune in tuning:plan
+                "small": 30_000,
+                "medium": 80_000,
+                "large": 200_000,
             }
         )
     )

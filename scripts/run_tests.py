@@ -32,8 +32,8 @@ def _default_workers() -> int:
 
 
 def discover_test_files(test_dir: Path, keyword: str | None = None) -> list[Path]:
-    """Find all test_*.py files, optionally filtered by keyword."""
-    files = sorted(test_dir.glob("test_*.py"))
+    """Find all test_*.py files recursively, optionally filtered by keyword."""
+    files = sorted(test_dir.rglob("test_*.py"))
     if keyword:
         files = [f for f in files if keyword in f.stem]
     return files

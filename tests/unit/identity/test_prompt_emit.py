@@ -65,7 +65,7 @@ def _enable_emission(monkeypatch: pytest.MonkeyPatch, nonce_path: Path) -> str:
     nonce_path.parent.mkdir(parents=True, exist_ok=True)
     nonce_path.write_bytes(TEST_NONCE)
     ir._reset_cache_for_tests()
-    return _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, 1)
+    return _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, ir._version_byte())
 
 
 # ---------------------------------------------------------------------------
@@ -200,4 +200,4 @@ class TestPromptEmitLive:
         between = last.split("bernstein-rev:", 1)[1]
         emitted = between.removesuffix("-->").strip()
         assert emitted == expected
-        assert ir.verify_with_nonce(emitted, TEST_NONCE, version_major=1) is True
+        assert ir.verify_with_nonce(emitted, TEST_NONCE, version_major=ir._version_byte()) is True

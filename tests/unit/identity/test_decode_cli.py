@@ -68,7 +68,7 @@ class TestShowCmd:
         ir._reset_cache_for_tests()
 
         result = runner.invoke(identity_group, ["show"])
-        expected = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, 1)
+        expected = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, ir._version_byte())
         assert result.exit_code == 0
         assert result.stdout.strip() == expected
 
@@ -85,7 +85,7 @@ class TestDecodeCmd:
         runner: CliRunner,
     ) -> None:
         monkeypatch.setenv(ENV_SEED, TEST_SEED_HEX)
-        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, 1)
+        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, ir._version_byte())
 
         result = runner.invoke(identity_group, ["decode", token])
         assert result.exit_code == 0
@@ -123,7 +123,7 @@ class TestVerifyCmd:
         runner: CliRunner,
     ) -> None:
         monkeypatch.setenv(ENV_SEED, TEST_SEED_HEX)
-        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, 1)
+        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, ir._version_byte())
 
         result = runner.invoke(
             identity_group,
@@ -133,7 +133,7 @@ class TestVerifyCmd:
                 "--nonce",
                 TEST_NONCE.hex(),
                 "--version-major",
-                "1",
+                str(ir._version_byte()),
             ],
         )
         assert result.exit_code == 0
@@ -145,7 +145,7 @@ class TestVerifyCmd:
         runner: CliRunner,
     ) -> None:
         monkeypatch.setenv(ENV_SEED, TEST_SEED_HEX)
-        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, 1)
+        token = _compute_token(bytes.fromhex(TEST_SEED_HEX), TEST_NONCE, ir._version_byte())
         wrong_nonce = bytes(NONCE_BYTES)  # all zeros, deterministically wrong
 
         result = runner.invoke(

@@ -115,8 +115,13 @@ class WorkflowNode(BaseModel):
         fresh_context: When ``True``, agent-typed nodes get a fresh
             session per iteration (no carryover).  Ignored for command-
             typed nodes.
-        interactive: Stub for human-approval gates.  When ``True`` the
-            runner raises ``NotImplementedError`` referencing #1110.
+        interactive: Stub for human-approval gates.  Manifests with this
+            set to ``True`` are rejected at load time with a ``ValueError``
+            referencing #1110 so the failure surfaces before any upstream
+            node runs.  The runner keeps a defence-in-depth
+            ``NotImplementedError`` for out-of-band loaders.  Once the
+            approval gate ships in #1110 this validator relaxes to a
+            permissive pass-through.
         timeout_seconds: Per-iteration wall clock cap.
     """
 
@@ -168,6 +173,23 @@ class WorkflowNode(BaseModel):
             raise ValueError(f"node {self.id!r} sets 'agent'; 'prompt' is required")
         if self.id in set(self.depends_on):
             raise ValueError(f"node {self.id!r} cannot depend on itself")
+        return self
+
+    @model_validator(mode="after")
+    def _check_interactive_unsupported(self) -> WorkflowNode:
+        """Reject ``interactive: true`` until #1110 ships the approval gate.
+
+        Without this guard, manifests with an interactive node parse cleanly,
+        the DAG validates, and the runner aborts mid-run only after upstream
+        nodes have already produced state (filesystem side-effects, agent
+        spawns).  Failing at load time means manifest authors learn at lint
+        time instead of after partial execution.  This validator relaxes to
+        a permissive pass-through once #1110 lands.
+        """
+        if self.interactive:
+            raise ValueError(
+                f"node {self.id!r} sets unsupported field 'interactive: true'; approval gates ship in #1110",
+            )
         return self
 
     @property

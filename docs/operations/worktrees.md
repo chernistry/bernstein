@@ -10,9 +10,11 @@ crashes, or aborted experiments.
 left behind. The classifier in
 `src/bernstein/core/worktrees/classifier.py` is the single source of
 truth for state. The CLI module
-(`src/bernstein/cli/commands/worktrees_cmd.py`) only handles I/O:
-rendering the table, holding the GC lock, prompting the operator, and
-emitting the `worktree.gc` lifecycle event for plugins.
+(`src/bernstein/cli/commands/worktrees_cmd.py`) handles I/O:
+rendering the table, holding the GC lock, prompting the operator,
+appending a tamper-evident `worktree.reap` event to the HMAC audit
+chain (see [Audit trail](#audit-trail)), and emitting the `worktree.gc`
+lifecycle event for plugins.
 
 The tool honours both the spec layout (`.sdd/runtime/worktrees/`) and
 the legacy layout (`.sdd/worktrees/`) the `WorktreeManager` currently
@@ -53,9 +55,59 @@ the lock file is stale).
 
 ## Lifecycle event
 
-The CLI emits `worktree.gc` after each reap (or, with `--dry-run`,
+The CLI emits `worktree.gc` after each reap (or, with `--dry`,
 once per would-be reap). Plugins can hook this event; the env keys
-exposed to handlers are `BERNSTEIN_WORKTREE_GC_*`.
+exposed to handlers are `BERNSTEIN_WORKTREE_GC_*`. This notification is
+best-effort and ephemeral - it requires a plugin `HookRegistry` and
+leaves no durable record. For the durable, tamper-evident record see
+the audit trail below.
+
+## Audit trail
+
+Reaping a worktree is the orchestrator's only routine destructive
+action, so each reap is anchored to the HMAC-chained audit log under
+`.sdd/audit/` alongside the best-effort lifecycle event. The audit
+write does **not** depend on a plugin `HookRegistry`: it is written
+even when the CLI runs standalone.
+
+For every reaped worktree, `gc` appends one event:
+
+| Field | Value |
+|-------|-------|
+| `event_type` | `worktree.reap` |
+| `actor` | `worktrees-gc` |
+| `resource_type` | `worktree` |
+| `resource_id` | session id (worktree directory basename) |
+
+The `details` payload captures, before deletion: `state`, `task_id`,
+`path`, `size_bytes`, `age_seconds`, `last_trace_mtime`, the
+pre-deletion git `head_sha`, a `dirty` flag (uncommitted/unmerged
+changes present), and `dry_run`.
+
+**Pre-deletion fingerprint.** `head_sha` and `dirty` are read from the
+worktree *before* `rmtree`, so the entry proves exactly which commit
+and working-tree state were destroyed - enough to decide whether to
+restore from reflog after an accidental GC. A `corrupt` worktree may
+have no readable `.git`; its fingerprint degrades to `head_sha=null`
+and `dirty=null` rather than crashing GC or attributing the enclosing
+repository's HEAD.
+
+**Fail-closed contract.** The audit event is appended *before* the
+directory is removed. If the append fails (e.g. audit key permission
+error, full disk) the reap is aborted and the error propagates - a
+worktree is never destroyed without a record. Operators whose audit
+key is misconfigured will see `gc` fail rather than silently delete;
+fix the key (see `docs/security/audit-log.md`) and retry.
+
+**`--dry` mode** records the event flagged `dry_run=true` and performs
+no `rmtree`, so a dry run is itself auditable.
+
+Verify and inspect the reap events:
+
+```bash
+bernstein audit verify-hmac                       # exits non-zero on any tamper
+bernstein audit query --event-type worktree.reap  # list reap events
+```
 
 ## TUI integration
 

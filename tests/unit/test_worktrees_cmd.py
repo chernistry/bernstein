@@ -24,17 +24,24 @@ from bernstein.cli.commands.worktrees_cmd import (
     run_gc,
     worktrees_group,
 )
+from bernstein.core.security.audit import AuditLog
 from bernstein.core.worktrees.classifier import (
     GC_LOCK_RELPATH,
     STALE_TRACE_AGE_S,
+    WORKTREE_REAP_EVENT,
     ClassifiedWorktree,
     WorktreeState,
     classify_worktrees,
     format_size,
     iter_worktree_dirs,
     reap_worktree,
+    worktree_fingerprint,
     worktrees_root,
 )
+
+#: 32-byte HMAC key injected into every test AuditLog so the suite never
+#: touches the operator's real signing key.
+_AUDIT_KEY = b"worktree-reap-test-key-32-bytes!"
 
 # ---------------------------------------------------------------------------
 # Fixture builders
@@ -430,3 +437,287 @@ def test_cli_gc_concurrent_lock_collision(repo_root: Path) -> None:
     result = runner.invoke(worktrees_group, ["gc", "--workdir", str(repo_root), "--yes"])
     assert result.exit_code == 2
     assert "already running" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Audit anchoring (issue #1833) - reaps recorded in the HMAC chain
+# ---------------------------------------------------------------------------
+
+
+def _audit_log(repo_root: Path) -> AuditLog:
+    """Return an AuditLog rooted at the project's ``.sdd/audit`` dir.
+
+    Always injects a fixed test key so verification is deterministic and the
+    operator's real signing key is never read or created.
+    """
+    return AuditLog(audit_dir=repo_root / ".sdd" / "audit", key=_AUDIT_KEY)
+
+
+def _add_real_worktree(repo_root: Path, session_id: str, *, dirty: bool = False) -> Path:
+    """Create a genuine ``git worktree`` so HEAD/dirty capture has real data.
+
+    Unlike :func:`_make_worktree_dir`, this registers the directory with git
+    so ``worktree_fingerprint`` can read a real HEAD sha. The worktree is
+    placed under ``.sdd/runtime/worktrees`` exactly like a Bernstein agent
+    worktree so the classifier picks it up.
+    """
+    base = repo_root / ".sdd" / "runtime" / "worktrees"
+    base.mkdir(parents=True, exist_ok=True)
+    wt = base / session_id
+    subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "add", "-q", "--detach", str(wt)],
+        check=True,
+    )
+    if dirty:
+        (wt / "scratch.txt").write_text("uncommitted change")
+    return wt
+
+
+def test_worktree_fingerprint_reads_head_and_clean_flag(repo_root: Path) -> None:
+    """A real, clean worktree fingerprints to its HEAD sha + dirty=False."""
+    wt = _add_real_worktree(repo_root, "fp-clean")
+    expected = subprocess.run(
+        ["git", "-C", str(wt), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    fp = worktree_fingerprint(wt)
+    assert fp.head_sha == expected
+    assert fp.dirty is False
+
+
+def test_worktree_fingerprint_flags_dirty_tree(repo_root: Path) -> None:
+    """An uncommitted file makes the fingerprint report dirty=True."""
+    wt = _add_real_worktree(repo_root, "fp-dirty", dirty=True)
+    fp = worktree_fingerprint(wt)
+    assert fp.dirty is True
+    assert fp.head_sha is not None
+
+
+def test_worktree_fingerprint_corrupt_degrades_to_unknown(repo_root: Path) -> None:
+    """A directory with no readable ``.git`` degrades, never crashes."""
+    wt = _make_worktree_dir(repo_root, "fp-corrupt", with_git=False)
+    fp = worktree_fingerprint(wt)
+    assert fp.head_sha is None
+    assert fp.dirty is None
+
+
+def test_run_gc_writes_one_reap_event_with_expected_fields(repo_root: Path) -> None:
+    """A reap appends exactly one ``worktree.reap`` event with all fields.
+
+    The injected AuditLog must verify cleanly afterwards.
+    """
+    sid = "audited"
+    _make_worktree_dir(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+    log = _audit_log(repo_root)
+
+    removed = run_gc(repo_root, [row], dry_run=False, audit_log=log)
+    assert removed == 1
+
+    events = log.query(event_type=WORKTREE_REAP_EVENT)
+    assert len(events) == 1
+    ev = events[0]
+    assert ev.resource_type == "worktree"
+    assert ev.resource_id == sid
+    d = ev.details
+    assert d["state"] == "orphan"
+    assert d["task_id"] is None
+    assert d["path"] == str(row.path)
+    assert d["size_bytes"] == row.size_bytes
+    assert d["dry_run"] is False
+    # Fingerprint + classifier metadata are present (corrupt-degrade allowed
+    # for head_sha, but the keys must exist for forensic reconstruction).
+    assert "head_sha" in d
+    assert "dirty" in d
+    assert "age_seconds" in d
+    assert "last_trace_mtime" in d
+
+    valid, errors = log.verify()
+    assert valid is True
+    assert errors == []
+
+
+def test_run_gc_records_pre_deletion_head_and_dirty(repo_root: Path) -> None:
+    """The reap event proves the pre-deletion git HEAD sha and dirty flag."""
+    sid = "fp-recorded"
+    wt = _add_real_worktree(repo_root, sid, dirty=True)
+    expected_head = subprocess.run(
+        ["git", "-C", str(wt), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    row = _orphan_row(repo_root, sid)
+    log = _audit_log(repo_root)
+
+    run_gc(repo_root, [row], dry_run=False, audit_log=log)
+
+    ev = log.query(event_type=WORKTREE_REAP_EVENT)[0]
+    assert ev.details["head_sha"] == expected_head
+    assert ev.details["dirty"] is True
+    assert not wt.exists()  # the worktree really was reaped
+
+
+def test_run_gc_dry_run_flags_event_and_keeps_disk(repo_root: Path) -> None:
+    """``--dry`` records the event flagged ``dry_run=true`` and deletes nothing."""
+    sid = "dry-audited"
+    wt = _make_worktree_dir(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+    log = _audit_log(repo_root)
+
+    removed = run_gc(repo_root, [row], dry_run=True, audit_log=log)
+    assert removed == 0
+    assert wt.exists()  # nothing destroyed
+
+    events = log.query(event_type=WORKTREE_REAP_EVENT)
+    assert len(events) == 1
+    assert events[0].details["dry_run"] is True
+    valid, _ = log.verify()
+    assert valid is True
+
+
+def test_run_gc_fail_closed_when_audit_append_raises(repo_root: Path) -> None:
+    """If the audit append fails the worktree must NOT be reaped (fail-closed)."""
+    sid = "fail-closed"
+    wt = _make_worktree_dir(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+
+    class _ExplodingLog:
+        def log(self, *args: object, **kwargs: object) -> None:
+            raise OSError("simulated full disk / key permission error")
+
+    with pytest.raises(OSError, match="simulated full disk"):
+        run_gc(repo_root, [row], dry_run=False, audit_log=_ExplodingLog())  # type: ignore[arg-type]
+
+    # Fail-closed contract: the directory survives because the reap was aborted.
+    assert wt.exists()
+
+
+def test_run_gc_writes_event_without_hook_registry(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The audit event is written even when no plugin HookRegistry exists.
+
+    We force the lifecycle bridge to be unavailable; the audit append must
+    still happen (the trail does not depend on the lifecycle hook).
+    """
+    sid = "no-registry"
+    _make_worktree_dir(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+    log = _audit_log(repo_root)
+
+    import bernstein.cli.commands.worktrees_cmd as wt_cmd
+
+    monkeypatch.setattr(wt_cmd, "_shared_registry", lambda: None)
+
+    run_gc(repo_root, [row], dry_run=False, audit_log=log)
+    assert len(log.query(event_type=WORKTREE_REAP_EVENT)) == 1
+
+
+def test_run_gc_corrupt_worktree_records_unknown_head(repo_root: Path) -> None:
+    """A corrupt worktree (no .git) is reaped with head_sha=null, no crash."""
+    sid = "corrupt-audited"
+    wt = _make_worktree_dir(repo_root, sid, with_git=False)
+    row = _orphan_row(repo_root, sid)
+    assert row.state is WorktreeState.CORRUPT
+    log = _audit_log(repo_root)
+
+    run_gc(repo_root, [row], dry_run=False, audit_log=log)
+    assert not wt.exists()
+
+    ev = log.query(event_type=WORKTREE_REAP_EVENT)[0]
+    assert ev.details["state"] == "corrupt"
+    assert ev.details["head_sha"] is None
+    assert ev.details["dirty"] is None
+    valid, _ = log.verify()
+    assert valid is True
+
+
+def test_run_gc_default_audit_log_targets_sdd_audit(repo_root: Path) -> None:
+    """With no injected log, run_gc writes to ``<repo>/.sdd/audit`` itself.
+
+    Uses a per-test key path so the operator's real key is untouched.
+    """
+    sid = "default-log"
+    _make_worktree_dir(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+
+    key_path = repo_root / "audit.key"
+    key_path.write_bytes(_AUDIT_KEY)
+    key_path.chmod(0o600)
+    os.environ["BERNSTEIN_AUDIT_KEY_PATH"] = str(key_path)
+    try:
+        run_gc(repo_root, [row], dry_run=False)
+    finally:
+        os.environ.pop("BERNSTEIN_AUDIT_KEY_PATH", None)
+
+    audit_dir = repo_root / ".sdd" / "audit"
+    assert audit_dir.is_dir()
+    log = AuditLog(audit_dir=audit_dir, key=_AUDIT_KEY)
+    assert len(log.query(event_type=WORKTREE_REAP_EVENT)) == 1
+
+
+# ---------------------------------------------------------------------------
+# CLI + negative integration (issue #1833 acceptance criteria)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_gc_yes_writes_reap_events_and_verifies(repo_root: Path) -> None:
+    """``gc --yes`` over two reapable worktrees writes 2 verifiable events.
+
+    Mirrors the issue integration AC: after the sweep the chain verifies and
+    contains exactly N ``worktree.reap`` rows. We pin the audit key via env so
+    the CLI's own AuditLog is reproducible.
+    """
+    _make_worktree_dir(repo_root, "sweep-a")
+    _make_worktree_dir(repo_root, "sweep-b")
+
+    key_path = repo_root / "audit.key"
+    key_path.write_bytes(_AUDIT_KEY)
+    key_path.chmod(0o600)
+    os.environ["BERNSTEIN_AUDIT_KEY_PATH"] = str(key_path)
+    try:
+        runner = CliRunner()
+        result = runner.invoke(worktrees_group, ["gc", "--workdir", str(repo_root), "--yes"])
+        assert result.exit_code == 0, result.output
+    finally:
+        os.environ.pop("BERNSTEIN_AUDIT_KEY_PATH", None)
+
+    log = AuditLog(audit_dir=repo_root / ".sdd" / "audit", key=_AUDIT_KEY)
+    events = log.query(event_type=WORKTREE_REAP_EVENT)
+    assert len(events) == 2
+    valid, errors = log.verify()
+    assert valid is True, errors
+
+
+def test_tampering_with_recorded_head_breaks_verify(repo_root: Path) -> None:
+    """Editing a recorded HEAD sha in the JSONL trips an HMAC mismatch."""
+    sid = "tamper"
+    _add_real_worktree(repo_root, sid)
+    row = _orphan_row(repo_root, sid)
+    log = _audit_log(repo_root)
+    run_gc(repo_root, [row], dry_run=False, audit_log=log)
+
+    # Sanity: clean chain before tampering.
+    assert log.verify()[0] is True
+
+    audit_dir = repo_root / ".sdd" / "audit"
+    jsonl = sorted(audit_dir.glob("*.jsonl"))[0]
+    lines = jsonl.read_text().splitlines()
+    reap_idx = next(i for i, ln in enumerate(lines) if WORKTREE_REAP_EVENT in ln)
+    entry = json.loads(lines[reap_idx])
+    # Flip one hex char of the recorded HEAD sha (keep it valid JSON).
+    original = entry["details"]["head_sha"]
+    flipped = ("b" if original[0] != "b" else "a") + original[1:]
+    entry["details"]["head_sha"] = flipped
+    lines[reap_idx] = json.dumps(entry, sort_keys=True)
+    jsonl.write_text("\n".join(lines) + "\n")
+
+    fresh = AuditLog(audit_dir=audit_dir, key=_AUDIT_KEY)
+    valid, errors = fresh.verify()
+    assert valid is False
+    assert any("HMAC mismatch" in e or "non-canonical" in e for e in errors)

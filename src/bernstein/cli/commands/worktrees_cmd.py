@@ -28,17 +28,24 @@ from rich.table import Table
 from bernstein.core.worktrees.classifier import (
     GC_LOCK_RELPATH,
     WORKTREE_GC_LIFECYCLE_EVENT,
+    WORKTREE_REAP_EVENT,
     ClassifiedWorktree,
     WorktreeState,
     classify_worktrees,
     format_size,
     reap_worktree,
+    worktree_fingerprint,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from bernstein.core.security.audit import AuditLog
+
 logger = logging.getLogger(__name__)
+
+#: Actor recorded on every ``worktree.reap`` audit event - the GC surface.
+_AUDIT_ACTOR = "worktrees-gc"
 
 __all__ = ["format_age", "lock_gc", "render_worktrees_table", "worktrees_group"]
 
@@ -314,19 +321,97 @@ def run_gc(
     *,
     dry_run: bool,
     on_progress: Callable[[ClassifiedWorktree, bool], None] | None = None,
+    audit_log: AuditLog | None = None,
 ) -> int:
-    """Reap ``rows`` under the GC lock and emit lifecycle events.
+    """Reap ``rows`` under the GC lock, anchoring each reap to the audit chain.
 
-    Returns the number of worktrees actually removed (always 0 in
-    ``--dry`` mode after the lock work completes).
+    For every row, in order, *inside the GC lock*:
+
+    1. Capture a pre-deletion fingerprint (git HEAD sha + dirty flag) while
+       the worktree still exists.
+    2. Append one ``worktree.reap`` event to the HMAC-chained audit log
+       (issue #1833). This is **fail-closed**: if the append raises (e.g.
+       audit key permission error, full disk) the exception propagates and
+       the worktree is *not* reaped - we never destroy a worktree we could
+       not record. The audit write does not depend on any plugin
+       ``HookRegistry``; the lifecycle notification below is separate and
+       best-effort.
+    3. Reap the directory (skipped in ``--dry`` mode).
+    4. Fire the best-effort lifecycle event for plugins.
+
+    Args:
+        repo_root: Absolute repository root.
+        rows: Reapable classifier rows to process.
+        dry_run: When ``True``, record the event flagged ``dry_run=true``
+            and perform no filesystem mutation.
+        on_progress: Optional per-row progress callback ``(row, removed)``.
+        audit_log: Optional pre-opened :class:`AuditLog` (used by tests to
+            inject a fixed key). When ``None`` a project log rooted at
+            ``<repo_root>/.sdd/audit`` is opened once for the whole sweep.
+
+    Returns:
+        The number of worktrees actually removed (always 0 in ``--dry``
+        mode after the lock work completes).
     """
     removed_count = 0
     with lock_gc(repo_root):
+        log = audit_log if audit_log is not None else _open_audit_log(repo_root)
         for row in rows:
+            # 1-2: fingerprint then record BEFORE any destruction. A raised
+            # exception here aborts the sweep with the worktree intact.
+            _append_reap_event(log, row, dry_run=dry_run)
+            # 3: only now is it safe to destroy.
             removed = reap_worktree(repo_root, row, dry_run=dry_run)
             if on_progress is not None:
                 on_progress(row, removed)
             if removed and not dry_run:
                 removed_count += 1
+            # 4: best-effort plugin notification (independent of the audit).
             _emit_worktree_gc(repo_root, row, dry_run)
     return removed_count
+
+
+def _open_audit_log(repo_root: Path) -> AuditLog:
+    """Open the project HMAC audit log rooted at ``<repo_root>/.sdd/audit``.
+
+    Imported lazily so ``bernstein worktrees --help`` never drags in the
+    security/audit module (and its key resolution) unnecessarily.
+    """
+    from bernstein.core.security.audit import AuditLog
+
+    return AuditLog(audit_dir=repo_root / ".sdd" / "audit")
+
+
+def _append_reap_event(
+    log: AuditLog,
+    row: ClassifiedWorktree,
+    *,
+    dry_run: bool,
+) -> None:
+    """Append one ``worktree.reap`` event capturing the pre-deletion state.
+
+    The fingerprint (git HEAD sha + dirty flag) is captured here, before
+    the caller reaps the directory. The ``details`` payload is restricted
+    to the fields the issue enumerates so the daily JSONL does not bloat.
+
+    Fail-closed: any exception raised by :meth:`AuditLog.log` propagates to
+    the caller, which then skips the reap.
+    """
+    fingerprint = worktree_fingerprint(row.path)
+    log.log(
+        event_type=WORKTREE_REAP_EVENT,
+        actor=_AUDIT_ACTOR,
+        resource_type="worktree",
+        resource_id=row.session_id,
+        details={
+            "state": row.state.value,
+            "task_id": row.task_id,
+            "path": str(row.path),
+            "size_bytes": row.size_bytes,
+            "age_seconds": int(row.age_seconds),
+            "last_trace_mtime": row.last_trace_mtime,
+            "head_sha": fingerprint.head_sha,
+            "dirty": fingerprint.dirty,
+            "dry_run": dry_run,
+        },
+    )

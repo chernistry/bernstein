@@ -1259,6 +1259,16 @@ _DEFAULT_EVAL_SCENARIOS_DIR = Path(__file__).resolve().parents[4] / "eval" / "sc
 @click.argument("scenario_id")
 @click.option("--model", "model", default="mock", show_default=True, help="Model name passed to the adapter.")
 @click.option(
+    "--adapters",
+    "adapters_csv",
+    default=None,
+    help=(
+        "Comma-separated list of adapter slugs (e.g. 'a,b'). When supplied, "
+        "the scenario fans out across the listed adapters and the consensus "
+        "is reported alongside the per-adapter split."
+    ),
+)
+@click.option(
     "--scenarios-dir",
     "scenarios_dir",
     type=click.Path(file_okay=False, exists=True),
@@ -1275,6 +1285,7 @@ _DEFAULT_EVAL_SCENARIOS_DIR = Path(__file__).resolve().parents[4] / "eval" / "sc
 def eval_scenario(
     scenario_id: str,
     model: str,
+    adapters_csv: str | None,
     scenarios_dir: str | None,
     output_path: str | None,
 ) -> None:
@@ -1288,13 +1299,18 @@ def eval_scenario(
     \b
       bernstein eval scenario security-pentest --model mock
       bernstein eval scenario security-pentest --model sonnet --output run.json
+      bernstein eval scenario security-pentest --adapters mock,mock
     """
     import json as _json
 
     from bernstein.eval.pentest_runner import (
+        PentestAdapter,
         load_scenario_config,
+        mock_adapter,
+        run_multi_adapter,
         run_scenario,
     )
+    from bernstein.eval.pentest_scorer import PentestScorer
 
     base_dir = Path(scenarios_dir) if scenarios_dir else _DEFAULT_EVAL_SCENARIOS_DIR
     slug = scenario_id.replace("-", "_")
@@ -1308,6 +1324,56 @@ def eval_scenario(
         raise SystemExit(1)
 
     config = load_scenario_config(chosen)
+
+    if adapters_csv:
+        # Multi-adapter fan-out path.
+        names = [n.strip() for n in adapters_csv.split(",") if n.strip()]
+        if not names:
+            console.print("[red]--adapters supplied but resolved to an empty list[/red]")
+            raise SystemExit(1)
+        # Resolve adapter slugs to callables. Today only ``mock`` is
+        # available out-of-the-box; production callers register their
+        # own slugs via plugin loading. Disambiguate duplicate slugs
+        # so the call_order tuple remains unique.
+        resolved: dict[str, PentestAdapter] = {}
+        slug_counts: dict[str, int] = {}
+        for slug_name in names:
+            base = slug_name
+            count = slug_counts.get(base, 0)
+            slug_counts[base] = count + 1
+            key = base if count == 0 else f"{base}-{count + 1}"
+            # All slugs currently map to the mock adapter; production
+            # registry wiring happens in a follow-up ticket.
+            resolved[key] = mock_adapter
+        multi = run_multi_adapter(adapters=resolved, config=config)
+        split = PentestScorer().score_multi(multi)
+        envelope: dict[str, object] = multi.to_dict()
+        envelope["per_adapter_score"] = {
+            name: {
+                "precision": round(score.precision, 6),
+                "recall": round(score.recall, 6),
+                "f1": round(score.f1, 6),
+            }
+            for name, score in split.per_adapter.items()
+        }
+        envelope["consensus_score"] = {
+            "precision": round(split.consensus.precision, 6),
+            "recall": round(split.consensus.recall, 6),
+            "f1": round(split.consensus.f1, 6),
+        }
+        payload = _json.dumps(envelope, indent=2, sort_keys=True)
+        if output_path:
+            Path(output_path).write_text(payload + "\n", encoding="utf-8")
+            console.print(
+                f"[green]wrote[/green] {output_path}  "
+                f"adapters={','.join(multi.call_order)}  "
+                f"consensus_p={split.consensus.precision:.2f} "
+                f"consensus_r={split.consensus.recall:.2f}"
+            )
+        else:
+            click.echo(payload)
+        return
+
     result = run_scenario(config, model=model)
     payload = _json.dumps(result.to_dict(), indent=2, sort_keys=True)
     if output_path:

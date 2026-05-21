@@ -194,3 +194,43 @@ block tomorrow's PRs.
 The added PR-time jobs target ≤8 min wall-clock each and run in
 parallel after the lint job clears (so a typo PR fails fast in <2
 min without burning compute on the heavy stack).
+
+## Sharded unit suite
+
+`scripts/run_tests.py` runs each `tests/unit/test_*.py` file in its own
+subprocess (the OOM-avoidance model: a single `pytest --cov` over all
+files in one process exceeds the 7 GB runner ceiling). Each subprocess
+pays a fixed ~2.7 s of Python startup + full-package import regardless
+of how many tests the file holds, so at ~1.4k files a single runner
+spent most of its wall time on startup churn rather than test
+execution.
+
+The `Test` job therefore fans the file list out across parallel
+runners with `--shard i/N`:
+
+```
+# Run only shard 1 of 4 (a deterministic, disjoint quarter of the files):
+uv run python scripts/run_tests.py --shard 1/4
+
+# Compose with the affected-only selection used on PRs:
+uv run python scripts/run_tests.py --shard 1/4 --affected origin/main
+```
+
+The partition is **position-modulo over the sorted file list**: shard
+`i` owns every file whose index `j` satisfies `j % N == i - 1`. That
+makes it deterministic and stable (a failing shard reruns the identical
+slice), complete and disjoint (the union of all `N` shards is exactly
+the full list, no file runs twice), and balanced (shard sizes differ by
+at most one). An empty shard (when `N` exceeds the file count) is a
+legitimate no-op that exits 0.
+
+In CI the `ubuntu`/`windows` `Test` cells fan out across a `shard`
+matrix dimension; the rolled-up `needs.test.result` the `CI gate`
+aggregator reads is `failure` if *any* shard cell fails, so every shard
+is still required. Coverage / JUnit / Codecov upload runs on shard 1
+only (its own file loop still covers every file, so the pin
+deduplicates without narrowing coverage). The `macos` cell keeps a
+single literal job name (branch-protection required-context); it runs a
+deterministic `--shard 1/4` subset on push and the affected slice on
+PRs, with `ci-macos-nightly.yml` running the full macOS matrix daily as
+the safety net.

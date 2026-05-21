@@ -12,6 +12,7 @@ Usage:
     python scripts/run_tests.py --parallel 4 # run 4 files at once
     python scripts/run_tests.py --parallel 1 # force sequential execution
     python scripts/run_tests.py --coverage   # collect coverage and emit coverage.json
+    python scripts/run_tests.py --shard 1/4  # run only shard 1 of 4 (CI fan-out)
 """
 
 from __future__ import annotations
@@ -37,6 +38,49 @@ def discover_test_files(test_dir: Path, keyword: str | None = None) -> list[Path
     if keyword:
         files = [f for f in files if keyword in f.stem]
     return files
+
+
+def parse_shard_spec(spec: str) -> tuple[int, int]:
+    """Parse a ``i/N`` shard spec into ``(shard_index, shard_count)``.
+
+    ``shard_index`` is 1-based and must satisfy ``1 <= i <= N``; ``N`` must be
+    a positive integer. Raises ``ValueError`` on any malformed or out-of-range
+    input so the CLI fails loudly rather than silently running the wrong slice.
+    """
+    parts = spec.split("/")
+    if len(parts) != 2:
+        raise ValueError(f"shard spec must be 'i/N' (got {spec!r})")
+    try:
+        shard_index = int(parts[0])
+        shard_count = int(parts[1])
+    except ValueError as exc:
+        raise ValueError(f"shard spec parts must be integers (got {spec!r})") from exc
+    if shard_count < 1:
+        raise ValueError(f"shard count must be >= 1 (got {shard_count})")
+    if not 1 <= shard_index <= shard_count:
+        raise ValueError(f"shard index {shard_index} out of range 1..{shard_count}")
+    return shard_index, shard_count
+
+
+def shard_files(files: list[Path], shard_index: int, shard_count: int) -> list[Path]:
+    """Return the deterministic 1-based ``shard_index`` of ``shard_count`` shards.
+
+    Partition by position modulo ``shard_count`` over the (already sorted)
+    ``files`` list: shard ``i`` owns every file whose index ``j`` satisfies
+    ``j % shard_count == i - 1``. This is:
+
+    - **deterministic + stable** - no hashing, no salt; the same inputs always
+      yield the same slice across runs and machines (the repo's determinism
+      contract);
+    - **complete + disjoint** - every file lands in exactly one shard;
+    - **balanced** - shard sizes differ by at most one;
+    - **order-preserving** - each shard is a subsequence of ``files``.
+    """
+    if shard_count < 1:
+        raise ValueError(f"shard count must be >= 1 (got {shard_count})")
+    if not 1 <= shard_index <= shard_count:
+        raise ValueError(f"shard index {shard_index} out of range 1..{shard_count}")
+    return [f for j, f in enumerate(files) if j % shard_count == shard_index - 1]
 
 
 def run_file(path: Path, extra_args: list[str], coverage: bool = False) -> tuple[Path, int, float, str]:
@@ -214,6 +258,20 @@ def run_parallel(
     return 1 if failed else 0
 
 
+def _report_empty_selection(shard: tuple[int, int] | None, context: str) -> None:
+    """Print a clear message when the selected file set is empty.
+
+    An empty shard (N greater than the file count, or a small affected set
+    split across many shards) is a legitimate no-op that must exit 0 - not a
+    discovery failure. The message disambiguates the two for CI log readers.
+    """
+    if shard is not None:
+        print(f"No {context}test files in shard {shard[0]}/{shard[1]} - nothing to run (empty shard)")
+    else:
+        suffix = "affected tests found" if context else "test files found"
+        print(f"No {suffix} - nothing to run")
+
+
 def discover_affected_files(base: str) -> list[Path]:
     """Use test_impact.py to find test files affected by changed sources."""
     impact_script = Path(__file__).parent / "test_impact.py"
@@ -254,19 +312,39 @@ def main() -> None:
         action="store_true",
         help="Collect coverage per subprocess and emit coverage.json at the repo root",
     )
+    parser.add_argument(
+        "--shard",
+        metavar="i/N",
+        help=(
+            "Run only shard i of N (1-based, e.g. '1/4'). The discovered file "
+            "list is partitioned deterministically so reruns are reproducible "
+            "and the union of all N shards covers every file exactly once."
+        ),
+    )
     parser.add_argument("extra", nargs="*", help="Extra args passed to pytest")
     args = parser.parse_args()
 
     workers: int = max(1, args.parallel)
 
+    shard: tuple[int, int] | None = None
+    if args.shard is not None:
+        try:
+            shard = parse_shard_spec(args.shard)
+        except ValueError as exc:
+            print(f"Invalid --shard {args.shard!r}: {exc}")
+            sys.exit(2)
+
     if args.affected is not None:
         files = discover_affected_files(args.affected)
         if args.keyword:
             files = [f for f in files if args.keyword in f.stem]
+        if shard is not None:
+            files = shard_files(files, *shard)
         if not files:
-            print("No affected tests found - nothing to run")
+            _report_empty_selection(shard, context="affected ")
             sys.exit(0)
-        print(f"Running {len(files)} affected test files (each in its own process)")
+        shard_label = f" [shard {shard[0]}/{shard[1]}]" if shard else ""
+        print(f"Running {len(files)} affected test files{shard_label} (each in its own process)")
         print(f"{'=' * 60}")
         if workers > 1:
             code = run_parallel(files, args.extra, workers, args.fail_fast, args.coverage)
@@ -282,12 +360,15 @@ def main() -> None:
         sys.exit(1)
 
     files = discover_test_files(test_dir, args.keyword)
+    if shard is not None:
+        files = shard_files(files, *shard)
     if not files:
-        print("No test files found")
+        _report_empty_selection(shard, context="")
         sys.exit(0)
 
     mode = f"parallel ({workers} workers)" if workers > 1 else "sequential"
-    print(f"Running {len(files)} test files {mode} (each in its own process)")
+    shard_label = f" [shard {shard[0]}/{shard[1]}]" if shard else ""
+    print(f"Running {len(files)} test files{shard_label} {mode} (each in its own process)")
     print(f"{'=' * 60}")
 
     if workers > 1:

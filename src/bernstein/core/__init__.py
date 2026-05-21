@@ -64,7 +64,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "audit": "bernstein.core.security.audit",
     "audit_export": "bernstein.core.security.audit_export",
     "audit_integrity": "bernstein.core.security.audit_integrity",
-    "auth": "bernstein.core.security.auth",
+    "auth": "bernstein.core.security.auth",  # NOSONAR python:S6418 - module redirect entry, not a credential.
     "auth_middleware": "bernstein.core.security.auth_middleware",
     "auth_rate_limiter": "bernstein.core.security.auth_rate_limiter",
     "auto_approve": "bernstein.core.security.auto_approve",

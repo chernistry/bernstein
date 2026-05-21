@@ -238,14 +238,31 @@ async def call_llm(
     Raises:
         RuntimeError: If the API call fails.
     """
-    from bernstein.core.deterministic import get_active_store
+    from bernstein.core.orchestration.deterministic import get_active_store
 
     _store = get_active_store()
-    if _store is not None:
-        _replay = _store.get_replay(prompt, model)
+    if _store is not None and _store.is_replay:
+        # ``get_replay`` raises ReplayMissError on a miss in strict mode
+        # (the default), keeping replay hermetic - we never reach the live
+        # provider below. In the opt-in non-strict mode it returns ``None``
+        # and we log a warning before falling through to the live call.
+        _replay = _store.get_replay(
+            prompt,
+            model,
+            provider=provider,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
         if _replay is not None:
             logger.debug("DeterministicStore: replaying cached response for model=%s", model)
             return _replay
+        logger.warning(
+            "DeterministicStore: replay miss for model=%s provider=%s temperature=%s; "
+            "falling through to live provider (non-strict mode)",
+            model,
+            provider,
+            temperature,
+        )
 
     # API-based providers go through the OpenAI-compatible client.
     _API_PROVIDERS = {"openrouter", "openrouter_free", "oxen", "together", "g4f"}
@@ -256,7 +273,7 @@ async def call_llm(
         result = await _call_cli_provider(prompt, model, provider)
 
     if _store is not None:
-        _store.record(prompt, model, result)
+        _store.record(prompt, model, result, provider=provider, temperature=temperature, max_tokens=max_tokens)
     return result
 
 

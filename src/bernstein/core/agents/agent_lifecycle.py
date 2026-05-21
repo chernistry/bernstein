@@ -153,6 +153,55 @@ def classify_agent_abort_reason(session: AgentSession) -> tuple[AbortReason, str
     return AbortReason.UNKNOWN, f"process terminated by signal {signal_num}"
 
 
+# Abort reasons that represent deliberate, expected control-flow rather
+# than an agent crash. These must NOT be reported to the error sink: a
+# user interrupt or a cascaded shutdown is not an incident.
+_EXPECTED_ABORT_REASONS: frozenset[AbortReason] = frozenset(
+    {
+        AbortReason.USER_INTERRUPT,
+        AbortReason.SHUTDOWN_SIGNAL,
+        AbortReason.SIBLING_ABORTED,
+        AbortReason.PARENT_ABORTED,
+    }
+)
+
+
+def _capture_agent_crash(
+    session: AgentSession,
+    abort_reason: AbortReason,
+    abort_detail: str,
+) -> None:
+    """Forward an unexpected agent crash to the operator error sink.
+
+    Genuine crashes (timeout, OOM, provider error, non-zero exit) are
+    reported; deliberate aborts (user interrupt, cascaded shutdown) are
+    not. The capture helper is fail-closed, and the whole call is wrapped
+    so the dead-agent cleanup path is never disturbed by telemetry.
+    """
+    if abort_reason in _EXPECTED_ABORT_REASONS:
+        return
+    try:
+        from bernstein.core.observability import error_capture
+
+        error_capture.capture_message(
+            f"agent crashed: {abort_reason.value}",
+            category="agent",
+            tags={
+                "abort_reason": abort_reason.value,
+                "role": session.role or "unknown",
+                "adapter": getattr(session, "adapter", "unknown") or "unknown",
+            },
+            extra={
+                "session_id": session.id,
+                "abort_detail": abort_detail,
+                "finish_reason": session.finish_reason or "",
+                "exit_code": getattr(session, "exit_code", None),
+            },
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("agent-crash telemetry capture skipped for %s: %s", session.id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Partial work preservation
 # ---------------------------------------------------------------------------
@@ -223,6 +272,7 @@ def _handle_dead_agent(orch: Any, session: AgentSession, tasks_snapshot: dict[st
         abort_detail=abort_detail,
         finish_reason=session.finish_reason or "agent_exit",
     )
+    _capture_agent_crash(session, abort_reason, abort_detail)
     _propagate_abort_to_children(orch, session.id)
     if session.role:
         adapter_name = getattr(session, "adapter", "unknown")

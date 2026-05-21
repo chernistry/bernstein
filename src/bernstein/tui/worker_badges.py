@@ -18,6 +18,12 @@ class WorkerStatus(StrEnum):
     PAUSED = "paused"
     STOPPED = "stopped"
     ERROR = "error"
+    # #1800: surfaced by the operator supervisor when a worker has
+    # stalled, exhausted its respawn budget, or otherwise needs
+    # attention. Kept distinct from ERROR so the badge can render a
+    # different colour without conflating an exception path with a
+    # detector classification.
+    STUCK = "stuck"
 
 
 class TierColor(StrEnum):
@@ -33,6 +39,7 @@ STATUS_ICONS = {
     WorkerStatus.PAUSED: "⏸",
     WorkerStatus.STOPPED: "✗",
     WorkerStatus.ERROR: "⚠",
+    WorkerStatus.STUCK: "!",
 }
 
 TIER_COLORS = {
@@ -74,6 +81,7 @@ STATUS_ICON_COLORS = {
     WorkerStatus.PAUSED: "yellow",
     WorkerStatus.STOPPED: "red",
     WorkerStatus.ERROR: "red",
+    WorkerStatus.STUCK: "yellow",
 }
 
 
@@ -92,6 +100,21 @@ def format_worker_badge(badge: WorkerBadge) -> str:
     return (
         f"[{icon_color}]{badge.status_icon}[/] {badge.role} [{badge.model}] [{badge.tier_color}]{badge.tier_display}[/]"
     )
+
+
+def status_for_supervisor_row(*, is_stuck: bool, base_status: WorkerStatus = WorkerStatus.RUNNING) -> WorkerStatus:
+    """Map a supervisor aggregator row's stuck flag onto the badge status.
+
+    This keeps the badge module free of an upstream import on the
+    orchestration package while letting the dashboard widget render the
+    same yellow ``!`` icon next to a stuck worker that the dedicated
+    supervisor pane uses. ``base_status`` lets callers retain
+    pre-existing PAUSED / ERROR colouring when the aggregator hasn't
+    flagged the row as stuck.
+    """
+    if is_stuck:
+        return WorkerStatus.STUCK
+    return base_status
 
 
 def get_badge_for_worker(

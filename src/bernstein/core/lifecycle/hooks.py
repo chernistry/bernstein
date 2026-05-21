@@ -153,6 +153,19 @@ class LifecycleEvent(StrEnum):
     # ------------------------------------------------------------------
     AGENT_STARTUP_EXHAUSTED = "agent.startup_exhausted"
 
+    # ------------------------------------------------------------------
+    # Operator escalation (feat/operator-supervisor-surface).
+    # Emitted when ``bernstein supervisor escalate <session_id>`` runs.
+    # Payload keys on ``context.data``:
+    #
+    # * ``reason``: operator-supplied reason string.
+    # * ``receipt_path``: path of the persisted escalation receipt.
+    # * ``recommended_action``: receipt's recommended_action value.
+    # * ``stall_reason``: receipt's stall_reason value.
+    # * ``worker_id``: worker the operator escalated.
+    # ------------------------------------------------------------------
+    WORKER_ESCALATED = "worker.escalated"
+
 
 #: The cross-CLI standardised event vocabulary introduced by issue #1323.
 #: Pre-existing snake_case events remain supported but are not part of

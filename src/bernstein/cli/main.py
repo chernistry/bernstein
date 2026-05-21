@@ -1031,6 +1031,11 @@ cli.add_command(fleet_group, "fleet")
 cli.add_command(triggers_group, "triggers")
 cli.add_command(schedule_group, "schedule")
 
+# Operator supervisor surface (#1800)
+from bernstein.cli.commands.supervisor_cmd import supervisor_group  # noqa: E402
+
+cli.add_command(supervisor_group, "supervisor")
+
 # Citation/reference existence verifier (closes #1402)
 cli.add_command(citation_quality_group, "quality")
 

@@ -137,6 +137,36 @@ def _fallback_table_render(aggregator: FleetAggregator, config: FleetConfig) -> 
     _console.print(table)
     _console.print(format_footer(config, rows, total))
 
+    supervisor_line = _fleet_supervisor_summary_line()
+    if supervisor_line:
+        _console.print(f"[dim]{supervisor_line}[/dim]")
+
+
+def _fleet_supervisor_summary_line() -> str:
+    """Return the stuck-count summary across the fleet's primary workspace.
+
+    The fleet view aggregates many projects but a single operator sits
+    inside one workspace, so we surface the supervisor snapshot for that
+    workspace as the most actionable signal. Returns an empty string on
+    any aggregator failure so the fleet command never errors here.
+    Failures are logged so an operator-visible drop can be debugged from
+    the orchestrator log without restarting the fleet view.
+    """
+    try:
+        from pathlib import Path as _Path
+
+        from bernstein.core.defaults import AGENT
+        from bernstein.core.orchestration.supervisor_aggregator import (
+            aggregator_snapshot,
+            format_summary_line,
+        )
+
+        snapshot = aggregator_snapshot(_Path.cwd(), heartbeat_stale_s=AGENT.heartbeat_stale_s)
+    except Exception:  # pragma: no cover - fleet renderer must never raise
+        logger.exception("fleet supervisor-summary aggregation failed")
+        return ""
+    return format_summary_line(snapshot)
+
 
 def _parse_bind(bind: str) -> tuple[str, int]:
     text = bind.strip()

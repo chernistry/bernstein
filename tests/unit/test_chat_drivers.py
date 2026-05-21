@@ -1,7 +1,9 @@
-"""Unit tests for chat drivers: Telegram long-poll + Discord/Slack stubs.
+"""Unit tests for chat drivers: Telegram long-poll + Discord stub.
 
 The Telegram cases exercise the standard ``python-telegram-bot``
-long-poll driver at :mod:`bernstein.core.chat.drivers.telegram`.
+long-poll driver at :mod:`bernstein.core.chat.drivers.telegram`. The
+Slack driver lives in its own test module under
+``tests/unit/core/chat/test_slack_driver.py``.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ import pytest
 
 from bernstein.core.chat.bridge import ChatMessage, PendingApproval
 from bernstein.core.chat.drivers.discord import DISCORD_STUB_MESSAGE, DiscordBridge
-from bernstein.core.chat.drivers.slack import SLACK_STUB_MESSAGE, SlackBridge
 
 # ---------------------------------------------------------------------------
 # Fake python-telegram-bot package
@@ -140,7 +141,7 @@ def fake_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Discord / Slack stubs
+# Discord stub
 # ---------------------------------------------------------------------------
 
 
@@ -149,14 +150,6 @@ def test_discord_start_raises_stub_message() -> None:
     with pytest.raises(NotImplementedError) as excinfo:
         asyncio.run(bridge.start())
     assert DISCORD_STUB_MESSAGE in str(excinfo.value)
-    assert "op-001b" in str(excinfo.value)
-
-
-def test_slack_start_raises_stub_message() -> None:
-    bridge = SlackBridge(token="x")
-    with pytest.raises(NotImplementedError) as excinfo:
-        asyncio.run(bridge.start())
-    assert SLACK_STUB_MESSAGE in str(excinfo.value)
     assert "op-001b" in str(excinfo.value)
 
 
@@ -174,22 +167,6 @@ def test_discord_on_button_raises_stub_message() -> None:
     with pytest.raises(NotImplementedError) as excinfo:
         bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
     assert DISCORD_STUB_MESSAGE in str(excinfo.value)
-
-
-def test_slack_on_command_raises_stub_message() -> None:
-    """Wiring a Slack handler must fail fast, not silently drop."""
-    bridge = SlackBridge()
-    with pytest.raises(NotImplementedError) as excinfo:
-        bridge.on_command("run", lambda _m: _async_noop())  # type: ignore[misc,arg-type]
-    assert SLACK_STUB_MESSAGE in str(excinfo.value)
-
-
-def test_slack_on_button_raises_stub_message() -> None:
-    """Wiring a Slack button handler must fail fast, not silently drop."""
-    bridge = SlackBridge()
-    with pytest.raises(NotImplementedError) as excinfo:
-        bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
-    assert SLACK_STUB_MESSAGE in str(excinfo.value)
 
 
 async def _async_noop() -> None:  # NOSONAR - async-signature required by protocol / fixture

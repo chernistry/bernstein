@@ -334,6 +334,10 @@ r2 = [
 s3 = [
     { name = "boto3" },
 ]
+slack = [
+    { name = "aiohttp" },
+    { name = "slack-sdk" },
+]
 telegram = [
     { name = "python-telegram-bot" },
 ]
@@ -368,6 +372,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", marker = "extra == 'slack'", specifier = ">=3.9" },
     { name = "asn1crypto", specifier = ">=1.5" },
     { name = "azure-storage-blob", marker = "extra == 'azure'", specifier = ">=12.20" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.8" },
@@ -435,6 +440,7 @@ requires-dist = [
     { name = "sentry-sdk", extras = ["fastapi"], marker = "extra == 'observability'", specifier = ">=2.20" },
     { name = "setproctitle", specifier = ">=1.3" },
     { name = "signxml", specifier = ">=4.0" },
+    { name = "slack-sdk", marker = "extra == 'slack'", specifier = ">=3.27" },
     { name = "sse-starlette", marker = "extra == 'gui'", specifier = ">=2.1.0" },
     { name = "syrupy", marker = "extra == 'dev'", specifier = ">=4.6" },
     { name = "terminaltexteffects", specifier = ">=0.11" },
@@ -443,7 +449,7 @@ requires-dist = [
     { name = "watchdog", specifier = ">=4.0" },
     { name = "websockets", specifier = ">=14.0" },
 ]
-provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "eval", "gui", "otel", "observability"]
+provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "slack", "eval", "gui", "otel", "observability"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4117,6 +4123,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
+]
+
+[[package]]
+name = "slack-sdk"
+version = "3.42.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/00/16258bfa547559b2c936b50c882b4f0a36ebf6b69639eb763d8fa5e8d6cb/slack_sdk-3.42.0.tar.gz", hash = "sha256:873db9e1f632ac650ffdbf9d8ba825f3e9e7e576a1e4f9604ccb2a15b3727e3d", size = 252136, upload-time = "2026-05-18T17:50:44.727Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/ef/8a1556bd4843443993fc116783790a7cc553601a37f7d965ec26eef95e76/slack_sdk-3.42.0-py2.py3-none-any.whl", hash = "sha256:eb39aff97e476e10cc5a8ac29bd2e79a9959e880d9fe0c03b4e8f05b2ac996ff", size = 315469, upload-time = "2026-05-18T17:50:41.972Z" },
 ]
 
 [[package]]

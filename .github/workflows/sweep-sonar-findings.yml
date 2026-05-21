@@ -16,9 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       severity_min:
-        description: Minimum severity to include
+        description: Minimum severity to include (default covers MAJOR and above)
         required: false
-        default: BLOCKER
+        default: MAJOR
         type: choice
         options:
           - BLOCKER
@@ -29,9 +29,19 @@ on:
       max_per_day:
         description: Cap on tickets emitted in this run
         required: false
-        default: '10'
+        default: '25'
       dry_run:
         description: When true, only print the would-be tickets
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      create_gh_issues:
+        description: >-
+          When true, also open a GH issue for P0+P1 tickets (BLOCKER,
+          CRITICAL, MAJOR). P2 tickets stay file-only either way.
         required: false
         default: 'false'
         type: choice
@@ -52,6 +62,25 @@ env:
   # explicitly opts in via a follow-up PR that flips this value. Job
   # 'if:' cannot read env directly, so the gate runs as the first
   # step of the job (see "Gate cron trigger" below).
+  #
+  # When ENABLE_CRON flips from '0' to '1':
+  #   - The 06:17 UTC cron starts producing a PR per run with up to
+  #     max_per_day=25 new ticket files plus, for P0+P1 (BLOCKER,
+  #     CRITICAL, MAJOR), a freshly opened GH issue per ticket.
+  #   - The PR is reviewed and merged manually; nothing pushes
+  #     straight to main.
+  #
+  # First three runs after the flip - operator checklist:
+  #   1. PR opened? Confirm peter-evans/create-pull-request actually
+  #      surfaced a branch named sonar-sweep/<run-id> and that the
+  #      diff is bounded to .sdd/backlog/open/ paths.
+  #   2. Blurb coverage? Skim each emitted ticket body for a real
+  #      "## Why" rather than the DEFAULT_BLURB fallback. Any rule
+  #      with the fallback should land a new row in RULE_FAMILY_BLURBS
+  #      in the same PR before merge.
+  #   3. GH-issue cardinality? Confirm the gh-issue trailer on each
+  #      file matches the run's emit count and that no spurious P2
+  #      tickets created a GH issue.
   ENABLE_CRON: '0'
 
 jobs:
@@ -110,9 +139,10 @@ jobs:
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-          SEVERITY_MIN: ${{ inputs.severity_min || 'BLOCKER' }}
-          MAX_PER_DAY: ${{ inputs.max_per_day || '10' }}
+          SEVERITY_MIN: ${{ inputs.severity_min || 'MAJOR' }}
+          MAX_PER_DAY: ${{ inputs.max_per_day || '25' }}
           DRY_RUN_INPUT: ${{ inputs.dry_run || 'false' }}
+          CREATE_GH_ISSUES_INPUT: ${{ inputs.create_gh_issues || 'false' }}
         run: |
           set -euo pipefail
           mkdir -p .sdd/backlog/open
@@ -123,6 +153,9 @@ jobs:
           )
           if [ "${DRY_RUN_INPUT}" = "true" ]; then
             args+=("--dry-run")
+          fi
+          if [ "${CREATE_GH_ISSUES_INPUT}" = "true" ]; then
+            args+=("--create-gh-issues")
           fi
           uv run python scripts/sweep_sonar_findings.py "${args[@]}"
 
@@ -165,8 +198,8 @@ jobs:
             frontmatter (`sonar_issue_key`) so re-runs are idempotent;
             the same finding will not produce a second ticket.
 
-            Severity filter: `${{ inputs.severity_min || 'BLOCKER' }}`.
-            Per-run cap: `${{ inputs.max_per_day || '10' }}`.
+            Severity filter: `${{ inputs.severity_min || 'MAJOR' }}`.
+            Per-run cap: `${{ inputs.max_per_day || '25' }}`.
 
             Review the emitted `## Why` bodies. They are synthesised from
             a pre-vetted rule-family blurb table inside the sweeper; the

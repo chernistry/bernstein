@@ -16,10 +16,15 @@ Usage
 -----
 
     python scripts/sweep_sonar_findings.py \\
-        --severity-min BLOCKER \\
-        --max-per-day 10 \\
+        --severity-min MAJOR \\
+        --max-per-day 25 \\
         --out-dir .sdd/backlog/open \\
         [--dry-run] [--create-gh-issues] [--fixture path/to/issues.json]
+
+The ``--create-gh-issues`` flag promotes both P0 and P1 tickets to a GH
+issue via ``gh issue create``. P0 covers BLOCKER findings; P1 covers
+CRITICAL and MAJOR. P2 tickets (MINOR, INFO) stay file-only so the GH
+issue feed does not get flooded by low-severity churn.
 
 Exit codes
 ----------
@@ -83,10 +88,19 @@ SEVERITY_ORDER: tuple[str, ...] = ("BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INF
 SEVERITY_RANK: dict[str, int] = {sev: idx for idx, sev in enumerate(SEVERITY_ORDER)}
 
 # Priority is the project's P0/P1/P2 enum (see docs/sdd/ticket_schema.md).
+#
+# MAJOR is intentionally promoted to P1 (was P2). Rationale: the MAJOR
+# cohort accumulates much faster than operators can hand-triage it, so
+# leaving it at P2 (file-only) means the queue grows without bound while
+# the underlying static-analysis debt compounds. Promoting MAJOR to P1
+# lets the sweeper auto-open GH issues for MAJOR findings alongside
+# BLOCKER (P0) and CRITICAL (P1), which routes them onto the same
+# tracker surface operators already monitor. MINOR and INFO stay at P2
+# so the GH-issue feed is not flooded with low-severity churn.
 SEVERITY_TO_PRIORITY: dict[str, str] = {
     "BLOCKER": "P0",
     "CRITICAL": "P1",
-    "MAJOR": "P2",
+    "MAJOR": "P1",
     "MINOR": "P2",
     "INFO": "P2",
 }
@@ -306,6 +320,93 @@ RULE_FAMILY_BLURBS: tuple[tuple[str, str, str], ...] = (
         (
             "Function call passes the wrong number of arguments. Update the "
             "call site so it matches the callee's signature."
+        ),
+    ),
+    # MAJOR-cohort additions for the widened sweeper. Each entry is
+    # framed as ordinary engineering hygiene and never reuses raw vendor
+    # prose.
+    (
+        "python:S5886",
+        "return-type-mismatch",
+        (
+            "Declared return type does not line up with the value the "
+            "function actually returns. Align the annotation with the "
+            "returned value or fix the returned value so the static type "
+            "contract holds."
+        ),
+    ),
+    (
+        "python:S5864",
+        "isinstance-non-type",
+        (
+            "isinstance call is given a second argument that is not a class "
+            "or a tuple of classes. Pass an actual class object so the "
+            "runtime check behaves as the call site reads."
+        ),
+    ),
+    (
+        "python:S3358",
+        "nested-ternary",
+        (
+            "Nested ternary expression is hard to read at the call site. "
+            "Lift the inner condition into a named local or an if-block so "
+            "the branching is explicit."
+        ),
+    ),
+    (
+        "python:S5869",
+        "regex-character-class-duplicate",
+        (
+            "Regular-expression character class contains a duplicate "
+            "element. Remove the duplicate so the regex reads cleanly and "
+            "the intent is unambiguous."
+        ),
+    ),
+    (
+        "python:S1244",
+        "float-equality",
+        (
+            "Floating-point values are compared with == or !=, which is "
+            "fragile due to rounding. Use math.isclose or compare to an "
+            "explicit tolerance instead."
+        ),
+    ),
+    (
+        "python:S5843",
+        "regex-super-linear",
+        (
+            "Regular-expression pattern is susceptible to super-linear "
+            "backtracking on adversarial input. Restructure the pattern to "
+            "use non-capturing groups, possessive quantifiers, or anchored "
+            "alternatives so worst-case matching stays linear."
+        ),
+    ),
+    (
+        "python:S1764",
+        "identical-subexpressions",
+        (
+            "Both sides of a binary operator are identical sub-expressions, "
+            "so the operator either has no effect or hides a bug. Rewrite "
+            "the expression so each side carries the intended value."
+        ),
+    ),
+    (
+        "python:S8495",
+        "typing-misuse",
+        (
+            "Generic-typing construct is used in a way the type system "
+            "cannot resolve. Update the annotation so it matches the "
+            "documented usage of the typing primitive."
+        ),
+    ),
+    (
+        "python:S3923",
+        "all-branches-identical",
+        (
+            "All branches of the conditional structure have the same "
+            "implementation, so the branching is redundant. Collapse the "
+            "structure or fix the branch bodies so each branch contributes "
+            "distinct behaviour."
         ),
     ),
 )
@@ -883,14 +984,26 @@ def maybe_create_gh_issue(
     *,
     enable: bool,
     priority: str,
-    runner: RunnerFn = subprocess.run,
+    runner: RunnerFn | None = None,
 ) -> str | None:
-    """Optionally create a GH issue and return its URL or ``None``."""
+    """Optionally create a GH issue and return its URL or ``None``.
+
+    The auto-promotion covers the P0 and P1 priority buckets. P0 maps to
+    BLOCKER severity; P1 covers CRITICAL and MAJOR. P2 (MINOR, INFO)
+    stays file-only so the GH issue feed does not flood with low
+    severity churn.
+
+    ``runner`` defaults to :func:`subprocess.run`, resolved at call time
+    so tests can monkeypatch ``subprocess.run`` on the module.
+    """
+    if runner is None:
+        runner = subprocess.run
     if not enable:
         return None
-    if priority != "P0":
-        # Only the highest-priority bucket auto-promotes; everything else
-        # stays file-only until an operator picks it up by hand.
+    if priority not in ("P0", "P1"):
+        # P0 and P1 auto-promote so MAJOR and CRITICAL findings land on
+        # the same tracker surface operators already monitor. Lower
+        # priorities stay file-only until an operator picks them up.
         return None
     if not ticket_path.exists():
         return None
@@ -1051,15 +1164,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--severity-min",
-        default="BLOCKER",
+        default="MAJOR",
         choices=list(SEVERITY_ORDER),
-        help="Minimum severity to include (default: BLOCKER).",
+        help="Minimum severity to include (default: MAJOR).",
     )
     p.add_argument(
         "--max-per-day",
         type=int,
-        default=10,
-        help="Maximum tickets to emit in this run (default: 10).",
+        default=25,
+        help="Maximum tickets to emit in this run (default: 25).",
     )
     p.add_argument(
         "--out-dir",
@@ -1083,7 +1196,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--create-gh-issues",
         action="store_true",
-        help="For P0 tickets, also call `gh issue create` and trailer the file.",
+        help=(
+            "For P0 and P1 tickets (BLOCKER, CRITICAL, MAJOR), also call "
+            "`gh issue create` and trailer the file with the issue URL."
+        ),
     )
     p.add_argument(
         "--fixture",

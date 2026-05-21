@@ -79,3 +79,20 @@ def test_workflow_top_level_permissions_are_narrow() -> None:
     assert perms == {"contents": "read"}, (
         "Top-level permissions must default to read-only; the sweep job grants its own write scopes."
     )
+
+
+def test_workflow_dispatch_default_severity_is_major() -> None:
+    """Default severity input must be MAJOR after the widening change."""
+    parsed = _load_workflow()
+    on = parsed.get(True) if True in parsed else parsed["on"]
+    inputs = on["workflow_dispatch"]["inputs"]
+    assert inputs["severity_min"]["default"] == "MAJOR"
+
+
+def test_workflow_dispatch_default_max_per_day_is_25() -> None:
+    """Default per-run cap raised so the MAJOR queue drains in a sane timeline."""
+    parsed = _load_workflow()
+    on = parsed.get(True) if True in parsed else parsed["on"]
+    inputs = on["workflow_dispatch"]["inputs"]
+    # YAML may parse '25' as the string '25' or the int 25; accept either.
+    assert str(inputs["max_per_day"]["default"]) == "25"

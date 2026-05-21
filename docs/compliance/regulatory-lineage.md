@@ -111,6 +111,24 @@ protocol and injected into `LineageWriter(..., signer=...)`. The
 file-key reference implementation ships in core; HSM / KMS adapters
 are operator-provided.
 
+#### `kms_adapter: hsm` requires a real integration
+
+Setting `lineage.customer_signing.kms_adapter: hsm` in `bernstein.yaml`
+does **not** ship a working PKCS#11 / Cloud-KMS client. The base
+`HSMKMSAdapter` in `bernstein.core.security.lineage_kms` is a
+documentation stub: every `sign()` call raises `NotImplementedError`.
+To use the `hsm` selector in production, ship a subclass that
+overrides both `sign()` and `public_key_jwk()`, import it before the
+orchestrator loads its config, and the dispatcher picks it up
+automatically.
+
+If a subclass is not on the classpath, `kms_adapter_from_config` raises
+`LineageSignerError` at config-load time -- so a misconfigured
+`bernstein.yaml` surfaces immediately rather than crashing on the first
+audit-emit / lineage-sign call. For non-production smoke tests where
+the silent-stub behaviour is acceptable, set
+`BERNSTEIN_ALLOW_HSM_STUB=1` to opt in to the stub explicitly.
+
 ## Verifying a chain
 
 A customer auditor with only the public key and the WAL files runs:

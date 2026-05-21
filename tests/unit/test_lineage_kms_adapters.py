@@ -297,7 +297,13 @@ class TestConfigDispatch:
         )
         assert isinstance(adapter, EnvBasedKMSAdapter)
 
-    def test_hsm_kind_returns_stub(self) -> None:
+    def test_hsm_kind_returns_stub_with_opt_in(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # With the opt-in env var set, the stub builds at config time
+        # -- pre-fix behaviour preserved for non-production smoke tests.
+        monkeypatch.setenv("BERNSTEIN_ALLOW_HSM_STUB", "1")
         adapter = kms_adapter_from_config(
             enabled=True,
             kind="hsm",
@@ -341,7 +347,11 @@ class TestConfigDispatch:
         )
         assert isinstance(signer, EnvBasedKMSAdapter)
 
-    def test_signer_from_config_phase2_hsm(self) -> None:
+    def test_signer_from_config_phase2_hsm(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("BERNSTEIN_ALLOW_HSM_STUB", "1")
         signer = signer_from_config(
             enabled=True,
             kms_adapter="hsm",
@@ -362,3 +372,187 @@ class TestConfigDispatch:
         # FileBasedKMSAdapter) so the lineage writer continues to walk
         # the original code path. Both implement LineageSigner.
         assert isinstance(signer, LineageSigner)
+
+
+# ---------------------------------------------------------------------------
+# HSM stub fail-fast at config dispatch (regression for the silent-stub bug)
+# ---------------------------------------------------------------------------
+
+
+class TestHsmStubFailFastDispatch:
+    """``kms_adapter='hsm'`` fails at config-load when no subclass is wired.
+
+    Pre-fix, ``kms_adapter_from_config`` returned the bare
+    :class:`HSMKMSAdapter` whose ``sign()`` is a documentation stub.
+    A customer setting ``lineage.customer_signing.kms_adapter: hsm``
+    therefore booted cleanly and only crashed at the first audit-emit /
+    lineage-sign call, far away from the config-load context.
+    """
+
+    def test_default_hsm_dispatch_raises_with_docstring_pointer(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Default path (no opt-in, no subclass): hard fail at config time.
+        monkeypatch.delenv("BERNSTEIN_ALLOW_HSM_STUB", raising=False)
+        with pytest.raises(LineageSignerError) as exc_info:
+            kms_adapter_from_config(
+                enabled=True,
+                kind="hsm",
+                token_uri="pkcs11:token=stub",
+            )
+        message = str(exc_info.value)
+        # The message must steer the operator to the override path the
+        # module docstring documents.
+        assert "documentation stub" in message
+        assert "sign()" in message
+        assert "BERNSTEIN_ALLOW_HSM_STUB" in message
+
+    def test_opt_in_env_var_allows_stub(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # The opt-in path preserves pre-fix behaviour for smoke tests.
+        monkeypatch.setenv("BERNSTEIN_ALLOW_HSM_STUB", "1")
+        adapter = kms_adapter_from_config(
+            enabled=True,
+            kind="hsm",
+            token_uri="pkcs11:token=stub",
+        )
+        assert isinstance(adapter, HSMKMSAdapter)
+
+    @pytest.mark.parametrize("truthy", ["1", "true", "TRUE", "Yes", "on"])
+    def test_opt_in_accepts_common_truthy_values(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        truthy: str,
+    ) -> None:
+        monkeypatch.setenv("BERNSTEIN_ALLOW_HSM_STUB", truthy)
+        adapter = kms_adapter_from_config(
+            enabled=True,
+            kind="hsm",
+            token_uri="pkcs11:token=stub",
+        )
+        assert isinstance(adapter, HSMKMSAdapter)
+
+    @pytest.mark.parametrize("falsey", ["0", "false", "no", "off", "", "  "])
+    def test_opt_in_rejects_falsey_values(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        falsey: str,
+    ) -> None:
+        monkeypatch.setenv("BERNSTEIN_ALLOW_HSM_STUB", falsey)
+        with pytest.raises(LineageSignerError, match="BERNSTEIN_ALLOW_HSM_STUB"):
+            kms_adapter_from_config(
+                enabled=True,
+                kind="hsm",
+                token_uri="pkcs11:token=stub",
+            )
+
+    def test_subclass_with_overrides_is_used_without_opt_in(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # A real customer integration ships as a subclass that overrides
+        # both methods. When such a subclass is on the classpath, the
+        # dispatcher must pick it up without requiring the opt-in flag.
+        monkeypatch.delenv("BERNSTEIN_ALLOW_HSM_STUB", raising=False)
+
+        class _RealHsm(HSMKMSAdapter):
+            def sign(self, payload: bytes) -> bytes:  # type: ignore[override]
+                del payload
+                return b"\x00" * 64
+
+            def public_key_jwk(self) -> dict[str, str]:  # type: ignore[override]
+                return {
+                    "kty": "OKP",
+                    "crv": "Ed25519",
+                    "alg": "EdDSA",
+                    "x": "stub",
+                }
+
+        try:
+            adapter = kms_adapter_from_config(
+                enabled=True,
+                kind="hsm",
+                token_uri="pkcs11:token=t1",
+            )
+            assert isinstance(adapter, _RealHsm)
+            # Real sign returns 64 bytes (no longer raises).
+            assert len(adapter.sign(b"x")) == 64
+        finally:
+            # __subclasses__ is a process-wide registry; ensure the
+            # weakref entry from this local class is cleared before the
+            # next test runs by dropping our reference and forcing the
+            # garbage collector to sweep it.
+            del _RealHsm
+            import gc
+
+            gc.collect()
+
+    def test_subclass_partial_override_ignored(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # A subclass that forgets to override one of the two required
+        # methods must NOT be treated as a real integration -- the
+        # dispatcher falls through to the fail-fast path.
+        monkeypatch.delenv("BERNSTEIN_ALLOW_HSM_STUB", raising=False)
+
+        class _HalfBaked(HSMKMSAdapter):
+            def sign(self, payload: bytes) -> bytes:  # type: ignore[override]
+                del payload
+                return b"\x00" * 64
+
+            # public_key_jwk left as the stub -> incomplete integration.
+
+        try:
+            with pytest.raises(LineageSignerError, match="documentation stub"):
+                kms_adapter_from_config(
+                    enabled=True,
+                    kind="hsm",
+                    token_uri="pkcs11:token=t1",
+                )
+        finally:
+            del _HalfBaked
+            import gc
+
+            gc.collect()
+
+    def test_multiple_subclasses_raises_ambiguity(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Two competing HSM integrations on the classpath is an operator
+        # error we surface at config time rather than silently picking one.
+        monkeypatch.delenv("BERNSTEIN_ALLOW_HSM_STUB", raising=False)
+
+        class _VendorAHsm(HSMKMSAdapter):
+            def sign(self, payload: bytes) -> bytes:  # type: ignore[override]
+                del payload
+                return b"a" * 64
+
+            def public_key_jwk(self) -> dict[str, str]:  # type: ignore[override]
+                return {"kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "x": "a"}
+
+        class _VendorBHsm(HSMKMSAdapter):
+            def sign(self, payload: bytes) -> bytes:  # type: ignore[override]
+                del payload
+                return b"b" * 64
+
+            def public_key_jwk(self) -> dict[str, str]:  # type: ignore[override]
+                return {"kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "x": "b"}
+
+        try:
+            with pytest.raises(LineageSignerError, match="multiple HSMKMSAdapter"):
+                kms_adapter_from_config(
+                    enabled=True,
+                    kind="hsm",
+                    token_uri="pkcs11:token=t1",
+                )
+        finally:
+            del _VendorAHsm
+            del _VendorBHsm
+            import gc
+
+            gc.collect()

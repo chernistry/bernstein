@@ -10,9 +10,9 @@
 
 ## Reusable workflows
 - Factor shared steps into composite actions or reusable workflows.
-- Keep matrices narrow — every combination costs CI minutes.
+- Keep matrices narrow - every combination costs CI minutes.
 
 ## Concurrency
 - Use `concurrency: ${{ github.ref }}` with `cancel-in-progress: true` for
   PR workflows so pushes cancel stale runs.
-- Never cancel-in-progress on `main` — partially-run deploys corrupt state.
+- Never cancel-in-progress on `main` - partially-run deploys corrupt state.

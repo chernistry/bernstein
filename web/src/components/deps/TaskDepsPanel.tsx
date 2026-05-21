@@ -1,6 +1,6 @@
 // Per-task dependency panel for the Tasks drawer "Deps" tab.
 //
-// Layout — two flat columns side-by-side:
+// Layout - two flat columns side-by-side:
 //   Upstream  (this task depends on …)        Downstream (… depends on this)
 //
 // Backend source: GET /tasks/{taskId}/graph-neighbors → { upstream, downstream }.
@@ -9,7 +9,7 @@
 // so the operator sees the in-flight work first.
 //
 // Polling: 10s while mounted; halts automatically once neighbours stop
-// changing (we still respect React Query's window-focus refetch).  No SSE —
+// changing (we still respect React Query's window-focus refetch).  No SSE -
 // task_update events already invalidate everything under ["tasks"], which the
 // query key participates in via taskId.
 
@@ -38,7 +38,7 @@ interface GraphNeighborsResponse {
   downstream: Neighbor[];
 }
 
-// Mirror Tasks.tsx::toUiStatus — kept local so the panel does not depend on
+// Mirror Tasks.tsx::toUiStatus - kept local so the panel does not depend on
 // the screen-level helpers.  Unknown strings fall to 'queued' as the neutral
 // fallback.
 function toUiStatus(raw: string | null | undefined): UiStatus {
@@ -68,7 +68,7 @@ function toUiStatus(raw: string | null | undefined): UiStatus {
   }
 }
 
-// Sort order: running first, then stalled, queued, done, failed — what the
+// Sort order: running first, then stalled, queued, done, failed - what the
 // operator wants visible at the top of a chain.
 const STATUS_RANK: Record<UiStatus, number> = {
   running: 0,
@@ -87,7 +87,7 @@ function sortNeighbors(list: Neighbor[]): Neighbor[] {
   });
 }
 
-// Terminal statuses skip polling — there is no point refetching neighbours of
+// Terminal statuses skip polling - there is no point refetching neighbours of
 // a closed task every 10s.
 function isTerminal(raw: string | null | undefined): boolean {
   const s = toUiStatus(raw);
@@ -103,7 +103,7 @@ export interface TaskDepsPanelProps {
   /**
    * Optional callback so a parent can swap the selected task to a neighbour.
    * When omitted, neighbour pills still render but are inert.  Tasks.tsx can
-   * wire this independently — keeping it optional avoids touching the parent
+   * wire this independently - keeping it optional avoids touching the parent
    * in this changeset.
    */
   onOpenTask?: (id: string) => void;
@@ -216,11 +216,11 @@ function Header({
         </span>
         <span className="text-[11.5px] text-muted-foreground">
           <span className="font-mono tabular-nums text-foreground">
-            {loading ? '—' : upstreamCount}
+            {loading ? '-' : upstreamCount}
           </span>{' '}
           upstream ·{' '}
           <span className="font-mono tabular-nums text-foreground">
-            {loading ? '—' : downstreamCount}
+            {loading ? '-' : downstreamCount}
           </span>{' '}
           downstream
         </span>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI Debug Framework — quick commands for diagnosing and fixing CI failures
+# CI Debug Framework - quick commands for diagnosing and fixing CI failures
 # Usage: source scripts/ci_debug.sh && ci_status
 
 set -euo pipefail

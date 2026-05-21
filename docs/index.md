@@ -1,5 +1,5 @@
 ---
-title: Bernstein — Open-Source Multi-Agent Orchestration Platform
+title: Bernstein - Open-Source Multi-Agent Orchestration Platform
 description: >-
   Bernstein is the open-source multi-agent orchestrator for AI coding agents.
   Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in parallel.
@@ -16,15 +16,15 @@ tags:
 **Orchestrate any AI coding agent. Any model. One command.**
 
 <figure markdown>
-  ![Bernstein in action — parallel AI agents orchestrated in real time](assets/in-action-small.gif){ loading=lazy width="700" }
-  <figcaption>Bernstein in action — parallel AI agents orchestrated in real time</figcaption>
+  ![Bernstein in action - parallel AI agents orchestrated in real time](assets/in-action-small.gif){ loading=lazy width="700" }
+  <figcaption>Bernstein in action - parallel AI agents orchestrated in real time</figcaption>
 </figure>
 
 ---
 
 Bernstein takes a goal, breaks it into tasks, assigns them to AI coding agents running in parallel, verifies the output, and merges the results. You come back to working code, passing tests, and a clean git history.
 
-No framework to learn. No vendor lock-in. Agents are interchangeable workers — swap any agent, any model, any provider. The orchestrator itself is deterministic Python code. Zero LLM tokens on scheduling.
+No framework to learn. No vendor lock-in. Agents are interchangeable workers - swap any agent, any model, any provider. The orchestrator itself is deterministic Python code. Zero LLM tokens on scheduling.
 
 ## Install
 
@@ -67,7 +67,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
     ---
 
-    Pure Python orchestration — zero LLM tokens on coordination.
+    Pure Python orchestration - zero LLM tokens on coordination.
     Every decision is auditable code, not a model response.
 
 - :material-swap-horizontal:{ .lg .middle } **Any agent, any model**
@@ -97,7 +97,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
 Bernstein is built for the forward-deployed engineering pattern:
 parachute onto a client repo and stand up an AI engineering crew in
-minutes. State lives in `.sdd/` — no server to provision. Per-agent
+minutes. State lives in `.sdd/` - no server to provision. Per-agent
 credential scoping keeps your keys out of the client's environment.
 The 44-adapter spread means the swarm runs on whichever CLI agent
 the client already trusts (Claude Code, Codex, Gemini CLI, Aider,

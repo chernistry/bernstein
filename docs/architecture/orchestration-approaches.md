@@ -57,14 +57,14 @@ graph TD
 
 ### Deterministic orchestration (Bernstein)
 
-A Python process owns the control plane. It is a scheduler — it applies rules
+A Python process owns the control plane. It is a scheduler - it applies rules
 mechanically, makes no LLM calls, and has no concept of "reasoning." Agents are
 spawned with pre-assigned tasks, execute them, and exit. There is no idle state.
 
 ```mermaid
 graph TD
     Goal["User Goal\nor plans/task.yaml"]
-    Manager["Manager LLM\n(optional — only for\ngoal decomposition)"]
+    Manager["Manager LLM\n(optional - only for\ngoal decomposition)"]
     TaskServer["Task Server\nREST API :8052\nFile-backed state in .sdd/"]
     Orch["Orchestrator\n(deterministic Python)\nno LLM calls"]
     TP["Tick Pipeline\nfetch · batch · prioritize"]
@@ -149,14 +149,14 @@ sequenceDiagram
     A->>O: POST /tasks/T2/complete
     A->>O: POST /tasks/T3/complete
     deactivate A
-    Note over A: agent exits — no idle state
+    Note over A: agent exits - no idle state
 
     O->>J: verify T1, T2, T3
     J->>J: check concrete signals<br/>(file exists, tests pass, lint clean)
     J->>G: merge worktree to main
     J->>O: tasks CLOSED
 
-    O->>O: next tick — spawn fresh agent for next batch
+    O->>O: next tick - spawn fresh agent for next batch
 ```
 
 ---
@@ -169,13 +169,13 @@ sequenceDiagram
 | **Scheduling decisions** | LLM reasoning on each tick | Code: priority queue + role grouping |
 | **Token cost of coordination** | Thousands/tick (manager context) | Zero |
 | **Agent lifetime** | Persistent session (indefinite) | Bounded: 1-3 tasks then exit |
-| **Idle state** | Yes — agents poll, spam hunger signals | No — agents are dead when not working |
-| **Sleep failure mode** | Critical — unrecoverable without human | Impossible — dead agents cannot sleep |
-| **Context drift** | Yes — long sessions accumulate stale context | No — fresh context on every spawn |
-| **Scheduling reproducibility** | Non-deterministic (LLM sampling) | Deterministic — same input = same decision |
+| **Idle state** | Yes - agents poll, spam hunger signals | No - agents are dead when not working |
+| **Sleep failure mode** | Critical - unrecoverable without human | Impossible - dead agents cannot sleep |
+| **Context drift** | Yes - long sessions accumulate stale context | No - fresh context on every spawn |
+| **Scheduling reproducibility** | Non-deterministic (LLM sampling) | Deterministic - same input = same decision |
 | **Debuggability** | Cannot reproduce scheduling bugs | Unit-testable state machine |
 | **Verification** | Agent claims ("I finished X") | Concrete signals (file exists, tests pass) |
-| **Manager failure mode** | Cascading — all agents starve | N/A — no manager |
+| **Manager failure mode** | Cascading - all agents starve | N/A - no manager |
 | **Scalability** | O(agents × tasks) in manager context | O(1) per agent per tick |
 | **Coordination auditability** | LLM response logs (non-reproducible) | Python call stack (fully traceable) |
 
@@ -238,7 +238,7 @@ For 737 tasks over 47 hours, 12 agents:
 
 ## Related documents
 
-- [ADR-001: Agent Lifecycle Model](../decisions/001-agent-lifecycle.md) — Full analysis of hunger vs. pull vs. short-lived models with multi-agent pilot data
-- [ADR-006: No Embedded LLM in the Orchestrator](../decisions/006-no-embedded-llm.md) — Why the control plane is deterministic code
-- [Why Deterministic Orchestration](../architecture/WHY_DETERMINISTIC.md) — Narrative explainer with first-principles reasoning
-- [Architecture](../architecture/ARCHITECTURE.md) — Full system diagram and module breakdown
+- [ADR-001: Agent Lifecycle Model](../decisions/001-agent-lifecycle.md) - Full analysis of hunger vs. pull vs. short-lived models with multi-agent pilot data
+- [ADR-006: No Embedded LLM in the Orchestrator](../decisions/006-no-embedded-llm.md) - Why the control plane is deterministic code
+- [Why Deterministic Orchestration](../architecture/WHY_DETERMINISTIC.md) - Narrative explainer with first-principles reasoning
+- [Architecture](../architecture/ARCHITECTURE.md) - Full system diagram and module breakdown

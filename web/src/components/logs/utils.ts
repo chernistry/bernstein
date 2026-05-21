@@ -1,4 +1,4 @@
-// Logs panel helpers — bytes, rates, clipboard, downloads, time formatting.
+// Logs panel helpers - bytes, rates, clipboard, downloads, time formatting.
 
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0 B';
@@ -19,7 +19,7 @@ export function formatRate(perSec: number): string {
   return `${Math.round(perSec)}/s`;
 }
 
-/** Local time `HH:MM:SS.mmm` — matches typical agent log timestamps. */
+/** Local time `HH:MM:SS.mmm` - matches typical agent log timestamps. */
 export function formatLocalTime(ms: number): string {
   const d = new Date(ms);
   const pad = (n: number, w = 2) => String(n).padStart(w, '0');

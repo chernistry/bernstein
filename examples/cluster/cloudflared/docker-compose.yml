@@ -1,19 +1,19 @@
 # Bernstein central server + cloudflared sidecar.
 #
 # Brings up two containers on a private Docker network:
-#   * bernstein-central — the cluster central server (no public ports)
-#   * bernstein-cloudflared — the tunnel sidecar
+#   * bernstein-central - the cluster central server (no public ports)
+#   * bernstein-cloudflared - the tunnel sidecar
 #
 # The central server is NOT published on the host; only cloudflared can
 # reach it on the internal network. The public ingress is the
 # Cloudflare hostname configured in the Zero Trust dashboard.
 #
 # Required environment:
-#   CF_TUNNEL_TOKEN              — token from `cloudflared tunnel token`
-#   BERNSTEIN_CLUSTER_AUTH_SECRET — shared HMAC secret for cluster JWTs
+#   CF_TUNNEL_TOKEN              - token from `cloudflared tunnel token`
+#   BERNSTEIN_CLUSTER_AUTH_SECRET - shared HMAC secret for cluster JWTs
 #
 # Optional:
-#   BERNSTEIN_IMAGE              — pin a Bernstein image tag (default: latest)
+#   BERNSTEIN_IMAGE              - pin a Bernstein image tag (default: latest)
 
 services:
   bernstein-central:

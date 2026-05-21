@@ -18,7 +18,7 @@ gives the reviewer denser context per token and prevents the
 
 The chunker is invoked automatically by the review pipeline whenever
 the reviewer would otherwise window-read a Python file larger than its
-budget. There is no flag to set per-run — it is on by default.
+budget. There is no flag to set per-run - it is on by default.
 
 If you are calling the chunker directly from custom tooling:
 
@@ -44,14 +44,14 @@ model sees structure before code.
 ## Configuration
 
 The chunker reads `defaults.REVIEW_BUDGET_TOKENS` (the same budget the
-line-based fallback uses) and is otherwise self-contained — no
+line-based fallback uses) and is otherwise self-contained - no
 user-facing knobs.
 
 ## Limitations
 
 - Python only. TypeScript / Rust / Go fall back to line-based
   windowing with a clear log line so you can see what's degraded.
-- The chunker does not synthesise summaries — it only segments. The
+- The chunker does not synthesise summaries - it only segments. The
   review prompt is unchanged.
 - Cross-file dependencies are not packaged into a chunk. If reviewing
   function `foo` requires reading `bar` from a different file, the

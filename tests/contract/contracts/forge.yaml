@@ -1,7 +1,7 @@
 # Contract for the Forge CLI (adapter: forge).
 #
 # Always-passed surface from src/bernstein/adapters/forge.py:
-# ``forge -p <prompt>``. The adapter only ever passes ``-p`` — the
+# ``forge -p <prompt>``. The adapter only ever passes ``-p`` - the
 # coverage is intentionally narrow but still catches a forge release
 # that renames or drops its prompt flag.
 adapter: forge

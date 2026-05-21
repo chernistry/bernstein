@@ -6,8 +6,8 @@ name: cluster-tunnel-e2e
 #
 # This workflow makes real outbound calls to Cloudflare's edge and
 # requires:
-#   * secrets.CF_TUNNEL_TOKEN     — token for the test tunnel
-#   * secrets.CF_TUNNEL_HOSTNAME  — public hostname mapped to the tunnel
+#   * secrets.CF_TUNNEL_TOKEN     - token for the test tunnel
+#   * secrets.CF_TUNNEL_HOSTNAME  - public hostname mapped to the tunnel
 #
 # Both are scoped to a throwaway tunnel used only for CI.
 #

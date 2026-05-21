@@ -2,7 +2,7 @@
 //
 // Strategy: every line renders at a fixed `LOG_LINE_HEIGHT` so we can window
 // purely on scroll offset. Long lines render with `whitespace-pre`, so they
-// overflow horizontally (the container scrolls X) — this is the standard
+// overflow horizontally (the container scrolls X) - this is the standard
 // terminal behaviour and keeps row heights predictable.
 //
 // Auto-follow: when `following` is true the list pins the scroll position to
@@ -81,7 +81,7 @@ export const LogList = forwardRef<LogListHandle, Props>(function LogList(props, 
     return () => ro.disconnect();
   }, []);
 
-  // Match lookup by line id — keeps render-time math O(visible) instead of
+  // Match lookup by line id - keeps render-time math O(visible) instead of
   // O(visible × matches).
   const matchesByLineId = useMemo(() => {
     const m = new Map<number, SearchMatch[]>();
@@ -95,7 +95,7 @@ export const LogList = forwardRef<LogListHandle, Props>(function LogList(props, 
     return { byId: m, total: i };
   }, [props.matches]);
 
-  // Per-line global offset — `activeMatchIndex` is an index into the flat
+  // Per-line global offset - `activeMatchIndex` is an index into the flat
   // `matches` array, so we need to know how many matches preceded a given
   // line to map it back to "which mark is the active one".
   const lineFirstMatchOffset = useMemo(() => {

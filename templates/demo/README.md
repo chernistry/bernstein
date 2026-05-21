@@ -7,7 +7,7 @@ It ships with four intentional bugs that Bernstein agents fix during the demo.
 
 | # | Location | Bug |
 |---|----------|-----|
-| 1 | `app.py` `get_item()` | Off-by-one — `ITEMS[n]` should be `ITEMS[n - 1]` |
+| 1 | `app.py` `get_item()` | Off-by-one - `ITEMS[n]` should be `ITEMS[n - 1]` |
 | 2 | `app.py` imports | `request` used in `/echo` but not imported |
 | 3 | `app.py` `health()` | Returns HTTP 201 instead of 200 |
 | 4 | `tests/test_app.py` | `test_hello_returns_200` asserts `status_code == 404` |

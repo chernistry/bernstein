@@ -1,5 +1,5 @@
 // Multi-select bucket filter chips. Each chip toggles a bucket in/out of the
-// active set; an empty set means "show all" — that's the implicit default.
+// active set; an empty set means "show all" - that's the implicit default.
 
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ interface Props {
 
 interface ChipSpec {
   bucket: GateBucket;
-  // Per-bucket on/off classes — kept inline so each chip reads at a glance
+  // Per-bucket on/off classes - kept inline so each chip reads at a glance
   // without trawling another lookup table.
   onCls: string;
   offCls: string;

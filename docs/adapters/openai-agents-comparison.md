@@ -105,11 +105,11 @@ board, task server, custom MCP tools you've registered)?**
 * **You already have a Codex-based plan that works.**  Migrating
   for the sake of migrating burns cost without buying much.
 * **You don't want the `openai-agents` Python dependency.**  It's
-  optional for a reason — `bernstein[openai]` adds the SDK and its
+  optional for a reason - `bernstein[openai]` adds the SDK and its
   transitive deps (pydantic, httpx, etc.).
 * **You need Claude's cache-control blocks or subagent handoffs.**
   The SDK has its own handoff model but it's not the same
-  abstraction — if your plan.yaml already assumes Claude Code
+  abstraction - if your plan.yaml already assumes Claude Code
   subagents, keep them there.
 * **You're on a deterministic-only workflow.**  The SDK ships tool
   execution as part of the agent loop, so the boundary between
@@ -140,7 +140,7 @@ Model names roughly map: `gpt-5.4` → `gpt-5`, `gpt-5.4-mini` →
 
 Coming from `claude`:
 
-Usually don't migrate — if you were using Claude Code's subagent
+Usually don't migrate - if you were using Claude Code's subagent
 system, MCP integration, or `--append-system-prompt`, you'll give
 those up.  Consider `openai_agents` only for tasks that specifically
 benefit from the SDK's sandbox providers.

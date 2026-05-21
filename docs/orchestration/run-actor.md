@@ -65,10 +65,10 @@ The reducer is pure and total: it always returns a new frozen
 
 `ReplayBuffer.since(last_seen_seq)` returns one of:
 
-1. **Empty list** — caller is at or past the latest stored seq.
-2. **List of events in `(last_seen_seq, latest_held]`** — caller is
+1. **Empty list** - caller is at or past the latest stored seq.
+2. **List of events in `(last_seen_seq, latest_held]`** - caller is
    inside the buffer window. No `Gap` is produced.
-3. **`[Gap(up_to_seq=oldest_held - 1), ...remaining]`** — caller is
+3. **`[Gap(up_to_seq=oldest_held - 1), ...remaining]`** - caller is
    below the buffer's oldest stored seq. Exactly one `Gap` precedes
    the events still in the buffer. `up_to_seq` is the highest seq
    that has been evicted and can never be replayed.
@@ -143,12 +143,12 @@ corrupt.
 
 Unit tests live under `tests/unit/run_actor/`:
 
-* `test_single_writer.py` — concurrent writers see a strictly
+* `test_single_writer.py` - concurrent writers see a strictly
   monotonic seq log; events are applied exactly once.
-* `test_pure_apply.py` — `apply_event` is deterministic and does not
+* `test_pure_apply.py` - `apply_event` is deterministic and does not
   mutate its inputs; `fold` reconstructs state from an event log.
-* `test_snapshot_read.py` — `snapshot()` returns a stable frozen view.
-* `test_replay_after_gap.py` — `since()` emits a `Gap` marker when
+* `test_snapshot_read.py` - `snapshot()` returns a stable frozen view.
+* `test_replay_after_gap.py` - `since()` emits a `Gap` marker when
   the buffer has evicted past the caller's `last_seen_seq`.
-* `test_evicted_reconnect.py` — a reconnect past the window observes
+* `test_evicted_reconnect.py` - a reconnect past the window observes
   exactly one `Gap` followed by the current snapshot.

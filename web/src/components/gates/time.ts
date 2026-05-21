@@ -1,5 +1,5 @@
 // Time formatting helpers private to the Gates panel. Kept here so the panel
-// stays self-contained — pulling a global formatter for two callsites isn't
+// stays self-contained - pulling a global formatter for two callsites isn't
 // worth the cross-cutting concern.
 
 export function parseIso(value: string | null | undefined): Date | null {
@@ -8,10 +8,10 @@ export function parseIso(value: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** "5s ago", "2m ago", "3h ago", "Apr 2" — caps at the day boundary. */
+/** "5s ago", "2m ago", "3h ago", "Apr 2" - caps at the day boundary. */
 export function formatRelative(value: string | null | undefined, now: number = Date.now()): string {
   const d = parseIso(value);
-  if (!d) return '—';
+  if (!d) return '-';
   const diffMs = Math.max(0, now - d.getTime());
   const s = Math.round(diffMs / 1000);
   if (s < 5) return 'just now';
@@ -20,7 +20,7 @@ export function formatRelative(value: string | null | undefined, now: number = D
   if (m < 60) return `${m}m ago`;
   const h = Math.round(m / 60);
   if (h < 24) return `${h}h ago`;
-  // Older than a day — show a calendar date in local timezone.
+  // Older than a day - show a calendar date in local timezone.
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 

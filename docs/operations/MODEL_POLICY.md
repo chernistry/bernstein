@@ -1,16 +1,16 @@
-# Model Routing Policy — CISO-Level Provider Constraints
+# Model Routing Policy - CISO-Level Provider Constraints
 
-Model Policy is a CISO-level control system for managing where code and data can be sent in Bernstein. It provides transparent, auditable constraints on LLM provider selection — allowing enterprises to enforce compliance, data residency, and security requirements.
+Model Policy is a CISO-level control system for managing where code and data can be sent in Bernstein. It provides transparent, auditable constraints on LLM provider selection - allowing enterprises to enforce compliance, data residency, and security requirements.
 
 ## Why Model Policy
 
 Bernstein's intelligent router selects providers dynamically based on task complexity, cost, and health. But enterprises have hard constraints:
 
-- **"Code never leaves Anthropic"** — proprietary code stays in-house
-- **"No cloud APIs"** — local models only (Ollama, etc.)
-- **"SOC2 certified providers only"** — compliance requirement
-- **"Free tier only"** — cost control
-- **"Preferred provider if available"** — optimize for cost OR performance
+- **"Code never leaves Anthropic"** - proprietary code stays in-house
+- **"No cloud APIs"** - local models only (Ollama, etc.)
+- **"SOC2 certified providers only"** - compliance requirement
+- **"Free tier only"** - cost control
+- **"Preferred provider if available"** - optimize for cost OR performance
 
 Model Policy enforces these constraints **before** any routing algorithm runs, ensuring that denied providers are never offered to the router.
 
@@ -81,10 +81,10 @@ model_policy: {}
 
 The policy filter sits **before** routing decisions:
 
-1. **Provider Registration** — All providers are registered with the router
-2. **Policy Filter** — Policy removes denied providers from the action space
-3. **Routing Decision** — Router selects from the remaining (allowed) providers
-4. **Execution** — Selected provider handles the task
+1. **Provider Registration** - All providers are registered with the router
+2. **Policy Filter** - Policy removes denied providers from the action space
+3. **Routing Decision** - Router selects from the remaining (allowed) providers
+4. **Execution** - Selected provider handles the task
 
 Example:
 
@@ -169,7 +169,7 @@ $ echo $?
 
 ## Examples
 
-### Example 1: Enterprise — Code Never Leaves Anthropic
+### Example 1: Enterprise - Code Never Leaves Anthropic
 
 ```yaml
 model_policy:
@@ -180,7 +180,7 @@ model_policy:
 
 **Effect**: All tasks use Anthropic. No fallback to other providers.
 
-### Example 2: Cost Control — Free Tier Only
+### Example 2: Cost Control - Free Tier Only
 
 ```yaml
 model_policy:
@@ -191,7 +191,7 @@ model_policy:
 
 **Effect**: Only local Ollama models. No cloud API calls at all.
 
-### Example 3: Compliance — Block Specific Providers
+### Example 3: Compliance - Block Specific Providers
 
 ```yaml
 model_policy:
@@ -203,7 +203,7 @@ model_policy:
 
 **Effect**: Use any provider except OpenAI/Cohere. Prefer Anthropic if available.
 
-### Example 4: Local Only — No Cloud APIs
+### Example 4: Local Only - No Cloud APIs
 
 ```yaml
 model_policy:
@@ -277,8 +277,8 @@ $ bernstein config validate
 ```
 
 Exit codes:
-- `0` — Valid configuration
-- `1` — Configuration issues found
+- `0` - Valid configuration
+- `1` - Configuration issues found
 
 ## Design Principles
 
@@ -343,7 +343,7 @@ Policy rules are explicit and non-negotiable. No implicit fallbacks or guessing.
 
 Model Policy is evaluated **once per routing decision** and is O(n) where n = number of denied/allowed providers. In practice, this is negligible (< 1ms).
 
-The policy filter integrates into `get_available_providers()`, so there's no additional latency — the filtering happens during the normal provider selection flow.
+The policy filter integrates into `get_available_providers()`, so there's no additional latency - the filtering happens during the normal provider selection flow.
 
 ## Audit Trail
 
@@ -363,10 +363,10 @@ Peak-hour routing (`src/bernstein/core/cost/peak_hour_router.py`) extends model 
 
 ## Related
 
-- **Router** — `src/bernstein/core/routing/router.py` (re-exports from `router_core.py` and `router_policies.py`) — Core routing engine
-- **TierAwareRouter** — Handles provider selection
-- **Config Validation** — `bernstein config validate` command
-- **DESIGN.md** — Overall architecture
+- **Router** - `src/bernstein/core/routing/router.py` (re-exports from `router_core.py` and `router_policies.py`) - Core routing engine
+- **TierAwareRouter** - Handles provider selection
+- **Config Validation** - `bernstein config validate` command
+- **DESIGN.md** - Overall architecture
 
 ## Summary
 

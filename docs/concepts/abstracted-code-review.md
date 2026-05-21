@@ -11,9 +11,9 @@ it.
 
 Once `bernstein run` starts shipping multiple PRs per hour, the
 bottleneck shifts from the agent's wall-clock speed to the human
-reviewer's reading speed. The data Bernstein already has — the
+reviewer's reading speed. The data Bernstein already has - the
 spawning task description, agent progress reports, the diff, the test
-results — is enough to synthesise a 3-line summary per file. The
+results - is enough to synthesise a 3-line summary per file. The
 abstraction layer turns that data into a PR body humans actually
 read.
 
@@ -65,11 +65,11 @@ is tracked alongside any other LLM call.
 ## Limitations
 
 - The summary is LLM-generated. It is not a formal proof that the
-  pseudocode matches the real code — confidence scoring + drill-down
+  pseudocode matches the real code - confidence scoring + drill-down
   are the safety net.
 - Control-flow / data-flow diagrams are out of scope for the summariser.
 - This augments the PR body. It does **not** replace the rubric-based
-  review verdict — the existing reviewer gate still runs.
+  review verdict - the existing reviewer gate still runs.
 - Diffs > 50 files fall back to a top-level summary, not per-file
   abstractions, to keep the PR body readable.
 

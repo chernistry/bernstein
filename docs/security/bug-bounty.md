@@ -86,9 +86,9 @@ High-value targets in approximate priority order:
 
 ### 1. Task server authentication (Critical / High)
 
-- `POST /tasks` — can an unauthenticated caller inject tasks?
-- Token replay / forgery — are tokens validated correctly?
-- Privilege escalation — can a `research-token-2` caller access admin endpoints?
+- `POST /tasks` - can an unauthenticated caller inject tasks?
+- Token replay / forgery - are tokens validated correctly?
+- Privilege escalation - can a `research-token-2` caller access admin endpoints?
 
 Relevant code: `src/bernstein/core/routes/`
 
@@ -130,7 +130,7 @@ Relevant code: `src/bernstein/core/bulletin.py`
    - Impact assessment (what an attacker could achieve)
    - Affected file(s) and line numbers if known
 3. Attach screenshots or screen recordings for complex PoCs
-4. Do not include production credentials — use the sandbox tokens
+4. Do not include production credentials - use the sandbox tokens
 
 ---
 

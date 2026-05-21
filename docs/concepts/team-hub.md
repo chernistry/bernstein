@@ -40,7 +40,7 @@ from bernstein.core.plugins_core.team_hub_loader import load_team_hub
 
 hub = load_team_hub(Path("/path/to/hub-repo"))
 if hub is None:
-    # No hub installed — graceful degradation
+    # No hub installed - graceful degradation
     pass
 else:
     for entry in hub.entries:

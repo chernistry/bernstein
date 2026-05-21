@@ -1,4 +1,4 @@
-// Tasks screen — Variant A "Decision-Grade Quiet Command".
+// Tasks screen - Variant A "Decision-Grade Quiet Command".
 // Source of truth: design_handoff_bernstein_phase1/design-source/screens/screen-tasks.jsx
 // + README §6.01 (Tasks specs) + §8 (states contract).
 
@@ -41,7 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // ── Domain types ────────────────────────────────────────────────────────────
-// UI status vocabulary — the visual states the table/drawer render.
+// UI status vocabulary - the visual states the table/drawer render.
 type TaskStatus = 'running' | 'queued' | 'stalled' | 'failed' | 'done';
 
 // Backend status vocabulary (see core/tasks/models.py::TaskStatus).
@@ -70,7 +70,7 @@ interface TaskRow {
   agent?: string | null;
   /** Duration in milliseconds. May be omitted; we derive from claimed_at when needed. */
   duration_ms?: number | null;
-  /** 0–100 progress percent. May be missing; show "—" when so. */
+  /** 0–100 progress percent. May be missing; show "-" when so. */
   progress?: number | null;
   /** Total tokens consumed so far. */
   tokens?: number | null;
@@ -109,7 +109,7 @@ interface TaskDetail extends TaskRow {
   approvals_done?: number | null;
   approvals_pending?: number | null;
   plan?: PlanStep[];
-  /** Server-side ``progress_log`` entries — used as a Plan fallback. */
+  /** Server-side ``progress_log`` entries - used as a Plan fallback. */
   progress_log?: Array<{ timestamp?: number; message?: string; percent?: number }>;
 }
 
@@ -307,13 +307,13 @@ type DetailTab = (typeof DETAIL_TABS)[number];
 
 // ── Operator-syntax token highlighter ───────────────────────────────────────
 // Highlights `agent:`, `status:`, `role:` keys in the `accent` colour.
-// Pure presentation — does NOT mutate the input.
+// Pure presentation - does NOT mutate the input.
 
 const TOKEN_RE = /(agent:|status:|role:)/gi;
 
 function HighlightedQuery({ value }: { value: string }) {
   if (!value) {
-    // Subtle ghost hint of the syntax — purely visual, the input itself is empty.
+    // Subtle ghost hint of the syntax - purely visual, the input itself is empty.
     // Parent already renders the literal ``filter:`` label, so do not duplicate it here.
     return (
       <span className="text-meta-foreground/60">
@@ -366,7 +366,7 @@ function parseQuery(q: string): ParsedQuery {
   for (const tok of q.split(/\s+/).filter(Boolean)) {
     const lower = tok.toLowerCase();
     if (lower.startsWith('agent:')) {
-      // Trailing-colon (`agent:`) is a partial token while typing — keep the
+      // Trailing-colon (`agent:`) is a partial token while typing - keep the
       // existing free-text behaviour off, but do not assign agent='' either.
       const rest = tok.slice('agent:'.length);
       if (rest) agent = rest;
@@ -466,7 +466,7 @@ export default function Tasks() {
   // Mutations (per-task).
   // NB: /cancel requires a JSON body (TaskCancelRequest{reason}); the legacy
   // empty-POST returned 422. Keep ``reason`` short and honest.
-  // NB: there is no `/tasks/{id}/retry` or `/tasks/{id}/kill` endpoint —
+  // NB: there is no `/tasks/{id}/retry` or `/tasks/{id}/kill` endpoint -
   // ``force-claim`` is the closest "re-run" semantic (resets the row back to
   // open with priority 0); kill maps to ``/tasks/{id}/cancel`` until a
   // session-level kill lands.
@@ -512,7 +512,7 @@ export default function Tasks() {
   // Selection lifecycle: clear selection if the previously-selected row no
   // longer exists (e.g. SSE invalidation removed it). Otherwise the detail
   // query keeps thrashing on a 404 and the drawer renders stale fallback data.
-  // The drawer only opens on explicit user action — never auto-select.
+  // The drawer only opens on explicit user action - never auto-select.
   useEffect(() => {
     if (!listQ.data) return;
     if (selectedId !== null && !items.some((t) => t.id === selectedId)) {
@@ -650,7 +650,7 @@ function saveDrawerWidth(w: number): void {
   try {
     window.localStorage.setItem(DRAWER_WIDTH_KEY, String(Math.round(w)));
   } catch {
-    /* private mode etc. — ignore */
+    /* private mode etc. - ignore */
   }
 }
 
@@ -673,7 +673,7 @@ function DrawerShell({
   useLayoutEffect(() => {
     if (!open) return;
     triggerRef.current = document.activeElement;
-    // Move focus into the panel — the first focusable element wins.
+    // Move focus into the panel - the first focusable element wins.
     const node = panelRef.current;
     if (!node) return;
     const firstFocusable = node.querySelector<HTMLElement>(
@@ -841,7 +841,7 @@ function DrawerShell({
         }
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Drag handle — sits on the panel's left edge */}
+        {/* Drag handle - sits on the panel's left edge */}
         <div
           role="separator"
           aria-orientation="vertical"
@@ -885,15 +885,15 @@ function Header({
         <h1 className="text-h2 text-foreground">Tasks</h1>
         <div className="mt-[3px] text-[12px] text-muted-foreground">
           <span className="font-mono tabular-nums">
-            {loading ? '—' : formatCount(totalCount)}
+            {loading ? '-' : formatCount(totalCount)}
           </span>{' '}
           tasks ·{' '}
           <span className="font-mono tabular-nums">
-            {loading ? '—' : formatCount(runningCount)}
+            {loading ? '-' : formatCount(runningCount)}
           </span>{' '}
           running ·{' '}
           <span className="font-mono tabular-nums">
-            {loading ? '—' : formatCount(stalledCount)}
+            {loading ? '-' : formatCount(stalledCount)}
           </span>{' '}
           stalled · last sync{' '}
           <span className="font-mono">
@@ -1009,7 +1009,7 @@ function ChipsRow({
                 isActive ? 'opacity-80' : 'text-meta-foreground',
               )}
             >
-              {n != null ? formatCount(n) : '—'}
+              {n != null ? formatCount(n) : '-'}
             </span>
           </button>
         );
@@ -1111,7 +1111,7 @@ function TasksTable({
                   )}
                 </Td>
                 <Td className="font-mono text-[11.5px] text-muted-foreground">
-                  <span className="block truncate" title={agent ?? undefined}>{agent ?? '—'}</span>
+                  <span className="block truncate" title={agent ?? undefined}>{agent ?? '-'}</span>
                 </Td>
                 <Td>
                   <Pill kind="ghost">{tk.role}</Pill>
@@ -1123,11 +1123,11 @@ function TasksTable({
                     ui === 'stalled' ? 'text-warning' : 'text-foreground',
                   )}
                 >
-                  {ui === 'queued' ? '—' : formatDuration(dur)}
+                  {ui === 'queued' ? '-' : formatDuration(dur)}
                 </Td>
                 <Td>
                   {ui === 'queued' || progress === null ? (
-                    <span className="font-mono text-[11px] text-meta-foreground">—</span>
+                    <span className="font-mono text-[11px] text-meta-foreground">-</span>
                   ) : (
                     <ProgressCell status={ui} value={progress} />
                   )}
@@ -1216,7 +1216,7 @@ function DrawerLoading({
           id="task-drawer-title"
           className="mt-1.5 text-[14px] font-medium leading-snug text-foreground"
         >
-          {fallback?.title ?? '—'}
+          {fallback?.title ?? '-'}
         </div>
       </div>
       <div className="flex-1 overflow-auto px-[18px] py-[14px]">
@@ -1297,7 +1297,7 @@ function DetailDrawer({
   const durLabel = ui === 'queued' ? 'queued' : `${ui} · ${formatDuration(durMs)}`;
   const agent = readAgent(task);
 
-  // KPI: tokens, cost, branch, approvals — all tolerate field-shape variance.
+  // KPI: tokens, cost, branch, approvals - all tolerate field-shape variance.
   // Tokens: prefer typed in/out (sum), fall back to the row's metadata.tokens.
   const tokensIn = readTokensIn(detail);
   const tokensOut = readTokensOut(detail);
@@ -1388,17 +1388,17 @@ function DetailDrawer({
                 sub={
                   tokensIn != null && tokensOut != null
                     ? `${formatTokens(tokensIn)} in / ${formatTokens(tokensOut)} out`
-                    : '—'
+                    : '-'
                 }
               />
               <Kpi
                 label="cost"
                 value={formatUSD(costUsd)}
-                sub={costCap != null ? `of ${formatUSD(costCap)} cap` : '—'}
+                sub={costCap != null ? `of ${formatUSD(costCap)} cap` : '-'}
               />
               <Kpi
                 label="branch"
-                value={branch ?? '—'}
+                value={branch ?? '-'}
                 sub={
                   diffAdd != null && diffDel != null
                     ? `+${formatCount(diffAdd)} −${formatCount(diffDel)} lines`
@@ -1411,7 +1411,7 @@ function DetailDrawer({
                 value={
                   apTotal != null && apDone != null
                     ? `${formatCount(apDone)} / ${formatCount(apTotal)}`
-                    : '—'
+                    : '-'
                 }
                 sub={
                   apPending != null && apPending > 0
@@ -1571,7 +1571,7 @@ function ActionButton({
 
 // Tab content router. Each tab owns its own panel module under
 // `web/src/components/{kind}/`. To wire a new tab, add a case here and
-// implement the corresponding panel — no other changes to Tasks.tsx needed.
+// implement the corresponding panel - no other changes to Tasks.tsx needed.
 function TaskTabContent({
   task,
   activeTab,

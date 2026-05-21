@@ -2,7 +2,7 @@ name: Telegram nightly-fanout notifications
 
 # Fan-out failure notifications for nightly / weekly workflows that previously
 # failed silently. Triggered on `workflow_run` completion so a single job
-# covers every workflow in the list — keeps the diff in each workflow zero.
+# covers every workflow in the list - keeps the diff in each workflow zero.
 #
 # Reuses the same TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID secrets as
 # `telegram-notify.yml`. No new secret required.
@@ -37,7 +37,7 @@ jobs:
   notify:
     # Notify on anything that isn't a clean pass or an explicit skip. This
     # catches `failure`, `cancelled`, `timed_out`, `action_required`, and
-    # `startup_failure` — every operator-actionable outcome.
+    # `startup_failure` - every operator-actionable outcome.
     if: >-
       github.event.workflow_run.conclusion != 'success' &&
       github.event.workflow_run.conclusion != 'skipped' &&

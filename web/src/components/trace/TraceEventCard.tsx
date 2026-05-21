@@ -1,6 +1,6 @@
 // A single event card in the Trace timeline.
 //
-// The card is collapsed by default — clicking the header (or pressing Enter /
+// The card is collapsed by default - clicking the header (or pressing Enter /
 // Space while focused) reveals the full JSON payload. Hover shows the absolute
 // ISO timestamp; the visible label uses wall-clock + relative time so the
 // operator can scrub quickly without reading every digit.
@@ -14,7 +14,7 @@ import type { TraceTimelineEvent } from './types';
 
 interface Props {
   event: TraceTimelineEvent;
-  // Search query — when non-empty, matched substrings in the summary are
+  // Search query - when non-empty, matched substrings in the summary are
   // visually highlighted (case-insensitive).
   query: string;
   /** Now in unix seconds, passed down so cards animate in lockstep when the clock ticks. */
@@ -53,7 +53,7 @@ export function TraceEventCard({ event, query, now }: Props) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1200);
       } catch {
-        /* clipboard blocked — silent */
+        /* clipboard blocked - silent */
       }
     },
     [event.payload],

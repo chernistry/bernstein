@@ -23,7 +23,7 @@ claude_mock` routes every spawn to the mock.
   to the session log path that's identical across runs (modulo the
   session id baked into the system event), so golden-file tests in
   downstream consumers can pin the output.
-* exits 0 immediately — bernstein's orchestrator reads the log and
+* exits 0 immediately - bernstein's orchestrator reads the log and
   treats the run as successful.
 
 the canned response shape mirrors the real claude-code stream so any

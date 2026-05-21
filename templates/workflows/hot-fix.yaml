@@ -20,7 +20,7 @@ nodes:
     agent: backend
     prompt: |
       Apply the smallest correct fix that turns the reproducing test
-      green. Avoid drive-by changes — the goal is "land tonight, clean
+      green. Avoid drive-by changes - the goal is "land tonight, clean
       up tomorrow".
     fresh_context: true
     timeout_seconds: 1800

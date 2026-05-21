@@ -30,7 +30,7 @@ The right `max_agents` value depends on your provider's rate limits, not just yo
 | **Enterprise / Tier 2+** | Custom SLA | 8–16 | Negotiate limits with your Anthropic account team |
 | **Unlimited / Bedrock** | No hard cap | 16–32 | Limit by hardware and cost budget only |
 
-> **Tip:** Check your actual quota with `bernstein status --provider` or via the Anthropic console. Bernstein reads `X-RateLimit-*` headers and backs off automatically, but it cannot predict limits — set `max_agents` below your burst ceiling.
+> **Tip:** Check your actual quota with `bernstein status --provider` or via the Anthropic console. Bernstein reads `X-RateLimit-*` headers and backs off automatically, but it cannot predict limits - set `max_agents` below your burst ceiling.
 
 ### OpenAI / Gemini / Others
 
@@ -91,16 +91,16 @@ Routing tasks to the cheapest model that can handle them cuts cost dramatically.
 # bernstein.yaml
 role_model_policy:
   docs:
-    model: haiku        # $1/$5 per 1M tokens — documentation, formatting
+    model: haiku        # $1/$5 per 1M tokens - documentation, formatting
     effort: low
   backend:
-    model: sonnet       # $3/$15 per 1M tokens — feature implementation
+    model: sonnet       # $3/$15 per 1M tokens - feature implementation
     effort: high
   qa:
     model: sonnet
     effort: high
   architect:
-    model: opus         # $5/$25 per 1M tokens — design, architecture review
+    model: opus         # $5/$25 per 1M tokens - design, architecture review
     effort: max
   security:
     model: opus
@@ -153,9 +153,9 @@ Cache write costs slightly more than a regular input token. Break-even is at 2 r
 ### What gets cached
 
 Bernstein automatically caches:
-- **System prompt** (role template + project context) — reused on every turn
-- **File snapshots** injected into the prompt — reused if the file hasn't changed
-- **Bulletin board contents** — shared findings across agents
+- **System prompt** (role template + project context) - reused on every turn
+- **File snapshots** injected into the prompt - reused if the file hasn't changed
+- **Bulletin board contents** - shared findings across agents
 
 ### Configuration
 
@@ -170,7 +170,7 @@ cache:
 ### Maximizing cache hit rate
 
 1. **Keep system prompts stable.** Every change to a role template busts the cache. Finalize prompts before long runs.
-2. **Avoid dynamic timestamps in system prompts.** Injecting `datetime.now()` into the system prompt creates a unique prompt on every spawn — zero cache hits.
+2. **Avoid dynamic timestamps in system prompts.** Injecting `datetime.now()` into the system prompt creates a unique prompt on every spawn - zero cache hits.
 3. **Pass shared context as early context.** Files referenced in the first 1024+ tokens are cached; files appended late are not.
 4. **Use `context_files` in `bernstein.yaml`** to preload stable reference files that all agents share:
 
@@ -206,7 +206,7 @@ main branch
 ```
 
 **Advantages:**
-- True filesystem isolation — agents cannot step on each other's uncommitted changes.
+- True filesystem isolation - agents cannot step on each other's uncommitted changes.
 - Merge happens only at task completion, not continuously.
 - Supports sparse checkout for monorepos (only relevant paths checked out).
 
@@ -215,7 +215,7 @@ main branch
 - Symlinks (`.venv`, `node_modules`) reduce duplication but require Developer Mode on Windows.
 
 ```yaml
-# bernstein.yaml — tune worktree setup
+# bernstein.yaml - tune worktree setup
 worktree_setup:
   symlink_dirs:
     - .venv

@@ -23,7 +23,7 @@ git add -A && git commit -m "feat: <brief summary>"
 ```
 
 **Rules**:
-- Default branch is `main` — NEVER push to or create a branch called `master`
+- Default branch is `main` - NEVER push to or create a branch called `master`
 - When pushing: `git push origin main`
 - PRs target `main` as base branch
 - Never skip hooks (`--no-verify`)

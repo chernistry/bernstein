@@ -1,8 +1,8 @@
-// File-list pane (left side of the panel) — scrollable summary of every
+// File-list pane (left side of the panel) - scrollable summary of every
 // touched file with status pill, change counts, and language hint.
 //
 // Click jumps the right pane to the matching file. The list is virtualised
-// only when the file count is large (>200) — most task diffs have a couple
+// only when the file count is large (>200) - most task diffs have a couple
 // dozen files at most.
 
 import {

@@ -1,4 +1,4 @@
-name: "Bernstein — Multi-Agent Orchestration"
+name: "Bernstein - Multi-Agent Orchestration"
 description: "Run Bernstein to orchestrate CLI coding agents from GitHub Actions. Supports ad-hoc tasks and automatic CI-fix mode."
 author: "Bernstein contributors"
 
@@ -95,7 +95,7 @@ runs:
         # default commit-and-push so they can stage the work into a
         # dedicated branch / PR themselves.
         if [ "${BERNSTEIN_SKIP_AUTO_COMMIT:-false}" = "true" ]; then
-          echo "BERNSTEIN_SKIP_AUTO_COMMIT=true — leaving working tree dirty for caller."
+          echo "BERNSTEIN_SKIP_AUTO_COMMIT=true - leaving working tree dirty for caller."
           exit 0
         fi
 

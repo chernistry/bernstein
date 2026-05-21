@@ -2,14 +2,14 @@
 
 `bernstein replay` re-displays the events from a past orchestration run so you can debug, diff, and reproduce. There are two replay surfaces:
 
-1. **`bernstein replay`** *(source: `cli/commands/advanced_cmd.py:876`)* — the original replay, optionally with task-trace re-submission.
-2. **`bernstein replay-filter`** (registered as `replay`'s filter wrapper) *(source: `cli/commands/replay_filter_cmd.py:164`)* — adds `--filter`, `--event-type`, `--agent`, `--search`.
+1. **`bernstein replay`** *(source: `cli/commands/advanced_cmd.py:876`)* - the original replay, optionally with task-trace re-submission.
+2. **`bernstein replay-filter`** (registered as `replay`'s filter wrapper) *(source: `cli/commands/replay_filter_cmd.py:164`)* - adds `--filter`, `--event-type`, `--agent`, `--search`.
 
 Both read from the same underlying log on disk; the filter command is a strict superset of the basic command for read-only inspection. The basic command additionally supports **task-trace replay**, which re-creates a new task from a stored task trace and (optionally) compares the replay's `result_summary` against the original via a colour diff.
 
 ## What replay does (and doesn't do)
 
-Replay is **deterministic re-display** of a past run's recorded events. Every event the orchestrator emitted — `run_started`, `agent_spawned`, `task_claimed`, `task_completed`, `task_verification_failed`, `agent_reaped`, `run_completed` — is replayed in order with its original timing offsets.
+Replay is **deterministic re-display** of a past run's recorded events. Every event the orchestrator emitted - `run_started`, `agent_spawned`, `task_claimed`, `task_completed`, `task_verification_failed`, `agent_reaped`, `run_completed` - is replayed in order with its original timing offsets.
 
 What replay **does not** do:
 
@@ -56,10 +56,10 @@ The fingerprint shown after every replay is a SHA-256 hash of the canonicalized 
 
 **Resolution rules:**
 
-- `bernstein replay list` — print every recorded run with timing, branch, SHA, event count, log size.
-- `bernstein replay latest` — replay the most recent run.
-- `bernstein replay <run_id>` — replay a specific run by directory name.
-- `bernstein replay <task_id>` (no run with that ID exists) — falls through to **task-trace replay**: re-submit the task and diff result summaries.
+- `bernstein replay list` - print every recorded run with timing, branch, SHA, event count, log size.
+- `bernstein replay latest` - replay the most recent run.
+- `bernstein replay <run_id>` - replay a specific run by directory name.
+- `bernstein replay <task_id>` (no run with that ID exists) - falls through to **task-trace replay**: re-submit the task and diff result summaries.
 
 The Rich table columns are `TIME` (offset from `run_started`), `EVENT`, `AGENT`, `TASK`, `DETAIL`. Common detail keys: `model`, `role`, `cost_usd`, `fingerprint`, `tick`, `failed_signals`. Events are colour-coded by type (`run_started` / `task_completed` are green; `agent_reaped` and `task_verification_failed` are red).
 
@@ -151,10 +151,10 @@ The CLI prints a diff of the two `result_summary` strings.
 
 ## Limits
 
-- Replay does not re-issue HTTP calls. Mocking a remote dependency from the original log is not supported — agents in task-trace replay make **fresh** calls.
+- Replay does not re-issue HTTP calls. Mocking a remote dependency from the original log is not supported - agents in task-trace replay make **fresh** calls.
 - Side effects to remote services (PRs, messages, webhooks, DB rows) from the original run are **not undone** by replay. There is no "rewind" mode.
 - Run-event replay only re-renders what was recorded. If `recorder.py` (`cli/commands/replay_filter_cmd.py:232`) didn't capture an event class, it will not appear.
 - Fingerprints depend on the exact recorder version. A replay log written by an older Bernstein may produce a different fingerprint when re-fingerprinted by a newer build.
-- Task-trace replay submits a **new** task — it does not retroactively re-run the original task in place. The original task's record stays in the archive untouched.
+- Task-trace replay submits a **new** task - it does not retroactively re-run the original task in place. The original task's record stays in the archive untouched.
 
 For deeper integrity guarantees, see [`fingerprint`](../cli-reference.md#bernstein-fingerprint) (re-computes the run's SHA-256 and verifies it against a stored reference).

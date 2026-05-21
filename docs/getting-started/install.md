@@ -14,7 +14,7 @@ to follow the [first-run walkthrough](first-run.md).
 - **Git** (any recent version). Bernstein uses git worktrees to isolate agents.
 - **macOS, Linux, or Windows**.
 
-That's it. You do **not** need a CLI coding agent installed yet — that comes in the first-run page.
+That's it. You do **not** need a CLI coding agent installed yet - that comes in the first-run page.
 
 ---
 
@@ -149,7 +149,7 @@ A clean run prints all green. If something fails, it tells you exactly which ste
 > Your tool bin directory is not on `$PATH`. Add it:
 >
 > - `uv` / `pipx`: `export PATH="$HOME/.local/bin:$PATH"` (and add to `~/.zshrc` / `~/.bashrc`)
-> - Windows: re-open PowerShell after install — pipx adds the path on first run.
+> - Windows: re-open PowerShell after install - pipx adds the path on first run.
 > - macOS Homebrew: run `brew doctor` and follow the PATH advice.
 
 ---

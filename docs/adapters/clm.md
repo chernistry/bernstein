@@ -1,7 +1,7 @@
-# `clm` adapter — Cyber Language Model gateway
+# `clm` adapter - Cyber Language Model gateway
 
 Bernstein's adapter for sovereign-AI vendors that ship a customer-side
-**Cyber Language Model (CLM)** — a family of LLMs trained on cyber
+**Cyber Language Model (CLM)** - a family of LLMs trained on cyber
 telemetry and served behind NVIDIA NIM (TensorRT-LLM + Triton).
 NIM exposes an OpenAI-compatible HTTP API; the adapter is a thin
 shim that points `aider` at a customer-side CLM gateway.
@@ -67,7 +67,7 @@ roles:
 ```
 
 `CLM_TOKEN` is treated as opaque. It is **never** logged, persisted to
-`.sdd/runtime/`, or written to audit / lineage records — only its
+`.sdd/runtime/`, or written to audit / lineage records - only its
 JWT `kid` is captured for traceability.
 
 ---
@@ -108,7 +108,7 @@ the supported integration point.
 * This adapter sends prompts to the customer-side CLM gateway. Treat
   every prompt as in-scope for the customer's data-flow review.
 * Master keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) are
-  filtered out of the spawned environment — only the `CLM_*` bundle
+  filtered out of the spawned environment - only the `CLM_*` bundle
   is forwarded.
 * Audit and lineage records capture the prompt SHA and the token
   `kid`, never the token bytes. A redaction grep test in the
@@ -121,7 +121,7 @@ the supported integration point.
 Sovereign customers commonly require the worker side of any agent
 session to present a client certificate signed by their internal CA
 during the TLS handshake. The CLM adapter supports this via the
-`CLM_CERT_FILE` / `CLM_KEY_FILE` / `CLM_CA_FILE` triple — the same
+`CLM_CERT_FILE` / `CLM_KEY_FILE` / `CLM_CA_FILE` triple - the same
 PEM-encoded files the operator's PKI already issues for cluster
 node-to-node mTLS.
 
@@ -136,7 +136,7 @@ spawn through a small launcher
 1. Reads the `CLM_*_FILE` triple inside the spawned subprocess.
 2. Builds an `ssl.SSLContext` via
    `bernstein.core.protocols.cluster.cluster_tls.build_httpx_client_kwargs`
-   — the same helper the cluster transport uses, so there is exactly
+   - the same helper the cluster transport uses, so there is exactly
    one place that knows how to produce a worker-side mTLS context.
 3. Monkey-patches `httpx.Client.__init__` and
    `httpx.AsyncClient.__init__` to default to that context for any
@@ -146,7 +146,7 @@ spawn through a small launcher
 
 The launcher is only inserted into the spawn command when all three
 `CLM_*_FILE` variables are set. A *partial* triple is rejected at
-spawn time with `ClmConfigError` — operator-error category, not a
+spawn time with `ClmConfigError` - operator-error category, not a
 silent fallback to plain HTTP.
 
 ### Configuration example
@@ -175,7 +175,7 @@ export CLM_CA_FILE=/etc/bernstein/pki/customer-ca.bundle.crt
   bootstrap-ca` enforces this for self-hosted internal clusters; for
   customer-issued material the customer's PKI is responsible.
 * `CLM_VERIFY_MODE=disabled` accepts any peer certificate (still TLS,
-  but no peer-cert verification). It exists for staged rollouts —
+  but no peer-cert verification). It exists for staged rollouts -
   do not ship it.
 
 ### Tested handshake paths
@@ -183,10 +183,10 @@ export CLM_CA_FILE=/etc/bernstein/pki/customer-ca.bundle.crt
 The integration suite (`tests/integration/adapters/test_adapter_clm_with_fake_nim.py`)
 covers two scenarios:
 
-* **Positive** — a worker carrying the matching client cert completes
+* **Positive** - a worker carrying the matching client cert completes
   the TLS handshake against a `verify_mode='required'` fake NIM and
   receives a 200 response.
-* **Negative** — a worker that trusts the CA but presents no client
+* **Negative** - a worker that trusts the CA but presents no client
   cert is rejected at the handshake, surfacing as `httpx.HTTPError`
   before any chat-completions endpoint runs.
 
@@ -210,7 +210,7 @@ covers two scenarios:
 * Source: `src/bernstein/adapters/clm.py`,
   `src/bernstein/adapters/clm_tls_launcher.py`
 * Shared TLS plumbing: `src/bernstein/core/protocols/cluster/cluster_tls.py`
-* [Cluster mTLS setup](../cluster/mtls-setup.md) — same `TLSConfig`
+* [Cluster mTLS setup](../cluster/mtls-setup.md) - same `TLSConfig`
   the cluster transport uses
-* [Artifact lineage trail](../concepts/artifact-lineage.md) — what
+* [Artifact lineage trail](../concepts/artifact-lineage.md) - what
   the adapter produces per agent invocation

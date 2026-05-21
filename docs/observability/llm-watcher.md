@@ -22,7 +22,7 @@ The watcher is structurally read-only by design:
 - The public `observe` API only accepts an immutable, frozen
   `WatcherEvent` snapshot. It receives no orchestrator handle, no
   task store, no agent spawner, no filesystem path.
-- The return type is `list[Suggestion]` — pure advisory data.
+- The return type is `list[Suggestion]` - pure advisory data.
   Suggestions are never auto-applied. The orchestrator decides
   whether to log, surface, or persist them.
 - Failures inside the watcher (LLM adapter exceptions, timeout,
@@ -78,7 +78,7 @@ The watcher returns a list of `Suggestion` records:
 | `detector` | Free-form detector name. The first slice emits a generic `observer` detector. |
 | `severity` | `info`, `warning`, or `critical`. |
 | `rationale` | Short human-readable explanation. |
-| `proposed_action` | Suggested next step (informational only — never executed automatically). |
+| `proposed_action` | Suggested next step (informational only - never executed automatically). |
 | `cost_usd` | Estimated USD cost of the LLM call that produced this suggestion. |
 
 ## Configuration

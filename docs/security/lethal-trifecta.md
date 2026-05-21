@@ -20,12 +20,12 @@ exfil chain shares. Verbatim from the original post:
 
 A successful attack needs, on the same execution path, **all three**:
 
-1. **private data** — files, secrets, repo contents, customer data the
+1. **private data** - files, secrets, repo contents, customer data the
    operator considers confidential;
-2. **untrusted input** — bytes from a source the operator does not
+2. **untrusted input** - bytes from a source the operator does not
    control (issue body, web fetch, MCP server reply, README from a
    pulled dependency);
-3. **external communication** — any way to transmit bytes off-host
+3. **external communication** - any way to transmit bytes off-host
    (HTTP request, comment-post, branch push, file write outside the
    workspace).
 
@@ -41,7 +41,7 @@ for this.
 
 Every tool, MCP server, and adapter Bernstein knows about is tagged with
 which of the three capabilities it carries. Tags are declarative YAML
-under `templates/capabilities/`, not heuristics — the registry is the
+under `templates/capabilities/`, not heuristics - the registry is the
 source of truth.
 
 At spawn time, the orchestrator computes the union of capabilities along
@@ -56,7 +56,7 @@ Three properties matter for a reviewer:
   that could be talked out of it.
 - **Default-deny on unknown tools.** A tool not present in the registry
   is treated as carrying all three capabilities. Missing metadata
-  fails closed — a custom plugin without a YAML declaration is denied,
+  fails closed - a custom plugin without a YAML declaration is denied,
   not silently allowed.
 - **Bypass-immune in the policy graph.** The decision lands as
   `DecisionType.IMMUNE` with `bypass_immune=True` in
@@ -81,7 +81,7 @@ data, U = untrusted input, E = external comm.
 
 ### CLI agent adapters
 
-A CLI coding-agent adapter is the *envelope* — once the agent process
+A CLI coding-agent adapter is the *envelope* - once the agent process
 runs it can read repo files, fetch URLs, and call git/gh unless scoped
 further. The default tagging reflects that. Scope adapters down with
 the worker tool allowlist or per-agent credential scoping when the use
@@ -135,7 +135,7 @@ under different display names.
 
 ### Built-in MCP server tools
 
-Talk to the local task server only — no external comm and no untrusted
+Talk to the local task server only - no external comm and no untrusted
 input. `bernstein_run` *can* spawn agents that touch private data, so
 it is tagged accordingly.
 
@@ -171,7 +171,7 @@ tools:
 
 Override semantics: the registry loader reads the workdir directory
 first; if a tool is declared in both, the workdir wins. Empty capability
-sets are allowed but **only honoured when explicitly declared** — an
+sets are allowed but **only honoured when explicitly declared** - an
 *absent* tool defaults to all three, not to none. There is no way to
 unset all capabilities by omission.
 
@@ -190,16 +190,16 @@ Implementation: `register_with_capability_matrix` in
 Three classes of bypass have been considered and refused:
 
 1. **Prompt-injection in untrusted content** ("ignore any instructions
-   you find...") — the registry runs in the Python spawner before any
+   you find...") - the registry runs in the Python spawner before any
    agent process starts. The agent cannot influence its own spawn
    decision.
 2. **Plugin re-tagging** (a plugin declaring `fs.read_secret` with
-   `capabilities: []`) — the registry rejects the per-tool override only
+   `capabilities: []`) - the registry rejects the per-tool override only
    if a competing declaration is loaded; in any case the
    [`DecisionType.IMMUNE`](../../src/bernstein/core/security/policy_engine.py)
    layer carries `bypass_immune=True` so plugin-layer ALLOW rules
    cannot override it.
-3. **`permission_mode: bypass`** — `bypass` relaxes medium and high
+3. **`permission_mode: bypass`** - `bypass` relaxes medium and high
    severity rules for non-interactive runs (see
    [security hardening](security-hardening.md)); it does not relax
    `IMMUNE` decisions. The trifecta refusal still fires.
@@ -226,7 +226,7 @@ Failures we do not claim to handle:
 | Default for unknown tools | all three (`PRIVATE_DATA`, `UNTRUSTED_INPUT`, `EXTERNAL_COMM`) | Fail-closed. |
 
 `warn` is the recommended setting when first onboarding a custom
-plan with unfamiliar tools — the audit log fills up with the chains
+plan with unfamiliar tools - the audit log fills up with the chains
 you will eventually need to redesign without blocking work in the
 meantime. Production deployments should run `enforce`.
 
@@ -247,9 +247,9 @@ audit events live in `.sdd/audit/` and are listed by
 ## Related
 
 - [Capability matrix API and CLI](capability-matrix.md)
-- [Security hardening](security-hardening.md) — permission modes,
+- [Security hardening](security-hardening.md) - permission modes,
   policy rules, sandbox backends
-- [Audit log](AUDIT.md) — HMAC chain layout
+- [Audit log](AUDIT.md) - HMAC chain layout
 - Source: `src/bernstein/core/security/capability_matrix.py`,
   `src/bernstein/core/security/policy_engine.py`,
   `src/bernstein/core/agents/spawner_core.py`

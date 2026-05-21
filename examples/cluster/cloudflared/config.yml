@@ -14,7 +14,7 @@
 #     mapping is repeated under `ingress:` so cloudflared can do
 #     local routing if it ever runs without the edge config.
 #
-# All values are placeholders — replace `example.com` and the UUID
+# All values are placeholders - replace `example.com` and the UUID
 # with your own.
 
 tunnel: 00000000-0000-0000-0000-000000000000

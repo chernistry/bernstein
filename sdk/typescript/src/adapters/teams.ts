@@ -1,5 +1,5 @@
 /**
- * Microsoft Teams adapter — send Bernstein task events via Incoming Webhooks.
+ * Microsoft Teams adapter - send Bernstein task events via Incoming Webhooks.
  *
  * Uses the built-in `fetch` API (Node.js 18+). No extra dependencies.
  *
@@ -23,7 +23,7 @@ export class TeamsAdapter {
     this.webhookUrl = options.webhookUrl ?? '';
     if (!this.webhookUrl) {
       console.warn(
-        'TeamsAdapter: no webhook URL configured — set TEAMS_WEBHOOK_URL or pass webhookUrl=',
+        'TeamsAdapter: no webhook URL configured - set TEAMS_WEBHOOK_URL or pass webhookUrl=',
       );
     }
   }

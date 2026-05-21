@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bernstein README demo runner — drives docs/demo/demo.tape (vhs).
+# Bernstein README demo runner - drives docs/demo/demo.tape (vhs).
 #
 # Simulates a real run for recording purposes. Output is timed to a 60s
 # window with: manager decompose -> 3 parallel agents -> audit chain ->

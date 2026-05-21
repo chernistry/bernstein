@@ -1,4 +1,4 @@
-# Bernstein — Deployment Guide
+# Bernstein - Deployment Guide
 
 This guide covers deploying Bernstein in cluster mode: Docker Compose for local/dev clusters and Kubernetes (via Helm) for production.
 
@@ -38,22 +38,22 @@ docker compose up --scale bernstein-worker=4 -d
 
 > **Single-worker task server.** Only `bernstein-worker`
 > replicas scale horizontally. The `bernstein-server` container must run
-> with **exactly one uvicorn worker** — the in-process `TaskStore` holds
+> with **exactly one uvicorn worker** - the in-process `TaskStore` holds
 > state in memory and guards mutations with `asyncio.Lock`. Running
 > `uvicorn --workers N` (or setting `WEB_CONCURRENCY>1` /
 > `BERNSTEIN_WORKERS>1`) interleaves JSONL appends and lets two workers
 > claim the same task. The server refuses to boot when multi-worker mode
 > is requested; use a horizontal pool of `bernstein-worker` replicas (or
-> migrate to the SQLite/Redis backends — separate ticket) for
+> migrate to the SQLite/Redis backends - separate ticket) for
 > parallelism.
 
 ### Services
 
 | Service | Description | Port |
 |---|---|---|
-| `bernstein-server` | Task server — shared state coordinator | 8052 |
-| `bernstein-orchestrator` | Reads backlog, decomposes goals into tasks | — |
-| `bernstein-worker` | Claims and executes tasks via CLI agents | — |
+| `bernstein-server` | Task server - shared state coordinator | 8052 |
+| `bernstein-orchestrator` | Reads backlog, decomposes goals into tasks | - |
+| `bernstein-worker` | Claims and executes tasks via CLI agents | - |
 | `postgres` | Persistent task store (set `BERNSTEIN_STORAGE_BACKEND=postgres`) | 5432 |
 | `redis` | Distributed locks for multi-node task claiming | 6379 |
 
@@ -187,7 +187,7 @@ helm upgrade bernstein ./deploy/helm/bernstein \
 
 | Role | Replicas | CPU req | Mem req | Notes |
 |---|---|---|---|---|
-| server | 1 | 100m | 256Mi | Stateful — single replica |
+| server | 1 | 100m | 256Mi | Stateful - single replica |
 | orchestrator | 1 | 100m | 128Mi | Reads backlog, no heavy compute |
 | worker | 2–20 | 500m | 512Mi | Scale based on task throughput |
 
@@ -197,9 +197,9 @@ Workers make outbound calls to LLM APIs and run `claude`/`codex`/`gemini` CLI bi
 
 Never put API keys in `values.yaml`. Use one of:
 
-- **Kubernetes Secrets** (`kubectl create secret`) — simplest
-- **External Secrets Operator** — sync from AWS Secrets Manager, Vault, GCP Secret Manager
-- **Sealed Secrets** — encrypted secrets committed to git
+- **Kubernetes Secrets** (`kubectl create secret`) - simplest
+- **External Secrets Operator** - sync from AWS Secrets Manager, Vault, GCP Secret Manager
+- **Sealed Secrets** - encrypted secrets committed to git
 
 ### Health checks
 

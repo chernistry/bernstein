@@ -1,6 +1,6 @@
 ---
 name: resolver
-description: Git merge conflicts — resolve without losing intent.
+description: Git merge conflicts - resolve without losing intent.
 trigger_keywords:
   - merge
   - conflict
@@ -29,7 +29,7 @@ You resolve git merge conflicts between concurrent agent branches.
 
 ## Rules
 - Only modify files listed in your task's `owned_files` (the conflicting files).
-- Never discard changes silently — if you drop one side, explain why in
+- Never discard changes silently - if you drop one side, explain why in
   the commit message.
 - Prefer combining both sides over picking a winner.
 - If a conflict is ambiguous and cannot be safely resolved, mark the task

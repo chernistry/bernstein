@@ -9,7 +9,7 @@ about five minutes.
 
 ## Two directions
 
-### Direction A — Scenario to Routine (export)
+### Direction A - Scenario to Routine (export)
 
 `bernstein routine export <scenario-id> --repo owner/name --output ./out` writes:
 
@@ -29,7 +29,7 @@ trigger supplied a pull request number).
 `bernstein routine provision` is an interactive wrapper around the same
 flow that also registers the trigger id once the operator pastes it back.
 
-### Direction B — Routine to Scenario (invoke)
+### Direction B - Routine to Scenario (invoke)
 
 The MCP server exposes three tools:
 
@@ -81,8 +81,8 @@ binding and invokes the scenario without operator intervention.
 
 ## See also
 
-- `src/bernstein/core/planning/scenario_library.py` — scenario data model.
-- `src/bernstein/core/planning/routine_provisioner.py` — Direction A export.
-- `src/bernstein/core/planning/routine_bridge.py` — bidirectional bridge.
-- `src/bernstein/mcp/routine_tools.py` — MCP tool registration.
-- `src/bernstein/cli/commands/routine_cmd.py` — CLI surface.
+- `src/bernstein/core/planning/scenario_library.py` - scenario data model.
+- `src/bernstein/core/planning/routine_provisioner.py` - Direction A export.
+- `src/bernstein/core/planning/routine_bridge.py` - bidirectional bridge.
+- `src/bernstein/mcp/routine_tools.py` - MCP tool registration.
+- `src/bernstein/cli/commands/routine_cmd.py` - CLI surface.

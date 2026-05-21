@@ -44,7 +44,7 @@ function buildUnifiedRows(hunk: DiffHunk): UnifiedRow[] {
       rows.push({ kind: 'deletion', oldNum, newNum: null, text: raw.slice(1) });
       oldNum += 1;
     } else if (raw.startsWith('\\')) {
-      // `\ No newline at end of file` — show as muted context-ish.
+      // `\ No newline at end of file` - show as muted context-ish.
       rows.push({ kind: 'context', oldNum: null, newNum: null, text: raw });
     } else {
       const text = raw.startsWith(' ') ? raw.slice(1) : raw;
@@ -218,7 +218,7 @@ export function DiffFileView({
           {file.binary ? (
             <div className="flex items-center gap-2 px-3 py-4 text-[11.5px] text-meta-foreground">
               <FileBox className="size-4" aria-hidden />
-              Binary file — content not rendered.
+              Binary file - content not rendered.
             </div>
           ) : hunkRows.length === 0 ? (
             <div className="px-3 py-4 text-[11.5px] text-meta-foreground">

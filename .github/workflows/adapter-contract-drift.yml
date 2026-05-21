@@ -175,9 +175,9 @@ jobs:
           echo "--- stderr ---"
           cat "drift-out/$ADAPTER.err" || true
           # Exit codes:
-          #   0 — contract holds.
-          #   2 — capability/model drift (hard fail by design).
-          #   3 — upstream CLI runtime failure (--help broken in the
+          #   0 - contract holds.
+          #   2 - capability/model drift (hard fail by design).
+          #   3 - upstream CLI runtime failure (--help broken in the
           #       sandbox env). Not drift; surface as a warning so an
           #       operator investigates the CLI install without
           #       blocking unrelated PRs on a transient upstream issue.

@@ -1,6 +1,6 @@
 # Error handling (Bernstein)
 
-- Raise specific exception types — never bare `Exception` in business code.
+- Raise specific exception types - never bare `Exception` in business code.
 - Wrap third-party errors at the boundary and re-raise a domain-specific
   class so callers don't leak vendor specifics.
 - Use `from exc` to preserve the traceback.

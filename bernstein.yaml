@@ -23,13 +23,13 @@ evolution_enabled: false
 auto_decompose: false
 constraints:
 - Python 3.12+, strict typing (Pyright strict), Ruff linting
-- "File-based state in .sdd/ only — no databases"
-- "Short-lived agents only — no long-running sessions"
+- "File-based state in .sdd/ only - no databases"
+- "Short-lived agents only - no long-running sessions"
 - 'Run tests: uv run python scripts/run_tests.py -x (NOT pytest tests/ directly)'
 - Do NOT modify files outside your task scope
 - Commit with descriptive messages after completing each task
 - Move completed tickets to .sdd/backlog/closed/
-- "Default branch is main — never use any other default branch"
+- "Default branch is main - never use any other default branch"
 quality_gates:
   enabled: true
   lint: true

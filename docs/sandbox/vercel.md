@@ -6,7 +6,7 @@ Bernstein's `vercel` sandbox backend talks to the Vercel Sandbox API
 
 ## Module
 
-`src/bernstein/core/sandbox/backends/vercel.py` —
+`src/bernstein/core/sandbox/backends/vercel.py` -
 class `VercelSandboxBackend`, registered under the name `vercel` in
 `bernstein.core.sandbox.registry`.
 

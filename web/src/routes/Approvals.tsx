@@ -1,4 +1,4 @@
-// Approvals screen — pending tool-call queue + Why? + Diff + Action bar.
+// Approvals screen - pending tool-call queue + Why? + Diff + Action bar.
 // Source of truth: design_handoff_bernstein_phase1/design-source/screens/screen-approvals.jsx
 // + README §6.03 (Approvals specs) and §8 (states contract).
 
@@ -47,7 +47,7 @@ interface QueuedApprovalsResponse {
 type Decision = 'allow' | 'reject' | 'always';
 
 // ---------------------------------------------------------------------------
-// Pure helpers — derive design-only fields from generic tool_args.
+// Pure helpers - derive design-only fields from generic tool_args.
 // ---------------------------------------------------------------------------
 
 function pickString(args: Record<string, unknown>, ...keys: string[]): string {
@@ -114,7 +114,7 @@ function approvalTarget(a: QueuedApproval): string {
   return (
     pickString(a.tool_args, 'target', 'path', 'file', 'command', 'url', 'cmd') ||
     Object.keys(a.tool_args).slice(0, 3).join(' · ') ||
-    '—'
+    '-'
   );
 }
 
@@ -196,7 +196,7 @@ function diffFilename(a: QueuedApproval): string {
 // Screen
 // ---------------------------------------------------------------------------
 
-/** Inline toast severity — only `error` extends the default 2s window. */
+/** Inline toast severity - only `error` extends the default 2s window. */
 type ToastKind = 'info' | 'error';
 interface ToastState {
   message: string;
@@ -253,7 +253,7 @@ export default function Approvals() {
     return () => clearInterval(t);
   }, [pending.length]);
 
-  // SSE — refresh the queue cache on `approval_pending` notifications.
+  // SSE - refresh the queue cache on `approval_pending` notifications.
   useEventStream('/api/v1/events', {
     on: {
       approval_pending: () => {
@@ -295,7 +295,7 @@ export default function Approvals() {
     // Optimistically drop the row so the badge count, keyboard navigation, and
     // selection auto-advance immediately. We track the id locally instead of
     // mutating the cached query to keep React Query's refetch in charge of the
-    // canonical list — the optimistic id is rolled back on error.
+    // canonical list - the optimistic id is rolled back on error.
     onMutate: ({ approvalId }) => {
       setOptimisticallyResolved((prev) => {
         const next = new Set(prev);
@@ -423,7 +423,7 @@ export default function Approvals() {
 
   return (
     <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-[440px_1fr]">
-      {/* LEFT — queue list. On narrow viewports we stack and cap height so the
+      {/* LEFT - queue list. On narrow viewports we stack and cap height so the
           selected approval still gets screen real estate below. */}
       <aside className="flex max-h-[40vh] flex-col overflow-hidden border-b border-border bg-secondary md:max-h-none md:border-b-0 md:border-r">
         <header className="px-[18px] pb-3 pt-[18px]">
@@ -464,7 +464,7 @@ export default function Approvals() {
         </div>
       </aside>
 
-      {/* RIGHT — selected approval */}
+      {/* RIGHT - selected approval */}
       <section className="flex flex-col gap-3.5 overflow-auto px-[22px] py-[18px]">
         {selected ? (
           <SelectedApproval
@@ -483,7 +483,7 @@ export default function Approvals() {
         )}
       </section>
 
-      {/* Inline toast — bottom-right; success auto-clears after 2s, errors 5s. */}
+      {/* Inline toast - bottom-right; success auto-clears after 2s, errors 5s. */}
       <div
         aria-live={toast?.kind === 'error' ? 'assertive' : 'polite'}
         role={toast?.kind === 'error' ? 'alert' : 'status'}
@@ -535,7 +535,7 @@ function QueueRow({ approval, selected, waitS, onClick }: QueueRowProps) {
 
   return (
     // role="option" must live on the listbox child element itself, not on a
-    // descendant button — otherwise screen readers see an empty listbox.
+    // descendant button - otherwise screen readers see an empty listbox.
     <li role="option" aria-selected={selected}>
       <button
         ref={buttonRef}

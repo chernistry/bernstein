@@ -7,7 +7,7 @@ file, and either print or run the resulting Bernstein CLI command.
 
 `reference/FEATURE_MATRIX.md:185` flags this as **experimental**. The
 parser only knows a handful of phrases, the audio capture loop is a
-single thread, and there is no wake-word — once started, every
+single thread, and there is no wake-word - once started, every
 utterance above the silence threshold is transcribed and matched. Plan
 accordingly.
 
@@ -45,9 +45,9 @@ pip install faster-whisper sounddevice numpy
 
 Requirements (`voice_cmd.py:283-296`):
 
-- `sounddevice` — microphone capture (PortAudio under the hood).
-- `numpy` — audio buffers.
-- `faster-whisper` — local STT. The first run downloads the chosen
+- `sounddevice` - microphone capture (PortAudio under the hood).
+- `numpy` - audio buffers.
+- `faster-whisper` - local STT. The first run downloads the chosen
   model (`tiny` ≈ 39 MB, `base` ≈ 150 MB, `small` ≈ 460 MB; larger
   models scale up). The model is cached under
   `~/.cache/huggingface/`.
@@ -84,7 +84,7 @@ invocations:
 | `help`                                     | `bernstein --help`               |
 
 Number words `one` through `ten` are accepted in the worker count
-(`voice_cmd.py:33-58`) — "run three agents" and "run 3 agents" both
+(`voice_cmd.py:33-58`) - "run three agents" and "run 3 agents" both
 parse to `-j 3`.
 
 ### Custom aliases
@@ -117,16 +117,16 @@ bernstein listen [--dry-run]
                  [--min-duration 0.5]
 ```
 
-- `--dry-run` — print the parsed command without executing
+- `--dry-run` - print the parsed command without executing
   (`voice_cmd.py:438-444`).
-- `--model` — whisper model size. Smaller is faster, larger is more
+- `--model` - whisper model size. Smaller is faster, larger is more
   accurate. Default `base` (`voice_cmd.py:445-452`).
-- `--alias-file` — alternate path to `voice.yaml`. Default
+- `--alias-file` - alternate path to `voice.yaml`. Default
   `~/.bernstein/voice.yaml` (`voice_cmd.py:27`,
   `voice_cmd.py:453-460`).
-- `--threshold` — RMS amplitude threshold for speech vs silence.
+- `--threshold` - RMS amplitude threshold for speech vs silence.
   Higher = need to speak louder (`voice_cmd.py:462-467`).
-- `--min-duration` — minimum utterance length in seconds before
+- `--min-duration` - minimum utterance length in seconds before
   transcription is attempted (`voice_cmd.py:469-475`). Avoids
   transcribing single noises.
 
@@ -193,26 +193,26 @@ larger refactor.
 
 ## Code pointers
 
-- `cli/commands/voice_cmd.py:437` — `@click.command("listen")` entry
+- `cli/commands/voice_cmd.py:437` - `@click.command("listen")` entry
   point.
-- `cli/commands/voice_cmd.py:27` — `_DEFAULT_ALIAS_FILE` =
+- `cli/commands/voice_cmd.py:27` - `_DEFAULT_ALIAS_FILE` =
   `~/.bernstein/voice.yaml`.
-- `cli/commands/voice_cmd.py:33-58` — number-word table and worker
+- `cli/commands/voice_cmd.py:33-58` - number-word table and worker
   count parsing.
-- `cli/commands/voice_cmd.py:70-124` — built-in grammar
+- `cli/commands/voice_cmd.py:70-124` - built-in grammar
   (`(regex, command_template)` pairs).
-- `cli/commands/voice_cmd.py:131-158` — `_load_aliases` (`yaml.safe_load`).
-- `cli/commands/voice_cmd.py:166-172` — `_base_command()` =
+- `cli/commands/voice_cmd.py:131-158` - `_load_aliases` (`yaml.safe_load`).
+- `cli/commands/voice_cmd.py:166-172` - `_base_command()` =
   `{sys.executable} -m bernstein`.
-- `cli/commands/voice_cmd.py:175-225` — `parse_utterance` (alias →
+- `cli/commands/voice_cmd.py:175-225` - `parse_utterance` (alias →
   grammar fallback).
-- `cli/commands/voice_cmd.py:244-280` — whisper transcription helpers,
+- `cli/commands/voice_cmd.py:244-280` - whisper transcription helpers,
   `_load_whisper_model`.
-- `cli/commands/voice_cmd.py:283-296` — sounddevice / numpy import +
+- `cli/commands/voice_cmd.py:283-296` - sounddevice / numpy import +
   install hint.
-- `cli/commands/voice_cmd.py:299-370` — record-until-silence loop and
+- `cli/commands/voice_cmd.py:299-370` - record-until-silence loop and
   `_capture_and_transcribe`.
-- `cli/commands/voice_cmd.py:378-429` — main `_listen_loop` with
+- `cli/commands/voice_cmd.py:378-429` - main `_listen_loop` with
   `--dry-run` and subprocess dispatch.
-- `docs/reference/FEATURE_MATRIX.md:185` — flags `bernstein listen` as
+- `docs/reference/FEATURE_MATRIX.md:185` - flags `bernstein listen` as
   Voice commands (experimental).

@@ -1,4 +1,4 @@
-# Bernstein Plan — Caching Layer
+# Bernstein Plan - Caching Layer
 #
 # A three-stage plan that adds a Redis caching layer to an existing service:
 #   1. Infrastructure:  Redis setup, connection pool, and health checks

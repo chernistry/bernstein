@@ -131,7 +131,7 @@ dev = [
     "ruff>=0.9",
     "pyright>=1.1",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
-    # CI hardening 2026 — see docs/contributing/testing.md.
+    # CI hardening 2026 - see docs/contributing/testing.md.
     "schemathesis>=4.18.1",  # OpenAPI fuzz / contract sweep on FastAPI app
     "crosshair-tool>=0.0.95",  # Concolic execution on pure security fns
     "bandit>=1.8",  # Static security analyzer (HIGH-severity gate)
@@ -150,7 +150,7 @@ dev = [
     # Flake detection + auto-quarantine PR generator. Driven by the
     # nightly .github/workflows/flake-quarantine.yml workflow; not used
     # at PR time. pytest-json-report is a transitive requirement of
-    # pytest-xflaky. pytest-randomly is intentionally NOT a dev dep —
+    # pytest-xflaky. pytest-randomly is intentionally NOT a dev dep -
     # it auto-activates on import and would shuffle every other CI
     # job's test order; the nightly workflow installs it ad-hoc into
     # its own env. See docs/contributing/flake-handling.md.
@@ -322,11 +322,11 @@ packages = ["src/bernstein"]
 # override path .sdd/eval/golden/<tier>/*.md is still consulted first.
 artifacts = [
     "src/bernstein/eval/golden_data/**/*.md",
-    # Recipe golden traces — YAML fixtures that pin the resolved
+    # Recipe golden traces - YAML fixtures that pin the resolved
     # workflow shape for each bundled recipe.  Loaded by the eval
     # harness to catch drift after refactors.
     "src/bernstein/eval/golden_data/**/*.yaml",
-    # Web GUI built assets — Vite output committed to the package tree so
+    # Web GUI built assets - Vite output committed to the package tree so
     # the wheel ships pre-built. Rebuild with: cd web && npm run build.
     "src/bernstein/gui/static/**/*",
     # SDD ticket schemas. Shipped alongside the validator so downstream
@@ -347,12 +347,12 @@ artifacts = [
 [tool.hatch.build.targets.wheel.force-include]
 "templates/prompts" = "bernstein/_default_templates/prompts"
 "templates/bernstein.yaml" = "bernstein/_default_templates/bernstein.yaml"
-# Progressive-disclosure skill packs — shipped alongside the wheel so
+# Progressive-disclosure skill packs - shipped alongside the wheel so
 # installed packages get the index without requiring a checkout of
 # templates/.
 "templates/skills" = "bernstein/_default_templates/skills"
 "templates/roles" = "bernstein/_default_templates/roles"
-# Review pipeline DSL — built-in stage templates and the default 3-phase
+# Review pipeline DSL - built-in stage templates and the default 3-phase
 # pipeline. Loaded by bernstein.core.quality.review_pipeline at runtime
 # when users omit a pipeline path.
 "templates/review" = "bernstein/_default_templates/review"
@@ -363,7 +363,7 @@ artifacts = [
 # `bernstein workflow list` / `... run <name>` resolve immediately
 # without requiring a source checkout.
 "templates/workflows" = "bernstein/_default_templates/workflows"
-# First-class recipe library — parameterised workflows for common
+# First-class recipe library - parameterised workflows for common
 # operator tasks (refactor-glob, bump-dependency, add-tests-for-module,
 # license-audit, regenerate-docs).  Shipped in the wheel so
 # `bernstein recipes list|show|run` resolves immediately.
@@ -375,7 +375,7 @@ artifacts = [
 # Blast-radius detector defaults (#1322) so the reversibility gate finds
 # its rule list without requiring a source checkout.
 "templates/blast-radius" = "bernstein/_default_templates/blast-radius"
-# ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
+# ascii_logo.md now lives in-package at src/bernstein/_default_templates/ -
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a
 # source checkout.
@@ -641,7 +641,7 @@ exclude = [
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-# Tests use explicit @pytest.mark.asyncio — keep strict mode to avoid
+# Tests use explicit @pytest.mark.asyncio - keep strict mode to avoid
 # auto-collecting unmarked async tests and breaking existing suites.
 asyncio_mode = "strict"
 addopts = [
@@ -707,13 +707,13 @@ dev = [
     "ruff>=0.9",
     "pyright>=1.1",
     "scikit-learn>=1.5",
-    # Pinned to the 3.x line — the focused harness in
+    # Pinned to the 3.x line - the focused harness in
     # scripts/mutmut_critical.py / scripts/mutmut_lineage.py is validated
     # against 3.5.0. mutmut's config surface and CLI moved between 2.x
     # and 3.x; bump the upper bound deliberately when validating 4.x.
     "mutmut>=3.5,<4",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
-    # CI hardening 2026 — keep this section in sync with [project.optional-dependencies].dev.
+    # CI hardening 2026 - keep this section in sync with [project.optional-dependencies].dev.
     "schemathesis>=4.18.1",
     "crosshair-tool>=0.0.95",
     "bandit>=1.8",
@@ -725,14 +725,14 @@ dev = [
     # [project.optional-dependencies].dev).
     "pypdf>=4.0",
     # Resource-leak probes for the TC-C stress suite (mirror of
-    # [project.optional-dependencies].dev).  Optional at runtime — the
+    # [project.optional-dependencies].dev).  Optional at runtime - the
     # stress suite ``importorskip``s when missing.
     "psutil>=5.9",
     # Flake detection + auto-quarantine PR generator. Mirror of
     # [project.optional-dependencies].dev. Driven by the nightly
     # .github/workflows/flake-quarantine.yml workflow; pytest-json-report
     # is a transitive requirement. pytest-randomly is intentionally NOT
-    # a dev dep — it auto-activates on import and would shuffle every
+    # a dev dep - it auto-activates on import and would shuffle every
     # other CI job's test order; the nightly workflow installs it
     # ad-hoc. See docs/contributing/flake-handling.md.
     "pytest-xflaky>=1.0.3",
@@ -741,14 +741,14 @@ dev = [
     # error sink. Mirror of [project.optional-dependencies].dev; the lazy
     # init in src/bernstein/cli/main.py keeps no-op installs free.
     "sentry-sdk[fastapi]>=2.20",
-    # semgrep installed via `uv tool install semgrep` in CI — pins
+    # semgrep installed via `uv tool install semgrep` in CI - pins
     # click<8.2 and opentelemetry-sdk<1.38, conflicts with our
     # click>=8.3.3 / opentelemetry-sdk>=1.41.1 floors. Mirror of
     # [project.optional-dependencies].dev.
 ]
 
 [tool.mutmut]
-# Lineage v1 mutation testing — see scripts/mutmut_lineage.py for the
+# Lineage v1 mutation testing - see scripts/mutmut_lineage.py for the
 # focused runner that exercises only the three lineage modules. The
 # project-wide conftest pulls heavyweight imports that mutmut 3's
 # `mutants/` shadow tree can't satisfy, so we ship a thin custom

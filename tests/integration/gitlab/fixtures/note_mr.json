@@ -14,7 +14,7 @@
   },
   "object_attributes": {
     "id": 9001,
-    "note": "Please fix the null pointer on line 42 — it crashes on Windows.",
+    "note": "Please fix the null pointer on line 42 - it crashes on Windows.",
     "noteable_type": "MergeRequest",
     "noteable_id": 12345,
     "url": "https://gitlab.example.com/acme/widgets/-/merge_requests/7#note_9001"

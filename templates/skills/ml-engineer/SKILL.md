@@ -1,6 +1,6 @@
 ---
 name: ml-engineer
-description: ML — training, inference, embeddings, evaluation.
+description: ML - training, inference, embeddings, evaluation.
 trigger_keywords:
   - ml
   - model

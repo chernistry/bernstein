@@ -17,7 +17,7 @@ permission mode determines which levels are enforced:
 ✓ = rule enforced (deny/ask applies) · ✗ = rule relaxed (overridden to allow)
 
 **Critical rules are always enforced, regardless of mode.** `bypass` does not disable
-safety guardrails — it only relaxes medium and high severity rules for non-interactive runs.
+safety guardrails - it only relaxes medium and high severity rules for non-interactive runs.
 
 Set the mode in config or via environment variable:
 
@@ -34,7 +34,7 @@ When no rule matches a tool call, `default` mode falls back to `ask` (escalate t
 All other modes fall back to `allow`.
 
 **Legacy flag migration:** earlier Bernstein versions used `--dangerously-skip-permissions`.
-That flag now maps to `bypass` mode — critical rules are still enforced.
+That flag now maps to `bypass` mode - critical rules are still enforced.
 
 ## Permission rule engine
 
@@ -72,8 +72,8 @@ permission_rules:
 
 | Field         | Required | Default    | Description                                              |
 |---------------|----------|------------|----------------------------------------------------------|
-| `id`          | yes      | —          | Unique rule identifier for logging and audit             |
-| `action`      | yes      | —          | `deny`, `ask`, or `allow`                                |
+| `id`          | yes      | -          | Unique rule identifier for logging and audit             |
+| `action`      | yes      | -          | `deny`, `ask`, or `allow`                                |
 | `severity`    | no       | `medium`   | Controls which permission modes enforce this rule        |
 | `tool`        | no       | `*`        | Glob matched against tool name (case-insensitive)        |
 | `path`        | no       | (any)      | Glob matched against `file_path`/`path` in tool input    |
@@ -130,7 +130,7 @@ permission_rules:
 ## Policy-as-code engine
 
 The permission rule engine controls individual tool calls at runtime. The policy-as-code
-engine is a separate layer that runs at merge time — it evaluates agent-produced diffs
+engine is a separate layer that runs at merge time - it evaluates agent-produced diffs
 against YAML or Rego policies before any changes are merged to your branch.
 
 Policies live in `.sdd/policies/`. Bernstein loads all `*.yaml`, `*.yml`, and `*.rego`
@@ -210,9 +210,9 @@ any_test_file_changed if {
 
 The `input` object passed to Rego contains:
 - `input.task.id`, `input.task.title`, `input.task.description`, `input.task.role`
-- `input.diff_text` — full git diff
-- `input.files` — array of `{ "path": "...", "content": "..." }`
-- `input.files_changed` — count of changed files
+- `input.diff_text` - full git diff
+- `input.files` - array of `{ "path": "...", "content": "..." }`
+- `input.files_changed` - count of changed files
 
 Install OPA:
 
@@ -234,7 +234,7 @@ bernstein recap                     # Shows violations alongside task results
 bernstein trace <task-id>           # Per-task policy evaluation detail
 ```
 
-All violations — block and warn — are included in the compliance report:
+All violations - block and warn - are included in the compliance report:
 
 ```bash
 bernstein admin compliance-report

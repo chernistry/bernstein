@@ -120,7 +120,7 @@ EOF
   gpg --armor --export "$GPG_KEY_ID" > build/packages/bernstein-signing-key.gpg
   echo "    Public key: build/packages/bernstein-signing-key.gpg"
 else
-  echo "    GPG_KEY_ID / GPG_PASSPHRASE not set — skipping signing"
+  echo "    GPG_KEY_ID / GPG_PASSPHRASE not set - skipping signing"
 fi
 
 # ── APT repository metadata ──────────────────────────────────────────────────

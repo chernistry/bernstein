@@ -74,7 +74,7 @@ tuning:
 ## Customer-key signature
 
 The signature covers the canonical bytes returned by
-`canonical_record_bytes(record)` — sorted-key UTF-8 JSON without
+`canonical_record_bytes(record)` - sorted-key UTF-8 JSON without
 whitespace, with `customer_signature` excluded (a signer cannot sign
 its own output). Verification is independent of Bernstein's HMAC
 chain: a customer auditor with only the public key and the WAL files
@@ -173,7 +173,7 @@ pass on every cycle. If verification fails the janitor:
 2. Increments `bernstein_lineage_tamper_total{run_id}`.
 3. POSTs to the configured SIEM webhook (if any).
 
-The janitor itself **does not block** on a tamper detection — it
+The janitor itself **does not block** on a tamper detection - it
 records the event and lets the operator decide response policy via
 the SIEM. Webhooks retry with exponential back-off on 5xx and fail
 closed on a broken sink (the janitor never blocks on a bad webhook).
@@ -218,7 +218,7 @@ runs, or for CI gating against the most recent run.
 ## Limitations
 
 - The customer signature covers full record bytes. Edits to any
-  field invalidate the signature — including downstream-derived
+  field invalidate the signature - including downstream-derived
   fields. This is intentional (simpler audit story); customers who
   need finer-grained signing can plug in a custom canonicaliser.
 - Single signing key per run. Rotation across environments is on the
@@ -233,4 +233,4 @@ runs, or for CI gating against the most recent run.
 - Source: `src/bernstein/core/persistence/lineage.py`,
   `lineage_signer.py`, `core/observability/lineage_alert.py`
 - CLI: `src/bernstein/cli/commands/{lineage_cmd,lineage_export_cmd,lineage_verify_cmd}.py`
-- [Artifact lineage trail](../concepts/artifact-lineage.md) — schema reference and chain-walking concepts.
+- [Artifact lineage trail](../concepts/artifact-lineage.md) - schema reference and chain-walking concepts.

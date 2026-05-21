@@ -1,4 +1,4 @@
-"""Canonical AGENTS.md generator — single source of truth for agent context.
+"""Canonical AGENTS.md generator - single source of truth for agent context.
 
 Teams running more than one CLI coding agent (Cursor + Claude Code + Codex
 is the common 2026 stack) end up maintaining three to five near-identical
@@ -8,9 +8,9 @@ weeks. The test command in one file diverges from another, conventions
 disagree, and nobody notices until an agent picks the stale one.
 
 This module derives a *canonical* list of :class:`AgentsMdSection` records
-from the repository — module docstrings, git history, ``pyproject.toml``,
+from the repository - module docstrings, git history, ``pyproject.toml``,
 shipped role templates, optionally curated overlays under
-``.sdd/agents-md/`` — and renders the full ``AGENTS.md``. The companion
+``.sdd/agents-md/`` - and renders the full ``AGENTS.md``. The companion
 :mod:`bernstein.core.knowledge.agents_md_bridge` then translates that
 canonical IR into the Cursor / Claude Code / Aider / Goose target formats
 without inventing new conventions.
@@ -29,7 +29,7 @@ Architecture
    ``.sdd/agents-md/`` when present so curated prose can live next to
    the auto-derived sections in one source of truth.
 
-The generator is deliberately *not* an opinionated framework — it follows
+The generator is deliberately *not* an opinionated framework - it follows
 the canonical https://agents.md/ guidance ("AGENTS.md is just standard
 Markdown") and the community-converged section set surfaced in the GitHub
 ``how-to-write-a-great-agents-md`` post analysis of 2,500+ repos.
@@ -37,11 +37,11 @@ Markdown") and the community-converged section set surfaced in the GitHub
 References
 ----------
 
-* AGENTS.md canonical site — https://agents.md/
-* AAIF AGENTS.md project page — https://aaif.io/projects/agents-md/
-* Agentic AI readthedocs mirror — https://agentic-ai.readthedocs.io/en/latest/Standards/agents-md/
-* GitHub blog write-up — https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/
-* OpenAI Codex AGENTS.md guide — https://developers.openai.com/codex/guides/agents-md
+* AGENTS.md canonical site - https://agents.md/
+* AAIF AGENTS.md project page - https://aaif.io/projects/agents-md/
+* Agentic AI readthedocs mirror - https://agentic-ai.readthedocs.io/en/latest/Standards/agents-md/
+* GitHub blog write-up - https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/
+* OpenAI Codex AGENTS.md guide - https://developers.openai.com/codex/guides/agents-md
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Public dataclass — canonical IR for one AGENTS.md section
+# Public dataclass - canonical IR for one AGENTS.md section
 # ---------------------------------------------------------------------------
 
 
@@ -86,7 +86,7 @@ sections. Any other ``kind`` value is a programming error.
 class AgentsMdSection:
     """One canonical section of the agent-context document.
 
-    Sections are deliberately small structurally — just an identifier, a
+    Sections are deliberately small structurally - just an identifier, a
     heading, and a markdown body. The complexity of "what to write" lives
     in the section builders below, not in the dataclass.
 
@@ -116,7 +116,7 @@ class AgentsMdSection:
 
 
 # ---------------------------------------------------------------------------
-# Configuration — known packages + ordering hints (mirrors gen_agents_md.py)
+# Configuration - known packages + ordering hints (mirrors gen_agents_md.py)
 # ---------------------------------------------------------------------------
 
 _INIT_PY = "__init__.py"
@@ -166,7 +166,7 @@ _SKIP_IN_MULTI: frozenset[str] = frozenset({"store_redis.py", "store_postgres.py
 # Documented non-package directories. Hand-curated; no auto-derivation.
 _NON_PACKAGE_DIRS: tuple[tuple[str, str], ...] = (
     ("templates/roles/", "Jinja2 role prompts (manager, backend, qa, security, devops, etc.)"),
-    ("templates/prompts/", "Prompt templates (judge.md, etc.) — bundled into wheel"),
+    ("templates/prompts/", "Prompt templates (judge.md, etc.) - bundled into wheel"),
     (".sdd/", "All runtime state (never commit `.sdd/runtime/`)"),
     (".sdd/backlog/open/", "YAML task specs waiting to be picked up"),
     (".sdd/backlog/claimed/", "Tasks currently being worked"),
@@ -219,7 +219,7 @@ def generate(repo_path: Path, options: GenerateOptions | None = None) -> list[Ag
     The order is fixed: overview → module-map → build-test → setup →
     architecture → conventions → git-workflow → roles → custom overlays.
     A section that has no content (e.g. no ``pyproject.toml`` for
-    build-test) is *omitted* rather than emitted empty — readers expect
+    build-test) is *omitted* rather than emitted empty - readers expect
     every section heading to carry information.
 
     Args:
@@ -260,7 +260,7 @@ def generate(repo_path: Path, options: GenerateOptions | None = None) -> list[Ag
 
 
 _CANONICAL_PREAMBLE = (
-    "<!-- AUTO-GENERATED by `bernstein agents-md sync` — DO NOT edit by hand. "
+    "<!-- AUTO-GENERATED by `bernstein agents-md sync` - DO NOT edit by hand. "
     "Curated content lives under `.sdd/agents-md/`. -->\n"
 )
 
@@ -280,7 +280,7 @@ def render_canonical(sections: list[AgentsMdSection], *, repo_name: str | None =
         Complete markdown text ending in a single trailing newline.
     """
     name = repo_name or "Project"
-    parts: list[str] = [f"# {name} — AGENTS.md\n", _CANONICAL_PREAMBLE]
+    parts: list[str] = [f"# {name} - AGENTS.md\n", _CANONICAL_PREAMBLE]
     for sec in sections:
         parts.append(f"\n## {sec.title}\n\n{sec.body.rstrip()}\n")
     text = "".join(parts).rstrip() + "\n"
@@ -288,7 +288,7 @@ def render_canonical(sections: list[AgentsMdSection], *, repo_name: str | None =
 
 
 # ---------------------------------------------------------------------------
-# Section builders — each is pure, returns AgentsMdSection | None
+# Section builders - each is pure, returns AgentsMdSection | None
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ def _build_overview(repo_path: Path) -> AgentsMdSection | None:
 
 
 def _build_module_map(repo_path: Path, opts: GenerateOptions) -> AgentsMdSection | None:
-    """Port of ``scripts/gen_agents_md.py`` — Python-package docstring table.
+    """Port of ``scripts/gen_agents_md.py`` - Python-package docstring table.
 
     Returns ``None`` when ``src/bernstein/`` (or equivalent) is absent.
     """
@@ -336,7 +336,7 @@ def _build_module_map(repo_path: Path, opts: GenerateOptions) -> AgentsMdSection
             extra = len(rows) - opts.max_module_map_lines
             rows = rows[: opts.max_module_map_lines]
             rows.append((f"_… +{extra} more_", "_truncated_"))
-        blocks.append(f"### `src/bernstein/{pkg}/` — {meta}\n\n{_render_two_column_table(rows, 'File')}")
+        blocks.append(f"### `src/bernstein/{pkg}/` - {meta}\n\n{_render_two_column_table(rows, 'File')}")
 
     if not blocks:
         return None
@@ -450,7 +450,7 @@ def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
     redirect map declared in ``src/<pkg>/core/__init__.py``.
 
     Skipped silently when no entry points are declared. We deliberately
-    don't pull every callable out of ast_symbol_graph — for AGENTS.md the
+    don't pull every callable out of ast_symbol_graph - for AGENTS.md the
     operator wants ~5 starting points, not the full call graph.
 
     The redirect-map detection covers a load-bearing audit invariant
@@ -487,7 +487,7 @@ def _detect_back_compat_redirect_map(repo_path: Path) -> str | None:
 
     Looks for the canonical pair ``_REDIRECT_MAP`` + ``_CoreRedirectFinder``
     inside any ``src/*/core/__init__.py`` file. Both names must be present
-    for the section to fire — finding only one is ambiguous (could be
+    for the section to fire - finding only one is ambiguous (could be
     a renamed-but-not-replaced alias) and we'd rather emit nothing than
     misdescribe.
     """
@@ -512,7 +512,7 @@ def _detect_back_compat_redirect_map(repo_path: Path) -> str | None:
             f"`{pkg_dir.name}.core.orchestrator`) are served by a "
             "`sys.meta_path` finder, not by physical shim files. The mechanism "
             f"lives in `{rel}` as `_CoreRedirectFinder` driven by the "
-            "`_REDIRECT_MAP` dict — add new aliases there rather than creating "
+            "`_REDIRECT_MAP` dict - add new aliases there rather than creating "
             "shim modules at the old path."
         )
     return None
@@ -522,7 +522,7 @@ def _build_conventions(repo_path: Path, opts: GenerateOptions) -> AgentsMdSectio
     """Read ``<overlay_dir>/conventions.md`` if present.
 
     This is the single curated section the operator owns. The generator
-    does not invent style rules from a static cheat sheet — that would
+    does not invent style rules from a static cheat sheet - that would
     rot the moment the project's actual style drifts.
     """
     overlay = repo_path / opts.overlay_dir / "conventions.md"
@@ -650,7 +650,7 @@ def _build_overlay_sections(repo_path: Path, opts: GenerateOptions) -> list[Agen
 
 
 # ---------------------------------------------------------------------------
-# Helpers — small, well-tested
+# Helpers - small, well-tested
 # ---------------------------------------------------------------------------
 
 
@@ -714,7 +714,7 @@ _SUBPACKAGE_FILE_LIST_CAP = 6
 
 A sub-package with 30+ modules dumped inline turns a useful module-map into
 a wall of names. When the sub-package's own ``__init__.py`` already has a
-docstring, the file list is omitted entirely — the docstring is the
+docstring, the file list is omitted entirely - the docstring is the
 authoritative description. When there's no docstring we list at most this
 many module stems and append ``+N more`` for the rest.
 """
@@ -788,7 +788,7 @@ _README_SKIP_PREFIXES = (
     "> ",  # blockquote
     "![",  # inline image
     "<!--",  # html comment
-    "<",  # raw HTML — divs, picture, source, br, etc. README chrome
+    "<",  # raw HTML - divs, picture, source, br, etc. README chrome
     "---",  # horizontal rule
     "===",  # setext underline
 )
@@ -883,7 +883,7 @@ def _parse_pyproject_scripts(pyproj: Path) -> dict[str, str]:
     """
     try:
         import tomllib  # py311+
-    except ImportError:  # pragma: no cover — handled at runtime
+    except ImportError:  # pragma: no cover - handled at runtime
         return {}
     try:
         data = tomllib.loads(pyproj.read_text(encoding="utf-8"))
@@ -897,17 +897,17 @@ def _git_default_branch(repo_path: Path) -> str | None:
     """Return the default branch (``main``/``master``/...) or ``None``.
 
     Resolution order is deliberate so that the answer is *deterministic
-    across environments* — local checkouts, CI shallow clones, detached
+    across environments* - local checkouts, CI shallow clones, detached
     HEADs, and worktrees must all agree:
 
-    1. ``git symbolic-ref refs/remotes/origin/HEAD`` — set when ``git
+    1. ``git symbolic-ref refs/remotes/origin/HEAD`` - set when ``git
        remote set-head origin -a`` ran. Authoritative on developer
        machines; usually absent on ``actions/checkout`` runners.
-    2. ``git rev-parse --verify main`` then ``master`` — recognises the
+    2. ``git rev-parse --verify main`` then ``master`` - recognises the
        conventional default-branch names. Works even in shallow clones
        and detached HEAD. This step is what keeps CI render output
        byte-stable against a freshly committed local sync.
-    3. ``git rev-parse --abbrev-ref HEAD`` — last resort. Returns the
+    3. ``git rev-parse --abbrev-ref HEAD`` - last resort. Returns the
        current branch name when neither ``main`` nor ``master`` exists.
        Skipped when HEAD is detached (returns the literal ``HEAD``)
        because that would inject the PR-branch name into AGENTS.md.
@@ -957,7 +957,7 @@ def _git_default_branch(repo_path: Path) -> str | None:
                 return branch
     except (subprocess.TimeoutExpired, OSError):
         return None
-    # Final fallback — only if we're inside a git checkout. ``main`` is
+    # Final fallback - only if we're inside a git checkout. ``main`` is
     # the modern default; older repos that adopted ``master`` will have
     # been resolved earlier in the chain. Keeps the rendered section
     # deterministic across shallow CI clones, worktrees, and detached

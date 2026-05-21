@@ -4,7 +4,7 @@
 multiple Bernstein projects into a single view. It is for the team or
 org that runs Bernstein on, say, six repositories at once and wants
 *one* place to look at run state, agent count, queued approvals, last
-commit SHA, and 7-day cost — without giving up the per-project
+commit SHA, and 7-day cost - without giving up the per-project
 deterministic guarantees.
 
 The fleet aggregator is purely a fan-out reader plus a dispatcher for
@@ -21,19 +21,19 @@ task servers configured in `~/.config/bernstein/projects.toml` (the
 default returned by `default_projects_config_path()`,
 `core/fleet/config.py`). Per project, the aggregator surfaces:
 
-- **State** — `INITIALIZING` / `ONLINE` / `DEGRADED` / `OFFLINE` /
+- **State** - `INITIALIZING` / `ONLINE` / `DEGRADED` / `OFFLINE` /
   `PAUSED` (`core/fleet/aggregator.py:33`).
-- **Run state** — the plain-language phase the task server reports
+- **Run state** - the plain-language phase the task server reports
   (`core/fleet/aggregator.py:155-159`).
-- **Agents** — count of live agents and the sorted list of roles
+- **Agents** - count of live agents and the sorted list of roles
   currently working (`core/fleet/aggregator.py:120-134`).
-- **Approvals** — number of pending approvals queued
+- **Approvals** - number of pending approvals queued
   (`core/fleet/aggregator.py:136-141`).
-- **Last SHA** — last 12 chars of the last known commit SHA
+- **Last SHA** - last 12 chars of the last known commit SHA
   (`core/fleet/aggregator.py:143-148`).
-- **Cost (7d)** — rolling 7-day spend in USD plus a sparkline of the
+- **Cost (7d)** - rolling 7-day spend in USD plus a sparkline of the
   last seven daily samples (`core/fleet/cost_rollup.py`).
-- **Audit chain** — `ok` / `BROKEN` (HMAC chain verification result,
+- **Audit chain** - `ok` / `BROKEN` (HMAC chain verification result,
   `core/fleet/audit.py`).
 
 Two views render this state: a Textual TUI (default) and a FastAPI web
@@ -54,9 +54,9 @@ actions and a non-interactive list view.
 bernstein fleet [--config PATH] [--web HOST:PORT]
 ```
 
-- `--config PATH` — point at a non-default fleet config file. Default
+- `--config PATH` - point at a non-default fleet config file. Default
   is `~/.config/bernstein/projects.toml`.
-- `--web HOST:PORT` — run the web view (FastAPI + uvicorn) instead of
+- `--web HOST:PORT` - run the web view (FastAPI + uvicorn) instead of
   the TUI. Bind format accepts `:8080` (binds to 127.0.0.1:8080),
   `0.0.0.0:8080`, or `8080` (`fleet_cmd.py:139-146`).
 
@@ -82,7 +82,7 @@ table (`fleet_cmd.py:42-48`).
 All bulk subcommands accept `--names <name>` (repeat for multiple
 projects) and `--filter <expression>` (e.g. `cost>5`) to restrict the
 target list. Without filters, every configured project is targeted.
-The selection logic — including filter expression parsing — lives in
+The selection logic - including filter expression parsing - lives in
 `core/fleet/bulk.py:select_projects` (`fleet_cmd.py:183-211`).
 
 ```
@@ -92,12 +92,12 @@ bernstein fleet bulk-resume        [--names …] [--filter …]
 bernstein fleet bulk-cost-report   [--names …] [--filter …]
 ```
 
-- **`bulk-stop`** — invoke each project's `bernstein stop` via its CLI
+- **`bulk-stop`** - invoke each project's `bernstein stop` via its CLI
   (`fleet_cmd.py:223-236`).
-- **`bulk-pause`** — stop the project's daemon (`fleet_cmd.py:239-252`).
-- **`bulk-resume`** — restart the project's daemon
+- **`bulk-pause`** - stop the project's daemon (`fleet_cmd.py:239-252`).
+- **`bulk-resume`** - restart the project's daemon
   (`fleet_cmd.py:255-268`).
-- **`bulk-cost-report`** — run `bernstein cost report` against every
+- **`bulk-cost-report`** - run `bernstein cost report` against every
   selected project and emit a JSON envelope per project
   (`fleet_cmd.py:271-284`).
 
@@ -139,7 +139,7 @@ seven daily samples by default (`cost_window_days = 7`).
 Audit-chain verification is delegated to
 `core/fleet/audit.check_audit_tail`, which reads the project's HMAC-chained
 audit log and reports `ok` or `BROKEN`. A `BROKEN` indicator means an
-operator must investigate the audit tail directly — see
+operator must investigate the audit tail directly - see
 `security/AUDIT.md`.
 
 ---
@@ -220,33 +220,33 @@ For request-time permission enforcement inside a single project, see
 
 ## Code pointers
 
-- `cli/commands/fleet_cmd.py:50` — `@click.group("fleet",
+- `cli/commands/fleet_cmd.py:50` - `@click.group("fleet",
   invoke_without_command=True)`.
-- `cli/commands/fleet_cmd.py:80-102` — `_run_tui` (Textual app + Rich
+- `cli/commands/fleet_cmd.py:80-102` - `_run_tui` (Textual app + Rich
   fallback).
-- `cli/commands/fleet_cmd.py:139-175` — `--web HOST:PORT` parsing and
+- `cli/commands/fleet_cmd.py:139-175` - `--web HOST:PORT` parsing and
   uvicorn boot.
-- `cli/commands/fleet_cmd.py:223-284` — `bulk-stop`, `bulk-pause`,
+- `cli/commands/fleet_cmd.py:223-284` - `bulk-stop`, `bulk-pause`,
   `bulk-resume`, `bulk-cost-report`.
-- `cli/commands/fleet_cmd.py:287-299` — `ls`.
-- `core/fleet/__init__.py:1` — public surface (re-exports).
-- `core/fleet/aggregator.py:33` — `ProjectState` enum.
-- `core/fleet/aggregator.py:43-90` — `ProjectSnapshot` dataclass.
-- `core/fleet/aggregator.py:171` — `FleetAggregator` (lifecycle: start
+- `cli/commands/fleet_cmd.py:287-299` - `ls`.
+- `core/fleet/__init__.py:1` - public surface (re-exports).
+- `core/fleet/aggregator.py:33` - `ProjectState` enum.
+- `core/fleet/aggregator.py:43-90` - `ProjectSnapshot` dataclass.
+- `core/fleet/aggregator.py:171` - `FleetAggregator` (lifecycle: start
   / snapshots / events / stop).
-- `core/fleet/aggregator.py:184-218` — aggregator constructor (poll
+- `core/fleet/aggregator.py:184-218` - aggregator constructor (poll
   interval, HTTP timeout, backoff bounds, cost window).
-- `core/fleet/config.py` — `ProjectConfig`,
+- `core/fleet/config.py` - `ProjectConfig`,
   `default_projects_config_path()`, `load_projects_config()`.
-- `core/fleet/bulk.py` — `select_projects`, `bulk_stop`, `bulk_pause`,
+- `core/fleet/bulk.py` - `select_projects`, `bulk_stop`, `bulk_pause`,
   `bulk_resume`, `bulk_cost_report`.
-- `core/fleet/cost_rollup.py` — `rollup_costs`, `CostSparkline`.
-- `core/fleet/audit.py` — `check_audit_tail`, `AuditChainStatus`.
-- `core/fleet/prometheus_proxy.py` — `merge_prometheus_metrics` (for
+- `core/fleet/cost_rollup.py` - `rollup_costs`, `CostSparkline`.
+- `core/fleet/audit.py` - `check_audit_tail`, `AuditChainStatus`.
+- `core/fleet/prometheus_proxy.py` - `merge_prometheus_metrics` (for
   Grafana / scrape integration).
-- `core/fleet/tui.py` — `build_textual_app`, `build_rows`,
+- `core/fleet/tui.py` - `build_textual_app`, `build_rows`,
   `format_footer`.
-- `core/fleet/web.py` — `build_fleet_app` (FastAPI factory).
+- `core/fleet/web.py` - `build_fleet_app` (FastAPI factory).
 
 ---
 

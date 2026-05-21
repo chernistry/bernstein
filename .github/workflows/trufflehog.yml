@@ -1,7 +1,7 @@
 name: trufflehog (secret scanning)
 
 # Scan commits and PRs for accidentally-committed secrets (API keys,
-# private keys, tokens). trufflehog is OSS / free for orgs too —
+# private keys, tokens). trufflehog is OSS / free for orgs too -
 # gitleaks-action requires a paid GITLEAKS_LICENSE for organization
 # accounts, so we use trufflehog as the public-org-friendly alternative.
 #
@@ -42,6 +42,6 @@ jobs:
       - name: Run trufflehog
         uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab  # v3.95.3
         with:
-          # Only report verified secrets — keeps signal-to-noise high and
+          # Only report verified secrets - keeps signal-to-noise high and
           # lets the job act as a hard gate.
           extra_args: --results=verified,unknown

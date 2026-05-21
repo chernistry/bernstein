@@ -58,7 +58,7 @@ for the threat model and default capability table; implementation in
 
 ### Janitor
 
-The verification system that checks whether an agent's work is correct — runs lint, type-checks, tests, and other quality gates before accepting work. Distinct from the **Cross-Model Verifier** (which double-checks output by re-running on a second model) and the **Reviewer** (which performs LLM-based review). Implemented in `src/bernstein/core/quality/janitor.py`.
+The verification system that checks whether an agent's work is correct - runs lint, type-checks, tests, and other quality gates before accepting work. Distinct from the **Cross-Model Verifier** (which double-checks output by re-running on a second model) and the **Reviewer** (which performs LLM-based review). Implemented in `src/bernstein/core/quality/janitor.py`.
 
 The janitor also has a maintenance role: it periodically reaps orphaned worktrees and stale agent state. The cleanup interval is governed by `janitor.worktree_cleanup_interval_s` and `janitor.max_orphan_age_s` in `bernstein.yaml`.
 
@@ -88,7 +88,7 @@ Killing or collecting agents that have exceeded their timeout or become unrespon
 
 ### SDD
 
-Software-Defined Development — the `.sdd/` directory where all runtime state lives: worktrees, sessions, task logs, and agent data. Initialized in `src/bernstein/core/bootstrap.py`.
+Software-Defined Development - the `.sdd/` directory where all runtime state lives: worktrees, sessions, task logs, and agent data. Initialized in `src/bernstein/core/bootstrap.py`.
 
 ### Schema Registry
 

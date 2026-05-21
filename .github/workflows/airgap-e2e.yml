@@ -133,7 +133,7 @@ jobs:
             --skip-project \
             --output dist/airgap-wheelhouse-ci \
             --version 0.0.0-ci
-          # Verify it inside an isolated namespace — proves the verify
+          # Verify it inside an isolated namespace - proves the verify
           # path makes no outbound calls. GitHub-hosted runners ship the
           # ``unshare`` binary but execute as unprivileged users without
           # CAP_SYS_ADMIN, so the syscall returns EPERM. Fall back to

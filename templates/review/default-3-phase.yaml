@@ -3,7 +3,7 @@
 # Stage 1: five cheap specialists run in parallel (lint, types, tests,
 #          security, style).  Majority must approve.
 # Stage 2: one Opus synthesizer reads stage 1's findings.
-# Stage 3: configurable final gatekeeper — Claude Sonnet by default.
+# Stage 3: configurable final gatekeeper - Claude Sonnet by default.
 #
 # Drop-in replacement for the legacy single-pass cross-model verifier.
 version: 1

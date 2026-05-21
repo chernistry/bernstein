@@ -9,9 +9,9 @@ Verifies that a `bernstein compliance pack` ZIP is internally consistent:
 - Every lineage entry has a valid Ed25519 detached JWS signature (RFC 7515 + RFC 8037).
 - The signature is by the agent identified in the entry, using the public key
   in the bundled Agent Card.
-- Entries form a valid parent-hash DAG — no orphans, no duplicates.
+- Entries form a valid parent-hash DAG - no orphans, no duplicates.
 - Bytes that hashed and got signed are reproduced via RFC 8785 JSON
-  Canonicalisation Scheme (JCS) — byte-for-byte the same as Bernstein.
+  Canonicalisation Scheme (JCS) - byte-for-byte the same as Bernstein.
 
 See `docs/decisions/009-lineage-v1.md` §9 for the design rationale.
 
@@ -27,7 +27,7 @@ bernstein-verify pack ./acme-compliance-2026-q2.zip
 
 …without ever installing the orchestrator. The package depends on
 `cryptography>=43` and `click>=8.1` and **nothing else**. It does NOT
-import from `bernstein.*` at runtime — verified by
+import from `bernstein.*` at runtime - verified by
 `tests/test_no_bernstein_install.py`.
 
 No network calls. No remote registry lookups. Pure local verification.

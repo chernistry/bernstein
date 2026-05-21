@@ -1,4 +1,4 @@
-# Style stage — flags dead code, unused imports, gratuitous complexity.
+# Style stage - flags dead code, unused imports, gratuitous complexity.
 name: style
 parallelism: 1
 aggregator:

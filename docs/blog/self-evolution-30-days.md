@@ -170,7 +170,7 @@ Cost delta: `-$0.31/day` on documentation tasks. Pass rate: unchanged.
 The git commit:
 
 ```
-evolution(L0): route docs tasks to haiku — saves $0.31/day, no quality delta
+evolution(L0): route docs tasks to haiku - saves $0.31/day, no quality delta
 
 Opportunity detected on 2026-03-08 after 14-day baseline.
 Confidence: 94%. Sandbox: 3/3 janitor pass.
@@ -201,7 +201,7 @@ Rollback: git revert a7b3f2e in .sdd/evolution/rollback.sh
 | Opportunities detected | 5 |
 | Proposals generated | 3 |
 | L0 changes applied | 1 |
-| L1 changes applied | 0 (A/B tested, not yet applied — need more data) |
+| L1 changes applied | 0 (A/B tested, not yet applied - need more data) |
 | L2+ changes | 0 (too early in bootstrapping sequence) |
 | Rollbacks | 1 |
 | Total evolution cost | $47 |
@@ -246,7 +246,7 @@ anyone notices.
 **What didn't happen:**
 
 The system did not:
-- Rewrite its own code (L3 — permanently blocked)
+- Rewrite its own code (L3 - permanently blocked)
 - Modify the janitor, orchestrator, or safety layer (hash-locked)
 - Generate proposals it wasn't confident about
 - Apply anything during a rollback window (there was one rollback on day 23; the circuit
@@ -256,7 +256,7 @@ The system did not:
 
 ## What this run produced
 
-The three queued proposals — two L1 template changes — need additional A/B cycles before the
+The three queued proposals - two L1 template changes - need additional A/B cycles before the
 system has enough data to act on them. The loop continues running.
 
 The 30-day run is the observation and analysis phases. The artefact shipped is the metrics

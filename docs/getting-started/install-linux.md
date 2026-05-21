@@ -52,7 +52,7 @@ sudo dnf install bernstein
 
 COPR repository: https://copr.fedorainfracloud.org/coprs/alexchernysh/bernstein/
 
-## RHEL / Fedora / CentOS — manual RPM repo (alternative)
+## RHEL / Fedora / CentOS - manual RPM repo (alternative)
 
 ```bash
 # Add repository

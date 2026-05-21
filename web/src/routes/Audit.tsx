@@ -1,4 +1,4 @@
-// Audit screen — HMAC-chained log with chain banner, filters, table, verify modal, paginated polling.
+// Audit screen - HMAC-chained log with chain banner, filters, table, verify modal, paginated polling.
 // Visual reference: design_handoff_bernstein_phase1/design-source/screens/screen-audit.jsx.
 // Spec: design_handoff_bernstein_phase1/README.md §6.04 + §8 (states contract).
 
@@ -77,7 +77,7 @@ function localDateTimeToUtcIso(local: string | null | undefined): string | null 
 
 /** Coerce arbitrary value to a hash-display-safe string before truncating. */
 function safeHash(s: unknown, head = 8): string {
-  if (s == null) return '—';
+  if (s == null) return '-';
   return truncateHash(String(s), head);
 }
 
@@ -104,7 +104,7 @@ export default function Audit() {
     Number(searchParams.get('page_size') ?? String(PAGE_SIZE_DEFAULT)) || PAGE_SIZE_DEFAULT,
   );
 
-  // Local filter form state — committed to URL on change/reset.
+  // Local filter form state - committed to URL on change/reset.
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
   const [actorInput, setActorInput] = useState(searchParams.get('actor') ?? '');
   const [actionInput, setActionInput] = useState(searchParams.get('event_type') ?? '');
@@ -160,7 +160,7 @@ export default function Audit() {
     refetchInterval: 60_000,
   });
 
-  // Backend `/audit/verify` only accepts GET — re-verification is just a refetch
+  // Backend `/audit/verify` only accepts GET - re-verification is just a refetch
   // (the server walks the chain on every request). POST returned 405.
   const reverifyMutation = useMutation({
     mutationFn: async (_chunk: number | null) => {
@@ -170,7 +170,7 @@ export default function Audit() {
     },
   });
 
-  // Blob download — POST /audit/export?format=… returns binary; bypass JSON parsing.
+  // Blob download - POST /audit/export?format=… returns binary; bypass JSON parsing.
   const exportMutation = useMutation({
     mutationFn: async (format: 'csv' | 'jsonl') => {
       const exportParams = new URLSearchParams();
@@ -222,7 +222,7 @@ export default function Audit() {
       search: searchInput || null,
       actor: actorInput || null,
       event_type: actionInput || null,
-      // datetime-local emits naive ISO ("2026-05-15T08:30") — backend expects UTC.
+      // datetime-local emits naive ISO ("2026-05-15T08:30") - backend expects UTC.
       from: localDateTimeToUtcIso(fromInput),
       to: localDateTimeToUtcIso(toInput),
       page: '1',
@@ -271,7 +271,7 @@ export default function Audit() {
                 last sync{' '}
                 {verifyQuery.data?.last_verified_ts
                   ? formatRelative(verifyQuery.data.last_verified_ts)
-                  : '—'}
+                  : '-'}
               </span>
               {verifyQuery.data && verifyQuery.data.walked != null && (
                 <>
@@ -660,7 +660,7 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
   const sigOk = !!v.sigstore_anchor;
   const headIdNum = v.head_id == null ? null : Number(v.head_id);
   const headIdLabel =
-    headIdNum != null && Number.isFinite(headIdNum) ? `#${formatCount(headIdNum)}` : '—';
+    headIdNum != null && Number.isFinite(headIdNum) ? `#${formatCount(headIdNum)}` : '-';
 
   const cells: Array<{
     label: string;
@@ -676,7 +676,7 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
       ),
       sub: (
         <span>
-          rebuilt {v.last_verified_ts ? formatRelative(v.last_verified_ts) : '—'}
+          rebuilt {v.last_verified_ts ? formatRelative(v.last_verified_ts) : '-'}
         </span>
       ),
     },
@@ -698,7 +698,7 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
             sigOk ? 'text-success' : 'text-muted-foreground',
           )}
         >
-          {sigOk ? 'ok' : '—'}
+          {sigOk ? 'ok' : '-'}
         </span>
       ),
       sub: <span className="truncate font-mono">{safeHash(v.sigstore_anchor, 10)}</span>,
@@ -707,12 +707,12 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
       label: 'rotated chunk',
       value: (
         <span className="font-mono text-[18px] font-medium tabular-nums text-foreground">
-          {v.rotated_chunk != null ? `#${formatCount(v.rotated_chunk)}` : '—'}
+          {v.rotated_chunk != null ? `#${formatCount(v.rotated_chunk)}` : '-'}
         </span>
       ),
       sub: (
         <span className="font-mono">
-          walked {v.walked != null ? formatCount(v.walked) : '—'}
+          walked {v.walked != null ? formatCount(v.walked) : '-'}
         </span>
       ),
     },
@@ -817,33 +817,33 @@ function VerifyChainModal({
                 <span className="font-mono text-[12px] tabular-nums text-foreground">
                   {verify.head_id != null
                     ? `#${formatCount(Number(verify.head_id))} · ${safeHash(verify.head_hash, 10)}`
-                    : '—'}
+                    : '-'}
                 </span>
               </KV>
               <KV label="last verified at">
                 <span className="font-mono text-[12px] text-foreground">
                   {verify.last_verified_ts
                     ? `${formatRelative(verify.last_verified_ts)} (${verify.last_verified_ts})`
-                    : '—'}
+                    : '-'}
                 </span>
               </KV>
               <KV label="walked">
                 <span className="font-mono text-[12px] tabular-nums text-foreground">
-                  {verify.walked != null ? `${formatCount(verify.walked)} entries` : '—'}
+                  {verify.walked != null ? `${formatCount(verify.walked)} entries` : '-'}
                 </span>
               </KV>
               <KV label="sigstore anchor">
                 <span className="font-mono text-[12px] text-foreground">
                   {verify.sigstore_anchor
                     ? `ok · ${safeHash(verify.sigstore_anchor, 10)}`
-                    : '—'}
+                    : '-'}
                 </span>
               </KV>
               <KV label="rotated chunk">
                 <span className="font-mono text-[12px] text-foreground">
                   {verify.rotated_chunk != null
                     ? `#${formatCount(verify.rotated_chunk)}`
-                    : '—'}
+                    : '-'}
                 </span>
               </KV>
             </>

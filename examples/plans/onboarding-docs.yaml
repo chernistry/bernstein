@@ -1,4 +1,4 @@
-# Bernstein Plan — Onboarding Documentation
+# Bernstein Plan - Onboarding Documentation
 #
 # A three-stage plan that produces full onboarding documentation for an
 # existing codebase:
@@ -19,7 +19,7 @@ cli: auto
 budget: "$12"
 max_agents: 3
 constraints:
-  - "Do not modify any source code — documentation only"
+  - "Do not modify any source code - documentation only"
   - "Markdown for all human-readable docs"
   - "Shell scripts must work on macOS and Linux"
   - "ADRs follow the Nygard template (Status, Context, Decision, Consequences)"
@@ -77,7 +77,7 @@ stages:
           Features, Architecture (link to docs/architecture/overview.md),
           Quick Start (install + run in under 5 commands), Configuration,
           Contributing, and License. Pull factual content from the discovery
-          docs — do not invent features. Write for a senior engineer audience;
+          docs - do not invent features. Write for a senior engineer audience;
           no marketing language.
         files:
           - "README.md"

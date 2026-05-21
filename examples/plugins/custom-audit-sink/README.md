@@ -41,7 +41,7 @@ example payload:
 ```bash
 export BERNSTEIN_AUDIT_MQTT_URL="mqtt://siem.internal:1883"
 export BERNSTEIN_AUDIT_MQTT_TOPIC="bernstein/audit"
-# optional, off by default — leaves the plugin dormant when unset
+# optional, off by default - leaves the plugin dormant when unset
 export BERNSTEIN_AUDIT_MQTT_ENABLED=1
 ```
 

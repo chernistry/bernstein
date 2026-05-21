@@ -1,4 +1,4 @@
-// Small helpers used by the Diff panel — clipboard, downloads, formatting.
+// Small helpers used by the Diff panel - clipboard, downloads, formatting.
 // Mirrors `../logs/utils.ts` deliberately to keep behaviour consistent.
 
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -42,7 +42,7 @@ export function downloadText(filename: string, text: string, mime = 'text/plain;
 }
 
 export function formatTimestamp(epochSeconds: number): string {
-  if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) return '—';
+  if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) return '-';
   const d = new Date(epochSeconds * 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;

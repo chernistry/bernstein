@@ -35,7 +35,7 @@ The synthesiser:
 
 1. Reads dead-letter queue + postmortem artefacts.
 2. Strips secrets via `core/security/sanitize.py`.
-3. Extracts the smallest trigger — the failing prompt, failing config,
+3. Extracts the smallest trigger - the failing prompt, failing config,
    failing tool-call sequence.
 4. Writes one YAML per incident, idempotent by content hash.
 

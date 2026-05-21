@@ -1,4 +1,4 @@
-# Tests stage — checks for missing tests, broken assertions, untested edge cases.
+# Tests stage - checks for missing tests, broken assertions, untested edge cases.
 name: tests
 parallelism: 1
 aggregator:

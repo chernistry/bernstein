@@ -1,7 +1,7 @@
 # MCP tool-search lazy loading
 
 When the MCP catalog gets large, every freshly-spawned agent receives
-the full tool description in its system prompt — easily 67 k+ tokens
+the full tool description in its system prompt - easily 67 k+ tokens
 across 7+ servers. **Tool search** swaps that for a `tool_search`
 meta-tool plus a compact name + one-line summary directory. Full JSON
 schemas load on demand when the agent calls `tool_search(query)` and
@@ -25,9 +25,9 @@ Available tools (search to expand):
 - expand_tools(names: list[str]) -> {schemas}
 
 Compact directory (217 tools, full schemas available via expand_tools):
-- gh.issue_create — open a GitHub issue
-- gh.issue_comment — post a comment
-- pg.query — run a SQL query against the configured Postgres
+- gh.issue_create - open a GitHub issue
+- gh.issue_comment - post a comment
+- pg.query - run a SQL query against the configured Postgres
 - ...
 ```
 
@@ -71,7 +71,7 @@ schemas = engine.expand_tools(["gh.diff", "git.diff"])
 | `defaults.MCP_TOOL_SEARCH_THRESHOLD_TOKENS` | `6000` | Total catalog token budget; above this, switch to tool_search. |
 | Ranker | BM25 over `name + summary` | Lexical ranking only. |
 
-Metric: `mcp_tool_search_invocations_total{outcome}` —
+Metric: `mcp_tool_search_invocations_total{outcome}` -
 `hit` / `miss` / `expand`.
 
 ## Limitations

@@ -1,10 +1,10 @@
-// Minimal ANSI escape parser — strips control sequences and emits coloured
+// Minimal ANSI escape parser - strips control sequences and emits coloured
 // segments for inline rendering.
 //
 // This intentionally implements a subset of ANSI SGR (Select Graphic
 // Rendition): the 16 base colours, bright variants, and the most common
 // attributes (bold, dim, italic, underline, reset). Anything else is dropped
-// silently — coding agents almost never emit 256-colour or truecolor.
+// silently - coding agents almost never emit 256-colour or truecolor.
 
 const ESC_RE = /\x1b\[((?:\d+;)*\d*)m/g;
 const STRIP_RE = /\x1b\[[0-9;]*[A-Za-z]/g;

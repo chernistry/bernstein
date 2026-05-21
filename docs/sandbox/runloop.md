@@ -5,7 +5,7 @@ Bernstein's `runloop` sandbox backend talks to the Runloop REST API
 
 ## Module
 
-`src/bernstein/core/sandbox/backends/runloop.py` —
+`src/bernstein/core/sandbox/backends/runloop.py` -
 class `RunloopSandboxBackend`, registered under the name `runloop` in
 `bernstein.core.sandbox.registry`.
 

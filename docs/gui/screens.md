@@ -1,6 +1,6 @@
 ---
 title: Screens
-description: One section per route — what data it shows, what actions it supports, which TUI widget it replaces.
+description: One section per route - what data it shows, what actions it supports, which TUI widget it replaces.
 tags:
   - gui
   - reference
@@ -53,18 +53,18 @@ Five routes. Source: `web/src/routes/`. Design reference: `.sdd/backlog/open/fro
 
 - **Source:** `web/src/routes/Audit.tsx` (when present; otherwise scaffolded).
 - **Layout:** single column, full-width.
-- **Chain status banner:** 4-col card grid — chain status (verified), head (#ID + truncated hash), Sigstore anchor (rekor entry), rotated (age + chunk).
+- **Chain status banner:** 4-col card grid - chain status (verified), head (#ID + truncated hash), Sigstore anchor (rekor entry), rotated (age + chunk).
 - **Filters bar:** search · actor · action · time, separated by hairline dividers, mono uppercase labels above each value, "Reset" ghost button on right.
 - **Table:** Timestamp (ISO mono, color-coded operator vs system) · Actor · Action · Resource · Hash (mono truncated `…`) · Chain status icon (verified / rebuilt).
 - **Verify chain modal:** triggered by primary "Verify chain". Shows last verified head, walked range, sigstore transparency anchor pointer, "Re-verify from chunk #" button.
 - **Endpoints:** `GET /api/v1/audit?event_type=&search=&from=&to=&page=&page_size=` → `{items,total,page,page_size}`. Export: `POST /api/v1/audit/export?format=csv|jsonl`.
-- **Replaces TUI widget:** none — audit chain inspection had no TUI surface.
+- **Replaces TUI widget:** none - audit chain inspection had no TUI surface.
 
 ## Costs (`/ui/costs`)
 
 - **Source:** `web/src/routes/Costs.tsx` (when present; otherwise scaffolded).
 - **Layout:** single column, fluid grid.
-- **Top KPI row:** 4 cards (`1fr 1fr 1fr 1.4fr`) — today · 7 d · projected month · daily-budget gauge with 5 px progress bar.
+- **Top KPI row:** 4 cards (`1fr 1fr 1fr 1.4fr`) - today · 7 d · projected month · daily-budget gauge with 5 px progress bar.
 - **24 h sparkline:** recharts `<BarChart>`, 8 px bars / 2 px gap, last bar full accent. Dashed gridlines at 25 / 50 / 75 %. Mono x-axis labels (`−24h / −18h / −12h / −6h / now`).
 - **By-adapter table:** Adapter (mono) · Calls · Tokens · Cost · Share (progress + %) · Δ 7 d (mono colored: green if reduced, warning if > +20 %).
 - **Top 10 tasks:** index column (mono `01`–`10`) · title + agent meta · cost (mono bold right).

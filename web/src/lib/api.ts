@@ -1,11 +1,11 @@
-// Single fetch wrapper for /api/v1/* — bearer auth from localStorage.
+// Single fetch wrapper for /api/v1/* - bearer auth from localStorage.
 //
 // Path-resolution contract (FE-PROXY-001):
-//   The Bernstein backend mounts every router twice — at `/<path>` AND at
+//   The Bernstein backend mounts every router twice - at `/<path>` AND at
 //   `/api/v1/<path>` (see ``src/bernstein/core/server/server_app.py``'s
 //   ``all_routers`` loop). In production the SPA is served by the backend so
 //   both shapes resolve. In dev the SPA is served by Vite on a different port,
-//   and ``vite.config.ts`` only proxies the ``/api`` prefix to the backend —
+//   and ``vite.config.ts`` only proxies the ``/api`` prefix to the backend -
 //   so the frontend MUST send every request under ``/api/v1`` for it to
 //   reach the orchestrator.
 //
@@ -26,7 +26,7 @@
 //     buildUrl('')                       === '/api/v1'
 //
 // SSE endpoints constructed in ``web/src/lib/sse.ts`` go through
-// ``new EventSource(url)`` directly — those callers pass fully-qualified
+// ``new EventSource(url)`` directly - those callers pass fully-qualified
 // ``/api/v1/...`` URLs because EventSource has no shared base.
 
 const TOKEN_KEY = 'bernstein_token';
@@ -75,7 +75,7 @@ async function readBody(r: Response): Promise<unknown> {
       try {
         return JSON.parse(text);
       } catch {
-        // Backend lied about content-type — keep raw text so callers can debug.
+        // Backend lied about content-type - keep raw text so callers can debug.
         return text;
       }
     }
@@ -90,7 +90,7 @@ export async function api<T = unknown>(
   init: RequestInit = {},
 ): Promise<T> {
   const url = buildUrl(path);
-  // Only set Content-Type when we actually send a body — some servers reject
+  // Only set Content-Type when we actually send a body - some servers reject
   // GET/DELETE with a content-type header, and 204/202 responses confuse CORS preflights.
   const hasBody = init.body != null;
   const baseHeaders: Record<string, string> = { Accept: 'application/json' };
@@ -107,11 +107,11 @@ export async function api<T = unknown>(
     if (typeof window !== 'undefined') window.localStorage.removeItem(TOKEN_KEY);
     // Preserve any server-provided error body so callers can surface a reason.
     const body = await readBody(r);
-    throw new ApiError(401, body, 'Unauthorized — clear session and re-auth');
+    throw new ApiError(401, body, 'Unauthorized - clear session and re-auth');
   }
   if (!r.ok) {
     const body = await readBody(r);
-    throw new ApiError(r.status, body, `${r.status} ${r.statusText} — ${path}`);
+    throw new ApiError(r.status, body, `${r.status} ${r.statusText} - ${path}`);
   }
   // 204 No Content / 205 Reset Content / explicit empty body.
   if (r.status === 204 || r.status === 205) return undefined as T;
@@ -126,7 +126,7 @@ export async function api<T = unknown>(
       throw new ApiError(
         r.status,
         text,
-        `${path} — server claimed application/json but returned unparseable body: ${(err as Error).message}`,
+        `${path} - server claimed application/json but returned unparseable body: ${(err as Error).message}`,
       );
     }
   }
@@ -138,7 +138,7 @@ export async function api<T = unknown>(
   throw new ApiError(
     r.status,
     text,
-    `${path} — expected JSON but got ${ct || 'unknown content-type'}`,
+    `${path} - expected JSON but got ${ct || 'unknown content-type'}`,
   );
 }
 

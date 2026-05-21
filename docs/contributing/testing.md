@@ -35,7 +35,7 @@ locally without waiting for the cloud runner.
 # Property suite (smoke)
 HYPOTHESIS_PROFILE=smoke uv run pytest tests/property/ -q --no-cov
 
-# Property suite (deep — same as nightly)
+# Property suite (deep - same as nightly)
 HYPOTHESIS_PROFILE=deep uv run pytest tests/property/ -q --no-cov
 
 # Snapshot tests
@@ -43,12 +43,12 @@ uv run pytest tests/snapshot/ -q --no-cov
 # Update snapshots after an intentional schema change:
 uv run pytest tests/snapshot/ -q --no-cov --snapshot-update
 
-# Schemathesis (smoke — only the critical-surface allow-list)
+# Schemathesis (smoke - only the critical-surface allow-list)
 BERNSTEIN_AUTH_DISABLED=1 SCHEMATHESIS_PROFILE=smoke \
   uv run pytest tests/contract/ -q --no-cov
 
 # Semgrep (project rules; ERROR severity is the PR gate).
-# Install once via `uv tool install semgrep` — semgrep's transitive
+# Install once via `uv tool install semgrep` - semgrep's transitive
 # pins (click<8.2, opentelemetry-sdk<1.26) conflict with our project
 # floors, so it lives in its own venv outside `uv sync`.
 uv tool install semgrep
@@ -60,7 +60,7 @@ uv run bandit -r src/ -ll --severity-level high -b .bandit-baseline.json
 # pip-audit
 uv run pip-audit --strict
 
-# Beartype claw — runs the focused unit tests under runtime type
+# Beartype claw - runs the focused unit tests under runtime type
 # enforcement on core.security + core.agents + core.protocols.cluster
 BEARTYPE_USE_CLAW=enable \
   uv run pytest tests/unit/ -q --no-cov \
@@ -99,7 +99,7 @@ regression case, fix the bug, and the patch becomes a permanent unit
 test.
 
 ### Schemathesis 5xx leak
-A real bug — an endpoint should never propagate an unhandled
+A real bug - an endpoint should never propagate an unhandled
 exception. The reproducer is printed at the bottom of the failure (a
 `curl` invocation against the mounted ASGI app).
 
@@ -130,7 +130,7 @@ not a merge blocker.
 Reproduce locally:
 
 ```bash
-# All modules (slow — budgets sum to about an hour).
+# All modules (slow - budgets sum to about an hour).
 uv run python scripts/mutmut_critical.py
 
 # One module:
@@ -181,7 +181,7 @@ byte-identical output.
 
 Degenerate case: passing a single adapter to `run_multi_adapter`
 produces a per-adapter result that matches the legacy `run_scenario`
-output exactly — existing scripts keep working unchanged.
+output exactly - existing scripts keep working unchanged.
 
 ## CI cost budget
 

@@ -8,7 +8,7 @@ isolated git worktrees, and merges verified results back to your branch automati
 **What you'll need**:
 - [ ] Python 3.12 or later
 - [ ] Git (any recent version)
-- [ ] At least one CLI coding agent (Claude Code, Codex, or Gemini — see Step 2)
+- [ ] At least one CLI coding agent (Claude Code, Codex, or Gemini - see Step 2)
 - [ ] An API key for your chosen agent
 
 ---
@@ -16,7 +16,7 @@ isolated git worktrees, and merges verified results back to your branch automati
 ## Step 1: Install Bernstein
 
 ```bash
-# Recommended — uv installs into an isolated tool environment
+# Recommended - uv installs into an isolated tool environment
 uv tool install bernstein
 
 # Alternatives
@@ -43,7 +43,7 @@ bernstein 1.9.3
 
 ## Step 2: Check for CLI agents
 
-Bernstein does not run models directly — it orchestrates CLI coding agents that you install
+Bernstein does not run models directly - it orchestrates CLI coding agents that you install
 separately. Check which ones are available on your system:
 
 ```bash
@@ -56,8 +56,8 @@ Example output:
 Available agents:
   claude    ✓  Claude Code (claude)
   codex     ✓  Codex CLI (codex)
-  gemini    ✗  Not found — install: npm i -g @google/gemini-cli
-  aider     ✗  Not found — install: pip install aider-chat
+  gemini    ✗  Not found - install: npm i -g @google/gemini-cli
+  aider     ✗  Not found - install: pip install aider-chat
 ```
 
 You need at least one `✓`. If none are installed:
@@ -78,7 +78,7 @@ npm install -g @google/gemini-cli
 ## Step 3: Set your API key
 
 Each CLI agent authenticates with its own provider. Bernstein passes the environment
-through to the agents — set the key for whichever agent you installed:
+through to the agents - set the key for whichever agent you installed:
 
 ```bash
 # Claude Code
@@ -109,12 +109,12 @@ Expected output:
 ```
 ✓ Initialized .sdd/ state directory
 ✓ Created bernstein.yaml (edit to configure agents and budget)
-✓ Ready — run `bernstein -g "your goal"` to start
+✓ Ready - run `bernstein -g "your goal"` to start
 ```
 
 This creates:
-- `.sdd/` — file-based state (backlog, logs, metrics, signals)
-- `bernstein.yaml` — project configuration
+- `.sdd/` - file-based state (backlog, logs, metrics, signals)
+- `bernstein.yaml` - project configuration
 
 > **No git repository?** Run `git init && git commit --allow-empty -m "init"` first.
 > Bernstein requires git for worktree isolation.
@@ -140,7 +140,7 @@ Bernstein will:
 Watch it work in real time:
 
 ```bash
-# In another terminal — live TUI dashboard
+# In another terminal - live TUI dashboard
 bernstein live
 
 # Or a quick status snapshot
@@ -151,7 +151,7 @@ Example `bernstein status` output:
 
 ```
 Tasks: 3 open · 1 in-progress · 0 done · 0 failed
-Agents: 1 running (agent/abc12345 — backend)
+Agents: 1 running (agent/abc12345 - backend)
 Spend:  $0.04 so far
 ```
 
@@ -168,7 +168,7 @@ bernstein recap
 Example output:
 
 ```
-Run summary — 3 tasks completed in 4m 12s
+Run summary - 3 tasks completed in 4m 12s
 
   ✓ backend-abc12345  Add hello() to utils.py          $0.03  2m 10s
   ✓ qa-def67890       Write tests for hello()           $0.01  1m 45s
@@ -222,7 +222,7 @@ bernstein run plans/hello.yaml
 ```
 
 The `tests` stage waits for `implementation` to finish. Bernstein manages the dependency
-automatically — you do not need to sequence the commands yourself.
+automatically - you do not need to sequence the commands yourself.
 
 ---
 
@@ -235,7 +235,7 @@ bernstein cost
 Example output:
 
 ```
-Cost breakdown — last run
+Cost breakdown - last run
 
   claude (backend)    2,341 tokens   $0.012
   claude (qa)         1,102 tokens   $0.006
@@ -297,11 +297,11 @@ You have a working Bernstein setup. Here are common next steps:
 
 Useful references:
 
-- [Configuration reference](../operations/CONFIG.md) — full `bernstein.yaml` options
-- [Security Hardening Guide](../security/security-hardening.md) — permission modes, sandboxing, audit logging
-- [Architecture guide](../architecture/ARCHITECTURE.md) — how the orchestrator, spawner, and janitor work
-- [Deployment guide](../operations/deployment-guide.md) — Docker, Kubernetes, CI/CD
-- [Cost optimization](../operations/cost-optimization.md) — reduce API spend
+- [Configuration reference](../operations/CONFIG.md) - full `bernstein.yaml` options
+- [Security Hardening Guide](../security/security-hardening.md) - permission modes, sandboxing, audit logging
+- [Architecture guide](../architecture/ARCHITECTURE.md) - how the orchestrator, spawner, and janitor work
+- [Deployment guide](../operations/deployment-guide.md) - Docker, Kubernetes, CI/CD
+- [Cost optimization](../operations/cost-optimization.md) - reduce API spend
 
 ---
 
@@ -356,7 +356,7 @@ bernstein status --agents   # Show agent heartbeat times
 bernstein stop --agent <agent-id>   # Manually kill a specific agent
 ```
 
-### "bernstein init fails — not a git repository"
+### "bernstein init fails - not a git repository"
 
 ```bash
 git init

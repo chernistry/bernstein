@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Bernstein GitHub Action entrypoint.
 # Handles four trigger modes:
-#   fix-ci      — download failed CI logs, attempt a fix (workflow_run failure)
-#   review-pr   — review an open pull request and post a comment
-#   decompose   — decompose a labeled GitHub issue into agent tasks
-#   <any text>  — run bernstein with the provided task description directly
+#   fix-ci      - download failed CI logs, attempt a fix (workflow_run failure)
+#   review-pr   - review an open pull request and post a comment
+#   decompose   - decompose a labeled GitHub issue into agent tasks
+#   <any text>  - run bernstein with the provided task description directly
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ post_pr_comment() {
             return 0
             ;;
         *)
-            # Unknown event type — no PR comment target available.
+            # Unknown event type - no PR comment target available.
             ;;
     esac
 
@@ -140,7 +140,7 @@ build_comment() {
 | Tasks completed | ${tasks_completed} |
 | Total cost | \$${total_cost} |
 | Trigger | \`${TASK}\` |
-| Run | [${GITHUB_RUN_ID:-—}](${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}) |
+| Run | [${GITHUB_RUN_ID:--}](${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}) |
 
 <details>
 <summary>What is Bernstein?</summary>
@@ -152,7 +152,7 @@ MARKDOWN
 }
 
 # ---------------------------------------------------------------------------
-# Fix-CI mode  (on: workflow_run — triggered when CI fails)
+# Fix-CI mode  (on: workflow_run - triggered when CI fails)
 # ---------------------------------------------------------------------------
 run_fix_ci() {
     gha_group "fix-ci: downloading failed job logs"

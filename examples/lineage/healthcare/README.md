@@ -1,4 +1,4 @@
-# Healthcare demo — triage decision-support config
+# Healthcare demo - triage decision-support config
 
 ## TL;DR
 
@@ -17,8 +17,8 @@
 A digital-health vendor sells an AI-assisted ED triage tool. The hospital's
 **clinical safety officer** and **DPO** have to sign off:
 
-- HIPAA — every input touch on PHI must be tracked.
-- EU AI Act high-risk classification (Annex III §5(a) — emergency services
+- HIPAA - every input touch on PHI must be tracked.
+- EU AI Act high-risk classification (Annex III §5(a) - emergency services
   dispatch). **Article 11** demands technical documentation; **Article 12**
   demands an automatic event log retained for at least 6 months (10 years
   for high-risk).
@@ -57,7 +57,7 @@ uv run python examples/lineage/scripts/gen_demo_healthcare.py
 uv run python examples/lineage/scripts/build_expected_pack.py
 ```
 
-Deterministic — seed `20260201`, fixed UTC timestamps.
+Deterministic - seed `20260201`, fixed UTC timestamps.
 
 ## How to run the demo
 
@@ -81,4 +81,4 @@ Invokes:
 
 Each agent has its own Ed25519 keypair; their public keys are in
 `fixtures/agent-cards/<agent>.json`. Auditor verification uses these
-cards — no need to talk to the operator's KMS.
+cards - no need to talk to the operator's KMS.

@@ -1,5 +1,5 @@
 /**
- * GitHub Actions adapter — create Bernstein tasks from CI failures.
+ * GitHub Actions adapter - create Bernstein tasks from CI failures.
  *
  * @example
  * ```ts

@@ -1,4 +1,4 @@
-# Lifecycle hooks — contract reference
+# Lifecycle hooks - contract reference
 
 This document is the single source of truth for the Bernstein lifecycle
 hook pipeline. It covers:
@@ -10,7 +10,7 @@ hook pipeline. It covers:
 - The `bernstein hooks` CLI.
 
 If you have ported a hook script from another orchestrator and it is
-not running unchanged in Bernstein, the contract is the issue — file a
+not running unchanged in Bernstein, the contract is the issue - file a
 bug.
 
 ---
@@ -44,7 +44,7 @@ modification.
 | `preToolUse` | `session_id`, `tool`, `args` | `blast_radius_score` |
 | `postToolUse` | `session_id`, `tool`, `args`, `result` | `duration_ms`, `cost`, `success` |
 | `errorOccurred` | `session_id`, `error_class`, `message` | `recovery_path` |
-| `idle` | `session_id`, `idle_duration_s` | — |
+| `idle` | `session_id`, `idle_duration_s` | - |
 | `sessionEnd` | `session_id`, `status` | `total_cost`, `total_tokens` |
 
 Extra keys are always allowed. Schemas are validated up-front by
@@ -65,7 +65,7 @@ by issue #1323. Existing hook scripts continue to work without edits.
 | `pre_spawn` / `post_spawn` | Around agent session spawn. |
 | `pre_archive` / `post_archive` | Around task archival. |
 
-These events accept any payload shape — no schema is enforced.
+These events accept any payload shape - no schema is enforced.
 
 ---
 
@@ -74,17 +74,17 @@ These events accept any payload shape — no schema is enforced.
 A hook is any executable file whose path the orchestrator can reach.
 There are three registration channels:
 
-1. **Convention-based** — drop an executable at
+1. **Convention-based** - drop an executable at
    `.bernstein/hooks/<event>.{sh,py}`. The filename stem is matched
    against the event vocabulary; `preToolUse.sh`, `preToolUse.py`, and
    `session_start.sh` are all valid examples.
-2. **Config-based** — declare scripts in `bernstein.yaml` under the
+2. **Config-based** - declare scripts in `bernstein.yaml` under the
    top-level `hooks:` key. Use this when you want explicit ordering or
    a non-default timeout.
-3. **Plugin-based** — implement `@hookimpl` against
+3. **Plugin-based** - implement `@hookimpl` against
    `LifecycleHookSpec` in a pluggy plugin. Plugin names registered
    under `hooks.<event>` in `bernstein.yaml` are documented references
-   only — the plugin must be loaded the usual way.
+   only - the plugin must be loaded the usual way.
 
 Example `bernstein.yaml`:
 
@@ -137,7 +137,7 @@ following environment variables on the subprocess:
 | `BERNSTEIN_WORKDIR` | Working directory the hook should treat as CWD. |
 | `BERNSTEIN_*` | Any other `BERNSTEIN_*` env variable inherited from the parent. |
 
-Anything else is stripped — secrets and unrelated process state do not
+Anything else is stripped - secrets and unrelated process state do not
 leak into hook subprocesses.
 
 ### Output
@@ -238,10 +238,10 @@ before any script runs.
 
 Exit codes:
 
-- `0` — every hook in the chain returned `allow` (or didn't emit a
+- `0` - every hook in the chain returned `allow` (or didn't emit a
   decision).
-- `1` — a hook raised `HookFailure` or the payload failed validation.
-- `2` — a hook explicitly denied the event.
+- `1` - a hook raised `HookFailure` or the payload failed validation.
+- `2` - a hook explicitly denied the event.
 
 ### `bernstein hooks check`
 

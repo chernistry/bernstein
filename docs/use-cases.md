@@ -1,6 +1,6 @@
 # Who Uses Bernstein
 
-These are honest workflow patterns pulled from Bernstein's own docs and CLI surface. No invented companies, no fake testimonials — just the jobs teams reach for when they want orchestration, isolation, and verification in one tool.
+These are honest workflow patterns pulled from Bernstein's own docs and CLI surface. No invented companies, no fake testimonials - just the jobs teams reach for when they want orchestration, isolation, and verification in one tool.
 
 ## Common workflows
 

@@ -19,8 +19,8 @@ Source of truth: `src/bernstein/adapters/registry.py`, individual adapter files.
 
 Every adapter can serve two roles in Bernstein:
 
-1. **As an agent** — spawned per-task to write code, run tests, commit changes
-2. **As the internal scheduler LLM** — used by the orchestrator for task decomposition, cost estimation, and plan optimization
+1. **As an agent** - spawned per-task to write code, run tests, commit changes
+2. **As the internal scheduler LLM** - used by the orchestrator for task decomposition, cost estimation, and plan optimization
 
 Set the scheduler model in `bernstein.yaml`:
 ```yaml
@@ -28,7 +28,7 @@ internal_llm_provider: gemini            # any adapter name
 internal_llm_model: gemini-pro
 ```
 
-This means you can run Bernstein with **zero Claude Code dependency** — use `qwen` or `gemini` for everything, or run fully air-gapped with `ollama`.
+This means you can run Bernstein with **zero Claude Code dependency** - use `qwen` or `gemini` for everything, or run fully air-gapped with `ollama`.
 
 ---
 
@@ -36,14 +36,14 @@ This means you can run Bernstein with **zero Claude Code dependency** — use `q
 
 | Adapter | Provider | Models | Reasoning | Cost Tier | Tool Use | Structured Output | MCP | Recommended Use Case |
 |---------|----------|--------|-----------|-----------|----------|-------------------|-----|----------------------|
-| `claude` | Anthropic | opus, sonnet, haiku | ★★★★★ (opus) / ★★★★ (sonnet) / ★★ (haiku) | $$–$$$ | Full (role-scoped) | JSON schema enforced | Yes | Primary workhorse — architecture, features, tests, docs |
+| `claude` | Anthropic | opus, sonnet, haiku | ★★★★★ (opus) / ★★★★ (sonnet) / ★★ (haiku) | $$–$$$ | Full (role-scoped) | JSON schema enforced | Yes | Primary workhorse - architecture, features, tests, docs |
 | `codex` | OpenAI | GPT-5, GPT-5 mini | ★★★★★ (GPT-5) / ★★★★ (mini) | $$–$$$ | Full | JSON (`--json`) | No | Provider diversity; OpenAI reasoning models |
 | `openai_agents` | OpenAI (Agents SDK v2) | GPT-5, GPT-5 mini, o4 | ★★★★ | $–$$$ | Full (SDK tool protocol) | JSONL event stream | Yes (Bernstein-bridged) | OpenAI sandboxed execution with E2B / Modal / Docker |
 | `gemini` | Google | Gemini Pro, Gemini Flash | ★★★★★ (Pro) / ★★★★ (Flash) | Free–$$$ | Full | JSON (`--output-format json`) | No | Free-tier usage; cost-effective medium tasks |
 | `aider` | Multi | Any (Anthropic/OpenAI/Azure) | Inherited from model | $–$$$ | File editing | No | Commit-per-change workflows; focused file edits |
 | `amp` | Sourcegraph | Anthropic + OpenAI models | ★★★★★ (opus/o3) | $$–$$$ | Full | No | Sourcegraph-integrated teams; codebase-aware context |
 | `qwen` | Multi | qwen3-coder, qwen3.6-plus | ★★★ | Free–$$ | Full | No | Cost-sensitive; low-complexity tasks; free OpenRouter |
-| `ollama` | Local | deepseek-r1, qwen2.5-coder, phi4, deepseek-v4-flash, deepseek-v4-pro | ★★★★ (v4-pro) / ★★★ (r1:70b) / ★★ (7b) | Free | File editing (via Aider) | No | Air-gapped; privacy-sensitive; zero API cost; EU-residency profile via DeepSeek V4 — see [deepseek.md](deepseek.md) |
+| `ollama` | Local | deepseek-r1, qwen2.5-coder, phi4, deepseek-v4-flash, deepseek-v4-pro | ★★★★ (v4-pro) / ★★★ (r1:70b) / ★★ (7b) | Free | File editing (via Aider) | No | Air-gapped; privacy-sensitive; zero API cost; EU-residency profile via DeepSeek V4 - see [deepseek.md](deepseek.md) |
 | `cody` | Sourcegraph | Anthropic/OpenAI/Google (via SG) | Inherited from model | $$ | Chat only | No | Sourcegraph-integrated with codebase-level context |
 | `cursor` | Cursor | Cursor's model routing | ★★★★ | $$ | Full | No | Teams with Cursor subscriptions |
 | `goose` | Block | Anthropic models | ★★★★ | $$–$$$ | Full | No | Teams already using Block's Goose |
@@ -52,7 +52,7 @@ This means you can run Bernstein with **zero Claude Code dependency** — use `q
 | `kiro` | AWS | AWS-managed models | ★★★ | $$ | Full | No | AWS-centric teams using AWS AI services |
 | `kilo` | Stackblitz | Any (via provider routing) | Inherited from model | $–$$$ | Full | No | Web development; Stackblitz-integrated teams |
 | `cloudflare` | Cloudflare | Workers AI models | ★★★ | Free–$$ | Full | No | Cloudflare Workers / Agents SDK users |
-| `iac` | N/A | N/A (Terraform/Pulumi) | N/A | N/A | IaC plan+apply | No | Infrastructure tasks — pair with LLM adapter for codegen |
+| `iac` | N/A | N/A (Terraform/Pulumi) | N/A | N/A | IaC plan+apply | No | Infrastructure tasks - pair with LLM adapter for codegen |
 | `generic` | Any | Pass-through | Depends on CLI | Varies | Depends on CLI | No | Unlisted CLIs; prototyping new adapters |
 | `mock` | None | None (simulated) | N/A | Free | Simulated | Simulated | Unit and integration tests only |
 
@@ -198,7 +198,7 @@ npm install -g @sourcegraph/amp
 
 ### qwen
 
-**Install:** No separate CLI install required — Qwen uses OpenAI-compatible APIs via env vars.
+**Install:** No separate CLI install required - Qwen uses OpenAI-compatible APIs via env vars.
 Optionally install the web search extension:
 ```bash
 pip install tavily-python  # for web search support
@@ -245,7 +245,7 @@ pip install aider-chat
 - Uses Aider as the coding frontend with Ollama as the LLM backend
 - Works in air-gapped and privacy-sensitive environments
 - Supports all Ollama-compatible models
-- **DeepSeek V4 + EU-residency guard** — when the requested model is `deepseek-v4-flash` or `deepseek-v4-pro` (or the adapter is constructed with `eu_residency=True`), `spawn()` refuses to dispatch against any host that is not loopback, RFC-1918, IPv6 unique-local, or an internal-suffix FQDN. Octet-aware host parsing catches the `10.example.com` / `192.168.evil.tld` rebinding shape. See the [DeepSeek V4 page](deepseek.md) for the full guard surface.
+- **DeepSeek V4 + EU-residency guard** - when the requested model is `deepseek-v4-flash` or `deepseek-v4-pro` (or the adapter is constructed with `eu_residency=True`), `spawn()` refuses to dispatch against any host that is not loopback, RFC-1918, IPv6 unique-local, or an internal-suffix FQDN. Octet-aware host parsing catches the `10.example.com` / `192.168.evil.tld` rebinding shape. See the [DeepSeek V4 page](deepseek.md) for the full guard surface.
 
 **Model mapping:**
 | Short name | Ollama / vLLM model |
@@ -259,7 +259,7 @@ pip install aider-chat
 | `deepseek-v4-pro` | `deepseek-v4-pro` (vLLM tensor-parallel) |
 | `phi4` | `phi4` |
 
-**Env vars:** None required. `OLLAMA_BASE_URL` / `OLLAMA_API_BASE` (optional, default `http://localhost:11434`). For `deepseek-v4-pro`, point either env var at the vLLM `/v1` endpoint — aider/litellm treats Ollama and vLLM interchangeably over the OpenAI-compatible wire format.
+**Env vars:** None required. `OLLAMA_BASE_URL` / `OLLAMA_API_BASE` (optional, default `http://localhost:11434`). For `deepseek-v4-pro`, point either env var at the vLLM `/v1` endpoint - aider/litellm treats Ollama and vLLM interchangeably over the OpenAI-compatible wire format.
 
 **Prerequisites:** `ollama` running locally + `aider-chat` installed + model pulled (`ollama pull qwen2.5-coder:7b`).
 
@@ -598,7 +598,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Env vars:** `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` (OpenHands-native), plus `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` (LiteLLM provider keys).
 
-**Invocation:** `openhands --headless --override-with-envs -t '<task>'`. The `--override-with-envs` flag is mandatory — without it OpenHands ignores env vars and reads persisted config from `~/.openhands/agent_settings.json`.
+**Invocation:** `openhands --headless --override-with-envs -t '<task>'`. The `--override-with-envs` flag is mandatory - without it OpenHands ignores env vars and reads persisted config from `~/.openhands/agent_settings.json`.
 
 **Best for:** Teams who want OpenHands' autonomous multi-step loop (plan + edit + execute) as a single Bernstein agent. Bernstein wraps the whole loop and only sees the final exit code; OpenHands' own sub-agent steps are not visible to Bernstein's accounting.
 
@@ -610,7 +610,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Env vars:** `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (Open Interpreter uses LiteLLM).
 
-**Invocation:** `interpreter -y --model <model> '<prompt>'`. The `-y` (auto-run) flag is mandatory — without it the subprocess hangs forever on the per-code-block confirmation prompt.
+**Invocation:** `interpreter -y --model <model> '<prompt>'`. The `-y` (auto-run) flag is mandatory - without it the subprocess hangs forever on the per-code-block confirmation prompt.
 
 **Best for:** Tasks that benefit from Open Interpreter's local code-execution loop. Bernstein's worktree isolation handles the host-level sandbox concern.
 
@@ -634,7 +634,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Env vars:** `PLANDEX_API_KEY`, `PLANDEX_ENV`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`.
 
-**Invocation:** `plandex tell '<prompt>' --apply --auto-exec --skip-menu --stop`. The full flag combo is required to bypass Plandex's interactive REPL — `--auto-exec` skips per-command approval, `--apply` applies pending changes, `--skip-menu` avoids the post-response menu, `--stop` exits after one response.
+**Invocation:** `plandex tell '<prompt>' --apply --auto-exec --skip-menu --stop`. The full flag combo is required to bypass Plandex's interactive REPL - `--auto-exec` skips per-command approval, `--apply` applies pending changes, `--skip-menu` avoids the post-response menu, `--stop` exits after one response.
 
 **Server requirement:** Plandex uses a client-server architecture. The CLI must reach Plandex Cloud or a self-hosted server (default `http://localhost:8099`). When no server is reachable, `plandex` exits early with a connection error and Bernstein surfaces it via the standard early-exit fast-fail path.
 
@@ -662,7 +662,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Invocation:** `letta --yolo -p '<prompt>'`. The `-p` flag is the documented one-off prompt mode; `--yolo` bypasses most permission prompts.
 
-**Caveats:** Letta Code's signature feature is cross-task memory via Letta Cloud. **Bernstein wraps Letta as a leaf-node one-shot agent** — Bernstein does not coordinate Letta's memory across tasks. Cross-task memory still works in Letta's own backend; it's just opaque to Bernstein's accounting and routing.
+**Caveats:** Letta Code's signature feature is cross-task memory via Letta Cloud. **Bernstein wraps Letta as a leaf-node one-shot agent** - Bernstein does not coordinate Letta's memory across tasks. Cross-task memory still works in Letta's own backend; it's just opaque to Bernstein's accounting and routing.
 
 **Best for:** Teams running Letta Cloud who want one-shot Letta sessions inside a larger Bernstein plan.
 
@@ -672,7 +672,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Install:** `curl -fsSL https://junie.jetbrains.com/install.sh | bash`
 
-**Env vars:** Provider-keyed by routed model — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `GH_COPILOT_TOKEN`, `MISTRAL_API_KEY`. Set `JUNIE_PROVIDER=<name>` so the adapter forwards the right key bundle.
+**Env vars:** Provider-keyed by routed model - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `GH_COPILOT_TOKEN`, `MISTRAL_API_KEY`. Set `JUNIE_PROVIDER=<name>` so the adapter forwards the right key bundle.
 
 **Invocation:** `junie run --headless --model <id> --prompt-file <path>`. The prompt lives on disk under `.sdd/runtime/` so multi-line prompts and shell metacharacters round-trip cleanly; `--headless` suppresses the interactive TUI so the process exits when the model finishes the response.
 
@@ -686,11 +686,11 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Install:** `brew install --cask amazon-q` (macOS) or the AWS-hosted `.deb`/`.rpm` packages (Linux). The Linux AppImage works for sandboxed installs.
 
-**Env vars:** none directly — `q` reads its bearer token from the on-disk login cache that `q login` writes. Cache lives under XDG paths on Linux/macOS and `%LOCALAPPDATA%` on Windows. The adapter refuses to spawn when no plausible cache directory is present and surfaces a clear "run `q login`" message rather than letting the CLI dump an authentication stack-trace into the agent log.
+**Env vars:** none directly - `q` reads its bearer token from the on-disk login cache that `q login` writes. Cache lives under XDG paths on Linux/macOS and `%LOCALAPPDATA%` on Windows. The adapter refuses to spawn when no plausible cache directory is present and surfaces a clear "run `q login`" message rather than letting the CLI dump an authentication stack-trace into the agent log.
 
-**Invocation:** `q chat --no-interactive --trust-all-tools "<prompt>"`. Both flags are required for unattended runs — missing either deadlocks the CLI on stdin (upstream issue #1951).
+**Invocation:** `q chat --no-interactive --trust-all-tools "<prompt>"`. Both flags are required for unattended runs - missing either deadlocks the CLI on stdin (upstream issue #1951).
 
-**Auth backends:** AWS Builder ID (free, personal account) or IAM Identity Center (enterprise SSO). When the spawn env carries an Identity Center session, `q`'s tool calls execute with **the user's IAM Identity Center role** — route infra-touching tasks (Terraform plans, AWS resource mutations) through `iac` or scope the role narrowly instead.
+**Auth backends:** AWS Builder ID (free, personal account) or IAM Identity Center (enterprise SSO). When the spawn env carries an Identity Center session, `q`'s tool calls execute with **the user's IAM Identity Center role** - route infra-touching tasks (Terraform plans, AWS resource mutations) through `iac` or scope the role narrowly instead.
 
 **Project status:** the upstream `aws/amazon-q-developer-cli` repo is deprecated and rebranded as Kiro CLI (`kiro-cli`, see [`kiro` adapter](#kiro-aws)). The legacy `q` binary continues to ship for existing installs and the documented `--no-interactive --trust-all-tools` surface is unchanged; this adapter targets that legacy surface so users on the original Builder ID flow keep working without a forced Kiro migration.
 
@@ -706,7 +706,7 @@ Simulates agent behavior for unit and integration tests. Not for production use.
 
 ## Orchestrator Delegation Adapters
 
-The adapters profiled above wrap **CLI coding agents** — tools that execute one task per invocation. The `devin_terminal` and `clm` adapters live alongside them in `registry.py`; their module docstrings carry the full configuration surface, and `clm` has its own [page](clm.md). The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
+The adapters profiled above wrap **CLI coding agents** - tools that execute one task per invocation. The `devin_terminal` and `clm` adapters live alongside them in `registry.py`; their module docstrings carry the full configuration surface, and `clm` has its own [page](clm.md). The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
 
 Use these when you have an existing workflow built on Composio or ralphex and want to drop it into one step of a larger Bernstein plan, rather than re-implementing it natively.
 
@@ -714,9 +714,9 @@ Use these when you have an existing workflow built on Composio or ralphex and wa
 
 **Install:** `npm install -g @aoagents/ao`
 
-**Env vars:** `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, plus optional `COMPOSIO_API_KEY` / `AO_PROJECT_ID`. Composio inherits credentials from whichever underlying agent plugin (`codex`, `claude-code`, …) it's configured with — there is no dedicated key.
+**Env vars:** `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, plus optional `COMPOSIO_API_KEY` / `AO_PROJECT_ID`. Composio inherits credentials from whichever underlying agent plugin (`codex`, `claude-code`, …) it's configured with - there is no dedicated key.
 
-**Invocation:** `ao spawn --prompt "<text>"` — the documented non-interactive entry point. The companion `ao start` is interactive (boots a tmux + dashboard) and is unsuitable for headless use. With no `ao start` running, `ao spawn` prints a benign warning that "AO is not running — lifecycle polling is inactive." The session still completes; the warning is expected for leaf-node delegation.
+**Invocation:** `ao spawn --prompt "<text>"` - the documented non-interactive entry point. The companion `ao start` is interactive (boots a tmux + dashboard) and is unsuitable for headless use. With no `ao start` running, `ao spawn` prints a benign warning that "AO is not running - lifecycle polling is inactive." The session still completes; the warning is expected for leaf-node delegation.
 
 **Best for:** Teams already running Composio's TypeScript orchestrator who want to keep that workflow as a step inside a Bernstein plan.
 
@@ -779,8 +779,8 @@ support modules that provide cross-cutting infrastructure:
 
 6. **Do you need air-gapped / self-hosted?**
    - `ollama` (local Ollama via Aider front-end)
-   - `ollama` with `deepseek-v4-flash` (single-GPU) or `deepseek-v4-pro` (vLLM tensor-parallel) for the EU-residency profile — see [DeepSeek V4](deepseek.md)
-   - `clm` for sovereign-AI customer-side gateways behind mTLS — see [CLM (Cyber Language Model)](clm.md)
+   - `ollama` with `deepseek-v4-flash` (single-GPU) or `deepseek-v4-pro` (vLLM tensor-parallel) for the EU-residency profile - see [DeepSeek V4](deepseek.md)
+   - `clm` for sovereign-AI customer-side gateways behind mTLS - see [CLM (Cyber Language Model)](clm.md)
 
 7. **Do you need multi-provider diversity?**
    - Primary: `claude`, Secondary: `codex` or `gemini`, Tertiary: `qwen`

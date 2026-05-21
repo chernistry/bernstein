@@ -1,6 +1,6 @@
 ---
 id: smoke-003-noop-hello-world
-title: No-op sanity task — print hello world
+title: No-op sanity task - print hello world
 role: backend
 expected_files_modified: []
 expected_test_outcomes: {}

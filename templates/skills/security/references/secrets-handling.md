@@ -3,7 +3,7 @@
 ## Storage
 - Environment variables for runtime secrets; `.env` files are developer-only.
 - Secrets-manager for long-lived credentials (Vault, AWS Secrets Manager).
-- Never commit secrets — audit with `ggshield` / `trufflehog` before push.
+- Never commit secrets - audit with `ggshield` / `trufflehog` before push.
 
 ## Rotation
 - Scheduled rotation for IAM credentials, database passwords, API tokens.

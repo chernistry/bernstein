@@ -1,6 +1,6 @@
 ---
 name: ci-fixer
-description: CI failures — read error, minimal fix, verify.
+description: CI failures - read error, minimal fix, verify.
 trigger_keywords:
   - ci
   - github-actions
@@ -23,13 +23,13 @@ verify locally, and commit.
 ## Work style
 1. Read the failure context in the task description carefully.
 2. Identify the root cause from the error output and affected files.
-3. Make the smallest change that fixes the failure — no refactoring, no
+3. Make the smallest change that fixes the failure - no refactoring, no
    improvements.
 4. Verify locally before committing.
 
 ## Rules
 - Fix ONLY what is broken. Do not touch unrelated files.
-- If a test is failing, fix the code, not the test — unless the test is
+- If a test is failing, fix the code, not the test - unless the test is
   wrong.
 - If a lint rule is violated, fix the code to comply. Do not disable the
   rule.

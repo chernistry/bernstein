@@ -15,7 +15,7 @@ description: >
 
 constraints:
   - "Python 3.12+"
-  - "Use FastAPI or Flask — pick one and stay consistent"
+  - "Use FastAPI or Flask - pick one and stay consistent"
   - "Type annotations on all public functions"
   - "pytest for tests, no mocks for database layer"
 

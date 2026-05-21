@@ -53,9 +53,9 @@ internal_llm_provider: gemini
 internal_llm_model: gemini-pro
 ```
 
-### `internal_llm_provider` — Orchestrator scheduling model
+### `internal_llm_provider` - Orchestrator scheduling model
 
-The orchestrator uses a lightweight LLM for internal decisions: task decomposition, cost estimation, difficulty scoring, and plan optimization. This is **not** the agent — it's the scheduler's brain.
+The orchestrator uses a lightweight LLM for internal decisions: task decomposition, cost estimation, difficulty scoring, and plan optimization. This is **not** the agent - it's the scheduler's brain.
 
 Any registered adapter CLI can serve as the internal LLM provider:
 
@@ -82,7 +82,7 @@ export BERNSTEIN_INTERNAL_LLM_PROVIDER=qwen
 export BERNSTEIN_INTERNAL_LLM_MODEL=coder-model
 ```
 
-### `role_model_policy` — Per-role agent configuration
+### `role_model_policy` - Per-role agent configuration
 
 Each role can use a different CLI adapter and model:
 
@@ -235,7 +235,7 @@ For security-sensitive deployments, prefer explicit config in `bernstein.yaml` o
 
 Always-allow rules short-circuit approval prompts when a tool invocation matches a known-safe signature. For example, allowing `grep` on `src/*` paths while still asking or denying `grep` on `/etc`.
 
-**Precedence:** Always-allow rules take **highest precedence** — a match overrides any ASK or DENY from other guardrails. `IMMUNE` and `SAFETY` decisions (e.g. secret detection, immune-path enforcement) are **never** overridden.
+**Precedence:** Always-allow rules take **highest precedence** - a match overrides any ASK or DENY from other guardrails. `IMMUNE` and `SAFETY` decisions (e.g. secret detection, immune-path enforcement) are **never** overridden.
 
 ### Rule schema
 
@@ -268,11 +268,11 @@ When `content_patterns` is specified, **all** listed strings must appear in the 
 ### Precedence summary
 
 ```
-IMMUNE / SAFETY   — never overridden (secrets, immune paths)
-ALWAYS-ALLOW      — overrides ASK and DENY when a rule matches
-DENY              — blocks by rule
-ASK               — prompts user
-ALLOW             — default pass-through
+IMMUNE / SAFETY   - never overridden (secrets, immune paths)
+ALWAYS-ALLOW      - overrides ASK and DENY when a rule matches
+DENY              - blocks by rule
+ASK               - prompts user
+ALLOW             - default pass-through
 ```
 
 ---

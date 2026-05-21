@@ -7,12 +7,12 @@
 # MagicDNS hostname `bernstein-central.tailXXXXX.ts.net:8052`.
 #
 # Required environment:
-#   TS_AUTHKEY                    — Tailscale auth key tagged
+#   TS_AUTHKEY                    - Tailscale auth key tagged
 #                                   `tag:bernstein-central`
-#   BERNSTEIN_CLUSTER_AUTH_SECRET — shared HMAC secret for cluster JWTs
+#   BERNSTEIN_CLUSTER_AUTH_SECRET - shared HMAC secret for cluster JWTs
 #
 # Optional:
-#   BERNSTEIN_IMAGE — pin a Bernstein image tag (default: latest)
+#   BERNSTEIN_IMAGE - pin a Bernstein image tag (default: latest)
 
 services:
   tailscale:

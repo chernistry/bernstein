@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Basic markdown link check — lists broken relative links under docs/.
+# Basic markdown link check - lists broken relative links under docs/.
 set -euo pipefail
 
 fails=0

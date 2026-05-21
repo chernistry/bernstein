@@ -2,7 +2,7 @@
 #
 # This example shows Bernstein routing tasks to different AI providers
 # in a single run. The orchestrator is the same regardless of which
-# CLI agents are installed — swap providers without changing anything else.
+# CLI agents are installed - swap providers without changing anything else.
 #
 # Requirements:
 #   - Claude Code:  npm install -g @anthropic-ai/claude-code  + ANTHROPIC_API_KEY
@@ -16,7 +16,7 @@
 
 goal: "Build a minimal REST API with a /users endpoint: list, create, and delete users. Include tests and API docs."
 
-# Default adapter — used for roles without an override
+# Default adapter - used for roles without an override
 cli: auto
 
 # Per-role adapter overrides
@@ -33,7 +33,7 @@ role_config:
     cli: codex
     model: gpt-5.4-mini
 
-  # Use Gemini Flash for documentation — fast and cheap
+  # Use Gemini Flash for documentation - fast and cheap
   docs:
     cli: gemini
     model: gemini-3-flash

@@ -3,13 +3,13 @@ version: "3.9"
 # Bernstein cluster-mode deployment
 #
 # Roles:
-#   bernstein-server      — task server + web dashboard (port 8052)
-#   bernstein-orchestrator — reads the backlog, spawns workers via HTTP
-#   bernstein-worker      — claims and executes tasks (scale with --scale)
-#   prometheus            — scrapes /metrics from bernstein-server (port 9090)
-#   grafana               — pre-built agent dashboards (port 3000, admin/admin)
-#   postgres              — shared relational state for the task store
-#   redis                 — distributed locks and bulletin board
+#   bernstein-server      - task server + web dashboard (port 8052)
+#   bernstein-orchestrator - reads the backlog, spawns workers via HTTP
+#   bernstein-worker      - claims and executes tasks (scale with --scale)
+#   prometheus            - scrapes /metrics from bernstein-server (port 9090)
+#   grafana               - pre-built agent dashboards (port 3000, admin/admin)
+#   postgres              - shared relational state for the task store
+#   redis                 - distributed locks and bulletin board
 #
 # Usage:
 #   docker compose up -d
@@ -33,14 +33,14 @@ x-bernstein-common: &bernstein-common
     BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN:-changeme}
     BERNSTEIN_BIND_HOST: "0.0.0.0"
     BERNSTEIN_CLUSTER_ENABLED: "true"
-    # LLM provider keys — set in .env
+    # LLM provider keys - set in .env
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     TAVILY_API_KEY: ${TAVILY_API_KEY:-}
     # Database / cache URLs
-    BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein  # NOSONAR — development-only default, not used in production
+    BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein  # NOSONAR - development-only default, not used in production
     BERNSTEIN_REDIS_URL: redis://redis:6379/0
   volumes:
     - sdd-data:/workspace/.sdd
@@ -70,7 +70,7 @@ services:
       BERNSTEIN_BIND_HOST: "0.0.0.0"
       BERNSTEIN_CLUSTER_ENABLED: "true"
       BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN:-changeme}
-      BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein  # NOSONAR — development-only default, not used in production
+      BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein  # NOSONAR - development-only default, not used in production
       BERNSTEIN_REDIS_URL: redis://redis:6379/0
     ports:
       - "8052:8052"
@@ -197,7 +197,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: bernstein
-      POSTGRES_PASSWORD: bernstein  # NOSONAR — development-only default, not used in production
+      POSTGRES_PASSWORD: bernstein  # NOSONAR - development-only default, not used in production
       POSTGRES_DB: bernstein
     volumes:
       - postgres-data:/var/lib/postgresql/data

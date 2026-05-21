@@ -1,4 +1,4 @@
-# Bernstein Plan — Microservice Extraction from Monolith
+# Bernstein Plan - Microservice Extraction from Monolith
 #
 # A four-stage plan for safely carving a service out of a monolith:
 #   1. Boundaries:   identify domain, map data and call dependencies
@@ -22,7 +22,7 @@ cli: auto
 budget: "$25"
 max_agents: 4
 constraints:
-  - "Zero downtime — feature flags control traffic cutover"
+  - "Zero downtime - feature flags control traffic cutover"
   - "The extracted service owns its own database schema; no shared DB tables"
   - "Contract tests must pass before any production traffic is routed to the new service"
   - "Monolith code is deleted only after 100% traffic cutover and a monitoring bake period"
@@ -106,7 +106,7 @@ stages:
         description: >
           Copy the domain logic from the monolith into the new service. Adapt
           database access to use the service's own schema (from data-map.md).
-          Remove all imports from other monolith domains — replace cross-domain
+          Remove all imports from other monolith domains - replace cross-domain
           data fetches with HTTP calls to the monolith API. All logic must remain
           functionally identical to the monolith version.
         files:
@@ -141,7 +141,7 @@ stages:
         complexity: medium
         description: >
           Add routing rules to the API gateway (Kong, Nginx, AWS API Gateway,
-          or Traefik — match the existing stack). Route /v*/domain/* to the new
+          or Traefik - match the existing stack). Route /v*/domain/* to the new
           service when the feature flag EXTRACT_<DOMAIN>=true. When the flag is
           false, requests fall through to the monolith. Test routing with
           integration tests in tests/gateway/.
@@ -181,7 +181,7 @@ stages:
           Delete the target domain module from the monolith source tree.
           Replace any remaining call sites with HTTP client calls to the new
           service (for any internal monolith consumers that were not routed
-          through the gateway). Remove shared database JOINs — replace with
+          through the gateway). Remove shared database JOINs - replace with
           enrichment via service API. Ensure all monolith tests still pass.
         completion_signals:
           - type: command

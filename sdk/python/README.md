@@ -28,11 +28,11 @@ with BernsteinClient("http://127.0.0.1:8052") as client:
 
 ## Adapters
 
-- **Jira** — convert issues to tasks, sync status back via transitions
-- **Linear** — GraphQL-backed issue sync
-- **Slack** — Block Kit notifications on task events
-- **Teams** — Adaptive Card notifications
-- **GitHub Actions** — create fix tasks from CI failures
+- **Jira** - convert issues to tasks, sync status back via transitions
+- **Linear** - GraphQL-backed issue sync
+- **Slack** - Block Kit notifications on task events
+- **Teams** - Adaptive Card notifications
+- **GitHub Actions** - create fix tasks from CI failures
 
 ## State mapping
 

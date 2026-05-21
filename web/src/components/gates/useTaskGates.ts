@@ -3,7 +3,7 @@
 // While the task is still live we refetch on a 6s cadence so the operator
 // sees gates flip status without manual reload. As soon as the report says
 // the task is terminal (``done`` / ``failed`` / ``cancelled``) we stop the
-// timer — terminal reports are immutable on disk.
+// timer - terminal reports are immutable on disk.
 
 import { useQuery } from '@tanstack/react-query';
 
@@ -22,7 +22,7 @@ export interface UseTaskGatesOptions {
 
 export interface UseTaskGatesResult {
   report: GateReport | null;
-  /** True for the very first load only — drives the skeleton, not refetches. */
+  /** True for the very first load only - drives the skeleton, not refetches. */
   initialLoading: boolean;
   isRefetching: boolean;
   isMissing: boolean;
@@ -46,7 +46,7 @@ export function useTaskGates({ taskId, enabled = true }: UseTaskGatesOptions): U
       try {
         return await apiGet<GateReport>(`/tasks/${encodeURIComponent(taskId)}/gates`);
       } catch (err) {
-        // 404 means "no report yet" — render the empty state instead of an
+        // 404 means "no report yet" - render the empty state instead of an
         // error banner. Any other error still propagates so the error state
         // can offer Retry.
         if (err instanceof ApiError && err.status === 404) return null;

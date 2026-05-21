@@ -1,5 +1,5 @@
 /**
- * @bernstein/sdk — Integration SDK for the Bernstein task server.
+ * @bernstein/sdk - Integration SDK for the Bernstein task server.
  *
  * @example
  * ```ts

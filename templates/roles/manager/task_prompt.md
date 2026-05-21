@@ -23,7 +23,7 @@
 
 ## Task creation
 
-The task server requires bearer-token auth — see the `## Task Server Authentication`
+The task server requires bearer-token auth - see the `## Task Server Authentication`
 section appended below for the absolute token file path. Every POST needs the
 `Authorization: Bearer $(cat …)` header (or `Authorization: Bearer $BERNSTEIN_AUTH_TOKEN`
 as a fallback).

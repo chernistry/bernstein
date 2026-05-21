@@ -388,7 +388,7 @@
       </div>
     </div>
 
-    <!-- Right: Agents + Activity Log (40%) — hidden on mobile unless toggled -->
+    <!-- Right: Agents + Activity Log (40%) - hidden on mobile unless toggled -->
     <div class="lg:col-span-2 flex flex-col gap-3 overflow-hidden"
          :class="{ 'hidden lg:flex': !sidebarOpen }"
          style="max-height: min(60vh, 500px);">
@@ -955,7 +955,7 @@
           ];
         },
 
-        // Dependency DAG data — builds nodes+edges with a left-to-right topological layout
+        // Dependency DAG data - builds nodes+edges with a left-to-right topological layout
         get dagData() {
           const tasks = this.tasks;
           if (!tasks.length) return { nodes: [], edges: [], svgW: 0, svgH: 0 };
@@ -1055,7 +1055,7 @@
             if (!this.connected) this.connected = true;
           } catch (err) {
               console.debug('bernstein:fetch-err handled', err);
-            // Fetch failed — mark disconnected and fall back to polling
+            // Fetch failed - mark disconnected and fall back to polling
             this.connected = false;
             if (!this.pollTimer) {
               this.startPolling();
@@ -1153,7 +1153,7 @@
             };
           } catch (err) {
             console.debug('bernstein:ws-conn-err handled', err);
-            // WebSocket not supported — fall back to SSE
+            // WebSocket not supported - fall back to SSE
             this.wsActive = false;
             this.connectSSE();
           }
@@ -1213,7 +1213,7 @@
             };
           } catch (err) {
             console.debug('bernstein:sse-conn-err handled', err);
-            // SSE not available — fall back to polling
+            // SSE not available - fall back to polling
             this.connected = false;
             this.startPolling();
           }
@@ -1273,7 +1273,7 @@
             };
           } catch (err) {
             console.debug('bernstein:agent-stream-err handled', err);
-            // Agent stream unavailable — fall back to polling
+            // Agent stream unavailable - fall back to polling
             this._logPollTimer = setInterval(() => this.fetchAgentLogs(), 2000);
             this.fetchAgentLogs();
           }

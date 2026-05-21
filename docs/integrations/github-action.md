@@ -12,7 +12,7 @@ branch, Bernstein will attempt to fix it automatically.
 
 | Input            | Required | Default   | Description                                             |
 |------------------|----------|-----------|---------------------------------------------------------|
-| `task`           | no       | —         | Task description, or `"fix-ci"` for auto-fix mode       |
+| `task`           | no       | -         | Task description, or `"fix-ci"` for auto-fix mode       |
 | `budget`         | no       | `"5.00"`  | Dollar cap for the run                                  |
 | `cli`            | no       | `"claude"`| Agent CLI to use (`claude`, `codex`, `gemini`, `qwen`)  |
 | `max-retries`    | no       | `"3"`     | Retry count in fix-ci mode                              |
@@ -44,7 +44,7 @@ bernstein -g "<task>" --budget <budget> --headless
 Use this for ad-hoc tasks like generating tests, refactoring, or applying
 a migration.
 
-**Example — run a task on push:**
+**Example - run a task on push:**
 
 ```yaml
 on:

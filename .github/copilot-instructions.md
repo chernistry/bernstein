@@ -1,6 +1,6 @@
 # Copilot Instructions
 
-Bernstein is a multi-agent orchestration system for CLI coding agents (Python 3.12+). The orchestrator is deterministic Python — NOT an LLM.
+Bernstein is a multi-agent orchestration system for CLI coding agents (Python 3.12+). The orchestrator is deterministic Python - NOT an LLM.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ src/bernstein/
 - The orchestrator/scheduler is deterministic Python. NEVER add LLM calls for coordination.
 - Agents are short-lived: spawn per task, execute, exit. No long-running sessions.
 - All runtime state lives in `.sdd/` as files (JSONL, YAML). No databases.
-- Use frozen dataclasses/TypedDict for all data — never raw dicts.
+- Use frozen dataclasses/TypedDict for all data - never raw dicts.
 - Type hints on ALL public functions. Pyright strict mode must pass.
 - Async for IO-bound, sync for CPU-bound.
 - New constants go in `core/defaults.py`, not inline.
@@ -52,7 +52,7 @@ uv run pyright src/
 uv run python scripts/run_tests.py -x
 ```
 
-NEVER run `uv run pytest tests/` — it leaks 100GB+ RAM. Always use `scripts/run_tests.py`.
+NEVER run `uv run pytest tests/` - it leaks 100GB+ RAM. Always use `scripts/run_tests.py`.
 
 ## Git rules
 

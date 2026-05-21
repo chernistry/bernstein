@@ -174,6 +174,6 @@ This ensures:
 
 ## See Also
 
-- [DESIGN.md](./DESIGN.md) — Architecture overview
-- [.github/workflows/ci.yml](../.github/workflows/ci.yml) — Main CI pipeline
-- [pyproject.toml](../pyproject.toml) — Project dependencies
+- [DESIGN.md](./DESIGN.md) - Architecture overview
+- [.github/workflows/ci.yml](../.github/workflows/ci.yml) - Main CI pipeline
+- [pyproject.toml](../pyproject.toml) - Project dependencies

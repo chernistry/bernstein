@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# generate-spotlight.sh — Auto-generate a Community Spotlight blog post
+# generate-spotlight.sh - Auto-generate a Community Spotlight blog post
 # Usage: ./scripts/generate-spotlight.sh --month YYYY-MM [--repo /path/to/repo]
 #
 # Requires: curl, jq (for GitHub API queries)
@@ -53,11 +53,11 @@ OUTFILE="$OUTPUT_DIR/${MONTH}.md"
 
 cat > "$OUTFILE" << HEADER
 ---
-title: "Community Spotlight — $MONTH_NAME $YEAR"
+title: "Community Spotlight - $MONTH_NAME $YEAR"
 date: "${MONTH}-01"
 ---
 
-# Community Spotlight — $MONTH_NAME $YEAR
+# Community Spotlight - $MONTH_NAME $YEAR
 
 Welcome to this month's community spotlight! We're grateful for every contribution that helps make Bernstein better.
 
@@ -66,7 +66,7 @@ Welcome to this month's community spotlight! We're grateful for every contributi
 HEADER
 
 # Add each contributor
-echo "$CONTRIBUTORS" | jq -r '.[] | "- **[@\(.author)](\(.author))** — [\(.title)](\(.url))"' >> "$OUTFILE"
+echo "$CONTRIBUTORS" | jq -r '.[] | "- **[@\(.author)](\(.author))** - [\(.title)](\(.url))"' >> "$OUTFILE"
 
 cat >> "$OUTFILE" << FOOTER
 

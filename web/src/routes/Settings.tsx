@@ -170,7 +170,7 @@ export default function Settings() {
         <div className="mt-2 text-[11px] text-muted-foreground">
           {savedToken
             ? `Stored token: ${savedToken.slice(0, 4)}…${savedToken.slice(-4)} (${savedToken.length} chars)`
-            : 'No token stored — requests will be sent unauthenticated.'}
+            : 'No token stored - requests will be sent unauthenticated.'}
         </div>
       </section>
 

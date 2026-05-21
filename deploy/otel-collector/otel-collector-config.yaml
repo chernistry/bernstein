@@ -15,9 +15,9 @@
 #   OTLP HTTP → localhost:4318
 #
 # Env vars consumed by this config:
-#   DATADOG_API_KEY     — forward traces/metrics to Datadog (optional)
-#   NEWRELIC_API_KEY    — forward traces/metrics to New Relic (optional)
-#   JAEGER_ENDPOINT     — Jaeger OTLP gRPC endpoint (default: jaeger:4317)
+#   DATADOG_API_KEY     - forward traces/metrics to Datadog (optional)
+#   NEWRELIC_API_KEY    - forward traces/metrics to New Relic (optional)
+#   JAEGER_ENDPOINT     - Jaeger OTLP gRPC endpoint (default: jaeger:4317)
 
 receivers:
   # Accept OTLP from Bernstein agents (gRPC)
@@ -26,13 +26,13 @@ receivers:
       grpc:
         endpoint: "0.0.0.0:4317"
 
-  # Accept OTLP from Bernstein agents (HTTP — useful for browser/SDK agents)
+  # Accept OTLP from Bernstein agents (HTTP - useful for browser/SDK agents)
   otlp/http:
     protocols:
       http:
         endpoint: "0.0.0.0:4318"
 
-  # Prometheus scrape receiver — scrapes Bernstein /metrics endpoint directly
+  # Prometheus scrape receiver - scrapes Bernstein /metrics endpoint directly
   prometheus:
     config:
       scrape_configs:
@@ -78,7 +78,7 @@ processors:
             value: "^/(health|metrics)$"
 
 exporters:
-  # Prometheus metrics endpoint — Grafana scrapes this
+  # Prometheus metrics endpoint - Grafana scrapes this
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: bernstein
@@ -91,13 +91,13 @@ exporters:
     tls:
       insecure: true
 
-  # Debug exporter — writes a summary line per batch to stdout
+  # Debug exporter - writes a summary line per batch to stdout
   debug:
     verbosity: normal
     sampling_initial: 5
     sampling_thereafter: 200
 
-  # Datadog — enabled only when DATADOG_API_KEY is set
+  # Datadog - enabled only when DATADOG_API_KEY is set
   # Uses Datadog's native OTLP intake (no agent required)
   datadog:
     api:
@@ -112,7 +112,7 @@ exporters:
         "task.run": "bernstein.task.run"
         "agent.spawn": "bernstein.agent.spawn"
 
-  # New Relic — enabled only when NEWRELIC_API_KEY is set
+  # New Relic - enabled only when NEWRELIC_API_KEY is set
   # Uses New Relic's OTLP endpoint
   otlp/newrelic:
     endpoint: "otlp.nr-data.net:4317"

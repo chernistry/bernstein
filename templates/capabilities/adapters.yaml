@@ -2,7 +2,7 @@
 #
 # Adapters launch a generic CLI coding agent (Claude Code, Codex, etc.).
 # Once a CLI agent is running it can read repository files, fetch URLs,
-# and call git/gh — so every adapter is tagged with all three capabilities
+# and call git/gh - so every adapter is tagged with all three capabilities
 # unless an operator scopes it via per-agent credential scoping or the
 # tool allowlist.  Treat the adapter row as the *outer* envelope; the
 # inner tool calls are tagged separately in mcp_tools.yaml / surfaces.yaml.

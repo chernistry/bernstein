@@ -1,4 +1,4 @@
-# Bernstein Plan — Tech Debt Sprint
+# Bernstein Plan - Tech Debt Sprint
 #
 # A three-stage plan for a focused tech debt reduction sprint:
 #   1. Audit:      enumerate dead code, outdated deps, missing types, test gaps
@@ -21,7 +21,7 @@ cli: auto
 budget: "$15"
 max_agents: 4
 constraints:
-  - "No feature changes — refactoring and cleanup only"
+  - "No feature changes - refactoring and cleanup only"
   - "All existing tests must pass after every change"
   - "Dependency upgrades must not change public API behaviour"
   - "Type annotation coverage must not decrease"
@@ -124,7 +124,7 @@ stages:
           starting with the most-imported ones. Use mypy or pyright to verify each
           module is clean after annotation. For Python: annotate all function
           signatures, class attributes, and return types. For TypeScript: replace
-          any types with specific interfaces. Do not refactor logic — annotation only.
+          any types with specific interfaces. Do not refactor logic - annotation only.
         completion_signals:
           - type: command
             run: "python -m mypy src/ --ignore-missing-imports --no-error-summary"

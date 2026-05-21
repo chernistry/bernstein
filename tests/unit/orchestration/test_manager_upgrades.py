@@ -137,7 +137,16 @@ def test_determine_upgrade_type_unmatched_defaults_to_code_modification(manager:
 # ---------------------------------------------------------------------------
 
 
-_PARENT = Task(id="P-1", title="Big task", description="Do many things", role="backend", estimated_minutes=120)
+@pytest.fixture()
+def parent_task() -> Task:
+    """Fresh parent task per test.
+
+    Tests run randomly-ordered and must be runnable in isolation; a
+    module-level constant could be mutated by ``decompose`` and make the
+    suite order-dependent, so each test gets its own instance.
+    """
+    return Task(id="P-1", title="Big task", description="Do many things", role="backend", estimated_minutes=120)
+
 
 _THREE_SUBTASKS = (
     "["
@@ -149,9 +158,9 @@ _THREE_SUBTASKS = (
 
 
 @pytest.mark.asyncio()
-async def test_decompose_returns_subtasks_in_range(manager: ManagerAgent) -> None:
+async def test_decompose_returns_subtasks_in_range(manager: ManagerAgent, parent_task: Task) -> None:
     with patch(_LLM, new_callable=AsyncMock, return_value=_THREE_SUBTASKS):
-        subtasks = await manager.decompose(_PARENT, min_subtasks=2, max_subtasks=5)
+        subtasks = await manager.decompose(parent_task, min_subtasks=2, max_subtasks=5)
     assert len(subtasks) == 3
     assert subtasks[0].title == "Sub A"
     # IDs are prefixed with the parent id so children are traceable.
@@ -159,18 +168,18 @@ async def test_decompose_returns_subtasks_in_range(manager: ManagerAgent) -> Non
 
 
 @pytest.mark.asyncio()
-async def test_decompose_raises_when_too_few_subtasks(manager: ManagerAgent) -> None:
+async def test_decompose_raises_when_too_few_subtasks(manager: ManagerAgent, parent_task: Task) -> None:
     one_subtask = (
         '[{"title": "Only one", "description": "x", "role": "backend", '
         '"scope": "small", "complexity": "low", "estimated_minutes": 10}]'
     )
     with patch(_LLM, new_callable=AsyncMock, return_value=one_subtask):
         with pytest.raises(ValueError, match="Expected 2-5 subtasks, got 1"):
-            await manager.decompose(_PARENT, min_subtasks=2, max_subtasks=5)
+            await manager.decompose(parent_task, min_subtasks=2, max_subtasks=5)
 
 
 @pytest.mark.asyncio()
-async def test_decompose_caps_at_max_subtasks(manager: ManagerAgent) -> None:
+async def test_decompose_caps_at_max_subtasks(manager: ManagerAgent, parent_task: Task) -> None:
     # Six subtasks returned; with max=5 the count guard (2<=6<=5) is False, so
     # this must raise rather than silently truncate.
     six = (
@@ -184,12 +193,12 @@ async def test_decompose_caps_at_max_subtasks(manager: ManagerAgent) -> None:
     )
     with patch(_LLM, new_callable=AsyncMock, return_value=six):
         with pytest.raises(ValueError, match="got 6"):
-            await manager.decompose(_PARENT, min_subtasks=2, max_subtasks=5)
+            await manager.decompose(parent_task, min_subtasks=2, max_subtasks=5)
 
 
-def test_decompose_sync_wraps_async(manager: ManagerAgent) -> None:
+def test_decompose_sync_wraps_async(manager: ManagerAgent, parent_task: Task) -> None:
     with patch(_LLM, new_callable=AsyncMock, return_value=_THREE_SUBTASKS):
-        subtasks = manager.decompose_sync(_PARENT, min_subtasks=2, max_subtasks=5)
+        subtasks = manager.decompose_sync(parent_task, min_subtasks=2, max_subtasks=5)
     assert len(subtasks) == 3
     assert {s.role for s in subtasks} == {"backend", "qa"}
 

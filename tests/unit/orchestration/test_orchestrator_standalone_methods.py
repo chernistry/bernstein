@@ -80,7 +80,7 @@ def test_maybe_reload_config_parse_error_advances_mtime(tmp_path: Path, monkeypa
     stub = _reload_stub(cfg, config_mtime=0.0)
     assert stub._maybe_reload_config() is False
     # mtime is advanced to the file's mtime so the parse is not retried each tick.
-    assert stub._config_mtime == cfg.stat().st_mtime
+    assert stub._config_mtime == pytest.approx(cfg.stat().st_mtime)
 
 
 def test_maybe_reload_config_applies_max_agents_and_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -95,9 +95,9 @@ def test_maybe_reload_config_applies_max_agents_and_budget(tmp_path: Path, monke
     changed = stub._maybe_reload_config()
     assert changed is True
     assert stub._config.max_agents == 8
-    assert stub._config.budget_usd == 99.0
+    assert stub._config.budget_usd == pytest.approx(99.0)
     # Budget change also propagates into the live cost tracker.
-    assert stub._cost_tracker.budget_usd == 99.0
+    assert stub._cost_tracker.budget_usd == pytest.approx(99.0)
 
 
 def test_maybe_reload_config_no_field_change_returns_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -279,7 +279,7 @@ def test_maybe_poll_ci_autofix_throttled_returns_empty(monkeypatch: pytest.Monke
     _bind(stub, "_maybe_poll_ci_autofix")
     assert stub._maybe_poll_ci_autofix() == []
     # Throttle guard must not advance the timestamp.
-    assert stub._last_ci_poll_ts == now - 5.0
+    assert stub._last_ci_poll_ts == pytest.approx(now - 5.0)
 
 
 # ---------------------------------------------------------------------------

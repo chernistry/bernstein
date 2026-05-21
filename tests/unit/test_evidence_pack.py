@@ -2,7 +2,7 @@
 
 Covers:
 
-* Standard-map resolution (real vs TODO stub for ai-act / dora / finos-aigf).
+* Standard-map resolution (only ai-act is exposed at MVP).
 * End-to-end build: pack contains the expected zip layout and the
   per-artefact SHA-256 hashes in ``manifest.json`` agree with the
   on-disk content.
@@ -12,8 +12,8 @@ Covers:
   bound.
 * Determinism: two builds of the same input produce a byte-identical
   zip with matching ``sha256``.
-* TODO standards still emit a valid bundle but flag every control as
-  ``status == "todo"`` so an operator can see what is real.
+* Unsupported standards (dora, finos-aigf) raise ``ValueError`` rather
+  than emitting a TODO-only bundle.
 """
 
 from __future__ import annotations
@@ -120,7 +120,11 @@ def sdd_dir(tmp_path: Path) -> Path:
 
 class TestStandardMap:
     def test_supported_standards_constant(self) -> None:
-        assert set(SUPPORTED_STANDARDS) == {"ai-act", "dora", "finos-aigf"}
+        # Only ai-act ships with a reviewed control map at MVP. DORA
+        # and FINOS AIGF are tracked under #1316 and must not be
+        # selectable from the CLI until their clause mappings are
+        # validated; emitting TODO-only bundles would mislead operators.
+        assert set(SUPPORTED_STANDARDS) == {"ai-act"}
 
     def test_ai_act_has_real_controls(self) -> None:
         mapping = get_standard_map("ai-act")
@@ -131,20 +135,13 @@ class TestStandardMap:
         clause_ids = {c["control_id"] for c in controls}
         assert {"art-12(1)", "art-12(2)(a)", "art-12(3)"}.issubset(clause_ids)
 
-    def test_dora_is_todo_stub(self) -> None:
-        mapping = get_standard_map("dora")
-        assert all(c["status"] == "todo" for c in mapping["controls"])
-        # Must cite the regulation for an operator to follow up.
-        assert "DORA" in mapping["regulation"] or "2022/2554" in mapping["regulation"]
-        # Every TODO control carries a follow-up link.
-        for c in mapping["controls"]:
-            assert "see_also" in c
-
-    def test_finos_is_todo_stub(self) -> None:
-        mapping = get_standard_map("finos-aigf")
-        assert all(c["status"] == "todo" for c in mapping["controls"])
-        for c in mapping["controls"]:
-            assert "see_also" in c
+    @pytest.mark.parametrize("standard", ["dora", "finos-aigf"])
+    def test_unsupported_standards_rejected(self, standard: str) -> None:
+        # Regression for the L2 bughunt: dora / finos-aigf used to be
+        # selectable and emit a bundle whose only controls were
+        # ``status: "todo"`` rows. They must now raise instead.
+        with pytest.raises(ValueError, match="unknown standard"):
+            get_standard_map(standard)
 
     def test_unknown_standard_raises(self) -> None:
         with pytest.raises(ValueError, match="unknown standard"):
@@ -272,26 +269,55 @@ class TestDeterminism:
 
 
 # ---------------------------------------------------------------------------
-# TODO standards still emit a valid bundle
+# Regression: deferred standards must error, not emit TODO-only bundles
 # ---------------------------------------------------------------------------
 
 
-class TestStubStandards:
-    @pytest.mark.parametrize("standard", ["dora", "finos-aigf"])
-    def test_stub_emits_bundle_with_todo_controls(self, sdd_dir: Path, standard: str) -> None:
-        pack = build_evidence_pack(
-            sdd_dir=sdd_dir,
-            standard=standard,
-        )
-        assert pack.archive_path is not None
-        assert pack.controls_mapped == 0
-        assert pack.controls_todo >= 1
+class TestDeferredStandardsRejected:
+    """Regression for the L2 bughunt on issue #1316.
 
-        with zipfile.ZipFile(pack.archive_path) as zf:
-            controls = json.loads(zf.read("controls.json"))
-            assert controls["standard"] == standard
-            for c in controls["controls"]:
-                assert c["status"] == "todo"
-            # Deferred follow-ups must be captured so an operator knows
-            # the gap is documented, not hidden.
-            assert controls["deferred"]
+    Prior to the fix, ``--standard dora`` and ``--standard finos-aigf``
+    were advertised by the CLI ``click.Choice`` list and produced a zip
+    whose ``controls.json`` carried only ``status: "todo"`` /
+    ``selector: "TODO"`` rows. That is not a useful evidence pack and
+    misrepresents the project's compliance surface. Both standards now
+    raise at build time until their clause maps are reviewed.
+    """
+
+    @pytest.mark.parametrize("standard", ["dora", "finos-aigf"])
+    def test_deferred_standard_raises_at_build(self, sdd_dir: Path, standard: str) -> None:
+        with pytest.raises(ValueError, match="unknown standard"):
+            build_evidence_pack(sdd_dir=sdd_dir, standard=standard)
+
+    @pytest.mark.parametrize("standard", ["dora", "finos-aigf"])
+    def test_deferred_standard_not_in_supported_list(self, standard: str) -> None:
+        assert standard not in SUPPORTED_STANDARDS
+
+    @pytest.mark.parametrize("standard", ["dora", "finos-aigf"])
+    def test_cli_choice_rejects_deferred_standards(self, tmp_path: Path, standard: str) -> None:
+        """``bernstein audit export --standard {dora,finos-aigf}`` must error.
+
+        Asserts (a) non-zero exit code and (b) the error mentions
+        ``--standard`` so an operator understands the gate. This pins
+        the ``click.Choice`` declaration in
+        ``cli/commands/audit_cmd.py`` so the deferred standards cannot
+        be re-introduced without updating both the choice list and the
+        underlying control maps.
+        """
+        from click.testing import CliRunner
+
+        from bernstein.cli.main import cli
+
+        # ``audit export`` requires a ``.sdd`` directory to exist before
+        # it parses the flags; seed an empty one so the click parser
+        # gets the chance to reject the choice.
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["audit", "export", "--standard", standard, "--dir", str(tmp_path)],
+        )
+        assert result.exit_code != 0
+        assert "--standard" in result.output or "'--standard'" in result.output

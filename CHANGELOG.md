@@ -10,6 +10,10 @@ All notable project changes are tracked here (code + docs).
 - `bernstein doctor --substrate` reports which detected hosts have Bernstein registered, which do not, and which are stale (canonical command/args differ from the recorded entry) (#1676).
 - Operator docs at `docs/substrate/{cursor,continue,cline,zed,aider}.md` cover install, verification, and uninstall per host (#1676).
 
+### Changed
+
+- `bernstein audit export --standard` no longer accepts `dora` or `finos-aigf`; the click choice list is `ai-act` only. The previous control maps for those two standards contained only placeholder rows (`status: "todo"`, `selector: "TODO"`) and have been removed from `SUPPORTED_STANDARDS` until their clause mappings are reviewed by subject-matter experts. Operators who pass either value now receive a clean usage error rather than a TODO-only zip (#1316).
+
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
 
 22 commits since v2.4.0. Full notes: [`docs/release-notes/v2.5.0.md`](docs/release-notes/v2.5.0.md).

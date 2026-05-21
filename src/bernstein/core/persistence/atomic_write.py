@@ -9,7 +9,7 @@ will misinterpret or fail on.
 This module centralises the crash-safe ``temp + fsync + os.replace``
 pattern for all ``.sdd/runtime/`` writes. POSIX and Windows both
 guarantee that :func:`os.replace` swaps the directory entry atomically,
-so readers see either the old contents or the new contents — never a
+so readers see either the old contents or the new contents - never a
 torn mix.
 
 Typical usage::
@@ -23,7 +23,7 @@ Typical usage::
     write_atomic_json(path, payload)
 
 Append-only JSONL files (e.g. ``replay.jsonl``, ``wal.jsonl``) should
-continue to use direct appends with ``fsync`` — per-line atomicity is
+continue to use direct appends with ``fsync`` - per-line atomicity is
 provided by the OS at write boundaries below ``PIPE_BUF`` and the
 on-disk state is already crash-safe at line granularity.
 """
@@ -57,7 +57,7 @@ def _fsync_dir(directory: Path) -> None:
     """Fsync *directory* so the rename is durable on POSIX.
 
     Windows does not expose directory fsync; the call is skipped there.
-    Best-effort: failures are logged at debug level only — the rename
+    Best-effort: failures are logged at debug level only - the rename
     itself is already atomic from the perspective of concurrent readers.
     """
     if os.name == "nt":
@@ -101,7 +101,7 @@ def write_atomic_bytes(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = _tmp_path_for(path)
     try:
-        # 0o600 — owner-only. Runtime state may carry task metadata, session
+        # 0o600 - owner-only. Runtime state may carry task metadata, session
         # tokens, or other material that should not be world-readable.
         fd = os.open(
             str(tmp),

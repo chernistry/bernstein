@@ -341,7 +341,7 @@ def _render_provider_summary(router: Any) -> None:
     for name, info in sorted(summary.items()):
         allowed_style = "green" if info["policy_allowed"] else "red"
         allowed_text = f"[{allowed_style}]{'yes' if info['policy_allowed'] else 'no'}[/{allowed_style}]"
-        residency = str(info.get("residency_attestation") or "—")
+        residency = str(info.get("residency_attestation") or "-")
         table.add_row(name, info["tier"], str(info.get("region", "global")), info["health"], allowed_text, residency)
 
     console.print(table)
@@ -457,15 +457,15 @@ def plan(export_file: str | None, status_filter: str | None) -> None:
     for t in tasks:
         raw_status: str = t.get("status", "open")
         color = STATUS_COLORS.get(raw_status, "white")
-        depends = ", ".join(d[:8] for d in cast("list[str]", t.get("depends_on", []))) or "—"
+        depends = ", ".join(d[:8] for d in cast("list[str]", t.get("depends_on", []))) or "-"
         table.add_row(
-            str(t.get("id", "—"))[:8],
+            str(t.get("id", "-"))[:8],
             f"[{color}]{raw_status}[/{color}]",
-            str(t.get("role", "—")),
-            str(t.get("title", "—")),
+            str(t.get("role", "-")),
+            str(t.get("title", "-")),
             depends,
-            str(t.get("model") or "—"),
-            str(t.get("effort") or "—"),
+            str(t.get("model") or "-"),
+            str(t.get("effort") or "-"),
         )
 
     console.print(table)

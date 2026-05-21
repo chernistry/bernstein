@@ -141,7 +141,7 @@ class TestConfigureDatadog:
             mock_preset.return_value = None
             result = configure_datadog(cfg)
 
-        # Falls back to OTLP path — result depends on whether init_telemetry_from_preset succeeds
+        # Falls back to OTLP path - result depends on whether init_telemetry_from_preset succeeds
         assert isinstance(result, bool)
 
     def test_uses_config_passed_directly(self) -> None:
@@ -298,7 +298,7 @@ class TestAutoConfigureApm:
 
 
 # ---------------------------------------------------------------------------
-# Telemetry presets — New Relic entries
+# Telemetry presets - New Relic entries
 # ---------------------------------------------------------------------------
 
 

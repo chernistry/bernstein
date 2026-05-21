@@ -1,4 +1,4 @@
-"""Status routes — backward-compatibility shim.
+"""Status routes - backward-compatibility shim.
 
 All route handlers have been decomposed into focused sub-modules:
 - status_dashboard: Dashboard data, display, and shared operational helpers

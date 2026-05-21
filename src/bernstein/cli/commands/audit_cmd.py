@@ -92,8 +92,8 @@ def show_cmd(limit: int) -> None:
     table.add_column("Resource")
 
     for ev in events:
-        ts = str(ev.get("timestamp", "—"))[:19]
-        event_type = str(ev.get("event_type", "—"))
+        ts = str(ev.get("timestamp", "-"))[:19]
+        event_type = str(ev.get("event_type", "-"))
         actor = str(ev.get("actor", ""))
         resource = f"{ev.get('resource_type', '')}/{ev.get('resource_id', '')}"
         table.add_row(ts, event_type, actor, resource)
@@ -661,7 +661,7 @@ def _run_standard_export(
     console.print()
     console.print(
         Panel(
-            f"[bold]Compliance Evidence Pack — {standard}[/bold]",
+            f"[bold]Compliance Evidence Pack - {standard}[/bold]",
             border_style="green",
             expand=False,
         ),
@@ -1182,7 +1182,7 @@ def slice_cmd(from_hmac: str | None, to_hmac: str | None, output: str) -> None:
 
     \b
     Foundation for time-travel replay.  The output is byte-stable
-    JSONL — each line is sort-keys-serialised — so downstream replayers
+    JSONL - each line is sort-keys-serialised - so downstream replayers
     can hash the slice directly.  The HMAC chain inside the slice is
     re-verified before writing; a structural mismatch aborts the export.
 
@@ -1226,7 +1226,7 @@ def slice_cmd(from_hmac: str | None, to_hmac: str | None, output: str) -> None:
     table.add_row("Events", str(result.event_count))
     table.add_row("From", result.from_hmac or "(genesis)")
     table.add_row("To", result.to_hmac or "(latest)")
-    table.add_row("Source files", ", ".join(result.source_files) or "—")
+    table.add_row("Source files", ", ".join(result.source_files) or "-")
     table.add_row("Output", str(out_path))
     console.print(table)
     console.print()
@@ -1439,7 +1439,7 @@ def _plan_archive(
                 continue
         if corrupt_only and path.name not in corrupt:
             continue
-        # Pick a reason — corrupt wins over before-date if both flags set.
+        # Pick a reason - corrupt wins over before-date if both flags set.
         if corrupt_only and path.name in corrupt:
             reason_by_name[path.name] = _ARCHIVE_REASON_CORRUPT
         elif before_date is not None:
@@ -1617,7 +1617,7 @@ def archive_cmd(
         dest = archive_dir / path.name
         if dest.exists():
             console.print(
-                f"[red]Refusing to overwrite[/red] {dest} — a file with the same name "
+                f"[red]Refusing to overwrite[/red] {dest} - a file with the same name "
                 "already exists in the archive directory. Aborting before moving "
                 "anything else.",
             )
@@ -1630,7 +1630,7 @@ def archive_cmd(
         try:
             path.rename(dest)
         except OSError:
-            # Cross-device move fallback — copy then unlink.
+            # Cross-device move fallback - copy then unlink.
             import shutil
 
             try:

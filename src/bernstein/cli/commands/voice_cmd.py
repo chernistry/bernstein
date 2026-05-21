@@ -1,4 +1,4 @@
-"""Voice command layer — speech-to-text via whisper.cpp for hands-free control.
+"""Voice command layer - speech-to-text via whisper.cpp for hands-free control.
 
 Implements ``bernstein listen``: captures microphone audio, transcribes locally
 using faster-whisper (offline, no cloud), parses utterances into CLI commands,
@@ -59,7 +59,7 @@ def _parse_workers(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Command grammar — (pattern, cli_args_template)
+# Command grammar - (pattern, cli_args_template)
 # Patterns are tried in order; first match wins.
 # Named groups from the regex are available for template substitution.
 # ---------------------------------------------------------------------------
@@ -400,7 +400,7 @@ def _listen_loop(
         text = _capture_and_transcribe(model, silence_threshold, min_audio_secs)
 
         if text is None:
-            # KeyboardInterrupt or too short — stop cleanly
+            # KeyboardInterrupt or too short - stop cleanly
             break
 
         if not text:
@@ -421,7 +421,7 @@ def _listen_loop(
             continue
 
         try:
-            # SECURITY: use list args, not shell=True — cmd contains voice input
+            # SECURITY: use list args, not shell=True - cmd contains voice input
             subprocess.run(shlex.split(cmd), check=False)
         except Exception as exc:
             console.print(f"[red]  Error executing command:[/red] {exc}")

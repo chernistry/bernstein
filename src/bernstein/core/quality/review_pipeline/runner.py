@@ -2,12 +2,12 @@
 
 The runner walks a :class:`ReviewPipeline` stage by stage:
 
-* Stages are sequential at the top level — no diamond joins.  Stage *N+1*
+* Stages are sequential at the top level - no diamond joins.  Stage *N+1*
   starts only once stage *N* finishes (deliberate, per spec).
 * Within a stage, agents run in parallel up to ``stage.parallelism`` via an
   ``asyncio.Semaphore``.
 * Stage outputs (verdict + structured findings) are forwarded to the next
-  stage's prompt context using the existing :class:`BulletinBoard` —
+  stage's prompt context using the existing :class:`BulletinBoard` -
   posted as ``finding`` messages tagged with the stage name. No new IPC.
 * Each stage logs an HMAC-chained audit event when an :class:`AuditLog` is
   injected, with stage-level breakdown.
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Type alias for the pluggable LLM caller — the runner default uses the
+# Type alias for the pluggable LLM caller - the runner default uses the
 # same provider/temperature settings as the cross-model verifier.
 LLMCaller = Callable[..., Awaitable[str]]
 
@@ -180,7 +180,7 @@ async def _default_llm_caller(
     max_tokens: int = _MAX_TOKENS,
     temperature: float = 0.0,
 ) -> str:
-    """Default LLM caller — keyword-only mirror of ``call_llm``.
+    """Default LLM caller - keyword-only mirror of ``call_llm``.
 
     Lives here so tests can monkeypatch a single attribute without the
     indirection of patching ``bernstein.core.llm.call_llm``.
@@ -206,11 +206,11 @@ def _format_prior_context(stage_verdicts: list[StageVerdict]) -> str:
     lines: list[str] = ["", "## Prior stage findings", ""]
     for sv in stage_verdicts:
         marker = "approved" if sv.verdict == "approve" else "request_changes"
-        lines.append(f"### {sv.stage} — {marker}")
+        lines.append(f"### {sv.stage} - {marker}")
         for av in sv.agents:
             head = f"- {av.role} ({av.model}): {av.verdict}"
             if av.feedback:
-                head += f" — {av.feedback}"
+                head += f" - {av.feedback}"
             lines.append(head)
             for issue in av.issues:
                 lines.append(f"  - issue: {issue}")
@@ -268,9 +268,9 @@ async def _run_one_agent(
     """Run a single agent and return its verdict.
 
     On adapter / LLM failure, defaults to ``approve`` so a transient outage
-    never permanently blocks merge — same behaviour as today's verifier.
+    never permanently blocks merge - same behaviour as today's verifier.
     """
-    # Cost-aware routing — if the spec pinned a model use it; otherwise let
+    # Cost-aware routing - if the spec pinned a model use it; otherwise let
     # the cascade pick one based on writer style ("low" effort → cheap).
     model = agent.model or select_reviewer_model("any", override=None)
     prompt = _build_agent_prompt(diff_src, prior_stages)
@@ -286,7 +286,7 @@ async def _run_one_agent(
         )
     except (TimeoutError, RuntimeError, OSError) as exc:
         logger.warning(
-            "review_pipeline: agent %s/%s LLM call failed: %s — defaulting to approve",
+            "review_pipeline: agent %s/%s LLM call failed: %s - defaulting to approve",
             agent.role,
             model,
             exc,
@@ -350,7 +350,7 @@ async def _run_stage(
 
     sv = aggregate_stage(stage, agent_verdicts.copy(), pipeline)
 
-    # Forward stage context via bulletin board — same mechanism agents use
+    # Forward stage context via bulletin board - same mechanism agents use
     # for cross-agent findings.  No new IPC.
     if bulletin is not None:
         for av in sv.agents:
@@ -411,7 +411,7 @@ async def run_pipeline(
             wider orchestrator board.
         audit_log: When supplied, each stage and the final verdict are
             written as HMAC-chained events.
-        actor: Audit ``actor`` field — defaults to ``review_pipeline``.
+        actor: Audit ``actor`` field - defaults to ``review_pipeline``.
 
     Returns:
         :class:`PipelineVerdict`.

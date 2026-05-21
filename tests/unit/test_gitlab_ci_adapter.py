@@ -1,4 +1,4 @@
-"""Tests for bernstein.adapters.ci.gitlab_ci — GitLab CI log parser."""
+"""Tests for bernstein.adapters.ci.gitlab_ci - GitLab CI log parser."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """Unit tests for the security incident response automation module.
 
-Verifies the full containment procedure — kill signal, quarantine metadata,
-forensic snapshot, task retry block, and security audit log — for all
+Verifies the full containment procedure - kill signal, quarantine metadata,
+forensic snapshot, task retry block, and security audit log - for all
 recognised security event types.
 """
 

@@ -1,4 +1,4 @@
-"""WorktreeManager — git worktree lifecycle for agent session isolation.
+"""WorktreeManager - git worktree lifecycle for agent session isolation.
 
 Each spawned agent gets its own git worktree at .sdd/worktrees/{session_id}
 on a branch named agent/{session_id}. This eliminates file-level conflicts
@@ -64,7 +64,7 @@ class WorktreeSetupConfig:
             - **macOS / Linux:** Symlinks work natively with no restrictions.
             - **Windows:** Requires Developer Mode enabled or Administrator
               privileges to create symlinks.  When unavailable, ``OSError``
-              is caught and logged as a warning — the worktree remains usable
+              is caught and logged as a warning - the worktree remains usable
               without the symlinked directories (agents may need to reinstall
               dependencies, increasing setup time).
             - **Cross-filesystem:** On Windows, symlinks across different
@@ -93,7 +93,7 @@ class WorktreeSetupConfig:
     setup_command: str | None = None
 
 
-_STALE_LOCK_AGE_S = 300  # 5 minutes — locks older than this are considered stale
+_STALE_LOCK_AGE_S = 300  # 5 minutes - locks older than this are considered stale
 
 
 def _check_stale_lock(lock_path: Path, now: float) -> str | None:
@@ -115,7 +115,7 @@ def _check_stale_lock(lock_path: Path, now: float) -> str | None:
             msg = f"Removed stale {lock_path.name} (age {age_s:.0f}s). Likely left by a crashed agent."
             logger.warning(msg)
             return msg
-        msg = f"{lock_path} exists (age {age_s:.0f}s) — another git operation may be in progress"
+        msg = f"{lock_path} exists (age {age_s:.0f}s) - another git operation may be in progress"
         logger.info(msg)
         return msg
     except OSError as exc:
@@ -128,9 +128,9 @@ def _check_git_health(repo_root: Path) -> list[str]:
     """Pre-flight health check for the git repository before worktree creation.
 
     Detects and auto-repairs common corruption left by crashed agents:
-    1. Stale ``.git/index.lock`` — deleted if older than 5 minutes.
-    2. Stale ``.git/worktrees/*/locked`` files — same treatment.
-    3. Invalid HEAD — verified via ``git rev-parse --verify HEAD``.
+    1. Stale ``.git/index.lock`` - deleted if older than 5 minutes.
+    2. Stale ``.git/worktrees/*/locked`` files - same treatment.
+    3. Invalid HEAD - verified via ``git rev-parse --verify HEAD``.
 
     Args:
         repo_root: Absolute path to the repository root.
@@ -289,7 +289,7 @@ def setup_worktree_env(
     4. Optionally runs a setup command (e.g. ``npm install``) inside the
        worktree when symlinks are insufficient.
 
-    Failures are logged as warnings but never propagate — a partially-set-up
+    Failures are logged as warnings but never propagate - a partially-set-up
     worktree is better than a hard spawn failure.
 
     Args:
@@ -340,7 +340,7 @@ def _count_unmerged_commits(repo_root: Path, branch: str, base: str = "main") ->
     """Return how many commits on *branch* are not reachable from *base*.
 
     Uses ``git rev-list <branch> ^<base> --count``.  If the branch is missing
-    or the command fails, returns ``0`` — callers treat that as "nothing to
+    or the command fails, returns ``0`` - callers treat that as "nothing to
     preserve" which is safe because graveyard capture is best-effort.
 
     Args:
@@ -424,14 +424,14 @@ def preserve_branch_to_graveyard(
        ``.sdd/graveyard/<sid>-<ts>.bundle`` so the commits survive even if
        the repo's object database is later pruned.
 
-    The original ``agent/<sid>`` branch is *not* deleted here — the caller
+    The original ``agent/<sid>`` branch is *not* deleted here - the caller
     (:meth:`WorktreeManager.cleanup`) already does that via ``git branch
     -D`` once the worktree has been removed.  Attempting to delete it
     earlier would fail because the branch is still checked out in the
     (stale) worktree; the graveyard ref already preserves the commits
     so deletion is safe at the later step.
 
-    On any failure the function logs a warning and returns ``None`` — the
+    On any failure the function logs a warning and returns ``None`` - the
     caller must not treat graveyard preservation as a hard prerequisite.
 
     Args:
@@ -443,7 +443,7 @@ def preserve_branch_to_graveyard(
 
     Returns:
         Path to the bundle file when the bundle was written, otherwise
-        ``None`` (ref may still have been created — see logs).
+        ``None`` (ref may still have been created - see logs).
     """
     source_branch = branch if branch is not None else f"agent/{session_id}"
     sha = _resolve_ref(repo_root, source_branch)
@@ -517,7 +517,7 @@ def preserve_branch_to_graveyard(
 def purge_graveyard(repo_root: Path, older_than_days: int = _GRAVEYARD_DEFAULT_PURGE_DAYS) -> int:
     """Remove graveyard refs and bundles older than *older_than_days*.
 
-    Intended for operator-driven cleanup — never called automatically.  Both
+    Intended for operator-driven cleanup - never called automatically.  Both
     the ``refs/graveyard/*`` ref and the on-disk ``.sdd/graveyard/*.bundle``
     are purged independently so a partially-corrupted graveyard still shrinks.
 
@@ -535,7 +535,7 @@ def purge_graveyard(repo_root: Path, older_than_days: int = _GRAVEYARD_DEFAULT_P
     cutoff = time.time() - (older_than_days * 86400)
     purged = 0
 
-    # 1. Refs — list via for-each-ref with committer date.
+    # 1. Refs - list via for-each-ref with committer date.
     try:
         listing = subprocess.run(
             [
@@ -591,7 +591,7 @@ def purge_graveyard(repo_root: Path, older_than_days: int = _GRAVEYARD_DEFAULT_P
                     delete.stderr.strip(),
                 )
 
-    # 2. Bundles — plain filesystem walk; independent of git state.
+    # 2. Bundles - plain filesystem walk; independent of git state.
     bundle_dir = repo_root / _GRAVEYARD_DIR_REL
     if bundle_dir.is_dir():
         for bundle in bundle_dir.iterdir():
@@ -623,7 +623,7 @@ class WorktreeManager:
 
     Each call to :meth:`create` produces an isolated checkout on a short-lived
     branch.  :meth:`cleanup` removes the worktree and branch.  The manager is
-    intentionally thin — no state beyond the repo root; ground truth lives in
+    intentionally thin - no state beyond the repo root; ground truth lives in
     ``git worktree list``.
 
     Args:
@@ -675,7 +675,7 @@ class WorktreeManager:
                 the ``git worktree add`` command fails for any other reason.
         """
         if self._shutdown_event is not None and self._shutdown_event.is_set():
-            raise WorktreeError("Orchestrator shutting down — refusing new worktree")
+            raise WorktreeError("Orchestrator shutting down - refusing new worktree")
 
         worktree_path = self._base_dir / session_id
         branch_name = f"agent/{session_id}"
@@ -851,7 +851,7 @@ class WorktreeManager:
                 branch_name = f"agent/{session_id}"
                 try:
                     unmerged = _count_unmerged_commits(self.repo_root, branch_name, base="main")
-                except Exception as exc:  # defensive — never block cleanup
+                except Exception as exc:  # defensive - never block cleanup
                     logger.debug("Graveyard pre-check failed for %s: %s", session_id, exc)
                     unmerged = 0
                 if unmerged > 0:
@@ -862,7 +862,7 @@ class WorktreeManager:
                     )
                     try:
                         preserve_branch_to_graveyard(self.repo_root, session_id, branch=branch_name)
-                    except Exception as exc:  # defensive — log and proceed
+                    except Exception as exc:  # defensive - log and proceed
                         logger.warning(
                             "Graveyard preservation crashed for %s (continuing cleanup): %s",
                             session_id,

@@ -1,4 +1,4 @@
-"""Governed Workflow Mode — deterministic phase-based orchestration.
+"""Governed Workflow Mode - deterministic phase-based orchestration.
 
 When governed mode is active, a run progresses through an ordered sequence
 of phases (e.g. plan -> implement -> verify -> review -> merge).  Each phase
@@ -336,7 +336,7 @@ class WorkflowExecutor:
             if not self._approval_pending:
                 self._approval_pending = True
                 logger.info(
-                    "Workflow phase %r complete — awaiting human approval before advancing",
+                    "Workflow phase %r complete - awaiting human approval before advancing",
                     self.current_phase_name,
                 )
                 self._write_approval_request()

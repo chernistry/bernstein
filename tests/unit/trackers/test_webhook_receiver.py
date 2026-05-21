@@ -62,7 +62,7 @@ def test_replay_ledger_persists_to_disk(tmp_path: Path) -> None:
     ledger1 = ReplayLedger(p)
     ledger1.remember("d-1")
     ledger1.remember("d-2")
-    # Construct a second ledger pointing at the same file — replay should be
+    # Construct a second ledger pointing at the same file - replay should be
     # rejected even after a "restart".
     ledger2 = ReplayLedger(p)
     assert ledger2.seen("d-1") is True
@@ -111,7 +111,7 @@ def test_builtin_handlers_registered() -> None:
 
 def test_receive_disabled_returns_disabled() -> None:
     receiver = WebhookReceiver()
-    # No configure() call — adapter is disabled.
+    # No configure() call - adapter is disabled.
     result = receiver.receive("github", {}, b"{}")
     assert result.status == "disabled"
 

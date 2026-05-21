@@ -1,4 +1,4 @@
-"""Tests for claude_exit_codes — exit code to AbortReason/TransitionReason mapping."""
+"""Tests for claude_exit_codes - exit code to AbortReason/TransitionReason mapping."""
 
 from __future__ import annotations
 

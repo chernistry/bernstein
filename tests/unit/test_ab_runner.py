@@ -1,6 +1,6 @@
 """Tests for the A/B runner primitive.
 
-These tests use synthetic deterministic fixtures only — no LLM calls,
+These tests use synthetic deterministic fixtures only - no LLM calls,
 no httpx, no live tasks. The contract under test is:
 
   * ``run_ab`` produces a stable :class:`Comparison` for fixed inputs.
@@ -84,7 +84,7 @@ def test_exact_match_scorer_marks_passed() -> None:
 
 
 # ---------------------------------------------------------------------------
-# run_ab — deterministic comparison
+# run_ab - deterministic comparison
 # ---------------------------------------------------------------------------
 
 

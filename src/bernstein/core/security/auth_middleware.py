@@ -16,7 +16,7 @@ Authentication is REQUIRED by default.  A request to any protected path
 without a valid Bearer token (and without a matching HMAC signature for
 HMAC-authenticated paths) returns HTTP 401.  To run without authentication
 (development convenience only) set ``BERNSTEIN_AUTH_DISABLED=1`` or put
-``auth.enabled: false`` in ``bernstein.yaml`` — this logs a loud warning
+``auth.enabled: false`` in ``bernstein.yaml`` - this logs a loud warning
 once per process.
 
 Zero-trust enforcement
@@ -35,7 +35,7 @@ or ``auth.expected_resource`` in :class:`SSOConfig`), bearer JWTs that
 carry a ``resource`` claim must match one of the configured values.
 Mismatches are rejected with HTTP 401 and the RFC 6750 ``WWW-Authenticate``
 challenge ``Bearer error="invalid_token", error_description="resource indicator mismatch"``.
-Tokens that omit the claim entirely pass through — the middleware does
+Tokens that omit the claim entirely pass through - the middleware does
 not retroactively require an indicator on legacy tokens. The check is
 skipped wholesale when ``expected_resource`` is unset so upgrading does
 not break deployments minting opaque non-OAuth tokens.
@@ -73,7 +73,7 @@ _TASK_ID_PATH_RE = re.compile(r"^/tasks/([^/]+)/(?:complete|fail|progress|cancel
 # ---------------------------------------------------------------------------
 
 # Paths that are always accessible without any authentication.
-# Keep this list tiny — only trivially public endpoints (health probes,
+# Keep this list tiny - only trivially public endpoints (health probes,
 # discovery metadata, login flow) belong here.  API docs and the OpenAPI
 # schema are gated via ``AUTH_DEV_ONLY_PUBLIC_PATHS`` below so that they
 # require viewer auth whenever the server is running with a configured
@@ -162,11 +162,11 @@ _RESOURCE_MALFORMED_CHALLENGE = 'Bearer error="invalid_token", error_description
 #
 # Every write endpoint that Bernstein exposes MUST have an explicit entry
 # here.  Any request that falls through without a match is treated as
-# operator-only (``admin:manage``) — fail closed, not open.
+# operator-only (``admin:manage``) - fail closed, not open.
 #
 # Operator-sensitive endpoints (``/shutdown``, ``/broadcast``, ``/drain``,
 # ``/config``) require ``admin:manage``, which is only granted to the
-# ``admin`` role — operator and agent tokens cannot reach them.
+# ``admin`` role - operator and agent tokens cannot reach them.
 _ROUTE_PERMISSIONS: dict[str, str] = {
     "/tasks": _PERM_TASKS_WRITE,
     "/agents": "agents:write",
@@ -305,7 +305,7 @@ def _get_required_permission(path: str, method: str) -> str | None:
         if perm == _PERM_ADMIN_MANAGE and path.startswith(prefix):
             return perm
 
-    # Write operations — check specific action paths before prefix
+    # Write operations - check specific action paths before prefix
     if "/complete" in path or "/fail" in path or "/cancel" in path or "/block" in path:
         return _PERM_TASKS_WRITE
 
@@ -326,12 +326,12 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
     paths):
 
     1. SSO JWT token in ``Authorization: Bearer <jwt>``
-    2. Agent identity JWT (per-agent, task-scoped — zero-trust enforcement)
+    2. Agent identity JWT (per-agent, task-scoped - zero-trust enforcement)
     3. Legacy static bearer token
     4. 401 if no strategy accepts the token
 
     HMAC-authenticated paths (``AUTH_HMAC_PATHS``, ``AUTH_HMAC_PATH_PREFIXES``)
-    bypass bearer auth — their route handlers verify a shared-secret HMAC
+    bypass bearer auth - their route handlers verify a shared-secret HMAC
     signature and reject invalid / missing signatures with 401.
 
     Truly-public paths (``AUTH_PUBLIC_PATHS``) require no auth at all.
@@ -373,7 +373,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         )
         if resolved_disabled and not SSOAuthMiddleware._warned_disabled:
             logger.warning(
-                "SECURITY: Bernstein auth is DISABLED — every request is "
+                "SECURITY: Bernstein auth is DISABLED - every request is "
                 "accepted without a Bearer token (opt-out via "
                 "BERNSTEIN_AUTH_DISABLED or auth.enabled=false).  "
                 "Do NOT run this configuration on any network-exposed host.",
@@ -384,7 +384,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         """Return True when any auth backend is available.
 
         ``/docs``, ``/openapi.json`` and friends stay anonymous only when no
-        authenticator is wired up — i.e. true dev mode (developer runs the
+        authenticator is wired up - i.e. true dev mode (developer runs the
         server by hand with no ``BERNSTEIN_AUTH_TOKEN``, no SSO, no agent
         identity store).  As soon as any backend is configured the server is
         assumed to face a real network and these paths require a bearer
@@ -419,7 +419,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
 
-        # Dev-only public paths (API docs, OpenAPI schema) — anonymous
+        # Dev-only public paths (API docs, OpenAPI schema) - anonymous
         # access only when no auth backend is configured.  When auth IS
         # configured we fall through to the normal bearer-token path so the
         # request is gated behind a viewer-level permission.
@@ -532,7 +532,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
 
         # RFC 8707: enforce the resource-indicator binding on the agent JWT
         # itself. ``authenticate`` has already verified the signature, so
-        # decoding the unverified body here is safe — the body bytes have
+        # decoding the unverified body here is safe - the body bytes have
         # already been authenticated against the JWT secret.
         if self._expected_resource:
             from bernstein.core.security.auth import decode_jwt_unverified
@@ -557,7 +557,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         }
         request.state.agent_identity = agent_identity  # type: ignore[attr-defined]
 
-        # Agent identity JWTs — even manager-role / unrestricted ones — must
+        # Agent identity JWTs - even manager-role / unrestricted ones - must
         # never reach operator-only endpoints (shutdown, broadcast, drain,
         # config writer).  These mutate process-wide state and require an
         # admin SSO user or the legacy operator bearer.
@@ -605,7 +605,7 @@ def _check_agent_task_scope(path: str, allowed_task_ids: list[str]) -> str | Non
 
     Returns None when the request is permitted.
 
-    Only task-mutating operations are checked — reads and non-task paths are
+    Only task-mutating operations are checked - reads and non-task paths are
     always allowed so agents can query status and post to the bulletin board.
 
     Args:
@@ -617,7 +617,7 @@ def _check_agent_task_scope(path: str, allowed_task_ids: list[str]) -> str | Non
     """
     m = _TASK_ID_PATH_RE.match(path)
     if m is None:
-        # Not a task-specific mutating path — allow (bulletin, status, etc.)
+        # Not a task-specific mutating path - allow (bulletin, status, etc.)
         return None
     task_id = m.group(1)
     if task_id not in allowed_task_ids:

@@ -3,7 +3,7 @@
 The previous "standalone" verifier imported
 ``bernstein.core.security.article12_bundle``. The promise of this module is
 that the tool at ``tools/verify_audit_dsse.py`` runs against
-**stdlib + cryptography only** — no ``bernstein`` package on PYTHONPATH.
+**stdlib + cryptography only** - no ``bernstein`` package on PYTHONPATH.
 
 The test:
 
@@ -44,7 +44,7 @@ from bernstein.core.security.audit_dsse import (
     write_envelope,
 )
 
-# Slow tests gate — venv creation + cryptography install can take a minute.
+# Slow tests gate - venv creation + cryptography install can take a minute.
 pytestmark = pytest.mark.slow
 
 
@@ -294,14 +294,14 @@ class TestStandaloneVerifier:
         assert proc.returncode == 1
         assert "OVERALL: FAIL" in proc.stdout
         # Either the subject digest catches it (different bundle bytes) or the
-        # chain walk does. Both outcomes are valid — both prove tamper detection.
+        # chain walk does. Both outcomes are valid - both prove tamper detection.
         assert "[FAIL] subject_sha256" in proc.stdout or "[FAIL] hmac_chain" in proc.stdout
 
     def test_verifier_does_not_import_bernstein(self, tmp_path: Path, isolated_python: Path) -> None:
         """The headline assertion: invoking the verifier in the isolated venv works.
 
         If anyone ever adds ``from bernstein...`` to ``tools/verify_audit_dsse.py``
-        this call will raise ``ModuleNotFoundError`` and the test fails — that
+        this call will raise ``ModuleNotFoundError`` and the test fails - that
         is the whole point of the test.
         """
         artefacts = _build_envelope_bundle(tmp_path)

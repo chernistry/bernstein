@@ -24,7 +24,7 @@ from __future__ import annotations
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Constants — bytes per token by file category
+# Constants - bytes per token by file category
 # ---------------------------------------------------------------------------
 
 #: Structured data formats: dense key-value pairs.
@@ -42,7 +42,7 @@ MINIFIED_BYTES_PER_TOKEN: float = 1.0
 #: Fallback for unknown file extensions.
 DEFAULT_BYTES_PER_TOKEN: float = 3.5
 
-# Binary extensions — no meaningful token representation for LLM context.
+# Binary extensions - no meaningful token representation for LLM context.
 _BINARY_EXTENSIONS: frozenset[str] = frozenset(
     {
         ".png",

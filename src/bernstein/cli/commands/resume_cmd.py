@@ -1,4 +1,4 @@
-"""``bernstein resume <task-id>`` — pick up a task from its last checkpoint.
+"""``bernstein resume <task-id>`` - pick up a task from its last checkpoint.
 
 Loads the per-task checkpoint written by the orchestrator after every
 successful step transition, validates it, bumps ``resume_count``, fires
@@ -6,7 +6,7 @@ the ``task.resume`` lifecycle event, and hands control back so the
 orchestrator can re-spawn the task from the next step boundary.
 
 See ``feat-resume-from-checkpoint`` spec for the full contract. v1 scope
-is local-only — cross-machine resume, distributed checkpoint storage,
+is local-only - cross-machine resume, distributed checkpoint storage,
 and resuming across role-definition changes are explicitly out of scope.
 """
 

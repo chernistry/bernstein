@@ -1,6 +1,6 @@
 """Fail-closed input guardrail that rejects prompts containing secrets.
 
-The implementation deliberately keeps state minimal — a list of compiled
+The implementation deliberately keeps state minimal - a list of compiled
 regex patterns and the canonical name string. The plugin class wraps
 the guardrail in a hookimpl that hands a fresh instance to the
 orchestrator's :class:`GuardrailPipeline` on plugin load.
@@ -21,10 +21,10 @@ from bernstein.plugins import hookimpl
 # strict so a benign mention (``"my secret token"``) doesn't trip the
 # guardrail; the goal is to catch *value-shaped* leaks, not vocabulary.
 DEFAULT_PATTERNS: tuple[str, ...] = (
-    # AWS — both the env-var name with a value and bare access-key IDs.
+    # AWS - both the env-var name with a value and bare access-key IDs.
     r"AWS_SECRET_ACCESS_KEY\s*=\s*[A-Za-z0-9/+=]{16,}",
     r"AKIA[0-9A-Z]{16}",
-    # GitHub — classic + fine-grained personal access tokens.
+    # GitHub - classic + fine-grained personal access tokens.
     r"ghp_[a-zA-Z0-9]{36}",
     r"github_pat_[A-Za-z0-9_]{20,}",
     # OpenAI / generic ``sk-`` prefix tokens.
@@ -41,7 +41,7 @@ class NoSecretsGuardrail:
 
     Works as a drop-in :class:`Guardrail` for the bernstein
     orchestrator's :class:`GuardrailPipeline`. Fail-closed: any match
-    in any pattern aborts the run — there is no allow-list of
+    in any pattern aborts the run - there is no allow-list of
     "innocuous" matches.
 
     Attributes:
@@ -60,7 +60,7 @@ class NoSecretsGuardrail:
         violations: list[str] = []
         for pattern in self._compiled:
             if pattern.search(prompt):
-                # Don't echo the matched value — it's a secret. Just
+                # Don't echo the matched value - it's a secret. Just
                 # name the pattern so the operator can scrub the input.
                 violations.append(f"Secret-shaped token matched pattern: {pattern.pattern}")
         return GuardrailResult(
@@ -90,7 +90,7 @@ class NoSecretsGuardrailPlugin:
         The hook is a thin extension point; if your bernstein build
         does not yet expose ``configure_guardrails`` the same plugin
         can register the guardrail by reaching into the orchestrator
-        config — see ``README.md`` for the alternative wiring.
+        config - see ``README.md`` for the alternative wiring.
         """
         pipeline.add(NoSecretsGuardrail())
 

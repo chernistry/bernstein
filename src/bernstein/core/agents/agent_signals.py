@@ -65,7 +65,7 @@ class AgentSignalManager:
         last_ago_min = int(last_activity_ago_s // 60)
 
         content = (
-            f"# WAKEUP — You may be stuck\n"
+            f"# WAKEUP - You may be stuck\n"
             f"Your task: {task_title}\n"
             f"Time elapsed: {elapsed_min}m {int(elapsed_s % 60)}s\n"
             f"Last activity: {last_ago_min}m {int(last_activity_ago_s % 60)}s ago\n\n"
@@ -93,7 +93,7 @@ class AgentSignalManager:
         signal_dir.mkdir(parents=True, exist_ok=True)
 
         content = (
-            f"# SHUTDOWN — Save and exit\n"
+            f"# SHUTDOWN - Save and exit\n"
             f"Reason: {reason}\n"
             f"You have 30 seconds to:\n"
             f'1. Save all current work (git add + commit "[WIP] {task_title}")\n'

@@ -1,4 +1,4 @@
-"""Session tag system — add searchable tags to the current orchestration session.
+"""Session tag system - add searchable tags to the current orchestration session.
 
 Tags are stored in ``.sdd/runtime/session_tags.json`` and can be
 added, removed, and listed via the ``bernstein session-tag`` CLI

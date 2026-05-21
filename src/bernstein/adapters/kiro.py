@@ -42,7 +42,7 @@ class KiroAdapter(CLIAdapter):
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not (os.environ.get("KIRO_API_KEY") or (Path.home() / ".kiro").exists()):
-            logger.warning("KiroAdapter: no Kiro auth detected — spawn may fail until `kiro-cli login` completes")
+            logger.warning("KiroAdapter: no Kiro auth detected - spawn may fail until `kiro-cli login` completes")
         if model_config.model and model_config.model.lower() != "auto":
             logger.info(
                 "KiroAdapter: requested model %s for session %s; current Kiro CLI docs "

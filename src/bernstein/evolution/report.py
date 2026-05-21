@@ -1,8 +1,8 @@
-"""Evolution observability — history table and static report generation.
+"""Evolution observability - history table and static report generation.
 
 Data sources:
-  .sdd/metrics/evolve_cycles.jsonl   — per-cycle summary records
-  .sdd/evolution/experiments.jsonl   — per-experiment results (optional)
+  .sdd/metrics/evolve_cycles.jsonl   - per-cycle summary records
+  .sdd/evolution/experiments.jsonl   - per-experiment results (optional)
 """
 
 from __future__ import annotations
@@ -289,7 +289,7 @@ class EvolutionReport:
             time_str = dt.strftime("%m-%d %H:%M")
 
             task_str = f"[green]{c.tasks_completed}[/green]/[red]{c.tasks_failed}[/red]"
-            test_str = str(c.tests_passed) if c.tests_passed > 0 else "[dim]—[/dim]"
+            test_str = str(c.tests_passed) if c.tests_passed > 0 else "[dim]-[/dim]"
             success_pct = f"{c.success_rate:.0%}"
             dur = f"{c.duration_s:.0f}s"
             commits_str = f"[green]{c.commits_made}[/green]" if c.commits_made > 0 else "[dim]0[/dim]"
@@ -333,7 +333,7 @@ class EvolutionReport:
 
         for e in self.experiments[-50:]:  # cap display at 50
             color = "green" if e.accepted else "red"
-            delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "—"
+            delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "-"
             table.add_row(
                 e.proposal_id[:12],
                 e.title[:40],
@@ -393,7 +393,7 @@ class EvolutionReport:
         for i, c in enumerate(self.cycles):
             dt = datetime.fromtimestamp(c.timestamp, tz=UTC)
             time_str = dt.strftime("%Y-%m-%d %H:%M")
-            test_str = str(c.tests_passed) if c.tests_passed > 0 else "—"
+            test_str = str(c.tests_passed) if c.tests_passed > 0 else "-"
             lines.append(
                 f"| {i + 1} | {time_str} | {c.focus_area} | {c.tasks_completed} "
                 f"| {c.tasks_failed} | {test_str} | {c.success_rate:.0%} "
@@ -410,7 +410,7 @@ class EvolutionReport:
                 )
             )
             for e in self.experiments:
-                delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "—"
+                delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "-"
                 result = "✓ accepted" if e.accepted else "✗ rejected"
                 lines.append(
                     f"| {e.proposal_id[:12]} | {e.title[:40]} | {e.risk_level} "
@@ -430,7 +430,7 @@ class EvolutionReport:
         for i, c in enumerate(self.cycles):
             dt = datetime.fromtimestamp(c.timestamp, tz=UTC)
             time_str = dt.strftime("%Y-%m-%d %H:%M")
-            test_str = str(c.tests_passed) if c.tests_passed > 0 else "—"
+            test_str = str(c.tests_passed) if c.tests_passed > 0 else "-"
             row_class = ""
             if i > 0 and self.cycles[i - 1].tests_passed > 0 and c.tests_passed > self.cycles[i - 1].tests_passed:
                 row_class = ' class="improved"'
@@ -451,7 +451,7 @@ class EvolutionReport:
         # Build experiment rows
         exp_rows: list[str] = []
         for e in self.experiments:
-            delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "—"
+            delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "-"
             result_class = "good" if e.accepted else "bad"
             result_txt = "accepted" if e.accepted else "rejected"
             exp_rows.append(

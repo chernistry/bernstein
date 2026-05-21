@@ -105,7 +105,7 @@ def test_janitor_override_round_trip() -> None:
 
 
 # ---------------------------------------------------------------------------
-# audit-155 — freeze guarantees
+# audit-155 - freeze guarantees
 # ---------------------------------------------------------------------------
 
 
@@ -169,7 +169,7 @@ def test_override_rebinds_singleton_atomically() -> None:
     before = defaults.ORCHESTRATOR
     override("orchestrator", {"tick_interval_s": 4.2})
     after = defaults.ORCHESTRATOR
-    # Fresh object — the old snapshot keeps its values.
+    # Fresh object - the old snapshot keeps its values.
     assert before is not after
     assert before.tick_interval_s == pytest.approx(3.0)
     assert after.tick_interval_s == pytest.approx(4.2)

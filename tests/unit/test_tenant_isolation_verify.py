@@ -381,7 +381,7 @@ class TestRenderIsolationReport:
         t = IsolationTest(name="x", description="d", passed=False, details="bad")
         report = IsolationReport(tests=(t,), total=1, passed_count=0, failed_count=1, passed=False)
         md = render_isolation_report(report)
-        assert md.startswith("## Tenant Isolation Report — FAIL")
+        assert md.startswith("## Tenant Isolation Report - FAIL")
 
     def test_table_rows(self) -> None:
         t1 = IsolationTest(name="a", description="desc-a", passed=True, details="ok")

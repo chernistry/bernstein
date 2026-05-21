@@ -8,7 +8,7 @@ attach annotations, but missing required keys raise
 ambiguous payload.
 
 The schemas mirror the contract documented in
-``docs/contributing/hooks.md`` — keep both in sync.
+``docs/contributing/hooks.md`` - keep both in sync.
 """
 
 from __future__ import annotations

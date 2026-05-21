@@ -1,4 +1,4 @@
-"""Claude Code Routine trigger source — normalizes Routine webhook payloads."""
+"""Claude Code Routine trigger source - normalizes Routine webhook payloads."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def extract_github_context(payload: dict[str, Any]) -> dict[str, Any]:
     """Extract structured GitHub context from a Routine webhook payload.
 
     Returns a dict with pr_number, pr_title, repo, ref, author, labels,
-    changed_files — useful for task decomposition.
+    changed_files - useful for task decomposition.
     """
     gh = payload.get("github", {})
     return {

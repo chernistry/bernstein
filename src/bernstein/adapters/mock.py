@@ -274,9 +274,9 @@ def fix_broken_test(workdir: Path, log_path: Path) -> None:
         write_log(log_path, "⚠ tests/test_app.py not found")
         return
     content = test_file.read_text()
-    if "assert resp.status_code == 404  # wrong — should be 200" in content:
+    if "assert resp.status_code == 404  # wrong - should be 200" in content:
         content = content.replace(
-            "assert resp.status_code == 404  # wrong — should be 200",
+            "assert resp.status_code == 404  # wrong - should be 200",
             "assert resp.status_code == 200",
         )
         # Also remove the BUG 4 docstring annotation
@@ -344,7 +344,7 @@ def _idle_mode(log_path: Path) -> None:
         elapsed += chunk
         write_log(log_path, f"idle: heartbeat {elapsed}/{sleep_s}s")
     if will_fail:
-        write_log(log_path, "idle: simulated failure — exiting non-zero")
+        write_log(log_path, "idle: simulated failure - exiting non-zero")
         sys.exit(1)
     write_log(log_path, "idle: completed")
 
@@ -360,7 +360,7 @@ def main():
 
     write_log(log_path, f"Mock agent started for task: {task_name}")
 
-    # Idle mode: GUI dev path — `bernstein run --idle` sets BERNSTEIN_MOCK_IDLE=1
+    # Idle mode: GUI dev path - `bernstein run --idle` sets BERNSTEIN_MOCK_IDLE=1
     # so each spawned mock just sleeps + emits heartbeat lines instead of doing fixes.
     if os.environ.get("BERNSTEIN_MOCK_IDLE") == "1":
         _idle_mode(log_path)
@@ -378,7 +378,7 @@ def main():
     elif task_name == "broken_test":
         fix_broken_test(workdir, log_path)
     else:
-        write_log(log_path, f"Unknown task type: {task_name} — no-op")
+        write_log(log_path, f"Unknown task type: {task_name} - no-op")
 
     time.sleep(0.5)
     write_log(log_path, "Mock agent completed successfully")

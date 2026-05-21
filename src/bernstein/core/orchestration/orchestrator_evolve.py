@@ -714,14 +714,14 @@ def run_evolution_cycle(orch: Any, result: Any) -> None:
             cycle_risk_scores.append(risk_score.composite_risk)
             if orch._risk_scorer.is_high_risk(risk_score):
                 logger.info(
-                    "Proposal %s (%s) flagged high-risk (%.2f) — routing to sandbox",
+                    "Proposal %s (%s) flagged high-risk (%.2f) - routing to sandbox",
                     proposal.id,
                     proposal.title,
                     risk_score.composite_risk,
                 )
             else:
                 logger.info(
-                    "Proposal %s (%s) low-risk (%.2f) — fast-tracking",
+                    "Proposal %s (%s) low-risk (%.2f) - fast-tracking",
                     proposal.id,
                     proposal.title,
                     risk_score.composite_risk,

@@ -197,7 +197,7 @@ class CostAnomalyDetector:
             )
             self._recent_tasks = raw.get("recent_tasks", [])
         except (json.JSONDecodeError, TypeError, KeyError):
-            log.warning("Corrupt cost baseline at %s — resetting", path)
+            log.warning("Corrupt cost baseline at %s - resetting", path)
             self._baseline = CostBaseline()
             self._recent_tasks = []
 

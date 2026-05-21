@@ -1,4 +1,4 @@
-"""Tests for recap endpoint — enhanced recap with diff stats and quality scores."""
+"""Tests for recap endpoint - enhanced recap with diff stats and quality scores."""
 
 from __future__ import annotations
 

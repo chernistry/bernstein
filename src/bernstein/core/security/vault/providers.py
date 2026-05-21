@@ -115,7 +115,7 @@ _PROVIDERS: dict[ProviderId, ProviderConfig] = {
         # at a stable URL; users revoke through the web UI. Leaving revoke=None
         # keeps `creds revoke` to a local-only delete (which the ticket allows).
         revoke=None,
-        notes="PATs revoke through https://github.com/settings/tokens — this CLI only deletes the local copy.",
+        notes="PATs revoke through https://github.com/settings/tokens - this CLI only deletes the local copy.",
     ),
     "linear": ProviderConfig(
         id="linear",

@@ -403,7 +403,7 @@ def _build_recommendations(
     overall_fail_rate = n_failed / total
     if overall_fail_rate >= 0.5:
         recs.append(
-            f"Overall failure rate is {overall_fail_rate:.0%} — review task definitions "
+            f"Overall failure rate is {overall_fail_rate:.0%} - review task definitions "
             "and agent prompts before the next run."
         )
 
@@ -414,30 +414,30 @@ def _build_recommendations(
         tot = f + d
         if tot >= 2 and f / tot >= 0.5:
             recs.append(
-                f"Role '{role}' has a {f / tot:.0%} failure rate ({f}/{tot}) — "
+                f"Role '{role}' has a {f / tot:.0%} failure rate ({f}/{tot}) - "
                 "review role prompts and task descriptions."
             )
 
     # Per-complexity recommendations
     for cx in sorted(cx_failed):
         f = cx_failed[cx]
-        # We don't have cx_done here — just flag high absolute failure counts
+        # We don't have cx_done here - just flag high absolute failure counts
         if f >= 3:
             recs.append(
-                f"Complexity '{cx}' had {f} failures — consider breaking these tasks "
+                f"Complexity '{cx}' had {f} failures - consider breaking these tasks "
                 "into smaller pieces or raising estimated_minutes."
             )
 
     # Cost warnings
     if total_cost > 5.0:
         recs.append(
-            f"Cost ${total_cost:.2f} is high — review model selection; consider "
+            f"Cost ${total_cost:.2f} is high - review model selection; consider "
             "routing more tasks to haiku or free-tier providers."
         )
 
     # Duration warnings (> 2 hours)
     if wall_clock_s > 7200:
-        recs.append("Run exceeded 2 hours — consider parallelising independent tasks or increasing max_agents.")
+        recs.append("Run exceeded 2 hours - consider parallelising independent tasks or increasing max_agents.")
 
     return recs
 

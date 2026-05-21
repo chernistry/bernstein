@@ -1,6 +1,6 @@
 """Git read operations for building agent context.
 
-Provides functions to extract intelligence from git history — blame summaries,
+Provides functions to extract intelligence from git history - blame summaries,
 hot file detection, co-change graphs, and recent change context.  Injected into
 agent prompts as warm context before they start working.
 """

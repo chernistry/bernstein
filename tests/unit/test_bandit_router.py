@@ -1,4 +1,4 @@
-"""Tests for BanditRouter — contextual bandit model routing.
+"""Tests for BanditRouter - contextual bandit model routing.
 
 Covers:
 - TaskContext: feature extraction from Task metadata
@@ -534,7 +534,7 @@ class TestBanditRouter:
 
 
 class TestCapabilityFloor:
-    """Floor definition — architect never below sonnet, etc."""
+    """Floor definition - architect never below sonnet, etc."""
 
     def test_haiku_floor_for_ordinary_task(self) -> None:
         from bernstein.core.bandit_router import _capability_floor
@@ -661,7 +661,7 @@ class TestSoftGuardrailLearns:
         for _ in range(30):
             router.record_outcome(task=_task(), model="haiku", effort="low", cost_usd=0.0, quality_score=1.0)
 
-        # Three high-stakes selections — each gets clamped haiku → sonnet.
+        # Three high-stakes selections - each gets clamped haiku → sonnet.
         for _ in range(3):
             router.select(_task(role="architect"))
 
@@ -778,7 +778,7 @@ class TestEffortBandit:
         assert bandit.total_pulls("standard", "sonnet") == 0
 
     def test_convergence_prefers_high_reward_effort(self) -> None:
-        """Feed synthetic rewards: 'high' is best for sonnet — bandit learns it."""
+        """Feed synthetic rewards: 'high' is best for sonnet - bandit learns it."""
         from bernstein.core.bandit_router import EffortBandit
 
         bandit = EffortBandit(c=0.2, min_pulls_per_key=3)

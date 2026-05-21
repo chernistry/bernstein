@@ -174,7 +174,7 @@ class CompliancePolicy:
         description: What this policy checks and why it matters.
         severity: Severity if the policy fails.
         rego_rule: OPA Rego rule text for the policy (informational / export).
-        check: Python callable ``(PolicyInput) -> bool`` — ``True`` = passing.
+        check: Python callable ``(PolicyInput) -> bool`` - ``True`` = passing.
         remediation: Brief remediation guidance.
     """
 
@@ -185,7 +185,7 @@ class CompliancePolicy:
     description: str
     severity: PolicySeverity
     rego_rule: str
-    check: Any  # Callable[[PolicyInput], bool] — not in frozen field hint
+    check: Any  # Callable[[PolicyInput], bool] - not in frozen field hint
     remediation: str
 
 
@@ -269,7 +269,7 @@ _CC6_1 = "CC6.1"
 _CC7_2 = "CC7.2"
 
 # ---------------------------------------------------------------------------
-# SOC 2 — Trust Service Criteria
+# SOC 2 - Trust Service Criteria
 # ---------------------------------------------------------------------------
 
 _SOC2_POLICIES: list[CompliancePolicy] = [
@@ -480,7 +480,7 @@ allow { input.sbom_enabled == true }""",
 ]
 
 # ---------------------------------------------------------------------------
-# ISO 27001:2022 — Annex A Controls
+# ISO 27001:2022 - Annex A Controls
 # ---------------------------------------------------------------------------
 
 _ISO27001_POLICIES: list[CompliancePolicy] = [
@@ -1268,7 +1268,7 @@ class CompliancePolicyLibrary:
             marker = enabled_dir / f"{framework.value}.yaml"
             policy_ids = [p.policy_id for p in _BY_FRAMEWORK[framework]]
             marker.write_text(
-                f"# Bernstein compliance-as-code — {framework.value}\n"
+                f"# Bernstein compliance-as-code - {framework.value}\n"
                 f"framework: {framework.value}\n"
                 f"enabled: true\n"
                 f"policy_count: {len(policy_ids)}\n"

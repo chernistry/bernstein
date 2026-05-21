@@ -132,7 +132,7 @@ def test_entry_point_failure_does_not_break_registry(
         return []
 
     monkeypatch.setattr(sandbox_registry, "entry_points", _fake_entry_points)
-    # No exception — the registry skips the broken entry-point.
+    # No exception - the registry skips the broken entry-point.
     names = sandbox_registry.list_backend_names()
     assert "worktree" in names
     assert "broken" not in names

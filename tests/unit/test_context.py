@@ -251,7 +251,7 @@ class TestApiUsageTracker:
 
 
 # ---------------------------------------------------------------------------
-# _git_cochanged_files — batched subprocess + lru_cache
+# _git_cochanged_files - batched subprocess + lru_cache
 # ---------------------------------------------------------------------------
 
 

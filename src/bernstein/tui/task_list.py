@@ -52,14 +52,14 @@ def build_token_budget_bar(used: int, budget: int, width: int = 20) -> str:
 
     Args:
         used: Tokens consumed so far.
-        budget: Total allocated token budget.  Zero renders '—'.
+        budget: Total allocated token budget.  Zero renders '-'.
         width: Visual width of the progress bar in characters.
 
     Returns:
         Rich-compatible progress bar or dash marker string.
     """
     if budget <= 0:
-        return "—"
+        return "-"
     pct = min(used / budget, 1.0)
     filled = int(pct * width)
     empty = width - filled
@@ -73,7 +73,7 @@ def build_token_budget_bar(used: int, budget: int, width: int = 20) -> str:
     return f"[{color}]{bar}[/{color}] {int(pct * 100):>3}%"
 
 
-#: Contrast-safe palette for worker badges — works with light/dark themes.
+#: Contrast-safe palette for worker badges - works with light/dark themes.
 WORKER_BADGE_COLORS: tuple[str, ...] = (
     "cyan",
     "magenta",
@@ -157,7 +157,7 @@ def build_compaction_marker(reason: str = "", _ts: float | None = None) -> str:
 # Color-coded agent identity (T562)
 # ---------------------------------------------------------------------------
 
-#: Extended palette for agent identity — 12 distinct, accessible colors.
+#: Extended palette for agent identity - 12 distinct, accessible colors.
 AGENT_IDENTITY_COLORS: tuple[str, ...] = (
     "cyan",
     "magenta",
@@ -355,7 +355,7 @@ class TaskRow:
     def age_display(self) -> str:
         """Human-readable age since creation."""
         if self.created_at <= 0:
-            return "—"
+            return "-"
         age_s = max(0, int(time.time() - self.created_at))
         if age_s < 60:
             return f"{age_s}s"
@@ -417,7 +417,7 @@ class TaskListWidget(DataTable[Text]):
     def refresh_tasks(self, rows: list[TaskRow]) -> None:
         """Update task data in-place, preserving cursor and scroll position.
 
-        Only adds new rows and updates changed cells — never calls clear().
+        Only adds new rows and updates changed cells - never calls clear().
         """
         # Build a lookup of incoming rows by task_id
         incoming: dict[str, TaskRow] = {r.task_id: r for r in rows}

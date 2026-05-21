@@ -22,7 +22,7 @@ from bernstein.core.cost_tracker import (
 )
 
 # ---------------------------------------------------------------------------
-# resolve_run_budget_usd — precedence
+# resolve_run_budget_usd - precedence
 # ---------------------------------------------------------------------------
 
 
@@ -63,7 +63,7 @@ class TestResolvePrecedence:
         assert result == pytest.approx(1.5)
 
     def test_run_config_zero_falls_through_to_seed(self) -> None:
-        # ``run_config.json`` defaults the field to 0.0 — that should not
+        # ``run_config.json`` defaults the field to 0.0 - that should not
         # mask a positive seed value.
         result = resolve_run_budget_usd(
             run_config_value=0.0,
@@ -103,7 +103,7 @@ class TestResolveEnvParsing:
 
     def test_negative_env_clamped_to_zero(self) -> None:
         env = {ENV_MAX_COST_USD: "-1.5"}
-        # Negative means "unlimited" — safer than honouring as a -$1.50 cap.
+        # Negative means "unlimited" - safer than honouring as a -$1.50 cap.
         result = resolve_run_budget_usd(env=env)
         assert result == 0.0
 
@@ -158,10 +158,10 @@ class TestCapEnforcement:
         tracker = CostTracker(run_id="kf6-multi-agent", budget_usd=cap)
         tracker.record("agent-A", "task-1", "haiku", 100, 50, cost_usd=0.10)
         tracker.record("agent-B", "task-2", "haiku", 100, 50, cost_usd=0.10)
-        # Two cheap agents under cap — still allowed.
+        # Two cheap agents under cap - still allowed.
         assert tracker.can_spawn() is True
         tracker.record("agent-C", "task-3", "haiku", 100, 50, cost_usd=0.15)
-        # Third agent pushes the run total to 0.35 >= 0.30 — hard-stop.
+        # Third agent pushes the run total to 0.35 >= 0.30 - hard-stop.
         assert tracker.can_spawn() is False
 
     def test_zero_cap_means_unlimited(self) -> None:

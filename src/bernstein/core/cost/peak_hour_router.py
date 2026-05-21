@@ -94,14 +94,14 @@ def get_current_slot(
             recommended_model=config.peak_model,
             reason=(
                 f"Peak hours ({config.peak_start_utc}:00-{config.peak_end_utc}:00 UTC) "
-                f"— using {config.peak_model} to avoid rate limits"
+                f"- using {config.peak_model} to avoid rate limits"
             ),
         )
     return TimeSlot(
         hour_utc=now.hour,
         is_peak=False,
         recommended_model=config.offpeak_model,
-        reason=(f"Off-peak hours — using {config.offpeak_model} for higher quality"),
+        reason=(f"Off-peak hours - using {config.offpeak_model} for higher quality"),
     )
 
 

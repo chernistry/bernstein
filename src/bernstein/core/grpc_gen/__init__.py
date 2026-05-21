@@ -1,1 +1,1 @@
-"""Generated gRPC stubs — run ``scripts/generate_proto.sh`` to populate."""
+"""Generated gRPC stubs - run ``scripts/generate_proto.sh`` to populate."""

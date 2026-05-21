@@ -1,4 +1,4 @@
-"""Tests for AgencyProvider — parses msitarzewski/agency-agents format."""
+"""Tests for AgencyProvider - parses msitarzewski/agency-agents format."""
 
 from __future__ import annotations
 
@@ -476,7 +476,7 @@ MODEL_PREFS_AGENT_MD = textwrap.dedent("""\
 
 
 class TestModelPreferencesField:
-    """model_preferences frontmatter field is gracefully ignored — not required by Bernstein."""
+    """model_preferences frontmatter field is gracefully ignored - not required by Bernstein."""
 
     def test_model_preferences_field_does_not_cause_error(self, tmp_path: Path) -> None:
         """Agents with model_preferences in frontmatter are parsed without error."""

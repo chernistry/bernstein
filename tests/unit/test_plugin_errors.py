@@ -1,4 +1,4 @@
-"""Tests for plugin_errors — plugin error collection and reporting."""
+"""Tests for plugin_errors - plugin error collection and reporting."""
 
 from __future__ import annotations
 

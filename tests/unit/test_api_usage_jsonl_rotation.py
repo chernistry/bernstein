@@ -1,6 +1,6 @@
 """Regression tests for audit-068: api_usage JSONL files must rotate.
 
-Before the fix, ``api_usage_YYYYMMDD.jsonl`` grew unbounded — multi-GB files
+Before the fix, ``api_usage_YYYYMMDD.jsonl`` grew unbounded - multi-GB files
 after long-running orchestration sessions. The writer now rotates at a size
 threshold and bounds the number of historical backups.
 """
@@ -30,7 +30,7 @@ def _all_lines(files: list[Path]) -> list[str]:
 def test_metric_writer_rotates_when_threshold_exceeded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Driving the writer past the rotation threshold creates bounded backups.
 
-    All records must remain reachable via ``iter_metric_files`` — the glob
+    All records must remain reachable via ``iter_metric_files`` - the glob
     helper is responsible for stitching live + rotated files back together.
     """
     metrics_dir = tmp_path / "metrics"
@@ -41,13 +41,13 @@ def test_metric_writer_rotates_when_threshold_exceeded(tmp_path: Path, monkeypat
     max_backups = 5
     monkeypatch.setattr(mc, "_METRIC_FILE_ROTATE_BYTES", rotate_bytes)
     monkeypatch.setattr(mc, "_METRIC_FILE_MAX_BACKUPS", max_backups)
-    # Flush on every record — we want deterministic rotation, not buffered.
+    # Flush on every record - we want deterministic rotation, not buffered.
     collector._buffer_limit = 1
 
     payload_label = "x" * 256  # ~300+ bytes per JSONL line after framing
 
     # Every record is larger than the rotation threshold so each write forces
-    # a fresh rollover — live + 5 backups will hold exactly 6 records.
+    # a fresh rollover - live + 5 backups will hold exactly 6 records.
     total_records = 6
     for i in range(total_records):
         collector._write_metric_point(
@@ -60,14 +60,14 @@ def test_metric_writer_rotates_when_threshold_exceeded(tmp_path: Path, monkeypat
     files = iter_metric_files(metrics_dir, "api_usage")
     assert files, "expected at least the live api_usage file to exist"
 
-    # Rotation must have happened at least once — live file plus backups.
+    # Rotation must have happened at least once - live file plus backups.
     rotated = [p for p in files if p.suffix != ".jsonl"]
     assert rotated, "no rotated backups were produced despite exceeding threshold"
 
     # Backup count must not exceed the configured retention.
     assert len(rotated) <= max_backups, f"retention breached: {[p.name for p in rotated]}"
 
-    # No individual file may exceed ~2x the threshold — the append happens
+    # No individual file may exceed ~2x the threshold - the append happens
     # after rotation, so a single write can at most be one line over.
     for path in files:
         assert path.stat().st_size <= 2 * rotate_bytes, (

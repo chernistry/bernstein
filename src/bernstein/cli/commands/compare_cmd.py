@@ -47,7 +47,7 @@ def _real_adapter_executor(adapter_name: str, task: CompareTaskSpec, worktree: P
 
     This is the production executor used by ``bernstein compare``. It
     intentionally degrades to a clear error rather than crashing when an
-    adapter binary is missing — the compare result still includes the
+    adapter binary is missing - the compare result still includes the
     failure for side-by-side inspection.
     """
     from bernstein.adapters.registry import get_adapter
@@ -70,7 +70,7 @@ def _real_adapter_executor(adapter_name: str, task: CompareTaskSpec, worktree: P
     session_id = f"compare-{task.task_id}-{adapter_name}"
     log_path = worktree / f".bernstein-compare-{adapter_name}.log"
     try:
-        # ModelConfig is loaded via TYPE_CHECKING in adapters.base — pyright
+        # ModelConfig is loaded via TYPE_CHECKING in adapters.base - pyright
         # cannot recover its concrete type at the call site.
         result = adapter.spawn(  # pyright: ignore[reportUnknownMemberType]
             prompt=task.prompt,
@@ -87,7 +87,7 @@ def _real_adapter_executor(adapter_name: str, task: CompareTaskSpec, worktree: P
             error=f"spawn failed: {exc!r}",
         )
 
-    # Best-effort wait — the production runner uses a watchdog; here we
+    # Best-effort wait - the production runner uses a watchdog; here we
     # just poll until the process exits or the deadline passes. Adapters
     # that do not expose ``.proc`` return immediately.
     proc = getattr(result, "proc", None)
@@ -225,7 +225,7 @@ def compare_cmd(
         f"[bold]bernstein compare[/bold] task=[cyan]{task.task_id}[/cyan] adapters=[cyan]{','.join(adapters)}[/cyan]"
     )
     if len(adapters) == 1:
-        console.print("[dim]single-adapter degenerate case — same flow, no comparison.[/dim]")
+        console.print("[dim]single-adapter degenerate case - same flow, no comparison.[/dim]")
 
     executor, pool = _parallel_executor_factory(max_workers=len(adapters))
     try:
@@ -254,7 +254,7 @@ def _maybe_exit_nonzero(run: CompareRun) -> None:
     """Exit non-zero only when every adapter failed.
 
     A mixed-result run (some adapters succeeded, some failed) still exits
-    zero — the operator can read the markdown / JSON to triage.
+    zero - the operator can read the markdown / JSON to triage.
     """
     if not run.runs:
         raise SystemExit(2)

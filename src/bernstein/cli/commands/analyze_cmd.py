@@ -1,4 +1,4 @@
-"""CLI command: `bernstein analyze` — orchestration-readiness scan.
+"""CLI command: `bernstein analyze` - orchestration-readiness scan.
 
 Closes [#768](https://github.com/sipyourdrink-ltd/bernstein/issues/768).
 
@@ -104,7 +104,7 @@ def _to_json(a: RepoAnalysis) -> dict:
 def _render_rich(a: RepoAnalysis) -> None:
     """Pretty-print the analysis to the console."""
     console.print()
-    console.print(f"[bold]Repo Analysis[/bold] — [cyan]{a.root}[/cyan]")
+    console.print(f"[bold]Repo Analysis[/bold] - [cyan]{a.root}[/cyan]")
     console.print()
 
     # Codebase block
@@ -149,6 +149,6 @@ def _render_rich(a: RepoAnalysis) -> None:
         console.print(f"    [cyan]{a.recommended_first_run}[/cyan]")
         console.print()
 
-    # Cost hint — keep loose; we don't try to predict actual model cost.
+    # Cost hint - keep loose; we don't try to predict actual model cost.
     console.print("  [dim]Estimated cost: ~$2.50 (5 agents x ~500 tokens each)[/dim]")
     console.print()

@@ -1,4 +1,4 @@
-"""Event-driven trigger manager — evaluates incoming events against user-defined rules.
+"""Event-driven trigger manager - evaluates incoming events against user-defined rules.
 
 The TriggerManager is the central coordinator for event-driven agent triggers.
 It receives normalized TriggerEvents, matches them against trigger rules loaded
@@ -751,7 +751,7 @@ class TriggerManager:
 
         Returns a list of synthesized TriggerEvents for cron triggers that
         should fire this minute. Safe to call on every orchestrator tick
-        (3s) — uses cron_state to prevent double-firing within the same minute.
+        (3s) - uses cron_state to prevent double-firing within the same minute.
         """
         try:
             from croniter import croniter

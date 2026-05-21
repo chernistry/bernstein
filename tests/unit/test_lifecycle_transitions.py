@@ -57,7 +57,7 @@ def _make_agent(
 
 
 # ---------------------------------------------------------------------------
-# TEST-002a: Task transition matrix — allowed transitions
+# TEST-002a: Task transition matrix - allowed transitions
 # ---------------------------------------------------------------------------
 
 
@@ -83,7 +83,7 @@ class TestTaskTransitionsAllowed:
 
 
 # ---------------------------------------------------------------------------
-# TEST-002b: Task transition matrix — illegal transitions
+# TEST-002b: Task transition matrix - illegal transitions
 # ---------------------------------------------------------------------------
 
 
@@ -127,7 +127,7 @@ class TestSelfTransitions:
 
 
 # ---------------------------------------------------------------------------
-# TEST-002d: Agent transition matrix — allowed
+# TEST-002d: Agent transition matrix - allowed
 # ---------------------------------------------------------------------------
 
 
@@ -161,7 +161,7 @@ class TestAgentTransitionsAllowed:
 
 
 # ---------------------------------------------------------------------------
-# TEST-002e: Agent transition matrix — illegal
+# TEST-002e: Agent transition matrix - illegal
 # ---------------------------------------------------------------------------
 
 
@@ -298,7 +298,7 @@ class TestTransitionChains:
 
 
 # ---------------------------------------------------------------------------
-# TEST-002i: Idempotency — DuplicateTransitionError on reused transition_id
+# TEST-002i: Idempotency - DuplicateTransitionError on reused transition_id
 # ---------------------------------------------------------------------------
 
 
@@ -312,7 +312,7 @@ class TestIdempotencyTransitionId:
         transition_task(task, TaskStatus.CLAIMED, actor="spawner", transition_id=tid)
         assert task.status == TaskStatus.CLAIMED
 
-        # Replay: different task object, same transition_id — must be rejected
+        # Replay: different task object, same transition_id - must be rejected
         task2 = _make_task(TaskStatus.OPEN, task_id="T-IDEM-002")
         with pytest.raises(DuplicateTransitionError) as exc_info:
             transition_task(task2, TaskStatus.CLAIMED, actor="spawner", transition_id=tid)
@@ -353,7 +353,7 @@ class TestIdempotencyTransitionId:
 
 
 # ---------------------------------------------------------------------------
-# TEST-002j: Double-transition — same (from, to) applied twice to one task
+# TEST-002j: Double-transition - same (from, to) applied twice to one task
 # ---------------------------------------------------------------------------
 
 
@@ -414,7 +414,7 @@ class TestShutdownAndTimeoutTransitions:
         assert task.status == TaskStatus.CANCELLED
 
     def test_cancelled_task_cannot_be_restarted(self) -> None:
-        """Post-shutdown: CANCELLED is terminal — no further transitions allowed."""
+        """Post-shutdown: CANCELLED is terminal - no further transitions allowed."""
         task = _make_task(TaskStatus.CANCELLED, task_id="T-SHUT-003")
         for target in TaskStatus:
             if target == TaskStatus.CANCELLED:

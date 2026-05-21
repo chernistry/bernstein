@@ -94,7 +94,7 @@ class TestExitCodeContract:
         harness.fire("on_task_completed", task_id="T-003", role="backend", result_summary="done")
 
     def test_exit_two_raises_hook_blocking_error(self, harness: CommandHookHarness) -> None:
-        """A hook that exits 2 raises HookBlockingError — regression guard.
+        """A hook that exits 2 raises HookBlockingError - regression guard.
 
         If the exit-code-2 → HookBlockingError path is ever broken, this test
         will catch it before the regression ships.
@@ -111,7 +111,7 @@ class TestExitCodeContract:
         assert "blocked by policy" in str(exc_info.value)
 
     def test_exit_nonzero_non_two_does_not_raise(self, harness: CommandHookHarness) -> None:
-        """A hook that exits 1 (warning) does not raise — only exit 2 blocks."""
+        """A hook that exits 1 (warning) does not raise - only exit 2 blocks."""
         harness.add_exit_script("on_agent_reaped", exit_code=1)
         # Must not raise
         harness.fire("on_agent_reaped", session_id="s-warn", role="qa", outcome="timed_out")
@@ -131,7 +131,7 @@ class TestJsonResponse:
         harness.fire("on_evolve_proposal", proposal_id="P-1", title="Refactor", verdict="accepted")
 
     def test_error_json_response_does_not_raise(self, harness: CommandHookHarness) -> None:
-        """A hook returning {"status": "error"} only logs a warning — does not raise."""
+        """A hook returning {"status": "error"} only logs a warning - does not raise."""
         harness.add_json_response_script("on_tool_error", {"status": "error", "message": "tool broke"})
         harness.fire("on_tool_error", session_id="s-err", tool="bash", error="timeout", batch_id=None)
 
@@ -151,5 +151,5 @@ class TestHarnessGuards:
 
     def test_fire_no_scripts_is_noop(self, harness: CommandHookHarness) -> None:
         """Firing a hook with no scripts registered is a no-op (not an error)."""
-        # No script added — _run_command silently skips non-existent hook dirs
+        # No script added - _run_command silently skips non-existent hook dirs
         harness.fire("on_config_change", key="model", old_value="opus", new_value="sonnet")

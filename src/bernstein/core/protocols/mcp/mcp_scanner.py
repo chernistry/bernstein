@@ -3,23 +3,23 @@
 Pattern-matching scanner over an MCP server's source. Targets the four
 attack classes that drove the OpenClaw 433+ CVE corpus by May 6 2026:
 
-1. **Path traversal** — tool handlers that join user-supplied path
+1. **Path traversal** - tool handlers that join user-supplied path
    components without ``Path.resolve`` + a strict prefix check
    (Anthropic Git MCP CVE-2025-68145 lineage).
-2. **Shell injection** — ``subprocess`` calls with ``shell=True`` or with
+2. **Shell injection** - ``subprocess`` calls with ``shell=True`` or with
    user-supplied args concatenated into the command without
    ``shlex.quote`` (CVE-2026-25253 OpenClaw gateway URL auth-token RCE
    lineage).
-3. **OAuth callback RCE** — callback handlers without a redirect-URI
+3. **OAuth callback RCE** - callback handlers without a redirect-URI
    allow-list check (CVE-2025-6514 ``mcp-remote`` RCE that compromised
    ~437K developer environments).
-4. **Scope escalation** — flows that fetch a token then re-use the same
+4. **Scope escalation** - flows that fetch a token then re-use the same
    token with a broadened ``scope=`` parameter (CVE-2026-32922 OpenClaw
    scope-escalation, CVSS 9.9).
 
 Plus a **known-bad-package** gate: package names on a denylist (compromised
 or typosquat publishers) are flagged immediately. This is not a substitute
-for full SBOM diffing — when the manifest declares a content hash we also
+for full SBOM diffing - when the manifest declares a content hash we also
 prefer to compare against a locked dependency hash (the hook is exposed on
 :func:`scan_dependency_diff` for the manager to call when a lockfile is
 present).
@@ -27,7 +27,7 @@ present).
 The scanner uses regex/string matching deliberately: an AST visitor would
 be more precise but only works against Python sources, while MCP servers
 ship in Python, Node, Go, and Rust. The ticket's "smallest viable slice"
-calls for breadth, not depth — this layer flags the obvious patterns and
+calls for breadth, not depth - this layer flags the obvious patterns and
 defers AST-level taint tracking to a future PR.
 
 Example::
@@ -70,7 +70,7 @@ __all__ = [
 #: vulnerability feed, not replace it.
 DEFAULT_KNOWN_BAD_PACKAGES: frozenset[str] = frozenset(
     {
-        # CVE-2025-6514 — mcp-remote RCE, 437K env compromised
+        # CVE-2025-6514 - mcp-remote RCE, 437K env compromised
         "mcp-remote",
         # placeholders for the publicly tracked OpenClaw 2026-25253/32922
         # gateway packages; operators are expected to supplement with their
@@ -335,7 +335,7 @@ def scan_dependency_diff(
                     line=0,
                     message=(
                         f"dependency {name!r} declared {declared!r} but lockfile "
-                        f"records {locked!r} — possible post-publication swap"
+                        f"records {locked!r} - possible post-publication swap"
                     ),
                     cwe="CWE-494",
                     remediation=(

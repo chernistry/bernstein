@@ -113,7 +113,7 @@ class RuntimeBridge(ABC):
 
     Implement this for each supported execution backend (OpenClaw, Kubernetes,
     Docker, Firecracker microVMs, etc.).  The orchestrator calls these methods;
-    it never imports a concrete subclass directly — all wiring goes through the
+    it never imports a concrete subclass directly - all wiring goes through the
     bridge registry.
 
     All methods are async to allow non-blocking I/O against remote APIs.
@@ -137,7 +137,7 @@ class RuntimeBridge(ABC):
     async def spawn(self, request: SpawnRequest) -> AgentStatus:
         """Launch an agent in the external runtime.
 
-        The method must return as soon as the runtime acknowledges the request —
+        The method must return as soon as the runtime acknowledges the request -
         it must NOT block until the agent finishes.  Poll with :meth:`status`.
 
         Args:
@@ -171,7 +171,7 @@ class RuntimeBridge(ABC):
     async def cancel(self, agent_id: str) -> None:
         """Request cancellation of a running agent.
 
-        Best-effort — implementations should attempt a graceful shutdown first
+        Best-effort - implementations should attempt a graceful shutdown first
         (SIGTERM) and escalate to a forceful kill after a short grace period.
         Cancelling an already-finished agent must not raise.
 

@@ -1,4 +1,4 @@
-"""Tests for T457 — agent hook with forked LLM context."""
+"""Tests for T457 - agent hook with forked LLM context."""
 
 from __future__ import annotations
 

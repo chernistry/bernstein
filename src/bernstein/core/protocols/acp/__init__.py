@@ -1,6 +1,6 @@
 """Agent Client Protocol (ACP) native bridge.
 
-The Agent Client Protocol — https://agentclientprotocol.org — is an open
+The Agent Client Protocol - https://agentclientprotocol.org - is an open
 JSON-RPC 2.0 specification for IDE -> agent communication.  Editors that
 ship native ACP support (Zed and others) can plug any compliant server in
 as their backend; this package exposes Bernstein as such a server.
@@ -14,17 +14,17 @@ sandbox-backend selection are inherited unchanged.
 
 Submodules:
 
-* :mod:`bernstein.core.protocols.acp.schema` — schema validation for
+* :mod:`bernstein.core.protocols.acp.schema` - schema validation for
   every ACP message Bernstein accepts.
-* :mod:`bernstein.core.protocols.acp.handlers` — pure handler layer
+* :mod:`bernstein.core.protocols.acp.handlers` - pure handler layer
   mapping ACP requests onto the existing Bernstein primitives.
-* :mod:`bernstein.core.protocols.acp.transport` — stdio JSON-RPC and
+* :mod:`bernstein.core.protocols.acp.transport` - stdio JSON-RPC and
   HTTP/SSE transports.
-* :mod:`bernstein.core.protocols.acp.session` — per-IDE session state
+* :mod:`bernstein.core.protocols.acp.session` - per-IDE session state
   (mode, working dir, pending permission prompts).
-* :mod:`bernstein.core.protocols.acp.metrics` — Prometheus counters and
+* :mod:`bernstein.core.protocols.acp.metrics` - Prometheus counters and
   gauges exported through the existing observability stack.
-* :mod:`bernstein.core.protocols.acp.server` — composition root that
+* :mod:`bernstein.core.protocols.acp.server` - composition root that
   wires handlers + transport + metrics together.
 """
 
@@ -56,7 +56,7 @@ if _legacy_path.exists():
         ACPRun = _legacy_module.ACPRun
         ACPRunStatus = _legacy_module.ACPRunStatus
 
-from bernstein.core.protocols.acp.handlers import (  # noqa: E402 — legacy shim runs first
+from bernstein.core.protocols.acp.handlers import (  # noqa: E402 - legacy shim runs first
     ACPHandlerRegistry,
     ACPRequestContext,
     PromptResult,

@@ -23,7 +23,7 @@ from bernstein.core.identity.install_rev import (
 # The seed is always 32 bytes / 256 bits (project-wide invariant).
 _SEED_BYTES = 32
 
-# Hypothesis strategies — bytes() of fixed length, integer for the
+# Hypothesis strategies - bytes() of fixed length, integer for the
 # major-version cohort byte (clamped to 1..255 by ``_version_byte``).
 _seed = st.binary(min_size=_SEED_BYTES, max_size=_SEED_BYTES)
 _nonce = st.binary(min_size=NONCE_BYTES, max_size=NONCE_BYTES)
@@ -46,7 +46,7 @@ def test_emit_then_decode_is_identity(
     """
     token = _compute_token(seed, nonce, version_major)
 
-    # Token shape invariant — every produced token is exactly 16 chars
+    # Token shape invariant - every produced token is exactly 16 chars
     # of lowercase base32, never the disabled sentinel for any real
     # (seed, nonce) combo because all-zero output is unreachable for
     # HMAC-SHA256 in practice.
@@ -98,7 +98,7 @@ def test_different_seeds_produce_different_tokens(
 ) -> None:
     """Distinct seeds under the same nonce must yield distinct tokens.
 
-    Property: the operator's seed is the entire trust anchor — two
+    Property: the operator's seed is the entire trust anchor - two
     operators with different seeds emitting from the same nonce must
     produce different tokens.  A failure here would let one operator
     forge tokens for another's discovery query.

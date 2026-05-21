@@ -74,7 +74,7 @@ def evaluate_signal(signal: CompletionSignal, workdir: Path) -> tuple[bool, str]
         case "llm_review":
             return _check_llm_review(signal.value, workdir)
         case "llm_judge":
-            # llm_judge requires async evaluation — use judge_task() instead.
+            # llm_judge requires async evaluation - use judge_task() instead.
             return False, "llm_judge requires async evaluation via judge_task()"
     return False, f"unknown signal type: {signal.type}"
 
@@ -439,7 +439,7 @@ async def create_fix_tasks(
         budget = CompletionBudget(workdir)
         should_create, reason = budget.should_create_fix_task(task)
         if not should_create:
-            logger.warning("Task %s: not creating janitor fix task — %s", task.id, reason)
+            logger.warning("Task %s: not creating janitor fix task - %s", task.id, reason)
             return []
 
     bullet_list = "\n".join(f"  - {s}" for s in failed_signals)
@@ -666,7 +666,7 @@ async def _create_judge_fix_task(
         budget = CompletionBudget(workdir)
         should_create, reason = budget.should_create_fix_task(task)
         if not should_create:
-            logger.warning("Task %s: not creating judge fix task — %s", task.id, reason)
+            logger.warning("Task %s: not creating judge fix task - %s", task.id, reason)
             return []
 
     body = {

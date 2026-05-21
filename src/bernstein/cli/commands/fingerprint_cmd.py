@@ -1,4 +1,4 @@
-"""CLI commands: ``bernstein fingerprint`` — agent output fingerprinting.
+"""CLI commands: ``bernstein fingerprint`` - agent output fingerprinting.
 
 Detects when agent-generated code closely matches known open-source code
 in a corpus, flagging potential licence risk from verbatim training-data

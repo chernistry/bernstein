@@ -9,23 +9,23 @@ guarantees evaporate.
 
 Properties:
 
-* **Determinism across calls** — two calls with the same args / kwargs
+* **Determinism across calls** - two calls with the same args / kwargs
   produce the same digest.
 
-* **Order independence for kwargs** — kwargs are sorted; supplying
+* **Order independence for kwargs** - kwargs are sorted; supplying
   them in any order produces the same digest.
 
-* **Set / frozenset member-order independence** — the canonicaliser
+* **Set / frozenset member-order independence** - the canonicaliser
   sorts set members by repr so processes with different hash seeds
   agree. Without this, action-cache hit rate plummets to ~0% across
   workers.
 
-* **Distinct args → distinct digests** — at least for primitive
+* **Distinct args → distinct digests** - at least for primitive
   scalars and obviously-different containers, the digest discriminates.
   A regression that collapses everything to the same digest would
   serve stale cached values to every caller.
 
-* **Digest length is 32 bytes** — the ``_DIGEST_BYTES = 32`` invariant
+* **Digest length is 32 bytes** - the ``_DIGEST_BYTES = 32`` invariant
   is part of the on-disk format; a change would corrupt every existing
   ``MemoStore`` entry.
 """
@@ -132,7 +132,7 @@ def test_set_member_order_does_not_affect_digest(members: frozenset[int]) -> Non
     The canonicaliser sorts set members by repr to compensate for
     Python's hash randomisation. Without it, two workers spawned with
     different ``PYTHONHASHSEED`` would compute different fingerprints
-    for the same set arg — destroying cache hit rate across the fleet.
+    for the same set arg - destroying cache hit rate across the fleet.
     """
     listed = list(members)
     reordered = frozenset(reversed(listed))

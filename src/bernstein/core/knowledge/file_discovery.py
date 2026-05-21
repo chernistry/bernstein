@@ -84,7 +84,7 @@ def file_tree(workdir: Path, max_lines: int = 50) -> str:
 
     lines: list[str] = []
 
-    # Try git ls-files first — fast and .gitignore-aware.
+    # Try git ls-files first - fast and .gitignore-aware.
     lines = _gc_ls_files(workdir)
 
     # Fallback: walk the directory tree.

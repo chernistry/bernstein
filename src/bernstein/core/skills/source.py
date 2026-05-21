@@ -7,8 +7,8 @@ with explicit conflict detection.
 
 Two concrete shapes:
 
-- :class:`SkillSource`      — materialised upfront; returns manifests + bodies.
-- :class:`LazySkillSource`  — returns manifests upfront but defers body
+- :class:`SkillSource`      - materialised upfront; returns manifests + bodies.
+- :class:`LazySkillSource`  - returns manifests upfront but defers body
   reads until :meth:`load_body` is called.
 
 The separation lets us index hundreds of plugin skills without paying for
@@ -58,7 +58,7 @@ class SkillSource(ABC):
         """Return every skill this source provides.
 
         Returns:
-            List of :class:`SkillArtifact` — sources return an empty list
+            List of :class:`SkillArtifact` - sources return an empty list
             when they have no skills, never ``None``.
 
         Raises:
@@ -73,7 +73,7 @@ class LazySkillSource(SkillSource):
     """A skill source that defers body reads until requested.
 
     Useful for sources that can list manifests cheaply (e.g. reading only
-    frontmatter from disk) but whose bodies are expensive — plugin packs
+    frontmatter from disk) but whose bodies are expensive - plugin packs
     fetched from URLs, for instance. :class:`SkillLoader` falls through to
     :meth:`load_body` when an agent calls ``load_skill``.
     """
@@ -101,7 +101,7 @@ class LazySkillSource(SkillSource):
         """
 
     def iter_skills(self) -> list[SkillArtifact]:
-        """Default :meth:`iter_skills` implementation — eagerly loads bodies.
+        """Default :meth:`iter_skills` implementation - eagerly loads bodies.
 
         Subclasses that want true lazy behaviour should override this and
         return an empty list (the loader will fall back to

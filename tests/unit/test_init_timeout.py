@@ -1,4 +1,4 @@
-"""Tests for initialization timeout guard — bootstrap.with_init_timeout."""
+"""Tests for initialization timeout guard - bootstrap.with_init_timeout."""
 
 from __future__ import annotations
 

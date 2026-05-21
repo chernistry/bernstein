@@ -2,7 +2,7 @@
 
 Three layers from the bug report are covered:
 
-1. **Producer/consumer shape mismatch** — the task server's ``/status``
+1. **Producer/consumer shape mismatch** - the task server's ``/status``
    endpoint emits ``agents`` as ``{"count": N, "items": [...]}`` (matching
    the ``tasks`` section), but the run-summary consumer used to iterate it
    as a flat ``list[dict]``, which yielded the dict's string keys
@@ -11,11 +11,11 @@ Three layers from the bug report are covered:
    list always contains dicts (never bare strings) for partial/cancelled
    agents.
 
-2. **Defensive parser** — covered by ``test_cli_ui.py`` (bare-string id is
+2. **Defensive parser** - covered by ``test_cli_ui.py`` (bare-string id is
    accepted).  Re-asserted here at the call-site level via
    ``render_run_summary_from_dict``.
 
-3. **Cleanup ordering** — ``_finalize_run_output`` must drain
+3. **Cleanup ordering** - ``_finalize_run_output`` must drain
    ``.sdd/backlog/claimed/`` even when the summary renderer raises.
 """
 
@@ -56,7 +56,7 @@ class TestNormalizeAgentEntries:
         assert out[1]["id"] == "a2"
 
     def test_legacy_list_shape_passthrough(self) -> None:
-        """Older callers still pass a flat list — keep working."""
+        """Older callers still pass a flat list - keep working."""
         payload: list[dict[str, Any]] = [{"id": "a1"}, {"id": "a2"}]
         out = _normalize_agent_entries(payload)
         assert [a["id"] for a in out] == ["a1", "a2"]
@@ -200,7 +200,7 @@ class TestCleanupOrdering:
         from bernstein.cli.run_preflight import _drain_completed_backlog_files
 
         monkeypatch.chdir(tmp_path)
-        # No .sdd/ at all — must not raise, must not call sync internals.
+        # No .sdd/ at all - must not raise, must not call sync internals.
         with patch("bernstein.core.sync._move_completed_files") as move_files:
             _drain_completed_backlog_files()
         move_files.assert_not_called()

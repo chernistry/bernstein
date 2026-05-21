@@ -113,7 +113,7 @@ class TestCheckOpusOverrideBudgetAware:
         assert "manager" in reason
 
     def test_unknown_budget_preserves_legacy_behavior(self) -> None:
-        """None budget means unknown — no downgrade."""
+        """None budget means unknown - no downgrade."""
         task = _make_task(role="security")
 
         reason = _check_opus_override(
@@ -205,7 +205,7 @@ class TestCheckOpusOverrideModuleState:
         set_budget_context(0.05, enabled=True)
         clear_budget_context()
 
-        # Context cleared — no budget known, legacy behavior returns reason.
+        # Context cleared - no budget known, legacy behavior returns reason.
         assert _check_opus_override(task) is not None
 
 

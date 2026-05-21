@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.platform_compat — cross-platform process helpers."""
+"""Tests for bernstein.core.platform_compat - cross-platform process helpers."""
 
 from __future__ import annotations
 
@@ -143,12 +143,12 @@ class TestKillProcessGroup:
 
 
 # ---------------------------------------------------------------------------
-# kill_process_group_graceful — audit-011
+# kill_process_group_graceful - audit-011
 # ---------------------------------------------------------------------------
 
 
 class TestKillProcessGroupGraceful:
-    """Tests for kill_process_group_graceful() — SIGTERM→poll→SIGKILL."""
+    """Tests for kill_process_group_graceful() - SIGTERM→poll→SIGKILL."""
 
     def test_zero_pgid_returns_false(self) -> None:
         assert kill_process_group_graceful(0) is False
@@ -188,7 +188,7 @@ class TestKillProcessGroupGraceful:
         ):
             assert kill_process_group_graceful(12345, grace_seconds=1.0, poll_interval=0.01) is True
 
-        # Only the SIGTERM call — no SIGKILL escalation.
+        # Only the SIGTERM call - no SIGKILL escalation.
         assert mock_kpg.call_count == 1
         assert mock_kpg.call_args_list[0].args[1] == signal.SIGTERM
 
@@ -207,7 +207,7 @@ class TestKillProcessGroupGraceful:
         ):
             assert kill_process_group_graceful(12345, grace_seconds=0.05, poll_interval=0.01) is True
 
-        # Expect two calls — SIGTERM first, then SIGKILL.
+        # Expect two calls - SIGTERM first, then SIGKILL.
         assert mock_kpg.call_count == 2
         assert mock_kpg.call_args_list[0].args == (12345, signal.SIGTERM)
         assert mock_kpg.call_args_list[1].args == (12345, signal.SIGKILL)
@@ -641,7 +641,7 @@ class TestSkipOnWindows:
             executed = True
             return True
 
-        # On Unix, the decorator does not prevent execution —
+        # On Unix, the decorator does not prevent execution -
         # it only adds a pytest marker. Direct calls still work.
         result = inner()
         assert result is True

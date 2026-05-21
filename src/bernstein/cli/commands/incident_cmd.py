@@ -179,7 +179,7 @@ def _show_timeline(incident_id: str, json_mode: bool, window_before: int, window
 
     header = (
         f"Incident [bold cyan]{incident_id}[/bold cyan] "
-        f"[{sev_style}]{severity.upper()}[/{sev_style}] — {title}\n"
+        f"[{sev_style}]{severity.upper()}[/{sev_style}] - {title}\n"
         f"Status: {status} | Events: {event_count}"
     )
 

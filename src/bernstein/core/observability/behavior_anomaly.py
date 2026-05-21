@@ -7,7 +7,7 @@ Two detection modes:
    update and fires immediately on suspicious file access, output-size explosions, or
    command-velocity anomalies.  On KILL_AGENT severity it writes a structured kill signal
    (``.sdd/runtime/{session_id}.kill``) so the orchestrator terminates the agent on its
-   next tick — identical to the ``enforce_kill_signal`` mechanism in ``circuit_breaker.py``.
+   next tick - identical to the ``enforce_kill_signal`` mechanism in ``circuit_breaker.py``.
 
 Detection dimensions (real-time):
 - **Suspicious file access**: Credential/key/system-file path patterns → KILL_AGENT
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Suspicious file patterns — indicates potential data exfiltration or
+# Suspicious file patterns - indicates potential data exfiltration or
 # credential theft by a compromised agent.
 # ---------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ _SAFE_FILE_ALLOWLIST: list[str] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Dangerous command patterns — commands that suggest a compromised agent is
+# Dangerous command patterns - commands that suggest a compromised agent is
 # attempting network exfiltration, C2 callback, or privilege escalation.
 # Matched against the ``last_command`` field in progress updates.
 # ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ _DANGEROUS_COMMAND_SUBSTRINGS: Final[tuple[str, ...]] = (
 )
 
 # ---------------------------------------------------------------------------
-# Suspicious network endpoint patterns — URLs/IPs detected in progress
+# Suspicious network endpoint patterns - URLs/IPs detected in progress
 # messages that indicate C2 callbacks, SSRF probes, or data exfiltration.
 # ---------------------------------------------------------------------------
 

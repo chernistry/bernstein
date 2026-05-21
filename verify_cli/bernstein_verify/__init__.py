@@ -1,4 +1,4 @@
-"""bernstein-verify — standalone auditor CLI for Bernstein lineage v1 packs.
+"""bernstein-verify - standalone auditor CLI for Bernstein lineage v1 packs.
 
 This package MUST NOT import from `bernstein.*` at runtime. The whole point
 of shipping it as a separate wheel is that an auditor on an air-gapped

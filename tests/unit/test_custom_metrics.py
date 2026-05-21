@@ -90,7 +90,7 @@ class TestEvaluateFormula:
 
     def test_safe_zero_division_in_efficiency_formula(self) -> None:
         variables = build_variables(tick_vars={"tasks_completed": 0.0, "tasks_failed": 0.0})
-        # Should not raise — division by 0.001 constant guard
+        # Should not raise - division by 0.001 constant guard
         result = evaluate_formula("tasks_completed / (tasks_completed + tasks_failed + 0.001)", variables)
         assert result == pytest.approx(0.0, abs=1e-3)
 
@@ -205,7 +205,7 @@ class TestCustomMetricsEvaluator:
 
 
 # ---------------------------------------------------------------------------
-# Seed file metrics parsing (OBS-148 — bernstein.yaml integration)
+# Seed file metrics parsing (OBS-148 - bernstein.yaml integration)
 # ---------------------------------------------------------------------------
 
 

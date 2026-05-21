@@ -168,7 +168,7 @@ def check_prompt_size(
         action = PromptAction.REJECT
         message = (
             f"Prompt uses ~{utilization:.0%} of {limit:,} token context window "
-            f"({estimated:,} estimated tokens). Spawn rejected — agent would have "
+            f"({estimated:,} estimated tokens). Spawn rejected - agent would have "
             f"almost no room for output."
         )
     elif utilization >= truncation_threshold:

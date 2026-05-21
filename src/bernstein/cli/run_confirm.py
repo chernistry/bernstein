@@ -656,7 +656,7 @@ def demo(dry_run: bool, real: bool, adapter: str | None, timeout: int) -> None:
 
     \b
     Creates a temp Flask app with 4 intentional bugs, seeds fix tasks,
-    then runs agents to resolve them — all while showing live progress.
+    then runs agents to resolve them - all while showing live progress.
     No API key required in mock mode.
 
     \b

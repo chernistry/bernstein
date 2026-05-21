@@ -224,7 +224,7 @@ class TestTaskAlreadyExists:
 
 
 # ---------------------------------------------------------------------------
-# sync_backlog_to_server — integration with mock httpx
+# sync_backlog_to_server - integration with mock httpx
 # ---------------------------------------------------------------------------
 
 

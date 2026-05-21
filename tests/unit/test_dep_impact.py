@@ -96,7 +96,7 @@ class TestCollectModuleAliases:
 
 
 # ---------------------------------------------------------------------------
-# _find_call_impacts — removed function
+# _find_call_impacts - removed function
 # ---------------------------------------------------------------------------
 
 
@@ -177,7 +177,7 @@ class TestFindCallImpactsRemovedFunction:
     def test_call_not_in_imported_names_ignored(self) -> None:
         source = "check_compatibility(old, new, fname)"
         bcs = [_make_removed_func_bc("check_compatibility")]
-        # Not in imported_names — should be ignored
+        # Not in imported_names - should be ignored
         impacts = self._impacts(source, bcs, imported_names={})
         assert impacts == []
 
@@ -235,13 +235,13 @@ class TestFindCallImpactsChangedParamPosition:
         assert "positional" in impacts[0].reason
 
     def test_single_positional_arg_not_flagged(self) -> None:
-        # Only one arg — position reorder doesn't matter
+        # Only one arg - position reorder doesn't matter
         impacts = self._impacts("connect('host')")
         assert impacts == []
 
 
 # ---------------------------------------------------------------------------
-# find_call_site_impacts — integration test with real files
+# find_call_site_impacts - integration test with real files
 # ---------------------------------------------------------------------------
 
 

@@ -20,7 +20,7 @@ Run-time notes:
 - ``concurrent`` tests spawn ``asyncio.gather``-style bursts; cloud
   sinks running against local emulators should still complete inside
   a few seconds.
-- ``large_payload`` is 1 MB by default — large enough to exercise
+- ``large_payload`` is 1 MB by default - large enough to exercise
   chunked upload paths on cloud sinks but small enough to keep CI
   fast. Sinks needing more aggressive coverage override
   :attr:`ArtifactSinkConformance.large_payload_bytes`.
@@ -63,7 +63,7 @@ class ArtifactSinkConformance:
         sink: ArtifactSink,
     ) -> None:
         """Roundtrip UTF-8 text encoded as bytes."""
-        payload = "hello world — conformance ✓".encode()
+        payload = "hello world - conformance ✓".encode()
         await sink.write("conformance/utf8.txt", payload)
         got = await sink.read("conformance/utf8.txt")
         assert got == payload
@@ -110,7 +110,7 @@ class ArtifactSinkConformance:
     ) -> None:
         """Listing more than one page returns every key.
 
-        S3 default page size is 1000 — we use 50 writes here because
+        S3 default page size is 1000 - we use 50 writes here because
         the conformance suite also runs on emulators where larger
         payloads are slower. Pagination support is still exercised on
         sinks that set their page size to 10 or below.

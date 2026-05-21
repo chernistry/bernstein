@@ -1,6 +1,6 @@
 """Tests for the demo Flask app.
 
-One test (test_hello_returns_200) contains an intentional bug — it asserts
+One test (test_hello_returns_200) contains an intentional bug - it asserts
 status_code == 404 instead of 200.  bernstein demo will fix it.
 """
 
@@ -22,7 +22,7 @@ def test_hello_returns_200(client):
     BUG 4: asserts 404 instead of 200.
     """
     resp = client.get("/")
-    assert resp.status_code == 404  # wrong — should be 200
+    assert resp.status_code == 404  # wrong - should be 200
 
 
 def test_hello_json_structure(client):

@@ -164,7 +164,7 @@ class TestEvalGateResult:
 
 
 # ---------------------------------------------------------------------------
-# EvalGate — core decision logic
+# EvalGate - core decision logic
 # ---------------------------------------------------------------------------
 
 
@@ -381,7 +381,7 @@ class TestEvalTrajectory:
         )
 
         trajectory_path = tmp_path / "metrics" / "eval_trajectory.jsonl"
-        # File may not exist or be empty — skipped evals don't log.
+        # File may not exist or be empty - skipped evals don't log.
         if trajectory_path.exists():
             content = trajectory_path.read_text().strip()
             assert content == ""

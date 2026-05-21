@@ -1,4 +1,4 @@
-"""Tests for activity_tracker — persistence, duration, and thread safety."""
+"""Tests for activity_tracker - persistence, duration, and thread safety."""
 
 from __future__ import annotations
 

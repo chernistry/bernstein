@@ -1,4 +1,4 @@
-"""Model fallback tracker — consecutive provider errors trigger model switch (T444).
+"""Model fallback tracker - consecutive provider errors trigger model switch (T444).
 
 After consecutive error responses (529, 429, 503, timeouts) from a provider,
 the tracker signals that the agent should switch to a configured fallback
@@ -193,7 +193,7 @@ class ModelFallbackTracker:
             session_id: Agent session identifier.
             fallback_model: Optional fallback model to use on strike limit.
             fallback_chain: Optional ordered list of fallback models.  When
-                provided, overrides fallback_model — the first entry becomes
+                provided, overrides fallback_model - the first entry becomes
                 the initial fallback target.
         """
         chain = list(fallback_chain) if fallback_chain else self._chain_config.fallback_chain.copy()

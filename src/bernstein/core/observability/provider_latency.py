@@ -160,10 +160,10 @@ class ProviderLatencyTracker:
         # In-memory trackers keyed by "provider:model"
         self._trackers: dict[str, PercentileTracker] = {}
 
-        # Baseline p99 per key — loaded from persisted history on init
+        # Baseline p99 per key - loaded from persisted history on init
         self._baseline_p99: dict[str, float] = {}
 
-        # Baseline sample counts — we only trust baselines above minimum
+        # Baseline sample counts - we only trust baselines above minimum
         self._baseline_sample_counts: dict[str, int] = {}
 
         self._lock = threading.Lock()
@@ -203,7 +203,7 @@ class ProviderLatencyTracker:
             # Persist the raw sample
             self._persist_sample(provider, model, latency_ms)
 
-            # Check for degradation BEFORE updating the baseline — otherwise
+            # Check for degradation BEFORE updating the baseline - otherwise
             # the EMA absorbs any spike before the alert fires (test
             # test_degradation_alert_triggered reproducer). Alert must be
             # compared against the *existing* baseline, not the post-update
@@ -229,7 +229,7 @@ class ProviderLatencyTracker:
                             ),
                         )
 
-            # Update baseline only when no degradation alert fired — this
+            # Update baseline only when no degradation alert fired - this
             # keeps the baseline stable during sustained spikes so alerts
             # keep firing instead of the EMA silencing them.
             if sample_count >= _MIN_BASELINE_SAMPLES and alert is None:

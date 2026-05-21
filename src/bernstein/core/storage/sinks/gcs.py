@@ -2,7 +2,7 @@
 
 Install with ``pip install bernstein[gcs]``. When the
 ``google-cloud-storage`` SDK is missing the module still imports
-cleanly — instantiation is where the error surfaces.
+cleanly - instantiation is where the error surfaces.
 
 Credentials resolve via the standard
 ``GOOGLE_APPLICATION_CREDENTIALS`` env var (service-account JSON) or
@@ -12,7 +12,7 @@ deployments.
 
 The google-cloud-storage client is synchronous; every operation runs
 through :func:`asyncio.to_thread` to keep the event loop free.
-``durable=True`` maps to a blocking synchronous upload — GCS's ACK is
+``durable=True`` maps to a blocking synchronous upload - GCS's ACK is
 the equivalent of a local fsync.
 """
 

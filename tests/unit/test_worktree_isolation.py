@@ -1,4 +1,4 @@
-"""Tests for AGENT-002 — worktree isolation validation."""
+"""Tests for AGENT-002 - worktree isolation validation."""
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ class TestHardlinkLeaks:
         assert "hardlink" in violations[0].lower()
 
     def test_no_parent_dir_passes(self, worktree_path: Path, tmp_path: Path) -> None:
-        # repo_root has no .sdd — nothing to leak
+        # repo_root has no .sdd - nothing to leak
         repo_no_sdd = tmp_path / "empty_repo"
         repo_no_sdd.mkdir()
         violations = check_no_hardlink_leaks(worktree_path, repo_no_sdd)

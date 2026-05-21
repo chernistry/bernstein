@@ -8,7 +8,7 @@ SLO targets:
 - Merge success rate: >= 95%
 - P95 task duration: < 30 minutes
 
-Burn-down rate visualization — tracks burn rate over time to project
+Burn-down rate visualization - tracks burn rate over time to project
 SLO breach date using linear extrapolation on the error budget.
 """
 
@@ -216,9 +216,9 @@ class ErrorBudgetPolicy:
 def _breach_projection_text(eb: Any, days_to_breach: float | None) -> str:
     """Generate a human-readable breach projection string."""
     if eb.is_depleted:
-        return "Error budget exhausted — SLO breached now"
+        return "Error budget exhausted - SLO breached now"
     if days_to_breach is None:
-        return "On track — error budget not at risk"
+        return "On track - error budget not at risk"
     if days_to_breach < 1:
         hours = days_to_breach * 24
         return f"SLO will breach in {hours:.1f} hours at current rate"

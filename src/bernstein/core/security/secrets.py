@@ -302,7 +302,7 @@ class OnePasswordSecretsProvider(SecretsProvider):
             )
         except FileNotFoundError as exc:
             raise SecretsError(
-                "1Password CLI (op) not found — install from https://1password.com/downloads/command-line/"
+                "1Password CLI (op) not found - install from https://1password.com/downloads/command-line/"
             ) from exc
         except subprocess.TimeoutExpired as exc:
             raise SecretsError("1Password CLI timed out") from exc

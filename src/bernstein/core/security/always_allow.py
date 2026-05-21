@@ -5,7 +5,7 @@ invocation matches a known-safe signature.  For example, ``grep`` on
 ``src/*`` paths is always allowed, while ``grep`` on ``/etc`` still
 triggers an ask or deny.
 
-Rules take **highest precedence** — an ALLOW from this engine overrides
+Rules take **highest precedence** - an ALLOW from this engine overrides
 any ASK or DENY from other guardrails (except IMMUNE and SAFETY which
 remain bypass-immune).
 
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 ENV_ALWAYS_ALLOW_PATH = "BERNSTEIN_ALWAYS_ALLOW_PATH"
 
 #: Relative orchestrator-only location for the rules file. ``.sdd/*`` is an
-#: IMMUNE path — agents cannot modify anything there without being hard-blocked.
+#: IMMUNE path - agents cannot modify anything there without being hard-blocked.
 TRUSTED_RULES_REL = Path(".sdd") / "config" / "always_allow.yaml"
 
 #: Relative orchestrator-only location for the manifest that pins the sha256
@@ -141,7 +141,7 @@ def _pattern_matches(pattern: str, value: str) -> bool:
         try:
             return re.search(pattern, value) is not None
         except re.error:
-            logger.debug("Invalid regex %r — falling back to glob", pattern)
+            logger.debug("Invalid regex %r - falling back to glob", pattern)
     return fnmatch.fnmatch(value, pattern)
 
 
@@ -208,7 +208,7 @@ def _is_agent_writable(rules_path: Path, workdir: Path) -> bool:
     try:
         rel = resolved_rules.relative_to(resolved_workdir)
     except ValueError:
-        # File lives outside the agent workdir — trusted.
+        # File lives outside the agent workdir - trusted.
         return False
 
     parts = rel.parts
@@ -249,7 +249,7 @@ def write_always_allow_manifest(workdir: Path, rules_path: Path) -> Path:
 
     Call this from the orchestrator (never from an agent process) immediately
     after authoring or updating the rules file. The resulting manifest lives
-    under ``.sdd/config/`` which is an IMMUNE path — agents cannot forge a
+    under ``.sdd/config/`` which is an IMMUNE path - agents cannot forge a
     matching manifest without already breaking a higher guardrail.
 
     Args:
@@ -291,7 +291,7 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
             "load agent-supplied always-allow rules."
         )
         _record_tamper_event(workdir, rules_path, reason)
-        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] — file paths only, no credential material
+        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] - file paths only, no credential material
         raise AlwaysAllowTamperError(reason)
 
     try:
@@ -299,7 +299,7 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
     except (OSError, json.JSONDecodeError) as exc:
         reason = f"Always-allow manifest at {manifest_path} is unreadable: {type(exc).__name__}"
         _record_tamper_event(workdir, rules_path, reason)
-        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] — file path + exception type only
+        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] - file path + exception type only
         raise AlwaysAllowTamperError(f"Always-allow manifest at {manifest_path} is unreadable: {exc}") from exc
 
     expected_digest = str(manifest.get("sha256", "")).lower()
@@ -308,12 +308,12 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
         reason = (
             f"Always-allow rules file {rules_path} sha256={actual_digest} "
             f"does not match manifest sha256={expected_digest or '<missing>'}. "
-            "Refusing to load — possible agent self-escalation."
+            "Refusing to load - possible agent self-escalation."
         )
         _record_tamper_event(workdir, rules_path, reason)
-        logger.error(  # lgtm[py/clear-text-logging-sensitive-data] — digests are integrity fingerprints, not secrets
+        logger.error(  # lgtm[py/clear-text-logging-sensitive-data] - digests are integrity fingerprints, not secrets
             "Always-allow rules file %s digest mismatch (digests redacted). "
-            "Refusing to load — possible agent self-escalation.",
+            "Refusing to load - possible agent self-escalation.",
             rules_path,
         )
         raise AlwaysAllowTamperError(reason)
@@ -325,9 +325,9 @@ def _resolve_rules_path(workdir: Path) -> tuple[Path | None, bool]:
     Priority order:
         1. ``$BERNSTEIN_ALWAYS_ALLOW_PATH`` (always treated as explicit, but
            still verified against agent-writable heuristics).
-        2. ``.sdd/config/always_allow.yaml`` — orchestrator-only trusted path.
-        3. ``.bernstein/always_allow.yaml`` — legacy, requires manifest.
-        4. ``.bernstein/rules.yaml`` — legacy combined file, requires manifest.
+        2. ``.sdd/config/always_allow.yaml`` - orchestrator-only trusted path.
+        3. ``.bernstein/always_allow.yaml`` - legacy, requires manifest.
+        4. ``.bernstein/rules.yaml`` - legacy combined file, requires manifest.
 
     Returns:
         Tuple of (path, is_trusted). ``path`` is ``None`` when no rules file
@@ -359,15 +359,15 @@ def load_always_allow_rules(workdir: Path, *, strict: bool = True) -> AlwaysAllo
     """Load always-allow rules with tamper-aware source selection.
 
     The loader walks a priority list (env var, ``.sdd/config/``, legacy
-    ``.bernstein/``) and — for any source that lives in the agent's writable
-    surface — verifies the sha256 against an orchestrator-signed manifest in
+    ``.bernstein/``) and - for any source that lives in the agent's writable
+    surface - verifies the sha256 against an orchestrator-signed manifest in
     ``.sdd/config/always_allow.manifest.json`` before parsing.
 
     Args:
         workdir: Project root.
         strict: When ``True`` (default), tamper detection raises
             :class:`AlwaysAllowTamperError`. When ``False``, the error is
-            swallowed and an empty engine is returned — useful for callers
+            swallowed and an empty engine is returned - useful for callers
             that prefer a safe-default (no ALLOW overrides) over a crash.
 
     Returns:

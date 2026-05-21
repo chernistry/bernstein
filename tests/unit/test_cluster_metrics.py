@@ -40,7 +40,7 @@ def _scrape() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Direct helper coverage — catches typos in the label vocabulary.
+# Direct helper coverage - catches typos in the label vocabulary.
 # ---------------------------------------------------------------------------
 
 
@@ -89,7 +89,7 @@ def test_record_admission_failure_emits_each_reason() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration coverage — wiring inside cluster.py / stealing / autoscaler.
+# Integration coverage - wiring inside cluster.py / stealing / autoscaler.
 # ---------------------------------------------------------------------------
 
 

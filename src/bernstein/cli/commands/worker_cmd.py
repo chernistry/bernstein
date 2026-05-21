@@ -49,7 +49,7 @@ def _detect_worker_adapter() -> str:
 class WorkerLoop:
     """Main loop for a worker node: register, heartbeat, claim + execute tasks.
 
-    The worker is intentionally simple — a thin loop that:
+    The worker is intentionally simple - a thin loop that:
     1. Registers with the central server via the heartbeat client
     2. Polls for available tasks matching its supported roles
     3. Spawns short-lived CLI agents to execute claimed tasks

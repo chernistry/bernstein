@@ -10,7 +10,7 @@ Full pipeline:
   7. ApprovalGate logs decisions to decisions.jsonl
   8. Approved proposals queued or applied (history.jsonl)
 
-No real LLM calls — ProposalGenerator and analysis pipeline are fully deterministic.
+No real LLM calls - ProposalGenerator and analysis pipeline are fully deterministic.
 """
 
 from __future__ import annotations
@@ -143,7 +143,7 @@ class TestEvolutionFeedbackLoop:
 
         coordinator = EvolutionCoordinator(state_dir=state_dir)
 
-        # Simulate 20 task completions (75 % pass rate — below 80 % threshold)
+        # Simulate 20 task completions (75 % pass rate - below 80 % threshold)
         for i in range(20):
             task = MagicMock()
             task.id = f"synthetic-{i}"
@@ -342,8 +342,8 @@ class TestEvolutionFeedbackLoop:
             )
 
             # Ticks 1 and 2 should NOT fire the cycle
-            orchestrator.tick()  # tick 1 — no cycle
-            orchestrator.tick()  # tick 2 — no cycle
+            orchestrator.tick()  # tick 1 - no cycle
+            orchestrator.tick()  # tick 2 - no cycle
 
             # Pending proposals should not yet exist (cycle hasn't run)
             pending_path = state_dir / "upgrades" / "pending.json"

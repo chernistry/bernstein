@@ -1,4 +1,4 @@
-"""Tests for TierAwareRouter — tier-based routing decisions."""
+"""Tests for TierAwareRouter - tier-based routing decisions."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ File format (binary)::
     | HEADER | IV (12B) | AAD (var) | CIPHERTEXT | TAG(16B) |
     +--------+----------+-----------+------------+----------+
 
-HEADER = ``b"BSD1"`` (4 bytes — Bernstein State Data, version 1)
+HEADER = ``b"BSD1"`` (4 bytes - Bernstein State Data, version 1)
 
 Usage::
 
@@ -183,7 +183,7 @@ class EncryptedFile:
             return b""
 
         if not self._starts_with_header(file_data):
-            raise ValueError("Invalid file header — not an encrypted file")
+            raise ValueError("Invalid file header - not an encrypted file")
 
         iv = file_data[HEADER_LEN : HEADER_LEN + IV_LEN]
         aad = self._path.name.encode("utf-8")
@@ -194,7 +194,7 @@ class EncryptedFile:
         try:
             plaintext = aesgcm.decrypt(iv, ciphertext + auth_tag, aad)
         except Exception as exc:
-            raise ValueError("Decryption failed — file may be corrupted") from exc
+            raise ValueError("Decryption failed - file may be corrupted") from exc
         return plaintext
 
     def readlines(self) -> list[bytes]:
@@ -334,7 +334,7 @@ class KeyManager:
     """Manages encryption keys stored on disk, outside the state directory.
 
     By default the key lives at
-    ``~/.config/bernstein/keys/<workspace-hash>`` — one key per workspace,
+    ``~/.config/bernstein/keys/<workspace-hash>`` - one key per workspace,
     keyed by the SHA-256 of the ``.sdd/`` absolute path. This prevents a
     stolen ``.sdd/`` tarball from containing both ciphertext and key.
 
@@ -368,7 +368,7 @@ class KeyManager:
         self._legacy_key_dir = sdd_dir / "config"
         self._legacy_key_path = self._legacy_key_dir / "state-key"
         self._key_path_override = os.environ.get("BERNSTEIN_STATE_KEY_PATH")
-        # Perform migration lazily on first key access — avoid touching
+        # Perform migration lazily on first key access - avoid touching
         # disk in __init__ so tests that construct the manager without
         # calling ensure_key()/load_key() stay hermetic.
         self._migrated = False
@@ -435,7 +435,7 @@ class KeyManager:
         try:
             return aesgcm.decrypt(iv, ciphertext, _KEY_FILE_MAGIC)
         except Exception as exc:  # pragma: no cover - exercised via tests
-            raise ValueError("Failed to unwrap state key — wrong passphrase?") from exc
+            raise ValueError("Failed to unwrap state key - wrong passphrase?") from exc
 
     @staticmethod
     def _is_wrapped(blob: bytes) -> bool:
@@ -447,7 +447,7 @@ class KeyManager:
         """Move legacy ``<sdd>/config/state-key`` out of .sdd/ (once).
 
         Runs for both the default path and any ``BERNSTEIN_STATE_KEY_PATH``
-        override — the override only changes the destination, not whether
+        override - the override only changes the destination, not whether
         migration happens.
         """
         if self._migrated:

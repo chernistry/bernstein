@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.traces — TraceStep, parse_agent_log, replay payload."""
+"""Tests for bernstein.core.traces - TraceStep, parse_agent_log, replay payload."""
 
 from __future__ import annotations
 

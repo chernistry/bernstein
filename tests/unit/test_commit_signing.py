@@ -101,7 +101,7 @@ class TestBuildProvenanceTrailers:
 
 
 # ---------------------------------------------------------------------------
-# sign_and_commit — integration with a real git repo
+# sign_and_commit - integration with a real git repo
 # ---------------------------------------------------------------------------
 
 

@@ -125,7 +125,7 @@ _SYSTEM_PROMPT = textwrap.dedent("""\
     You are a senior software architect.  Your job is to turn a one-line
     project description into a multi-stage Bernstein YAML plan.
 
-    Output ONLY valid YAML — no prose, no fences.  Follow the schema exactly.
+    Output ONLY valid YAML - no prose, no fences.  Follow the schema exactly.
 
     Schema rules:
     - Top-level keys: name, description, stages
@@ -269,7 +269,7 @@ def _shape_check_yaml_plan(
     """Run the vertical-slice shape checker against a YAML plan.
 
     Prints violations to the console for operator visibility.  Does not
-    raise — the YAML is still written so the operator can edit it; the
+    raise - the YAML is still written so the operator can edit it; the
     diagnostics make the issues obvious.
     """
     from bernstein.core.planning.vertical_slice import (
@@ -429,7 +429,7 @@ def plan_generate(
 
     # Vertical-slice shape check (issue #1321).  Operates on the YAML
     # steps directly; reports violations but does not abort by default
-    # — the LLM-generated YAML is then surfaced to the operator who can
+    # - the LLM-generated YAML is then surfaced to the operator who can
     # re-run with ``--no-enforce-vertical`` if appropriate.
     if enforce_vertical:
         _shape_check_yaml_plan(plan_data, max_loc=max_loc, max_files=max_files)

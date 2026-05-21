@@ -7,7 +7,7 @@ demand via :func:`expand_tools` once the agent has chosen what it needs.
 
 The pattern is the lazy-loading half of "tool search" from
 awesome-agentic-patterns: with 7+ MCP servers the full catalog can run
-to ~67k tokens — ruinous for short-lived agents whose whole reason for
+to ~67k tokens - ruinous for short-lived agents whose whole reason for
 existing is fast spawn time.  When the catalog exceeds a configurable
 threshold we serve a directory + search affordance instead.
 
@@ -86,7 +86,7 @@ def _tokenize(text: str) -> list[str]:
 def estimate_tokens(text: str) -> int:
     """Cheap token-count estimate using a chars-per-token heuristic.
 
-    Avoids pulling in tiktoken — close enough for budget gating.
+    Avoids pulling in tiktoken - close enough for budget gating.
     """
     if not text:
         return 0
@@ -187,7 +187,7 @@ def _schema_blob(schema: Mapping[str, Any]) -> str:
 class ToolSearchEngine:
     """BM25 ranker over tool name + summary text.
 
-    BM25 is plenty for v1 — names and summaries are short, the corpus is
+    BM25 is plenty for v1 - names and summaries are short, the corpus is
     small (low hundreds of tools at most), and we want zero extra
     dependencies.  Vector embeddings are deferred per the ticket.
     """

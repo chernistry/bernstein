@@ -76,7 +76,7 @@ class TestApplyReworkPromotion:
 
     def test_no_promotion_when_samples_below_min(self, tmp_path: Path) -> None:
         ledger = ReworkLedger(root=tmp_path / "rework")
-        # 100% rework but only 5 samples — should NOT trip the auto-promote.
+        # 100% rework but only 5 samples - should NOT trip the auto-promote.
         _seed_rework(ledger, model="sonnet", phase="backend", n_total=5, n_rework=5)
 
         result = _apply_rework_promotion(
@@ -158,14 +158,14 @@ class TestCascadeRouterReworkIntegration:
         assert decision.model == "sonnet"
 
     def test_no_promotion_on_escalation_path(self, tmp_path: Path) -> None:
-        """Escalation already moves up — rework promotion must not double-jump."""
+        """Escalation already moves up - rework promotion must not double-jump."""
         ledger = ReworkLedger(root=tmp_path / "rework")
         _seed_rework(ledger, model="sonnet", phase="backend", n_total=30, n_rework=30)
 
         router = CascadeRouter(rework_ledger=ledger)
         first = router.select(_task())
         # The first attempt was already promoted to opus by the rework
-        # signal, so a second attempt would have nowhere to go — but the
+        # signal, so a second attempt would have nowhere to go - but the
         # important invariant we want here is that the escalation path
         # does not consult the ledger and does not blow up.
         assert first.model == "opus"

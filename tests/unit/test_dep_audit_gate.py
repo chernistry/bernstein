@@ -1,4 +1,4 @@
-"""Tests for the dep_audit quality gate — checks for vulnerable dependencies."""
+"""Tests for the dep_audit quality gate - checks for vulnerable dependencies."""
 
 from __future__ import annotations
 

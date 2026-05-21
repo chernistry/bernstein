@@ -1,6 +1,6 @@
 """GitLab CI failure routing: trace fetch, parse, blame and payload builder.
 
-Mirror of :mod:`bernstein.github_app.ci_router`.  Pure functions only —
+Mirror of :mod:`bernstein.github_app.ci_router`.  Pure functions only -
 HTTP calls go through :mod:`bernstein.gitlab_app.app.fetch_job_trace`.
 """
 
@@ -76,7 +76,7 @@ def fetch_and_parse_failures(
         if not trace:
             continue
         # ``parser.parse`` is internally typed but pyright sees the
-        # imported parser at a relaxed boundary — funnel through ``Any``
+        # imported parser at a relaxed boundary - funnel through ``Any``
         # to keep this module strict.
         parse_fn: Any = parser.parse
         parsed: Any = parse_fn(trace)
@@ -117,7 +117,7 @@ def build_pipeline_routing_payload(
         blame: Blame attribution.
         pipeline_id: GitLab pipeline ID.
         pipeline_url: Pipeline web URL.
-        failed_builds: Original failed-builds list — used to summarise
+        failed_builds: Original failed-builds list - used to summarise
             jobs when we have no parsed CI failures (e.g. no token).
         retry_count: Previous fix attempts (0 means first try).
 
@@ -133,7 +133,7 @@ def build_pipeline_routing_payload(
         hints = "\n".join(f"  {f.fix_hint}" for f in failures if f.fix_hint)
     else:
         failure_kinds = "pipeline_failed"
-        # No parseable failures — fall back to job names.
+        # No parseable failures - fall back to job names.
         failure_summaries = (
             "\n".join(
                 f"- Job **{b.get('name', 'unknown')}** (stage: {b.get('stage', 'unknown')}) failed"

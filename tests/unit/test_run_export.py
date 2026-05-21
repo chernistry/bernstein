@@ -214,7 +214,7 @@ def test_sequential_estimate() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tests: export_run_report — HTML output
+# Tests: export_run_report - HTML output
 # ---------------------------------------------------------------------------
 
 
@@ -285,7 +285,7 @@ def test_export_html_contains_agent_stats(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tests: export_run_report — Markdown output
+# Tests: export_run_report - Markdown output
 # ---------------------------------------------------------------------------
 
 

@@ -5,9 +5,9 @@ Called from the orchestrator cleanup path so that long-running bernstein
 instances do not accumulate unbounded per-run state on disk.
 
 Kept files:
-  - ``.sdd/runs/<run_id>/`` — newest
+  - ``.sdd/runs/<run_id>/`` - newest
     :attr:`JanitorDefaults.run_retention_count` directories by mtime.
-  - ``.sdd/runtime/wal/<run_id>.wal.jsonl`` — newest
+  - ``.sdd/runtime/wal/<run_id>.wal.jsonl`` - newest
     :attr:`JanitorDefaults.wal_retention_count` files (plus their
     rotated ``.N`` backups) by mtime.
 
@@ -74,7 +74,7 @@ def prune_old_runs(
 
     entries = [p for p in runs_dir.iterdir() if p.is_dir()]
     scanned = len(entries)
-    # Sort by mtime descending — newest first.
+    # Sort by mtime descending - newest first.
     entries.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
     # Always keep the active run, even if it is the oldest.
@@ -108,7 +108,7 @@ def prune_old_wal_files(
 
     Only files matching ``<run_id>.wal.jsonl`` (plus any rotated ``.N``
     backups) are considered. ``idempotency.jsonl`` and its rotations are
-    left untouched — that file is the IdempotencyStore's source of truth
+    left untouched - that file is the IdempotencyStore's source of truth
     across runs.
 
     Args:

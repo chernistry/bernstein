@@ -3,12 +3,12 @@
 These tests cover the crash-safe persistence contract:
 
 * Repeated writes to the same path never produce a corrupt or empty
-  reader view — the file is either old-content or new-content at any
+  reader view - the file is either old-content or new-content at any
   observation point.
 * A simulated mid-write crash (exception between temp creation and
   ``os.replace``) cleans up the stray ``.tmp.*`` file and leaves the
   pre-existing target intact.
-* Concurrent writers never expose a partial payload to readers —
+* Concurrent writers never expose a partial payload to readers -
   every successful read returns a fully-parseable JSON document.
 """
 
@@ -146,7 +146,7 @@ def test_atomic_write_tmp_path_unique_per_call(tmp_path: Path) -> None:
 
 def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Path) -> None:
     """Readers running while another thread repeatedly overwrites the target
-    must always see a fully-parseable JSON document — never a partial/torn
+    must always see a fully-parseable JSON document - never a partial/torn
     write. ``os.replace`` guarantees this atomicity; this test pins the
     behaviour against regressions that reintroduce plain ``write_text``.
     """
@@ -197,7 +197,7 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
         r.join(timeout=5)
 
     assert errors == [], f"concurrent access produced torn reads: {errors}"
-    # We should have observed many distinct versions — proves the reader/writer
+    # We should have observed many distinct versions - proves the reader/writer
     # actually interleaved.
     assert len(observed_versions) >= 5
 

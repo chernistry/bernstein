@@ -120,7 +120,7 @@ class PhaseSpec:
     def render_prompt_contract(self) -> str:
         """Return a fenced JSON block the executor splats into the prompt.
 
-        The block is ready to inject verbatim into the agent prompt — it
+        The block is ready to inject verbatim into the agent prompt - it
         starts and ends with the standard ```` ```json ```` fences so
         downstream renderers do not need to know about the schema shape.
         Sharing the bytes between the validator and the prompt template
@@ -137,7 +137,7 @@ class PhaseSpec:
 
 
 # NOTE: the legacy shared schema constant has been retired.  Each phase now
-# carries its own contract — see :mod:`bernstein.core.orchestration.phase_schemas`.
+# carries its own contract - see :mod:`bernstein.core.orchestration.phase_schemas`.
 # The four-field "research-shape" remains the canonical *minimum* and is what
 # :class:`PhaseArtifact` instances default to when constructed without explicit
 # extras; per-phase extras (``dependencies``, ``files_changed`` …) live in
@@ -148,7 +148,7 @@ class PhaseSpec:
 class PhaseArtifact:
     """Distilled handoff between phases.
 
-    The implement phase receives only this structure — never the raw
+    The implement phase receives only this structure - never the raw
     transcript of the research/plan phases.  Keep entries terse: the whole
     point is to compress N kilobytes of exploration into a few hundred bytes
     of explicit conclusions.
@@ -198,7 +198,7 @@ class PhaseArtifact:
             raw: JSON body to decode.
             phase: When supplied, the payload is validated against that
                 phase's strict schema before construction.  Omit for the
-                legacy lenient parse — used by tests and by the
+                legacy lenient parse - used by tests and by the
                 :class:`ArtifactStore` reader where the phase identity
                 has already been encoded into the file path.
 
@@ -307,7 +307,7 @@ def route_for_phase(
     """Pick a (model, effort) pair for an in-flight phase.
 
     Manager-specified overrides on the task win when present.  Otherwise the
-    phase's default applies — research/plan get a high-reasoning model,
+    phase's default applies - research/plan get a high-reasoning model,
     implement/verify get a cheaper one.
     """
     model = task_model or _DEFAULT_MODEL_BY_PHASE[phase]
@@ -328,7 +328,7 @@ class ArtifactStore:
     """Filesystem-backed store for distilled handoffs.
 
     Layout: ``<root>/<task_id>/<phase>.json``.  One subdirectory per task
-    keeps cleanup atomic — :meth:`gc_task` deletes the whole tree when the
+    keeps cleanup atomic - :meth:`gc_task` deletes the whole tree when the
     parent task closes.
     """
 
@@ -349,7 +349,7 @@ class ArtifactStore:
         """Return a previously stored artefact, or ``None`` if absent.
 
         The phase is known from the file layout, so the strict per-phase
-        schema is enforced on read — a corrupted artefact on disk surfaces
+        schema is enforced on read - a corrupted artefact on disk surfaces
         as a :class:`PhaseValidationError` rather than as a silent shape
         mismatch a few phases later.
         """
@@ -378,7 +378,7 @@ PhaseExecutor = Callable[["Task", "PhaseSpec", PhaseArtifact | None], PhaseArtif
 Concrete implementations spawn a CLI agent with the model+effort from
 *spec*, feed it the prior artefact (or ``None`` for the first phase), wait
 for it to emit a structured artefact, and return it.  The runner itself is
-agent-agnostic — pass any callable that satisfies this signature in tests,
+agent-agnostic - pass any callable that satisfies this signature in tests,
 batch jobs, or the production spawner integration.
 """
 
@@ -457,7 +457,7 @@ class PhasedRunner:
     """Drive a task through an ordered list of phases with distilled handoffs.
 
     Each phase runs in a *fresh* invocation of *executor*.  The runner only
-    forwards the previous phase's :class:`PhaseArtifact` as seed context —
+    forwards the previous phase's :class:`PhaseArtifact` as seed context -
     not raw transcripts, tool outputs, or anything else.  This is the whole
     point of the pattern.
 
@@ -573,7 +573,7 @@ class PhasedRunner:
         re-fires the failing phase up to :attr:`gate_max_retries` times
         with the per-rule ``repair`` strings seeded into the next
         invocation's ``open_questions``.  When the retry budget is
-        exhausted :class:`PhaseGateFailure` is raised — callers catch
+        exhausted :class:`PhaseGateFailure` is raised - callers catch
         this and surface ``failure_kind="phase_gate"`` to the task store.
         """
         # Local import keeps the gates module out of import-time loops
@@ -622,7 +622,7 @@ class PhasedRunner:
                     if not failures:
                         break
 
-                    # R005 byte-budget is configurable — by default it is
+                    # R005 byte-budget is configurable - by default it is
                     # a hard fail (bloat usually means the agent
                     # fundamentally misunderstood the contract).
                     if self.gate_byte_budget_hard_fail and any(f.rule_id == "R005-byte-budget" for f in failures):
@@ -726,7 +726,7 @@ def is_phased(task: Task) -> bool:
 
     Single source of truth: the task's ``metadata['phases']`` list (set by
     the plan loader from a ``phases:`` step field).  Tasks without that key
-    run via the existing single-phase pipeline — back-compat unchanged.
+    run via the existing single-phase pipeline - back-compat unchanged.
     """
     metadata = getattr(task, "metadata", None)
     if not isinstance(metadata, dict):

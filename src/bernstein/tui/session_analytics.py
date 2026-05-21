@@ -1,4 +1,4 @@
-"""Session analytics — analyze task traces for insights.
+"""Session analytics - analyze task traces for insights.
 
 Parses .sdd/traces/*.jsonl files to extract session metadata and facets:
 - Goal: What the agent was trying to accomplish

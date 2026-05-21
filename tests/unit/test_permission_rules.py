@@ -428,7 +428,7 @@ class TestEdgeCases:
         assert not engine.evaluate("X", {"other": "src/d.py"}).matched
 
     def test_overlapping_path_and_command(self) -> None:
-        """Both path and command specified — both must match."""
+        """Both path and command specified - both must match."""
         engine = PermissionRuleEngine(
             rules=[
                 PermissionRule(

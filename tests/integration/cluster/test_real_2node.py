@@ -1,7 +1,7 @@
 """Real-process two-node cluster scenarios.
 
 Each test owns its ``two_node_cluster`` fixture instance, so the boots
-are sequential — the suite trades raw wall-clock for the ability to
+are sequential - the suite trades raw wall-clock for the ability to
 SIGKILL one process and watch the other react.
 
 All tests are marked ``cluster_e2e`` and ``slow`` so they are skipped by
@@ -113,7 +113,7 @@ def test_happy_path_register_heartbeat_run_complete(two_node_cluster: ClusterHan
 
 
 # --------------------------------------------------------------------------- #
-# 2. Worker crash mid-task — kill -9 and verify the central side reaps
+# 2. Worker crash mid-task - kill -9 and verify the central side reaps
 # --------------------------------------------------------------------------- #
 
 
@@ -129,7 +129,7 @@ def test_worker_crash_mid_task_marks_offline(two_node_cluster: ClusterHandle) ->
         timeout_s=10.0,
     )
 
-    # SIGKILL — no graceful unregister.
+    # SIGKILL - no graceful unregister.
     handle.kill_worker(worker, force=True)
 
     # Within ~2x the heartbeat timeout the central server must mark OFFLINE.
@@ -151,7 +151,7 @@ def test_worker_crash_mid_task_marks_offline(two_node_cluster: ClusterHandle) ->
 
 
 # --------------------------------------------------------------------------- #
-# 3. Central restart — node reappears in registry as OFFLINE, then heartbeats
+# 3. Central restart - node reappears in registry as OFFLINE, then heartbeats
 # --------------------------------------------------------------------------- #
 
 
@@ -179,7 +179,7 @@ def test_central_restart_persists_registry(two_node_cluster: ClusterHandle) -> N
 
 
 # --------------------------------------------------------------------------- #
-# 4. Network partition — proxy drops traffic, worker goes OFFLINE, reconciles
+# 4. Network partition - proxy drops traffic, worker goes OFFLINE, reconciles
 # --------------------------------------------------------------------------- #
 
 
@@ -222,7 +222,7 @@ def test_token_expiry_then_refresh(two_node_cluster: ClusterHandle) -> None:
     handle = two_node_cluster
 
     # Register a node manually with a long-lived register token so we get a
-    # node_id we can target — then exercise heartbeat lifecycle directly.
+    # node_id we can target - then exercise heartbeat lifecycle directly.
     register_token = _mint_token(handle.cluster_secret, "expiry-test", scopes=["node:register"])
     register_payload = {
         "name": "expiry-test",
@@ -255,7 +255,7 @@ def test_token_expiry_then_refresh(two_node_cluster: ClusterHandle) -> None:
     resp = httpx.post(hb_url, headers={"Authorization": f"Bearer {short_token}"}, json=hb_payload, timeout=5.0)
     assert resp.status_code == 200, resp.text
 
-    # Sleep past the TTL then retry — must be rejected with 401.
+    # Sleep past the TTL then retry - must be rejected with 401.
     time.sleep(6.0)
     resp = httpx.post(hb_url, headers={"Authorization": f"Bearer {short_token}"}, json=hb_payload, timeout=5.0)
     assert resp.status_code == 401, f"Expected 401 after expiry; got {resp.status_code} {resp.text}"
@@ -267,7 +267,7 @@ def test_token_expiry_then_refresh(two_node_cluster: ClusterHandle) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 6. Concurrent claims — exactly one wins, cross-process CAS
+# 6. Concurrent claims - exactly one wins, cross-process CAS
 # --------------------------------------------------------------------------- #
 
 
@@ -281,14 +281,14 @@ def test_concurrent_claims_exactly_one_winner(
     handle = two_node_cluster
 
     # Start two workers but block their auto-claim loop by putting them on a
-    # role they don't poll for — actually our minimal worker only polls
+    # role they don't poll for - actually our minimal worker only polls
     # ``backend``, so we use a different role for the contested task and
     # race two raw subprocesses against the claim endpoint instead.
     task = _post_task(handle, "contested-task", role="qa")  # role workers don't poll
     task_id = str(task["id"])
 
     # The minimal race-worker subprocess is at tests.integration.cluster._worker_proc
-    # but we don't need it here — direct subprocess.Popen with httpx is
+    # but we don't need it here - direct subprocess.Popen with httpx is
     # simpler and proves the same thing: two OS processes, one task, one win.
     result_a = tmp_path / "result-a.txt"
     result_b = tmp_path / "result-b.txt"

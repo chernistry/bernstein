@@ -9,7 +9,7 @@ uses to re-prompt the LLM with a "your previous plan was too coarse"
 correction.
 
 Public API:
-    - ``ShapeConfig``: thresholds (LOC, files, modules) — loaded from
+    - ``ShapeConfig``: thresholds (LOC, files, modules) - loaded from
       ``bernstein.yaml`` ``[plan]`` table when present.
     - ``ShapeViolation``: a single rule failure attached to a task or to
       a pair of consecutive tasks.
@@ -148,7 +148,7 @@ def _layers_for_task(task: Task) -> set[str]:
 def _module_roots(task: Task) -> set[str]:
     """Extract distinct top-level "modules" (first 2-3 path segments).
 
-    A "module" here is a coarse subpackage marker — e.g.
+    A "module" here is a coarse subpackage marker - e.g.
     ``src/bernstein/core/planning/`` and
     ``src/bernstein/core/planning/foo/`` collapse to the same module.
     """
@@ -209,7 +209,7 @@ def _is_horizontal(task: Task) -> bool:
     if not layers:
         # If we cannot tell from owned_files, treat as horizontal only
         # when the task explicitly belongs to a single backend role with
-        # no test/UI markers — be lenient here to avoid false positives.
+        # no test/UI markers - be lenient here to avoid false positives.
         return False
     if "tests" in layers or "ui" in layers:
         return False
@@ -319,7 +319,7 @@ def check_plan(tasks: list[Task], config: ShapeConfig | None = None) -> list[Sha
                     rule="horizontally_phased",
                     message=(
                         f"Tasks {i + 1} '{a.title}' and {i + 2} '{b.title}' "
-                        f"are horizontally phased — both stay inside the "
+                        f"are horizontally phased - both stay inside the "
                         f"{layers_a}/{layers_b} layer without crossing into "
                         "tests or UI. Re-shape into vertical slices that "
                         "cross every layer per task."
@@ -375,7 +375,7 @@ def load_shape_config(workdir: Path | None) -> ShapeConfig:
     """Load shape thresholds from ``bernstein.yaml`` ``[plan]`` table.
 
     Missing file, missing table, or parse errors fall back to defaults
-    silently — the planner stays opinionated by default but never blows
+    silently - the planner stays opinionated by default but never blows
     up on a malformed repo.
 
     Args:

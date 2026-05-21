@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# _inject_hooks_config — settings.local.json generation
+# _inject_hooks_config - settings.local.json generation
 # ---------------------------------------------------------------------------
 
 

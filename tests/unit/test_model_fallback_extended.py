@@ -1,4 +1,4 @@
-"""Tests for AGENT-004 — model fallback chain for all error types."""
+"""Tests for AGENT-004 - model fallback chain for all error types."""
 
 from __future__ import annotations
 
@@ -118,14 +118,14 @@ class TestFallbackChain:
         model = tracker.activate_fallback("s1")
         assert model == "sonnet"
 
-        # Reset and trigger again — should advance to haiku
+        # Reset and trigger again - should advance to haiku
         tracker.reset("s1")
         tracker.record_response("s1", 503)
         tracker.record_response("s1", 503)
         model = tracker.activate_fallback("s1")
         assert model == "haiku"
 
-        # One more — should advance to flash
+        # One more - should advance to flash
         tracker.reset("s1")
         tracker.record_response("s1", 529)
         tracker.record_response("s1", 529)

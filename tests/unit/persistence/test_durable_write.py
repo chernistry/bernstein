@@ -66,7 +66,7 @@ def test_fsynced_write_closes_handle_when_block_raises(
     yielded = captured_handle[0]
     # The handle must be closed by the finally clause.
     assert getattr(yielded, "closed", False) is True, "handle must be closed on exception"
-    # fsync must NOT have run — partial writes cannot be promised durable.
+    # fsync must NOT have run - partial writes cannot be promised durable.
     assert fsync_calls == []
 
 

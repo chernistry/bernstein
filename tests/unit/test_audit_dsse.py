@@ -2,15 +2,15 @@
 
 Coverage:
 
-* Roundtrip — wrap then verify yields PASS, and the embedded statement
+* Roundtrip - wrap then verify yields PASS, and the embedded statement
   carries the right ``_type`` + ``predicateType``.
-* Determinism — same bundle bytes + same key produce a byte-identical
+* Determinism - same bundle bytes + same key produce a byte-identical
   envelope (Ed25519 is deterministic per RFC 8032 §5.1.6).
-* Tamper detection — flipping the envelope signature, the payload byte,
+* Tamper detection - flipping the envelope signature, the payload byte,
   the bundle bytes, or breaking an HMAC chain link all surface as FAIL.
-* Type mismatch — payloadType / predicateType drift triggers a
+* Type mismatch - payloadType / predicateType drift triggers a
   :class:`EnvelopeTypeMismatchError`-shaped failure.
-* Schema-version migration — the ``schema_version`` field is preserved
+* Schema-version migration - the ``schema_version`` field is preserved
   inside the predicate body so a future v2 can introspect older
   envelopes.
 """
@@ -188,7 +188,7 @@ class TestTamperDetection:
         bundle = _build_bundle(tmp_path)
         envelope = wrap_bundle(bundle, signing_key=signing_key)
 
-        # Flip one byte in the payload — same signature no longer matches PAE.
+        # Flip one byte in the payload - same signature no longer matches PAE.
         original_payload = envelope.payload_bytes
         tampered = bytearray(original_payload)
         tampered[10] ^= 0x01  # arbitrary middle byte
@@ -251,7 +251,7 @@ class TestTypeRejection:
     def test_wrong_predicate_type_rejected(self, tmp_path: Path, signing_key: Ed25519PrivateKey) -> None:
         bundle = _build_bundle(tmp_path)
         envelope = wrap_bundle(bundle, signing_key=signing_key)
-        # Override the expected predicate type — verifier should fail.
+        # Override the expected predicate type - verifier should fail.
         result = verify_envelope(
             envelope,
             signing_key.public_key(),

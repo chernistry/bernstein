@@ -1,4 +1,4 @@
-"""Unit tests for CacheBreakCorrelator — distributed cache break correlation."""
+"""Unit tests for CacheBreakCorrelator - distributed cache break correlation."""
 
 from __future__ import annotations
 

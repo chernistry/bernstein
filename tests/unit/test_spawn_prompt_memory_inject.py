@@ -9,7 +9,7 @@ Acceptance criteria (matches the ticket):
   ``<lessons>...</lessons>`` block AFTER the role/git_safety header
   but BEFORE the ``## Assigned tasks`` body (KV-cache locality).
 * A missing log is a no-op.
-* The block is capped at 10 entries — older ones are dropped, recent
+* The block is capped at 10 entries - older ones are dropped, recent
   ones survive.
 """
 
@@ -98,7 +98,7 @@ class TestFormatMemoryLesson:
 
 
 # ---------------------------------------------------------------------------
-# _render_memory_lessons_block — disk-bound behaviour
+# _render_memory_lessons_block - disk-bound behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -125,7 +125,7 @@ class TestRenderMemoryLessonsBlock:
         assert "guard imports" in block
 
     def test_block_caps_at_max_recent_entries(self, tmp_path: Path) -> None:
-        """N=10 cap — only the most recent entries survive."""
+        """N=10 cap - only the most recent entries survive."""
         log = JSONLMemoryLog(root=tmp_path / ".bernstein" / "memory")
         for i in range(_MEMORY_LESSONS_MAX + 5):
             log.write(_MEMORY_LESSONS_KEY, {"lesson": f"L{i}"})
@@ -194,7 +194,7 @@ class TestRenderPromptInjection:
         assert _MEMORY_LESSONS_OPEN in rendered
         assert "always validate inputs" in rendered
         # KV-cache locality: lessons block precedes the variable goal
-        # block ("## Assigned tasks") — the spec is explicit on the order.
+        # block ("## Assigned tasks") - the spec is explicit on the order.
         assert rendered.index(_MEMORY_LESSONS_OPEN) < rendered.index("## Assigned tasks")
 
     def test_enabled_with_missing_log_is_noop(
@@ -204,7 +204,7 @@ class TestRenderPromptInjection:
         make_task: Any,
     ) -> None:
         monkeypatch.setenv(_MEMORY_AUTO_INJECT_ENV_VAR, "1")
-        # No `.bernstein/memory/lessons.jsonl` written — must not raise.
+        # No `.bernstein/memory/lessons.jsonl` written - must not raise.
         templates_dir = tmp_path / "templates"
         templates_dir.mkdir()
         rendered = _render_prompt(

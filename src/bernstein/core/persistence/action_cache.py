@@ -1,31 +1,31 @@
 """Action-level cache and deterministic replay for agent runs.
 
 Built on top of :class:`bernstein.core.persistence.fingerprint.MemoStore`.
-We do **not** re-implement on-disk storage or LRU eviction — those belong
+We do **not** re-implement on-disk storage or LRU eviction - those belong
 to ``MemoStore`` and we would only diverge if forked.
 
 What this module adds on top of MemoStore:
 
-* :class:`ActionRecord` — a typed payload (model_id, prompt, output_text,
+* :class:`ActionRecord` - a typed payload (model_id, prompt, output_text,
   tool_results, token_counts, timestamp, run_id, cost_usd) that captures
   one LLM-or-tool call deterministically.
-* :func:`derive_key` — content-addressed cache key derived from
+* :func:`derive_key` - content-addressed cache key derived from
   ``hash(model_id, normalized_prompt, tool_name, tool_args)``.  Crucially
   this is **input-only** (unlike fingerprint memoization, which folds the
-  function body into the key) — that's the whole point of action caching:
+  function body into the key) - that's the whole point of action caching:
   identical inputs MUST produce a hit even after Bernstein's code changes.
-* :class:`ActionCache` — orchestrates ``MemoStore`` get/put plus
+* :class:`ActionCache` - orchestrates ``MemoStore`` get/put plus
   per-record metric increments.  Modes: ``record`` (always live, append),
   ``replay`` (cache-only, miss → ``CacheMiss``), ``hybrid`` (cache then
-  fallthrough — the common case for CI replays).
-* :func:`redact_secrets` — strips API keys, bearer tokens, and known
+  fallthrough - the common case for CI replays).
+* :func:`redact_secrets` - strips API keys, bearer tokens, and known
   header patterns from the prompt before hashing or persisting.
 
 Pattern source: https://github.com/nibzard/awesome-agentic-patterns
 (``patterns/action-caching-replay.md``).
 
 Single-host only for v1.  Cross-machine sharing can layer on
-``core/storage/sink.py`` later — same record schema, different store.
+``core/storage/sink.py`` later - same record schema, different store.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ CacheMode = Literal["record", "replay", "hybrid", "off"]
 _DEFAULT_MAX_MB: Final[int] = 500
 _RECORD_VERSION: Final[int] = 1
 
-# Patterns we strip from prompts before hashing/persisting.  Conservative —
+# Patterns we strip from prompts before hashing/persisting.  Conservative -
 # if it looks remotely like a credential, redact.  Order matters: longer /
 # stricter patterns first.
 _REDACT_PATTERNS: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
@@ -86,7 +86,7 @@ def _normalize_prompt(prompt: str) -> str:
     """Strip whitespace volatility and redact secrets before hashing.
 
     Two runs that differ only in trailing newlines or in their bearer
-    token MUST hash identically — otherwise caches never hit in CI.
+    token MUST hash identically - otherwise caches never hit in CI.
     """
     return redact_secrets(prompt.strip())
 
@@ -116,7 +116,7 @@ def derive_key(
     - optional ``tool_name`` + ``tool_args`` for tool-call records
 
     NOTE: this is **not** a fingerprint key.  We want hits across code
-    changes — fingerprints want misses across code changes.
+    changes - fingerprints want misses across code changes.
     """
     hasher = hashlib.sha256(model_id.encode("utf-8"))
     hasher.update(b"\0")
@@ -257,7 +257,7 @@ class ActionCache:
         """Persist a fresh action record and return the typed object.
 
         No-op (returns the typed record without writing) when ``mode`` is
-        ``replay`` or ``off`` — replay must never mutate the cache.
+        ``replay`` or ``off`` - replay must never mutate the cache.
         """
         rec = ActionRecord(
             model_id=model_id,
@@ -334,7 +334,7 @@ def _coerce_record(raw: Any) -> ActionRecord | None:
 def default_store(workdir: Path, max_mb: int | None = None) -> MemoStore:
     """Return an action-cache-rooted MemoStore at ``.sdd/runtime/action_cache``.
 
-    Reuses ``MemoStore`` directly — same on-disk format and eviction as
+    Reuses ``MemoStore`` directly - same on-disk format and eviction as
     fingerprint memoization, just under a sibling directory so the two
     caches don't share a key namespace.
     """
@@ -359,7 +359,7 @@ def open_cache(
 
     Reads ``defaults.ACTION_CACHE`` for ``mode`` and ``size_mb`` when not
     explicitly provided.  Returns an ``off``-mode cache when the feature
-    flag is disabled — callers can still use ``record()``/``lookup()``
+    flag is disabled - callers can still use ``record()``/``lookup()``
     safely.
     """
     resolved_mode: CacheMode = mode or "hybrid"

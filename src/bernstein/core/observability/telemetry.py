@@ -65,7 +65,7 @@ class ExporterPreset:
     Attributes:
         name: Human-readable preset name (e.g. ``"jaeger"``).
         endpoint: OTLP collector endpoint URL.
-        protocol: Transport protocol — ``"grpc"``, ``"http/protobuf"``, or ``"console"``.
+        protocol: Transport protocol - ``"grpc"``, ``"http/protobuf"``, or ``"console"``.
         headers: Optional HTTP headers forwarded to the collector (e.g. API keys).
         insecure: When True, skip TLS verification (suitable for local dev).
         service_name: Override the ``service.name`` resource attribute.
@@ -223,7 +223,7 @@ def init_telemetry(otlp_endpoint: str | None = None, *, insecure: bool = True) -
         _meter = metrics.get_meter(SERVICE_NAME)
 
         _enabled = True
-        logger.info("OpenTelemetry telemetry enabled")  # endpoint omitted — avoids logging deployment topology
+        logger.info("OpenTelemetry telemetry enabled")  # endpoint omitted - avoids logging deployment topology
     except ImportError:
         logger.warning(_OTEL_NOT_INSTALLED)
         _enabled = False
@@ -313,7 +313,7 @@ def _init_http_telemetry(
         _meter = metrics.get_meter(service_name)
 
         _enabled = True
-        logger.info("OpenTelemetry HTTP telemetry enabled")  # endpoint omitted — avoids logging deployment topology
+        logger.info("OpenTelemetry HTTP telemetry enabled")  # endpoint omitted - avoids logging deployment topology
     except ImportError:
         logger.warning(_OTEL_NOT_INSTALLED)
         _enabled = False

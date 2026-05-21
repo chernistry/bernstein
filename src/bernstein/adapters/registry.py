@@ -1,4 +1,4 @@
-"""Adapter registry — look up CLI adapters by name."""
+"""Adapter registry - look up CLI adapters by name."""
 
 from __future__ import annotations
 

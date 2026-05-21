@@ -9,7 +9,7 @@ Wrap sensitive field values in ``SensitiveData`` to prevent accidental logging::
     @dataclass
     class UserEvent:
         user_id: str
-        email: SensitiveData[str]   # PII — redacted in logs / storage
+        email: SensitiveData[str]   # PII - redacted in logs / storage
         action: str
 
     event = UserEvent(
@@ -45,7 +45,7 @@ class SensitiveData[T]:
     """Opaque wrapper that marks a value as PII / sensitive.
 
     The wrapped value is never exposed through ``__str__``, ``__repr__``,
-    or comparison operators — callers must call :meth:`expose` explicitly.
+    or comparison operators - callers must call :meth:`expose` explicitly.
     This makes accidental logging safe by design.
 
     Args:
@@ -68,14 +68,14 @@ class SensitiveData[T]:
         """
         return self._value
 
-    def __repr__(self) -> str:  # pragma: no cover — intentional blanket
+    def __repr__(self) -> str:  # pragma: no cover - intentional blanket
         return "SensitiveData(<redacted>)"
 
     def __str__(self) -> str:
         return "<redacted>"
 
     def __eq__(self, other: object) -> bool:
-        """Equality is intentionally opaque — compare via .expose() if needed."""
+        """Equality is intentionally opaque - compare via .expose() if needed."""
         if isinstance(other, SensitiveData):
             return self._value == other._value  # type: ignore[operator]
         return NotImplemented

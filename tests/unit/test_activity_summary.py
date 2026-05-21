@@ -1,4 +1,4 @@
-"""Tests for ActivitySession.get_summary() — 3-5 word activity summaries."""
+"""Tests for ActivitySession.get_summary() - 3-5 word activity summaries."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for keybindings — customizable keybinding system for TUI."""
+"""Tests for keybindings - customizable keybinding system for TUI."""
 
 from __future__ import annotations
 

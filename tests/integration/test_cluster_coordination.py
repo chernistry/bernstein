@@ -110,7 +110,7 @@ async def test_task_claimed_by_exactly_one_node(central: AsyncClient) -> None:
     await central.post("/cluster/nodes", json=_node_payload("alpha", "http://alpha:8052"))
     await central.post("/cluster/nodes", json=_node_payload("beta", "http://beta:8052"))
 
-    # Post a task — freshly created tasks start at version=1
+    # Post a task - freshly created tasks start at version=1
     resp = await central.post("/tasks", json=_task_payload("shared-task"))
     assert resp.status_code == 201
     task_id = resp.json()["id"]

@@ -1,4 +1,4 @@
-"""Tests for plan_diff — compute and format plan diffs."""
+"""Tests for plan_diff - compute and format plan diffs."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def test_load_plan_yaml_missing_file(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — identical plans
+# compute_plan_diff - identical plans
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ def test_identical_plans() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — added step
+# compute_plan_diff - added step
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +123,7 @@ def test_added_step() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — removed step
+# compute_plan_diff - removed step
 # ---------------------------------------------------------------------------
 
 
@@ -137,7 +137,7 @@ def test_removed_step() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — modified step field
+# compute_plan_diff - modified step field
 # ---------------------------------------------------------------------------
 
 
@@ -180,7 +180,7 @@ def test_modified_multiple_fields() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — dependency changes
+# compute_plan_diff - dependency changes
 # ---------------------------------------------------------------------------
 
 
@@ -221,7 +221,7 @@ def test_removed_dependency() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — empty plans
+# compute_plan_diff - empty plans
 # ---------------------------------------------------------------------------
 
 
@@ -239,7 +239,7 @@ def test_step_added_to_empty_plan() -> None:
 
 
 # ---------------------------------------------------------------------------
-# compute_plan_diff — cross-stage step IDs are unique per stage
+# compute_plan_diff - cross-stage step IDs are unique per stage
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Dirty-flag layout caching — skip layout recalculation when nothing changed.
+"""Dirty-flag layout caching - skip layout recalculation when nothing changed.
 
 Provides a component-based dirty-flag system that tracks whether a
 component needs layout recalculation, avoiding redundant work when
@@ -174,7 +174,7 @@ class LayoutCache:
             self._total_hits += 1
             return entry.layout_result
 
-        # Cache miss or dirty — recompute
+        # Cache miss or dirty - recompute
         self._total_misses += 1
         result = compute_fn(content)
         self._cache[component_id] = CacheEntry(

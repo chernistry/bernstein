@@ -50,7 +50,7 @@ _WORKER_CMD = [sys.executable, "-m", "bernstein.core.orchestration.worker"]
 def _wait_for_file(path: Path, *, timeout_s: float = 5.0) -> None:
     """Block until *path* exists; raises TimeoutError on the deadline.
 
-    No bare ``time.sleep`` for synchronization — the loop polls every
+    No bare ``time.sleep`` for synchronization - the loop polls every
     50ms but only as a fallback for the kernel's filesystem signalling.
     """
     deadline = time.monotonic() + timeout_s
@@ -142,7 +142,7 @@ def test_pid_metadata_written_and_cleaned_on_exit(tmp_path: Path) -> None:
         assert info["model"] == "test-model"
         assert isinstance(info["worker_pid"], int)
         assert isinstance(info["child_pid"], int)
-        # The child PID should differ from the worker PID — distinct processes.
+        # The child PID should differ from the worker PID - distinct processes.
         assert info["child_pid"] != info["worker_pid"]
     finally:
         if proc.poll() is None:
@@ -199,7 +199,7 @@ def test_sigterm_forwarded_to_child_and_worker_exits(tmp_path: Path) -> None:
 
 
 def test_sigint_forwarded_to_child(tmp_path: Path) -> None:
-    """SIGINT (Ctrl-C) is forwarded — child observes the signal and exits.
+    """SIGINT (Ctrl-C) is forwarded - child observes the signal and exits.
 
     The child installs a SIGINT handler that touches a marker file
     before exiting with a sentinel code; the test waits for the marker
@@ -294,7 +294,7 @@ def test_missing_command_returns_127(tmp_path: Path) -> None:
 def test_invalid_session_id_rejected(tmp_path: Path) -> None:
     """Path-traversal-ish session ids are rejected with rc=1.
 
-    Mirrors the production guard in ``worker.py`` — without it a manager
+    Mirrors the production guard in ``worker.py`` - without it a manager
     bug could inject ``..`` into the session id and have the PID file
     written outside ``pid-dir``.
     """

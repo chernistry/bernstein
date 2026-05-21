@@ -82,7 +82,7 @@ def sample_skills_root(tmp_path: Path) -> Path:
     _write_skill(
         root,
         "alpha",
-        description="Alpha skill — simple test skill with references and scripts.",
+        description="Alpha skill - simple test skill with references and scripts.",
         body=textwrap.dedent(
             """
             # Alpha skill
@@ -100,13 +100,13 @@ def sample_skills_root(tmp_path: Path) -> Path:
     _write_skill(
         root,
         "beta",
-        description="Beta skill — second skill without references.",
+        description="Beta skill - second skill without references.",
         body="# Beta skill body",
     )
     _write_skill(
         root,
         "gamma",
-        description="Gamma skill — third skill used for index testing only.",
+        description="Gamma skill - third skill used for index testing only.",
         body="# Gamma skill body",
     )
     return root
@@ -115,7 +115,7 @@ def sample_skills_root(tmp_path: Path) -> Path:
 class WriteSkillCallable:
     """Type alias for the ``write_skill`` fixture."""
 
-    def __call__(  # pragma: no cover — typing helper only
+    def __call__(  # pragma: no cover - typing helper only
         self,
         root: Path,
         name: str,

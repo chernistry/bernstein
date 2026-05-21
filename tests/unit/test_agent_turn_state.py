@@ -1,4 +1,4 @@
-"""Tests for agent turn state machine — transition validation and hooks."""
+"""Tests for agent turn state machine - transition validation and hooks."""
 
 from __future__ import annotations
 
@@ -242,7 +242,7 @@ class TestInvalidTransitions:
         self,
         sm: AgentTurnStateMachine,
     ) -> None:
-        """REAPED is terminal — no event should produce a new state from here."""
+        """REAPED is terminal - no event should produce a new state from here."""
         for event in AgentTurnEvent:
             with pytest.raises(InvalidTransitionError):
                 sm.transition(AgentTurnState.REAPED, event)

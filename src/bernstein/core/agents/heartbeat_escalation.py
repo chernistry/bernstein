@@ -2,10 +2,10 @@
 
 Implements a 4-tier escalation for unresponsive agents:
 
-1. **WARN** (default 60s) — log a warning; no action taken.
-2. **SIGUSR1** (default 90s) — send SIGUSR1 to nudge the agent.
-3. **SIGTERM** (default 120s) — graceful termination request.
-4. **SIGKILL** (default 150s) — force-kill the process.
+1. **WARN** (default 60s) - log a warning; no action taken.
+2. **SIGUSR1** (default 90s) - send SIGUSR1 to nudge the agent.
+3. **SIGTERM** (default 120s) - graceful termination request.
+4. **SIGKILL** (default 150s) - force-kill the process.
 
 Each tier is triggered when the heartbeat age exceeds the configured
 threshold.  Thresholds are configurable per-agent or globally.  The

@@ -2,14 +2,14 @@
 
 Three implementations are bundled:
 
-* :class:`PythonCryptoVerifier` — pure-Python verification via the
+* :class:`PythonCryptoVerifier` - pure-Python verification via the
   ``cryptography`` library (Ed25519 / ECDSA / RSA-PSS PEM keys). Used
   when the operator passes a PEM ``--ca-pubkey`` and the bundle was
   signed with a raw key blob.
-* :class:`CosignVerifier` — shells out to the ``cosign`` CLI. Default
+* :class:`CosignVerifier` - shells out to the ``cosign`` CLI. Default
   for sigstore-style bundles produced by
   ``scripts/sign_airgap_wheelhouse.sh``.
-* :class:`GpgVerifier` — shells out to ``gpg`` (or ``gpg2``) for
+* :class:`GpgVerifier` - shells out to ``gpg`` (or ``gpg2``) for
   customers whose compliance teams prefer GPG to sigstore.
 
 The verify routine enumerates every offending wheel; it does not
@@ -103,7 +103,7 @@ class VerifyReport:
 class WheelhouseVerifier(Protocol):
     """Protocol every wheelhouse signature backend implements.
 
-    The protocol is intentionally minimal — verifiers receive the
+    The protocol is intentionally minimal - verifiers receive the
     blob and the detached signature path and return ``True`` on
     success. Backends that need extra material (a public key, a
     keyring, a cosign bundle) accept it via their constructor.
@@ -117,7 +117,7 @@ class WheelhouseVerifier(Protocol):
 
         Implementations MUST swallow validation errors and return
         ``False`` so the caller can enumerate every offender. They
-        MUST NOT raise on a missing tool — instead expose
+        MUST NOT raise on a missing tool - instead expose
         :meth:`available` for capability detection.
         """
         ...
@@ -176,7 +176,7 @@ class CosignVerifier:
 
     Either ``pubkey_path`` (offline key) or ``identity`` + ``issuer``
     (sigstore keyless) must be set. Both forms are common at sovereign
-    customers — the offline key is more common in the air-gap path.
+    customers - the offline key is more common in the air-gap path.
 
     The verifier defaults to ``--insecure-ignore-tlog`` because air-gap
     bundles are signed off-net and never hit a Rekor transparency log.
@@ -264,7 +264,7 @@ def select_verifier(
 
     ``VerifierKind.AUTO`` picks the best available backend in this
     order: explicit PEM key (crypto), cosign with a key, gpg with a
-    keyring. Returns ``None`` when nothing usable is configured —
+    keyring. Returns ``None`` when nothing usable is configured -
     callers fall back to checksum-only verification.
     """
     if isinstance(kind, str):
@@ -375,7 +375,7 @@ def verify_wheelhouse(
 ) -> VerifyReport:
     """Walk every wheel in the bundle and aggregate the result.
 
-    The function never raises on a tampered or missing wheel — it
+    The function never raises on a tampered or missing wheel - it
     enumerates every offender and surfaces the full damage list via
     :class:`VerifyReport.failures`. Callers translate this into the
     operator-facing CLI output.

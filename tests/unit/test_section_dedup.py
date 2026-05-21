@@ -1,4 +1,4 @@
-"""Tests for section_dedup — SectionDeduplicator."""
+"""Tests for section_dedup - SectionDeduplicator."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ class TestSectionDeduplicator:
         dedup.deduplicate("c")
         # Access "a" again to make it MRU
         dedup.deduplicate("a")
-        # Insert "d" — should evict "b" (LRU)
+        # Insert "d" - should evict "b" (LRU)
         dedup.deduplicate("d")
         stats = dedup.stats()
         assert stats["size"] == 3

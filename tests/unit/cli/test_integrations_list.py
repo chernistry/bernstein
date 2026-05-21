@@ -138,8 +138,8 @@ def test_use_case_entries_have_clean_text() -> None:
     """Curated copy must not contain em-dashes (style rule)."""
     for name, entry in USE_CASES.items():
         assert isinstance(entry, AdapterUseCase), name
-        assert "—" not in entry.headline, (name, entry.headline)
-        assert "—" not in entry.details, (name, entry.details)
+        assert "-" not in entry.headline, (name, entry.headline)
+        assert "-" not in entry.details, (name, entry.details)
         # Headlines stay compact so they fit a terminal column.
         assert len(entry.headline) <= 120, (name, entry.headline)
 

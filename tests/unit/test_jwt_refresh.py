@@ -1,4 +1,4 @@
-"""Unit tests for JWT TokenRefreshScheduler — proactive lifecycle management."""
+"""Unit tests for JWT TokenRefreshScheduler - proactive lifecycle management."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ class TestRefreshSuccess:
         sched.refresh()
         old_token = sched.token
 
-        # Now call with the OLD generation — should be skipped
+        # Now call with the OLD generation - should be skipped
         result = sched.refresh(caller_generation=0)
         assert result is True
         # Token should not have changed (generation still 1, not 2)

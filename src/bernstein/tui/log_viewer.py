@@ -55,7 +55,7 @@ def detect_diff_blocks(text: str) -> list[DiffBlock]:
     """Detect unified diff blocks in *text*.
 
     A new block starts at every ``diff --git`` line.  Everything up to (but
-    not including) the next ``diff --git`` line — or the end of the text —
+    not including) the next ``diff --git`` line - or the end of the text -
     belongs to that block.
 
     Args:
@@ -247,7 +247,7 @@ class LogViewer:
                 continue
 
             if i % 3 == 1:
-                # language tag — skip, consumed by i%3==2
+                # language tag - skip, consumed by i%3==2
                 continue
             elif i % 3 == 2:
                 language = parts[i - 1] or "text"
@@ -259,7 +259,7 @@ class LogViewer:
                 )
                 yield from console.render(syntax, options)
             else:
-                # Plain text section — try markdown rendering.
+                # Plain text section - try markdown rendering.
                 if self._render_markdown and _looks_like_markdown(part):
                     yield from console.render(Markdown(part), options)
                 else:

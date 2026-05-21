@@ -1,4 +1,4 @@
-"""Tests for agent failure rate reduction — task #738.
+"""Tests for agent failure rate reduction - task #738.
 
 Covers:
 - Progressive timeout: estimated_minutes grows on each retry
@@ -131,7 +131,7 @@ def _build_orchestrator(
 
 
 # ---------------------------------------------------------------------------
-# Fix A: Progressive timeout — estimated_minutes doubles on each retry
+# Fix A: Progressive timeout - estimated_minutes doubles on each retry
 # ---------------------------------------------------------------------------
 
 
@@ -179,7 +179,7 @@ class TestProgressiveTimeout:
 
         orch._retry_or_fail_task("T-prog-3", "agent died yet again")
 
-        # No retry created — max retries hit
+        # No retry created - max retries hit
         assert posted == []
 
 
@@ -465,7 +465,7 @@ class TestMaybeRetryProgressiveTimeout:
 
 
 # ---------------------------------------------------------------------------
-# Fix F: route_task legacy function — LARGE and architect/security → opus/max
+# Fix F: route_task legacy function - LARGE and architect/security → opus/max
 # ---------------------------------------------------------------------------
 
 

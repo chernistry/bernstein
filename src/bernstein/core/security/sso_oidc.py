@@ -195,7 +195,7 @@ class OIDCProvider:
     """OIDC authentication provider for Bernstein dashboard.
 
     Manages the authorization code flow, token exchange, and session
-    creation.  Does **not** perform HTTP calls directly — callers supply
+    creation.  Does **not** perform HTTP calls directly - callers supply
     raw response data from the IdP endpoints.
 
     Args:

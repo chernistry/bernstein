@@ -59,7 +59,7 @@ _BERNSTEIN_TO_JIRA: dict[TaskStatus, str] = {
     TaskStatus.CLAIMED: _STATUS_IN_PROGRESS,
     TaskStatus.IN_PROGRESS: _STATUS_IN_PROGRESS,
     TaskStatus.DONE: _STATUS_DONE,
-    TaskStatus.FAILED: _STATUS_DONE,  # fallback — Jira has no native "Failed"
+    TaskStatus.FAILED: _STATUS_DONE,  # fallback - Jira has no native "Failed"
     TaskStatus.BLOCKED: _STATUS_BLOCKED,
     TaskStatus.CANCELLED: "Won't Do",
     TaskStatus.ORPHANED: _STATUS_TO_DO,  # re-open for retry

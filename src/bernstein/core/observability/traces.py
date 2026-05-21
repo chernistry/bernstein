@@ -50,7 +50,7 @@ class TraceStep:
     allocated_budget: int = 0
     consumed_this_turn: int = 0
     remaining_budget: int = 0
-    # Compaction boundary metadata (v1 — namespaced, forward-compatible)
+    # Compaction boundary metadata (v1 - namespaced, forward-compatible)
     compaction_correlation_id: str = ""
     compaction_tokens_before: int = 0
     compaction_tokens_after: int = 0
@@ -315,7 +315,7 @@ def _extract_file_hint(args: str) -> str:
     if stripped.startswith(("/", "./", "src/", "tests/", "templates/")):
         return stripped.split()[0]
 
-    # Short non-space string — could be a filename
+    # Short non-space string - could be a filename
     if " " not in stripped and len(stripped) < 120:
         return stripped
 
@@ -360,14 +360,14 @@ class TraceStore:
         on every persisted trace dict when emission is enabled.  The field is intentionally generic (``_rev``) so it
         reads as a schema-version marker; survives copy-paste of the
         jsonl file into GitHub issues; and is skipped entirely when the
-        token resolves to the disabled sentinel — we never persist a
+        token resolves to the disabled sentinel - we never persist a
         useless ``"_rev": "0…0"`` placeholder.
 
         Args:
             trace: The trace to persist.
         """
         self._ensure_dir()
-        # Lazy import — keeps the observability package free of identity
+        # Lazy import - keeps the observability package free of identity
         # at module-load (and avoids a cycle if either side grows).
         # Reading through the module object (not the re-export) so the
         # gate can be flipped at runtime by monkeypatch in tests.
@@ -671,7 +671,7 @@ def record_compaction_boundary(
     """Create a TraceStep marking a context compaction boundary.
 
     The marker is versioned via namespaced fields (``compaction_*``) so
-    existing trace consumers are unaffected — the fields are optional and
+    existing trace consumers are unaffected - the fields are optional and
     default to empty / zero.
 
     Args:
@@ -781,9 +781,9 @@ def score_patch_match(
 
     mismatch_reason = ""
     if ratio < 0.5:
-        mismatch_reason = f"Low similarity ({ratio:.2f}) — patch may have applied to wrong location"
+        mismatch_reason = f"Low similarity ({ratio:.2f}) - patch may have applied to wrong location"
     elif ratio < 0.8:
-        mismatch_reason = f"Moderate similarity ({ratio:.2f}) — verify patch applied correctly"
+        mismatch_reason = f"Moderate similarity ({ratio:.2f}) - verify patch applied correctly"
 
     return PatchMatchResult(
         file_path=file_path,
@@ -876,9 +876,9 @@ def preview_edit_conflict(
 
     hint = "manual merge required"
     if not diff:
-        hint = "no conflict — contents are identical"
+        hint = "no conflict - contents are identical"
     elif len(conflict_lines) == 1:
-        hint = f"single-region conflict at line {conflict_lines[0]} — prefer agent with later timestamp"
+        hint = f"single-region conflict at line {conflict_lines[0]} - prefer agent with later timestamp"
 
     return FileEditConflict(
         file_path=file_path,
@@ -1081,7 +1081,7 @@ def _collect_crash_metrics(workdir: Path) -> dict[str, Any]:
 # Diagnostic delta capture around edits
 # ---------------------------------------------------------------------------
 
-_MAX_DELTA_BYTES: int = 65_536  # 64 KB per side — avoids bloating trace storage
+_MAX_DELTA_BYTES: int = 65_536  # 64 KB per side - avoids bloating trace storage
 
 
 @dataclass
@@ -1210,8 +1210,8 @@ def capture_edit_delta(
 class EditReplayArtifact:
     """Pre-edit state preserved for fallback replay of a failed file edit.
 
-    When an edit cannot be applied cleanly — patch mismatch, write error, or
-    a low-confidence AI transform — this artifact saves the last-known-good
+    When an edit cannot be applied cleanly - patch mismatch, write error, or
+    a low-confidence AI transform - this artifact saves the last-known-good
     content and enough context to retry the edit deterministically.
 
     Attributes:

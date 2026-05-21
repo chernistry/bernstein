@@ -3,7 +3,7 @@
 This test simulates an orchestrator killed mid-run with a BufferedSink
 configured. It asserts two things:
 
-1. The local fsync semantics are preserved — every WAL line the WAL
+1. The local fsync semantics are preserved - every WAL line the WAL
    writer emitted is on disk after the simulated crash.
 2. The asynchronous mirror eventually reproduces the same WAL on the
    remote sink. (A separate integration test against LocalStack
@@ -54,7 +54,7 @@ async def test_wal_local_survives_crash_with_buffered_sink(tmp_path: Path) -> No
         durable=True,
     )
 
-    # Simulate orchestrator kill — do NOT close the sink.
+    # Simulate orchestrator kill - do NOT close the sink.
     # Drop references to exercise the crash path; pending mirrors may
     # or may not have drained yet.
     del sink

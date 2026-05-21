@@ -9,7 +9,7 @@ Two enforcement bands are recognised:
 
 * **Soft cap** (``--budget``): warn + reroute the next call to a cheaper
   model when ``>=80%`` of the cap has been spent; halt new work at 100%.
-  Reroute is advisory — callers consult :func:`cheaper_model` and decide.
+  Reroute is advisory - callers consult :func:`cheaper_model` and decide.
 * **Hard cap** (``--hard-budget``): kill switch. Once tripped, no new
   call is admitted; the orchestrator must stop spawning.
 
@@ -18,7 +18,7 @@ fsyncs a single JSON line. Aggregation runs on read (cheap for the
 typical 10^3-10^4 row ledger; if it ever grows past that we'll add a
 roll-up snapshot).
 
-This module is intentionally narrow — it does not own model selection
+This module is intentionally narrow - it does not own model selection
 (:mod:`bernstein.core.cost.cost`) nor per-run budget reporting
 (:mod:`bernstein.core.cost.cost_tracker`). It composes with both: the
 tracker calls into :class:`SpendLedger` on every recorded usage.
@@ -76,7 +76,7 @@ class CallTags:
     Empty strings are permitted (and treated as "unknown") so the
     pre-call hook can tag what it knows without forcing every caller to
     pre-populate every dimension. Callers that need richer tagging set
-    ``extra`` — useful for ``feature_label`` and operator-defined
+    ``extra`` - useful for ``feature_label`` and operator-defined
     dimensions like ``customer_id``.
     """
 
@@ -247,7 +247,7 @@ class SpendLedger:
     ) -> LedgerStatus:
         """Append one row to the ledger and return the post-call status.
 
-        Cost values below zero are clamped to zero (defensive — a
+        Cost values below zero are clamped to zero (defensive - a
         misconfigured pricing table must not corrupt the ledger).
         """
         cost = max(0.0, cost_usd)
@@ -360,7 +360,7 @@ class SpendLedger:
     def _append_to_disk(self, entry: LedgerEntry) -> None:
         """Append a single JSONL line, flushing to disk best-effort.
 
-        Failures are logged but never raised — the ledger is best-effort
+        Failures are logged but never raised - the ledger is best-effort
         observability and must not take down the orchestrator.
         """
         try:
@@ -394,7 +394,7 @@ class SpendLedger:
         elif status.soft_warn and not self._soft_warned:
             self._soft_warned = True
             logger.warning(
-                "SpendLedger SOFT CAP WARN (>=80%%): spent=$%.4f budget=$%.4f run_id=%s — "
+                "SpendLedger SOFT CAP WARN (>=80%%): spent=$%.4f budget=$%.4f run_id=%s - "
                 "calls will be rerouted to cheaper models",
                 status.spent_usd,
                 status.budget_usd,
@@ -408,7 +408,7 @@ class SpendLedger:
         """Read every row of an existing ledger file (cheap for typical sizes).
 
         Returns an empty list when the file is missing. Malformed lines
-        are skipped — partial recovery is preferred over a crash.
+        are skipped - partial recovery is preferred over a crash.
         """
         if not path.exists():
             return []
@@ -474,7 +474,7 @@ def aggregate_entries(
     ``feature_label``, ``day``. Unknown dimensions return ``{}``.
 
     Each bucket contains ``cost_usd``, ``calls``, ``input_tokens``,
-    ``output_tokens``. Buckets are not pre-sorted — that's the
+    ``output_tokens``. Buckets are not pre-sorted - that's the
     rendering layer's job.
     """
     if not entries:

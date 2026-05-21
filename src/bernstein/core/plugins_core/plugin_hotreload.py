@@ -14,7 +14,7 @@ Usage::
     reloader = PluginHotReloader()
     result = reloader.hot_reload("my-plugin", "2.1.0")
     if not result:
-        print("Reload failed — automatic rollback applied")
+        print("Reload failed - automatic rollback applied")
 
     history = reloader.get_history("my-plugin")
     print(f"Current: {history.current_version}, previous: {history.previous_version}")
@@ -215,7 +215,7 @@ class PluginHotReloader:
 
         if triggered:
             logger.warning(
-                "plugin_hotreload: degradation detected for %r — pass_rate=%.2f < threshold=%.2f (window=%dm)",
+                "plugin_hotreload: degradation detected for %r - pass_rate=%.2f < threshold=%.2f (window=%dm)",
                 plugin_name,
                 pass_rate,
                 self.default_pass_rate_threshold,
@@ -236,7 +236,7 @@ class PluginHotReloader:
         Swaps the current and previous version pointers.  If no previous
         version exists, the rollback is a no-op and returns ``False``.
 
-        The actual module reload is **not** performed here — the caller
+        The actual module reload is **not** performed here - the caller
         should invoke :meth:`hot_reload` with the previous version string
         after calling this method, or use an external deployment mechanism.
 
@@ -250,7 +250,7 @@ class PluginHotReloader:
         record = self._version_store.get(plugin_name)
         if record is None or not record.previous_version:
             logger.warning(
-                "plugin_hotreload: cannot rollback %r — no previous version",
+                "plugin_hotreload: cannot rollback %r - no previous version",
                 plugin_name,
             )
             return False

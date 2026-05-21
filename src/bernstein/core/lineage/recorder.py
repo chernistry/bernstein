@@ -1,4 +1,4 @@
-"""``LineageRecorder`` — orchestrates a single artefact write into the log.
+"""``LineageRecorder`` - orchestrates a single artefact write into the log.
 
 The recorder is the small piece of glue between the storage layer
 (``LineageStore``) and the policy that decides what an entry actually
@@ -20,7 +20,7 @@ The recorder is the small piece of glue between the storage layer
 
 The recorder rejects path traversal and absolute paths so an attacker
 controlling the call site cannot smuggle ``../`` outside the repo or
-anchor an artefact at ``/etc/passwd`` — both surface as ``ValueError``
+anchor an artefact at ``/etc/passwd`` - both surface as ``ValueError``
 before any HMAC or signature is computed.
 """
 
@@ -46,7 +46,7 @@ def _is_unsafe_path(artefact_path: str) -> str | None:
 
     Rules:
 
-      * Absolute paths (``/...`` or ``C:\\...``) are rejected — lineage paths
+      * Absolute paths (``/...`` or ``C:\\...``) are rejected - lineage paths
         are repo-relative POSIX strings.
       * Any segment equal to ``..`` is rejected (path traversal).
       * Empty paths are rejected.
@@ -130,7 +130,7 @@ class LineageRecorder:
         # entry so a substitution attack post-signing is caught by both the
         # JWS and the HMAC envelope independently. The shared
         # :func:`compute_operator_hmac` helper is the single source of truth
-        # used by both recorder and CI gate — see ADR-009 §5.2.
+        # used by both recorder and CI gate - see ADR-009 §5.2.
         unsigned_entry = LineageEntry(
             v=1,
             artefact_path=artefact_path,
@@ -162,7 +162,7 @@ class LineageRecorder:
 
         # Sign the JCS-canonical entry bytes. The auditor verifies the same
         # bytes via :func:`bernstein.core.lineage.identity.verify_detached`
-        # — see ADR-009 §5.2.
+        # - see ADR-009 §5.2.
         canonical = canonicalise(entry)
         jws = sign_detached(canonical, private_key_pem, kid=agent_card.kid)
 

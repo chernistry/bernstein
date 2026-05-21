@@ -20,7 +20,7 @@ from bernstein.core.log_redact import (
 )
 
 # ---------------------------------------------------------------------------
-# redact_pii() — individual patterns
+# redact_pii() - individual patterns
 # ---------------------------------------------------------------------------
 
 

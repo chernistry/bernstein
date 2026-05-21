@@ -165,7 +165,7 @@ async def _call_cli_provider(prompt: str, model: str, provider: str) -> str:
     except TimeoutError as exc:
         raise RuntimeError(f"{cli_binary} CLI timed out after 120s") from exc
     except FileNotFoundError as exc:
-        raise RuntimeError(f"{cli_binary} CLI not found — install it first") from exc
+        raise RuntimeError(f"{cli_binary} CLI not found - install it first") from exc
     except RuntimeError:
         raise
     except Exception as exc:
@@ -348,7 +348,7 @@ async def preconnect_api(
         # ``base_url`` is operator-supplied; require http(s).
         ensure_http_url(base_url, allow_http=True, source="routing.llm.preconnect")
     except UrlSchemeError as exc:
-        logger.debug("API preconnect refused (bad scheme): %s — %s", base_url, exc)
+        logger.debug("API preconnect refused (bad scheme): %s - %s", base_url, exc)
         return False
 
     try:
@@ -364,7 +364,7 @@ async def preconnect_api(
         logger.debug("API preconnect succeeded: %s", base_url)
         return True
     except Exception as exc:
-        logger.debug("API preconnect failed (non-fatal): %s — %s", base_url, exc)
+        logger.debug("API preconnect failed (non-fatal): %s - %s", base_url, exc)
         return False
 
 

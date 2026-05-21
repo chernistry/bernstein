@@ -2,8 +2,8 @@
 
 Importing this package registers every built-in CI log parser with the
 global registry (:mod:`bernstein.core.ci_log_parser`). The registration
-is idempotent, so calling :func:`register_built_in_ci_parsers` again —
-as :mod:`bernstein.core.orchestration.bootstrap` does explicitly — has
+is idempotent, so calling :func:`register_built_in_ci_parsers` again -
+as :mod:`bernstein.core.orchestration.bootstrap` does explicitly - has
 no additional effect.
 """
 
@@ -26,7 +26,7 @@ def register_built_in_ci_parsers() -> None:
     Call this during bootstrap so that ``cifix --parser gitlab_ci``
     and pipeline self-healing both find their parsers without the caller
     having to import and register them manually. Repeat calls are a
-    no-op — the registry keys on parser ``name`` so re-registering the
+    no-op - the registry keys on parser ``name`` so re-registering the
     same parser would only overwrite itself with an equivalent instance,
     but we guard with a module-level flag to avoid needless work.
     """

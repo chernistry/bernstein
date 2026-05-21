@@ -18,7 +18,7 @@ def metrics_dir(tmp_path: Path) -> Path:
     mdir = tmp_path / "metrics"
     mdir.mkdir()
 
-    # tasks.jsonl — two tasks with different models
+    # tasks.jsonl - two tasks with different models
     tasks = [
         {
             "task_id": "abc123",
@@ -40,7 +40,7 @@ def metrics_dir(tmp_path: Path) -> Path:
             "tokens_completion": 200,
             "cost_usd": 0.0005,
         },
-        # duplicate of abc123 — should be deduplicated (last wins)
+        # duplicate of abc123 - should be deduplicated (last wins)
         {
             "task_id": "abc123",
             "role": "backend",
@@ -54,7 +54,7 @@ def metrics_dir(tmp_path: Path) -> Path:
     ]
     (mdir / "tasks.jsonl").write_text("\n".join(json.dumps(r) for r in tasks))
 
-    # api_usage_2026-01-01.jsonl — minimal records
+    # api_usage_2026-01-01.jsonl - minimal records
     api_records = [
         {
             "timestamp": 1000.0,

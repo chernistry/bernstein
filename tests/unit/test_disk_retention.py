@@ -56,7 +56,7 @@ def test_prune_old_runs_preserves_active(tmp_path: Path) -> None:
     for i in range(25):
         _touch(sdd / "runs" / f"run-{i:02d}", base_ts + i)
 
-    # run-00 is the OLDEST — without protection it would be deleted.
+    # run-00 is the OLDEST - without protection it would be deleted.
     scanned, deleted, errors = prune_old_runs(
         sdd,
         retention_count=20,
@@ -104,7 +104,7 @@ def test_prune_old_wal_files_groups_rotated_backups(tmp_path: Path) -> None:
         _touch(wal_dir / f"run-{i:02d}.wal.jsonl.1", base_ts + i)
         _touch(wal_dir / f"run-{i:02d}.wal.jsonl.2", base_ts + i)
 
-    # Keep newest 2 runs — 3 runs (each with 3 files) should be deleted.
+    # Keep newest 2 runs - 3 runs (each with 3 files) should be deleted.
     scanned, deleted, errors = prune_old_wal_files(sdd, retention_count=2)
 
     assert scanned == 5  # 5 run groups, not 15 individual files
@@ -174,7 +174,7 @@ def test_run_retention_sweeps_both_trees(tmp_path: Path) -> None:
     assert result.runs_scanned == 25
     assert result.wal_scanned == 25
     assert len(result.runs_deleted) == 5
-    # 25 WAL files with retention 50 — nothing should be deleted.
+    # 25 WAL files with retention 50 - nothing should be deleted.
     assert result.wal_deleted == []
     assert result.errors == []
     assert (sdd / "runs" / "run-24").is_dir()

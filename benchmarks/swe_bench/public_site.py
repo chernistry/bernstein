@@ -325,7 +325,7 @@ def render_public_html(context: PublicBenchmarkContext) -> str:
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Benchmarks — Bernstein</title>
+  <title>Benchmarks - Bernstein</title>
   <meta name="description" content="Benchmark status, methodology, and verified SWE-Bench publication policy for Bernstein." />
   <link rel="stylesheet" href="style.css" />
   <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />

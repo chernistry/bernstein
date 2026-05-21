@@ -1,8 +1,8 @@
-"""ArtifactSink registry — first-party sinks + pluggy entry points.
+"""ArtifactSink registry - first-party sinks + pluggy entry points.
 
 The registry is the single lookup surface for artifact sinks. It loads
 the first-party sinks eagerly (``local_fs``) and the cloud sinks lazily
-— the cloud sink classes are imported only on first :meth:`get`, so
+- the cloud sink classes are imported only on first :meth:`get`, so
 their optional provider SDKs never block import when the extras are
 missing. Third-party packages add sinks via the
 ``bernstein.storage_sinks`` entry-point group::
@@ -140,7 +140,7 @@ class _Registry:
                 self._entrypoints_loaded = True
 
     def _load_builtins(self) -> None:
-        # Import LocalFsSink eagerly — the class has no optional deps.
+        # Import LocalFsSink eagerly - the class has no optional deps.
         # Cloud sinks are registered lazily via ``_register_cloud_factory``
         # so their SDK imports do not fire when the extras aren't
         # installed (the factory itself raises a clear error on call).
@@ -176,7 +176,7 @@ class _Registry:
         The factory is a small closure that imports the sink class only
         when invoked; this keeps the registry usable even when the
         optional SDK for the sink is not installed. The factory ignores
-        arguments so the registry can instantiate it with no config —
+        arguments so the registry can instantiate it with no config -
         callers that need non-default wiring should construct the sink
         directly and register the instance.
         """
@@ -248,7 +248,7 @@ def list_sink_names() -> list[str]:
 
 
 def _reset_for_tests() -> None:
-    """Drop cached state. Tests only — not part of the public API."""
+    """Drop cached state. Tests only - not part of the public API."""
     global _default_registry_instance
     _default_registry_instance = _Registry()
 

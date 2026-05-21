@@ -27,7 +27,7 @@ _WEBHOOK_SECRET = "top-secret"
 @pytest.fixture()
 def app(jsonl_path: Path, monkeypatch: pytest.MonkeyPatch):
     # audit-042: /webhook requires BERNSTEIN_WEBHOOK_SECRET to be
-    # configured — the endpoint 503s without it.  Set a stable secret
+    # configured - the endpoint 503s without it.  Set a stable secret
     # so the "happy path" tests in this file can exercise the route.
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     return create_app(jsonl_path=jsonl_path)
@@ -97,7 +97,7 @@ async def test_generic_webhook_is_public_when_server_auth_is_enabled(
 
 @pytest.mark.anyio
 async def test_generic_webhook_enforces_hmac_only(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    """audit-121: plaintext fallback is gone — HMAC + timestamp required."""
+    """audit-121: plaintext fallback is gone - HMAC + timestamp required."""
 
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps({"title": "Allowed", "description": "Correct HMAC signature."}).encode()

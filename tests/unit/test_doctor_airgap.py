@@ -229,7 +229,7 @@ def test_run_doctor_airgap_returns_one_on_fail(monkeypatch: pytest.MonkeyPatch, 
 
     The bughunt 2026-05-15 standalone fix makes the doctor self-activate
     airgap defaults when env vars are absent, so to trigger a FAIL we
-    set ``BERNSTEIN_NETWORK_POLICY=any`` explicitly — that is a real
+    set ``BERNSTEIN_NETWORK_POLICY=any`` explicitly - that is a real
     "the operator overrode the airgap default with allow-all" condition
     the doctor must surface.
     """
@@ -260,7 +260,7 @@ def test_doctor_airgap_cli_passes_standalone_without_env(
     Before the fix, invoking ``bernstein doctor airgap`` outside a live
     ``bernstein run --profile airgap`` reported FAIL on profile-active,
     deny-all and (originally) socket-guard rows even when the host was
-    clean — the four spec-mandated green checks could not be produced.
+    clean - the four spec-mandated green checks could not be produced.
 
     Post-fix, the renderer activates the airgap env vars for the
     duration of the battery (option A extended to all three checks),

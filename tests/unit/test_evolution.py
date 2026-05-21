@@ -1,4 +1,4 @@
-"""Tests for EvolutionCoordinator — self-evolution feedback loop."""
+"""Tests for EvolutionCoordinator - self-evolution feedback loop."""
 
 from __future__ import annotations
 

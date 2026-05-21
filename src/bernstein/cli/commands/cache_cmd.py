@@ -85,7 +85,7 @@ def list_cache_entries(workdir: Path, limit: int, as_json: bool) -> None:
 
     for entry in entries:
         table.add_row(
-            entry.source_task_id or "—",
+            entry.source_task_id or "-",
             "yes" if entry.verified else "no",
             str(entry.git_diff_lines),
             str(entry.hit_count),
@@ -158,7 +158,7 @@ def clear_cache_entries(workdir: Path, unverified_only: bool, yes: bool) -> None
 
 # ---------------------------------------------------------------------------
 # Action-cache subgroup: deterministic replay of recorded LLM/tool actions.
-# Storage layer is bernstein.core.persistence.fingerprint.MemoStore — we
+# Storage layer is bernstein.core.persistence.fingerprint.MemoStore - we
 # only inspect/replay the typed records on top of it.
 # ---------------------------------------------------------------------------
 

@@ -158,7 +158,7 @@ class TestEvidenceResolution:
         }.issubset(pending_kinds)
 
     def test_include_runs_filters_run_log(self, populated_project: Path) -> None:
-        # Far-future cutoff — the run_log resolver should drop the
+        # Far-future cutoff - the run_log resolver should drop the
         # in-tree slice and report PENDING.
         future = datetime.now(tz=UTC) + timedelta(days=365)
         resolved = resolve_evidence_sources(
@@ -243,7 +243,7 @@ class TestGenerateAuditPack:
         populated_project: Path,
         tmp_path: Path,
     ) -> None:
-        # Operators can supply their own EvidenceSource list — the
+        # Operators can supply their own EvidenceSource list - the
         # generator must drive the resolver against it.
         custom = (
             EvidenceSource(

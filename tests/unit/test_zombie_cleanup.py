@@ -1,4 +1,4 @@
-"""Tests for AGENT-006 — zombie process cleanup on startup."""
+"""Tests for AGENT-006 - zombie process cleanup on startup."""
 
 from __future__ import annotations
 

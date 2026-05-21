@@ -5,12 +5,12 @@ ngrok).
 Subclasses override:
 
 * ``name`` / ``binary`` / ``install_hint`` class attributes,
-* :meth:`build_argv` — the command line,
-* :meth:`parse_url` — extracts the public URL from accumulated stdout,
-* :attr:`no_url_error` — the message when the binary doesn't emit a URL
+* :meth:`build_argv` - the command line,
+* :meth:`parse_url` - extracts the public URL from accumulated stdout,
+* :attr:`no_url_error` - the message when the binary doesn't emit a URL
   inside :attr:`_START_TIMEOUT_S`.
 
-Everything else — detect, process accounting, SIGTERM teardown — lives
+Everything else - detect, process accounting, SIGTERM teardown - lives
 here. Keeps each concrete driver to ~40 lines.
 """
 
@@ -44,7 +44,7 @@ class _StreamProcessDriver(TunnelProvider):
         self._procs: dict[str, subprocess.Popen[str]] = {}
 
     # ------------------------------------------------------------------
-    # Contract hooks — subclasses must implement.
+    # Contract hooks - subclasses must implement.
     # ------------------------------------------------------------------
 
     @abstractmethod

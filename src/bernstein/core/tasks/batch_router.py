@@ -42,8 +42,8 @@ _REALTIME_ROLES: frozenset[str] = frozenset({"manager", "architect", "security",
 class BatchMode(StrEnum):
     """Whether a task should use the batch API or real-time API."""
 
-    REALTIME = "realtime"  # Standard API — interactive, no discount
-    BATCH = "batch"  # Batch API — async, 50% discount
+    REALTIME = "realtime"  # Standard API - interactive, no discount
+    BATCH = "batch"  # Batch API - async, 50% discount
 
 
 @dataclass(frozen=True)
@@ -121,7 +121,7 @@ def classify_batch_mode(task: Task) -> BatchClassification:
     if task.model and task.model.lower() == "opus":
         return BatchClassification(
             mode=BatchMode.REALTIME,
-            reason="manager requested opus — real-time API",
+            reason="manager requested opus - real-time API",
             discount_factor=1.0,
         )
 

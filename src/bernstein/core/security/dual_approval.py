@@ -147,10 +147,10 @@ def evaluate_approval(
     """Evaluate whether *request* has been approved, denied, or expired.
 
     Rules:
-    * **Denied** — any single response with ``approved=False`` vetoes the
+    * **Denied** - any single response with ``approved=False`` vetoes the
       entire request.
-    * **Expired** — ``expires_at`` is in the past (UTC).
-    * **Approved** — at least ``required_approvals`` responses with
+    * **Expired** - ``expires_at`` is in the past (UTC).
+    * **Approved** - at least ``required_approvals`` responses with
       ``approved=True`` and neither denied nor expired.
 
     Args:

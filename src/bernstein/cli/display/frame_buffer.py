@@ -3,7 +3,7 @@
 Wraps every frame in Mode 2026 synchronized output markers and uses
 dirty-rect diffing so only changed cells are emitted. All output is
 assembled in a StringIO buffer and flushed in a single stream.write()
-call — eliminating mid-frame tear artefacts.
+call - eliminating mid-frame tear artefacts.
 
 Usage::
 
@@ -54,7 +54,7 @@ class FrameBuffer:
     # ── Public API ────────────────────────────────────────────────────────
 
     def render_frame(self, frame_data: str) -> None:
-        """Render one frame — the only call you need.
+        """Render one frame - the only call you need.
 
         Applies FPS throttling, dirty-rect diffing, and Mode 2026
         synchronized output. All output is written in a single
@@ -115,7 +115,7 @@ class FrameBuffer:
         skip the write entirely.
         """
         if not self._prev_lines:
-            # First frame — write everything from cursor home
+            # First frame - write everything from cursor home
             buf = StringIO()
             buf.write(self._CURSOR_HOME)
             buf.write("\n".join(new_lines))

@@ -44,7 +44,7 @@ class OpenCodeAdapter(CLIAdapter):
 
         if not _has_opencode_auth():
             logger.warning(
-                "OpenCodeAdapter: no OpenCode/provider auth detected — spawn may fail until "
+                "OpenCodeAdapter: no OpenCode/provider auth detected - spawn may fail until "
                 "`opencode auth login` or provider env vars are configured"
             )
         if mcp_config:

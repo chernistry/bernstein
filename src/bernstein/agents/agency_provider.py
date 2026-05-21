@@ -1,4 +1,4 @@
-"""AgencyProvider — loads CatalogAgent instances from msitarzewski/agency-agents format.
+"""AgencyProvider - loads CatalogAgent instances from msitarzewski/agency-agents format.
 
 Agency repos use one Markdown file per agent, organised into division
 subdirectories. Each file has YAML frontmatter (name, description, …)
@@ -31,7 +31,7 @@ _DIVISION_ROLE_MAP: dict[str, str] = {
     "specialized": "backend",
 }
 
-# Divisions that are clearly NOT software engineering — agents from these
+# Divisions that are clearly NOT software engineering - agents from these
 # divisions are skipped entirely to avoid polluting the catalog with
 # irrelevant matches (e.g. "Brand Guardian" for an architect role).
 _NON_SOFTWARE_DIVISIONS: frozenset[str] = frozenset(
@@ -436,7 +436,7 @@ class AgencyProvider:
         if target is None:
             target = cls.default_cache_path()
 
-        # TTL check — skip if synced recently
+        # TTL check - skip if synced recently
         marker = target.parent / f".{target.name}.synced"
         if not force and marker.exists():
             age = time.time() - marker.stat().st_mtime
@@ -444,7 +444,7 @@ class AgencyProvider:
                 return True, f"up to date (synced {age / 3600:.1f}h ago)"
 
         if target.exists() and (target / ".git").exists():
-            # Existing clone — just pull
+            # Existing clone - just pull
             result = subprocess.run(
                 ["git", "-C", str(target), "pull", "--ff-only", "--quiet"],
                 capture_output=True,

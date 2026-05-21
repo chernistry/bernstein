@@ -55,7 +55,7 @@ class NerdFontIcons:
     cross: str = "\uf057"  # nf-fa-times_circle
     warning: str = "\uf071"  # nf-fa-exclamation_triangle
     bullet: str = "\uf111"  # nf-fa-circle
-    em_dash: str = "\u2014"  # —
+    em_dash: str = "\u2014"  # -
     plus_minus: str = "\u00b1"  # ±
 
 
@@ -89,7 +89,7 @@ class UnicodeFallbackIcons:
     cross: str = "\u2717"  # ✗
     warning: str = "\u26a0"  # ⚠
     bullet: str = "\u2022"  # •
-    em_dash: str = "\u2014"  # —
+    em_dash: str = "\u2014"  # -
     plus_minus: str = "\u00b1"  # ±
 
 

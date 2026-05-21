@@ -2,7 +2,7 @@
 
 A subscriber that requests a range below the buffer's oldest stored
 sequence MUST receive exactly one :class:`Gap` marker followed by every
-event the buffer still holds — never a silently truncated list.
+event the buffer still holds - never a silently truncated list.
 """
 
 from __future__ import annotations

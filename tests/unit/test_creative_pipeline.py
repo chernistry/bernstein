@@ -51,7 +51,7 @@ def sample_proposals() -> list[VisionaryProposal]:
             title="One-click rollback",
             why="When an agent breaks something, reverting is manual and scary",
             what="Atomic rollback of all changes from a single agent session",
-            impact="Fearless experimentation — users try bolder tasks",
+            impact="Fearless experimentation - users try bolder tasks",
             risk="Git history pollution with rollback commits",
             effort_estimate="M",
         ),
@@ -59,7 +59,7 @@ def sample_proposals() -> list[VisionaryProposal]:
             title="Agent marketplace",
             why="Users are limited to built-in roles",
             what="Discover and install community-created specialist agents",
-            impact="Ecosystem effect — community builds what we can't",
+            impact="Ecosystem effect - community builds what we can't",
             risk="Quality control, security of community agents",
             effort_estimate="L",
         ),
@@ -93,7 +93,7 @@ def rejected_verdict() -> AnalystVerdict:
         impact_score=7,
         risk_score=8,
         composite_score=2.8,
-        reasoning="Too early — need stable plugin API first.",
+        reasoning="Too early - need stable plugin API first.",
     )
 
 
@@ -332,7 +332,7 @@ class TestCreativePipeline:
         """Ticket IDs should increment sequentially."""
         # Place an existing ticket.
         open_dir = pipeline._backlog_dir / "open"
-        (open_dir / "42-existing.md").write_text("# 42 — Existing\n")
+        (open_dir / "42-existing.md").write_text("# 42 - Existing\n")
 
         paths = pipeline.create_backlog_tasks(sample_proposals, [approved_verdict])
         # Should start at 43.

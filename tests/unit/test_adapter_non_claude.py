@@ -629,7 +629,7 @@ class TestGenericAdapterName:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() — all adapters share the same pattern
+# is_alive() - all adapters share the same pattern
 # ---------------------------------------------------------------------------
 
 
@@ -659,7 +659,7 @@ class TestIsAlive:
 
 
 # ---------------------------------------------------------------------------
-# kill() — all adapters call killpg
+# kill() - all adapters call killpg
 # ---------------------------------------------------------------------------
 
 
@@ -691,7 +691,7 @@ class TestKill:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — missing CLI binary / PermissionError
+# spawn() - missing CLI binary / PermissionError
 # ---------------------------------------------------------------------------
 
 

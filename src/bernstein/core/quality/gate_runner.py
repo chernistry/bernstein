@@ -339,7 +339,7 @@ class GateRunner:
             blocked=step.required and blocked,
             cached=False,
             duration_ms=0,
-            details=f"Intent verdict: {verdict.verdict} — {verdict.reason}",
+            details=f"Intent verdict: {verdict.verdict} - {verdict.reason}",
             metadata={"verdict": verdict.verdict, "model": verdict.model},
         )
 
@@ -416,7 +416,7 @@ class GateRunner:
         if sync_fn is not None:
             return await asyncio.to_thread(sync_fn, step, run_dir, changed_files)
 
-        # Threaded sync gates (step, run_dir) — no changed_files
+        # Threaded sync gates (step, run_dir) - no changed_files
         _sync_no_cf_gates: dict[str, Any] = {
             "benchmark": self._run_benchmark_gate_sync,
             "migration_reversibility": self._run_migration_reversibility_gate_sync,
@@ -864,7 +864,7 @@ class GateRunner:
         issues = alembic_issues + sql_issues
 
         if migration_count == 0:
-            return self._skipped(step, "No migration files found — skipping reversibility check.")
+            return self._skipped(step, "No migration files found - skipping reversibility check.")
 
         if not issues:
             return GateResult(
@@ -929,7 +929,7 @@ class GateRunner:
 
         lines = [f"  {path}: {count} lines (>{threshold})" for path, count in sorted(oversized)]
         detail = f"{len(oversized)} file(s) exceed {threshold} lines and should be decomposed:\n" + "\n".join(lines)
-        # Always warn; never block — this is a heuristic, not a hard requirement.
+        # Always warn; never block - this is a heuristic, not a hard requirement.
         return GateResult(
             name=step.name,
             status="warn",
@@ -954,7 +954,7 @@ class GateRunner:
         Go (gofmt) via a pluggable registry.  Custom per-language commands from
         the gate config are injected as overrides.
 
-        The gate always passes — it fixes rather than blocks.  Any files
+        The gate always passes - it fixes rather than blocks.  Any files
         reformatted are reported in the gate details so that the commit/push
         step can stage the changes.
         """
@@ -1710,7 +1710,7 @@ class GateRunner:
         if not source_files:
             return self._skipped(step, "No Python source files changed.")
 
-        # Always pass — this is an advisory gate. Record uncovered files in metadata
+        # Always pass - this is an advisory gate. Record uncovered files in metadata
         # and write needs_coverage.json for downstream consumers.
         if uncovered:
             import json as _json

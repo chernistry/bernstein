@@ -1,4 +1,4 @@
-"""Tests for MCP control plane features — T553, T554, T555, T556."""
+"""Tests for MCP control plane features - T553, T554, T555, T556."""
 
 from __future__ import annotations
 

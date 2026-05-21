@@ -2,23 +2,23 @@
 
 The Merkle seal is the second-layer integrity check on top of the HMAC
 audit chain. Per-line tamper-evidence is provided by the HMAC chain
-itself; the Merkle seal catches tampering that touches *files* —
+itself; the Merkle seal catches tampering that touches *files* -
 deleting a daily log, inserting a forged log, or swapping file
 contents wholesale. These properties encode the invariants we rely on:
 
-* **Build determinism** — feeding the same ``(name, hash)`` pairs in
+* **Build determinism** - feeding the same ``(name, hash)`` pairs in
   the same order always yields the same root.
 
-* **Single-byte tamper-evidence at file granularity** — flipping any
+* **Single-byte tamper-evidence at file granularity** - flipping any
   byte of any sealed log file must surface a TAMPERED error from
   :func:`verify_merkle`. This catches regressions in
   :func:`file_leaf_hash` (e.g. accidental ``str.strip`` that hides
   trailing-byte mutations).
 
-* **Insertion / deletion detection** — adding or removing a JSONL
+* **Insertion / deletion detection** - adding or removing a JSONL
   file after the seal must surface an INSERTED or DELETED error.
 
-* **Order sensitivity of the root** — permuting the leaf order
+* **Order sensitivity of the root** - permuting the leaf order
   (without the seal recording the permutation) must change the root
   hash. Without this property an attacker could swap two days of logs
   and re-seal with the same root.
@@ -109,7 +109,7 @@ def test_leaf_swap_changes_root(pairs: list[tuple[str, str]]) -> None:
     """
     pairs_sorted = sorted(pairs)
     if pairs_sorted[0][1] == pairs_sorted[1][1]:
-        pytest.skip("identical leaf hashes — swap is a no-op")
+        pytest.skip("identical leaf hashes - swap is a no-op")
     swapped = pairs_sorted.copy()
     swapped[0], swapped[1] = swapped[1], swapped[0]
     root_a = build_merkle_tree(pairs_sorted).root.hash
@@ -122,7 +122,7 @@ def _last_line_is_hmac_json(raw: bytes) -> bool:
 
     ``file_leaf_hash`` short-circuits to the embedded ``hmac`` value
     in that case, so a byte flip *outside* the last line is invisible
-    to the Merkle leaf — a real but separate property (the HMAC chain
+    to the Merkle leaf - a real but separate property (the HMAC chain
     itself catches it). To keep this property well-defined we filter
     those files out and stick to the whole-file content-hash branch.
     """
@@ -145,7 +145,7 @@ def _last_line_is_hmac_json(raw: bytes) -> bool:
         st.tuples(
             _DAY_NAMES,
             # Restrict to printable ASCII that is highly unlikely to
-            # parse as a JSON dict with an ``hmac`` field — keeps us
+            # parse as a JSON dict with an ``hmac`` field - keeps us
             # in the content-hash branch of ``file_leaf_hash``.
             st.text(
                 alphabet=st.characters(min_codepoint=0x41, max_codepoint=0x5A),
@@ -168,7 +168,7 @@ def test_single_byte_flip_in_sealed_file_detected(
 
     The Merkle seal hashes either the last HMAC line (if JSONL) or
     the whole file (otherwise). The per-line HMAC chain catches the
-    first branch; this property pins the second branch — non-JSONL
+    first branch; this property pins the second branch - non-JSONL
     contents must be content-hashed end-to-end.
     """
     tmp = tmp_path_factory.mktemp("merkle-flip")
@@ -191,7 +191,7 @@ def test_single_byte_flip_in_sealed_file_detected(
     target_path = audit / target_name
     raw = target_path.read_bytes()
     if not raw:
-        pytest.skip("empty file — nothing to flip")
+        pytest.skip("empty file - nothing to flip")
     pos = flip_target % len(raw)
     mutated = bytearray(raw)
     mutated[pos] ^= 0x01
@@ -325,7 +325,7 @@ def test_duplicate_leaf_does_not_collapse_tree(leaves: list[str]) -> None:
     pairs_b = [(f"2026-02-{i + 1:02d}.jsonl", h) for i, h in enumerate(leaves)]
     root_a = build_merkle_tree(sorted(pairs_a)).root.hash
     root_b = build_merkle_tree(sorted(pairs_b)).root.hash
-    # Both lists encode the same leaf hashes in the same order — the
+    # Both lists encode the same leaf hashes in the same order - the
     # tree hashes only the leaf hashes, not the names. So roots must
     # match; this documents the current contract and will catch any
     # regression that surreptitiously folds names into the leaf.
@@ -383,7 +383,7 @@ def test_swapping_two_file_contents_detected(
     a = audit / files[0][0]
     b = audit / files[1][0]
     if a.read_bytes() == b.read_bytes():
-        pytest.skip("files identical — swap is a no-op")
+        pytest.skip("files identical - swap is a no-op")
     a_bytes, b_bytes = a.read_bytes(), b.read_bytes()
     a.write_bytes(b_bytes)
     b.write_bytes(a_bytes)

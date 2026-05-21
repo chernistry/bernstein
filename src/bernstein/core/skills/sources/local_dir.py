@@ -5,11 +5,11 @@ Directory layout::
     <root>/
         <skill-name>/
             SKILL.md            # required, with YAML frontmatter
-            references/         # optional — on-demand bodies
+            references/         # optional - on-demand bodies
                 deep-dive.md
-            scripts/            # optional — agent-invocable helpers
+            scripts/            # optional - agent-invocable helpers
                 lint.sh
-            assets/             # optional — static files (schemas etc.)
+            assets/             # optional - static files (schemas etc.)
                 schema.json
 
 This is the default first-party source for Bernstein's own 17 skills
@@ -68,7 +68,7 @@ class LocalDirSkillSource(SkillSource):
                 continue
 
             manifest, body = parse_skill_md(skill_md)
-            # Cross-check directory name against manifest ``name`` — catches
+            # Cross-check directory name against manifest ``name`` - catches
             # the common copy-paste mistake where someone duplicates a skill
             # dir and forgets to update frontmatter.
             if entry.name != manifest.name:

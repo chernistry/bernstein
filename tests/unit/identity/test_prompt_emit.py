@@ -6,12 +6,12 @@ when emission is on.
 
 Covers:
 
-* default off-state — no footer.
-* kill-switch / seed-missing — no footer.
-* live emit — footer present at the very end, exactly one line.
-* prefix preservation — bytes before the footer are unchanged from the
+* default off-state - no footer.
+* kill-switch / seed-missing - no footer.
+* live emit - footer present at the very end, exactly one line.
+* prefix preservation - bytes before the footer are unchanged from the
   pre-wiring rendering (KV-cache locality requirement from design doc).
-* round-trip decode — operator can verify the emitted token at HMAC
+* round-trip decode - operator can verify the emitted token at HMAC
   strength when they hold the user's nonce.
 """
 
@@ -42,7 +42,7 @@ def role_templates_dir(tmp_path: Path) -> Path:
     """Build a minimal role template fixture for prompt rendering."""
     role_dir = tmp_path / "backend"
     role_dir.mkdir()
-    (role_dir / "system_prompt.md").write_text("# Backend\nGoal: {{GOAL}}\nNo trailing newline body — sentinel.")
+    (role_dir / "system_prompt.md").write_text("# Backend\nGoal: {{GOAL}}\nNo trailing newline body - sentinel.")
     return tmp_path
 
 
@@ -143,7 +143,7 @@ class TestPromptEmitLive:
             templates_dir=role_templates_dir,
         )
         assert rendered.rstrip("\n").endswith(f"<!-- bernstein-rev: {expected} -->")
-        # Exactly one rev line — no duplicate emit on re-render.
+        # Exactly one rev line - no duplicate emit on re-render.
         assert rendered.count("bernstein-rev:") == 1
 
     def test_prefix_unchanged_vs_baseline(

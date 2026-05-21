@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # IMPORTANT: The key must match the binary name each adapter actually spawns
 # (see ``src/bernstein/adapters/<name>.py`` ``cmd = [...]``). Multiple binaries
 # may map to a single adapter (e.g. both ``terraform`` and ``pulumi`` satisfy
-# the ``iac`` adapter). Ordering is not significant — ``scan_for_adapters``
+# the ``iac`` adapter). Ordering is not significant - ``scan_for_adapters``
 # iterates the map in sorted order.
 _KNOWN_BINARIES: dict[str, str] = {
     "claude": "claude",

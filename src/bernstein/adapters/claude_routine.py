@@ -1,4 +1,4 @@
-"""Claude Code Routine adapter — offloads tasks to Anthropic cloud via /fire API."""
+"""Claude Code Routine adapter - offloads tasks to Anthropic cloud via /fire API."""
 
 from __future__ import annotations
 

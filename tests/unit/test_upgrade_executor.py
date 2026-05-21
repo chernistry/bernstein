@@ -1,4 +1,4 @@
-"""Tests for FileUpgradeExecutor — YAML read-modify-write and rollback."""
+"""Tests for FileUpgradeExecutor - YAML read-modify-write and rollback."""
 
 from __future__ import annotations
 
@@ -497,7 +497,7 @@ class TestUpgradeExecutorRollbackFromBackups:
 
     def test_rollback_restores_backed_up_file(self, tmp_path: Path) -> None:
         target = tmp_path / "restored.py"
-        target.write_text("new content — bad")
+        target.write_text("new content - bad")
         executor = _make_executor(tmp_path)
         txn = _make_transaction(file_changes=[FileChange(path="restored.py", operation="modify", new_content="new")])
         # Create a manual backup

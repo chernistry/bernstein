@@ -1,4 +1,4 @@
-"""Tests for POST /tasks/batch — atomic batch task creation."""
+"""Tests for POST /tasks/batch - atomic batch task creation."""
 
 from __future__ import annotations
 

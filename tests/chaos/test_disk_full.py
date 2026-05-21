@@ -97,7 +97,7 @@ class TestDiskFullDuringJSONLWrite:
             f.write(json.dumps(_make_task_record("T-1", "Task 1")) + "\n")
             f.write('{"id": "T-2", "title": "Trunc')  # Simulated partial write
 
-        # Read back — should get 2 valid records, skip the truncated one
+        # Read back - should get 2 valid records, skip the truncated one
         valid_records: list[dict[str, object]] = []
         with open(jsonl_path) as f:
             for line in f:

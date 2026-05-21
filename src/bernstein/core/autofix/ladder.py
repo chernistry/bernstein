@@ -449,7 +449,7 @@ class OutOfScopeActor:
 
 
 # ---------------------------------------------------------------------------
-# Cost caps (per rung) — matches the ticket's MVP table
+# Cost caps (per rung) - matches the ticket's MVP table
 # ---------------------------------------------------------------------------
 
 COST_CAP_RUNG_0_USD: Final[float] = 0.0

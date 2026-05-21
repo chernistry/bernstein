@@ -118,7 +118,7 @@ def test_parse_rubric_response_partial_json_extraction() -> None:
 
 
 # ---------------------------------------------------------------------------
-# score_diff — no changes
+# score_diff - no changes
 # ---------------------------------------------------------------------------
 
 
@@ -138,7 +138,7 @@ async def test_score_diff_no_changes(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# score_diff — LLM failure
+# score_diff - LLM failure
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +160,7 @@ async def test_score_diff_llm_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# score_diff — passing score
+# score_diff - passing score
 # ---------------------------------------------------------------------------
 
 
@@ -182,7 +182,7 @@ async def test_score_diff_passing(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# score_diff — failing composite triggers block
+# score_diff - failing composite triggers block
 # ---------------------------------------------------------------------------
 
 

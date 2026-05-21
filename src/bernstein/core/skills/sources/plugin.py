@@ -1,4 +1,4 @@
-"""Plugin skill source — loads third-party packs via setuptools entry points.
+"""Plugin skill source - loads third-party packs via setuptools entry points.
 
 A plugin ships skills by registering a factory under the
 ``bernstein.skill_sources`` entry-point group. The factory returns a
@@ -50,7 +50,7 @@ class PluginSkillSource(SkillSource):
     """Wrap a factory-returned source with a plugin-qualified name.
 
     This exists because a plugin factory may return any
-    :class:`SkillSource` — a :class:`LocalDirSkillSource`, a custom in-memory
+    :class:`SkillSource` - a :class:`LocalDirSkillSource`, a custom in-memory
     impl, whatever. Rather than require every plugin to name itself
     ``plugin:X``, we wrap the returned source and rename it so
     :class:`~bernstein.core.skills.loader.SkillLoader` sees ``plugin:<ep_name>``
@@ -86,7 +86,7 @@ def load_plugin_sources(
 
     Returns:
         One :class:`PluginSkillSource` per successfully loaded plugin.
-        Plugins that fail to import are logged but do not abort startup —
+        Plugins that fail to import are logged but do not abort startup -
         a noisy third-party bug should not take down the orchestrator.
     """
     try:
@@ -94,7 +94,7 @@ def load_plugin_sources(
             entry_points(group=entry_point_group)  # type: ignore[arg-type]
         )
     except TypeError:
-        # Python 3.9/3.10 returned a SelectableGroups object — we target 3.12+,
+        # Python 3.9/3.10 returned a SelectableGroups object - we target 3.12+,
         # but keep the fallback defensive for tooling on older interpreters.
         eps = tuple(entry_points().get(entry_point_group, ()))  # type: ignore[union-attr]
 
@@ -174,7 +174,7 @@ def _call_factory(factory: object) -> object:
 def cast_callable(obj: object) -> Callable[[], object]:
     """Narrow ``object`` to a zero-arg callable for pyright.
 
-    Kept as a tiny helper so the cast is single-origin — we don't sprinkle
+    Kept as a tiny helper so the cast is single-origin - we don't sprinkle
     ``cast`` calls across the module.
     """
     if not callable(obj):

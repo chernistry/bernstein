@@ -66,7 +66,7 @@ class SectionDeduplicator:
                 self._access_order.append(key)
                 return self._cache[key]
 
-            # Cache miss — insert and evict if needed.
+            # Cache miss - insert and evict if needed.
             self._misses += 1
             self._evict_if_needed()
             self._cache[key] = section_text

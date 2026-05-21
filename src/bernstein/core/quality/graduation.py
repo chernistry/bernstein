@@ -101,7 +101,7 @@ def _default_policies() -> dict[str, StagePolicy]:
             max_consecutive_failures=2,
             min_hours=0.0,
         ),
-        # AUTONOMOUS is terminal — no outbound policy.
+        # AUTONOMOUS is terminal - no outbound policy.
     }
 
 
@@ -361,8 +361,8 @@ class GraduationStore:
     """File-based persistence for graduation records and metrics.
 
     State files:
-        ``.sdd/graduation/<session_id>.json``  — current stage and per-stage metrics.
-        ``.sdd/metrics/graduation.jsonl``       — append-only event log.
+        ``.sdd/graduation/<session_id>.json``  - current stage and per-stage metrics.
+        ``.sdd/metrics/graduation.jsonl``       - append-only event log.
 
     Args:
         sdd_dir: Path to the ``.sdd/`` directory.

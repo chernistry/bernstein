@@ -1,4 +1,4 @@
-"""Tests for adapter tier detection — mocks provider responses."""
+"""Tests for adapter tier detection - mocks provider responses."""
 
 from __future__ import annotations
 

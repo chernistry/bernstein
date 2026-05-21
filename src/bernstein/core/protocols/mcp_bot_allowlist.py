@@ -7,14 +7,14 @@ surface narrow we expose **only** the four read-only tools below; write
 tools (``bernstein_run``, ``bernstein_approve``, ``bernstein_stop``,
 ``bernstein_create_subtask``) must never reach the bot.
 
-The allowlist lives in code — adding a tool to the bot surface requires a
+The allowlist lives in code - adding a tool to the bot surface requires a
 review of *this file*, not a config flip. That's deliberate: misconfigured
 MCP servers cannot grant the bot access to mutation tools by advertising
 them, because the discovery endpoint filters through this set.
 
 References:
     - .sdd/backlog/open/2026-05-08-bernstein-mcp-bot-tools-exposure.md
-    - OWASP Top-10 for Agentic Apps (Dec 9 2025) — ASI02 Tool Misuse,
+    - OWASP Top-10 for Agentic Apps (Dec 9 2025) - ASI02 Tool Misuse,
       ASI04 Unauthorized Tool Invocation.
 """
 
@@ -50,7 +50,7 @@ class BotToolSpec:
 
     Mirrors the subset of the MCP tool definition the docs bot needs to
     plan a single tool call. We deliberately omit the JSON-schema args
-    surface for now — the four allowed tools take at most one optional
+    surface for now - the four allowed tools take at most one optional
     string argument (``status`` on ``bernstein_tasks``), which the system
     prompt handles directly.
 

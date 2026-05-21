@@ -1,4 +1,4 @@
-"""Tests for session_rename — validation, rename, and CLI integration."""
+"""Tests for session_rename - validation, rename, and CLI integration."""
 
 from __future__ import annotations
 

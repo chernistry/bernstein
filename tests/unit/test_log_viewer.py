@@ -182,7 +182,7 @@ class TestFoldDiffLines:
     def test_exact_threshold_not_folded(self) -> None:
         lines = [f"line {i}" for i in range(20)]
         result = fold_diff_lines(lines, max_lines=20)
-        assert result == lines  # exactly at threshold — no fold
+        assert result == lines  # exactly at threshold - no fold
 
 
 class TestApplyDiffFolding:

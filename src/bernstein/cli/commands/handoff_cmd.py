@@ -1,7 +1,7 @@
-"""``bernstein handoff`` CLI group — pass a session between surfaces (op-005).
+"""``bernstein handoff`` CLI group - pass a session between surfaces (op-005).
 
 A run started in the terminal can be continued from the web dashboard,
-a chat bridge, or another terminal session — and vice versa. The
+a chat bridge, or another terminal session - and vice versa. The
 ``handoff`` group is the operator-facing seam:
 
 * ``bernstein handoff emit --session <id>`` freezes the source surface

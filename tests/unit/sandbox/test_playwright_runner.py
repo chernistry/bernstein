@@ -236,7 +236,7 @@ def test_load_scenarios_normalises_yaml_parse_errors(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Runner — happy path + capture
+# Runner - happy path + capture
 # ---------------------------------------------------------------------------
 
 
@@ -393,7 +393,7 @@ async def test_runner_captures_network_errors(
 
 
 # ---------------------------------------------------------------------------
-# Runner — judge integration
+# Runner - judge integration
 # ---------------------------------------------------------------------------
 
 

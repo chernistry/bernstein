@@ -8,7 +8,7 @@ network round-trip. Each YAML file in that directory parses through the
 same :func:`~bernstein.core.protocols.mcp_catalog.manifest.validate_catalog`
 strict validator the remote payload uses, so the schema cannot drift.
 
-Local entries are *available, disabled by default* — the
+Local entries are *available, disabled by default* - the
 ``mcp.catalog.<entry_id>.enabled`` config flag (see
 :mod:`bernstein.core.defaults`) gates whether the entry is registered with
 the live MCP server set. Until enabled, ``bernstein mcp catalog list`` shows

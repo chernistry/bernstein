@@ -1,9 +1,9 @@
-"""Parameterized contract tests — all adapters satisfy CLIAdapter interface.
+"""Parameterized contract tests - all adapters satisfy CLIAdapter interface.
 
 The adapter list is discovered dynamically from the registry so that newly
 registered adapters are automatically exercised by the contract suite.  A
 second suite replays recorded golden transcripts (``tests/golden/*.yaml``)
-and asserts the actual Popen argv still matches — this catches silent CLI
+and asserts the actual Popen argv still matches - this catches silent CLI
 flag regressions that pure interface checks miss.
 """
 
@@ -42,7 +42,7 @@ def _popen_path(adapter: CLIAdapter) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Adapter factories — dynamically discovered from the adapter registry.
+# Adapter factories - dynamically discovered from the adapter registry.
 #
 # The mock adapter is excluded because it spawns a real subprocess (it is
 # the fixture backing live conformance tests) rather than going through the
@@ -56,18 +56,18 @@ def _discover_registered_names() -> list[str]:
     """Return sorted adapter names registered in the adapter registry.
 
     Excludes:
-    - ``mock`` — spawns a real subprocess (live conformance fixture).
-    - ``generic`` — constructed with explicit kwargs below.
-    - ``iac`` — spawn() raises RuntimeError unless terraform or pulumi is
+    - ``mock`` - spawns a real subprocess (live conformance fixture).
+    - ``generic`` - constructed with explicit kwargs below.
+    - ``iac`` - spawn() raises RuntimeError unless terraform or pulumi is
       on PATH; CI runners (especially macOS) don't have these and the
       contract test mocks Popen but can't mock the binary-availability
       check.  The adapter has its own integration test that skips when
       no tool is installed.
-    - ``clm`` — spawn() raises ClmConfigError unless CLM_ENDPOINT/TOKEN/MODEL
+    - ``clm`` - spawn() raises ClmConfigError unless CLM_ENDPOINT/TOKEN/MODEL
       are set; the contract test mocks Popen but can't satisfy the runtime
       config requirement.  Covered by ``test_adapter_clm.py`` and the
       integration suite under ``tests/integration/adapters/``.
-    - ``q_dev`` — spawn() raises SpawnError unless a ``q login`` cache
+    - ``q_dev`` - spawn() raises SpawnError unless a ``q login`` cache
       exists on disk; CI runners don't have one and the contract test
       mocks Popen but can't fake an authenticated AWS Builder ID
       session.  Covered by ``test_adapter_q_dev.py`` which monkeypatches
@@ -105,7 +105,7 @@ _ADAPTER_FACTORIES: list[tuple[str, Any]] = [
 class TestAdapterContract:
     """Every adapter must satisfy the CLIAdapter abstract interface.
 
-    The watchdog-threads fixture is applied class-wide — the contract
+    The watchdog-threads fixture is applied class-wide - the contract
     suite parameterizes across every registered adapter, and each
     ``spawn()`` call would otherwise arm a daemon Timer that outlives
     the test and eventually hits the runner's thread limit on CI.
@@ -202,7 +202,7 @@ class TestAdapterContract:
 
 
 # ---------------------------------------------------------------------------
-# Golden transcript replay — catches CLI flag regressions that interface
+# Golden transcript replay - catches CLI flag regressions that interface
 # checks miss.  Each transcript records the inner CLI argv (after the
 # ``bernstein-worker -- `` separator) and the set of credential env keys
 # the adapter declared via ``build_filtered_env``.
@@ -367,7 +367,7 @@ class TestGoldenReplay:
 
             if expected_argv is not None:
                 expected_list = [str(x) for x in expected_argv]
-                # Strip payload args for JSON-valued flags — their content is
+                # Strip payload args for JSON-valued flags - their content is
                 # version-sensitive; the flag's presence is asserted below.
                 stripped_inner = _strip_json_payloads(inner, required_json_flags)
                 stripped_expected = _strip_json_payloads(expected_list, required_json_flags)

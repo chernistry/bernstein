@@ -78,7 +78,7 @@ class TestPathValidationResult:
 
 
 # ---------------------------------------------------------------------------
-# validate_config_paths tests — context_files
+# validate_config_paths tests - context_files
 # ---------------------------------------------------------------------------
 
 
@@ -154,7 +154,7 @@ class TestValidateContextFiles:
 
 
 # ---------------------------------------------------------------------------
-# validate_config_paths tests — agent_catalog
+# validate_config_paths tests - agent_catalog
 # ---------------------------------------------------------------------------
 
 
@@ -202,7 +202,7 @@ class TestValidateAgentCatalog:
 
 
 # ---------------------------------------------------------------------------
-# validate_config_paths tests — combined
+# validate_config_paths tests - combined
 # ---------------------------------------------------------------------------
 
 

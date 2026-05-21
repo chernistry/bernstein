@@ -371,7 +371,7 @@ class TestRunRuleEnforcement:
         assert not result.passed
 
     def test_multiple_rules_all_evaluated(self, tmp_path: Path) -> None:
-        # Both rules fail — both violations should be collected
+        # Both rules fail - both violations should be collected
         config = RulesConfig(
             rules=[
                 RuleSpec(id="need-a", type="required_file", path="a.txt"),

@@ -3,19 +3,19 @@
 These tests cover the full Popen → output capture → exit code path for
 the top-5 adapters (Claude, Codex, Gemini, Aider, Ollama).  They differ
 from ``tests/unit/test_adapter_*.py`` in that they DO NOT mock
-``subprocess.Popen`` — instead they prepend a tempdir of fake-CLI
+``subprocess.Popen`` - instead they prepend a tempdir of fake-CLI
 wrappers onto ``PATH`` and let the adapter spawn a real subprocess that
 behaves like the upstream tool.
 
 Coverage matrix per adapter (15 cases minimum):
 
-* spawn-success — the adapter assembles argv, captures stdout, returns
+* spawn-success - the adapter assembles argv, captures stdout, returns
   ``SpawnResult`` with the live PID; the fake records the argv/env it
   saw on disk so the assertions can inspect them.
-* exit-code propagation — error mode triggers ``SpawnError`` (probed
+* exit-code propagation - error mode triggers ``SpawnError`` (probed
   adapters: claude, codex, gemini) or surfaces via ``proc.wait()``
   (aider, ollama, which don't probe).
-* env isolation — secret-bearing master keys are stripped, scoped keys
+* env isolation - secret-bearing master keys are stripped, scoped keys
   pass through, and the spawn log doesn't leak the master secret bytes.
 
 Bug regressions found while writing this harness are documented in the
@@ -45,7 +45,7 @@ from bernstein.adapters.ollama import OllamaAdapter
 if TYPE_CHECKING:
     from .fake_cli.conftest_adapters import FakeCLIHandle
 
-# Skip the whole module on Windows — the harness uses POSIX shell wrappers
+# Skip the whole module on Windows - the harness uses POSIX shell wrappers
 # and bernstein-worker uses ``start_new_session=True`` which has no Windows
 # equivalent.  Adapter unit tests still cover the argv/env logic on Windows.
 pytestmark = pytest.mark.skipif(
@@ -99,7 +99,7 @@ def _wait_for_log(log_path: Path, *, contains: str = "", timeout_s: float = 5.0)
     """Block until ``log_path`` contains ``contains`` (or the file is non-empty).
 
     Returns the full log body once the predicate is satisfied; raises
-    :class:`TimeoutError` if the deadline passes — failure surfaces the
+    :class:`TimeoutError` if the deadline passes - failure surfaces the
     actual log contents for easier debugging.
     """
     deadline = time.monotonic() + timeout_s
@@ -187,7 +187,7 @@ def _make_workdir(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Aider adapter (simplest — single Popen, no probe)
+# Aider adapter (simplest - single Popen, no probe)
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ class TestAiderEndToEnd:
         """Aider that streams a few lines then dies leaves a partial log.
 
         Verifies the adapter does NOT block waiting for clean shutdown
-        before letting callers reap — the worker propagates the upstream
+        before letting callers reap - the worker propagates the upstream
         non-zero exit and the log contains the partial output that DID
         make it through before death.
         """
@@ -335,7 +335,7 @@ class TestAiderEndToEnd:
         AiderAdapter.cancel_timeout(result)
         assert exit_code == 9
         log_body = _wait_for_log(result.log_path, contains="partial-output-line")
-        # Truncated stream MUST be present — captured output isn't lost
+        # Truncated stream MUST be present - captured output isn't lost
         # just because the process died early.
         assert "partial-output-line" in log_body
 
@@ -572,7 +572,7 @@ class TestOllamaEndToEnd:
         fake_cli_fixture: FakeCLIHandle,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        # Ollama is meant to be air-gapped — cloud master keys must NOT
+        # Ollama is meant to be air-gapped - cloud master keys must NOT
         # leak through even when the operator has them set.
         _isolated_env(
             monkeypatch,
@@ -600,7 +600,7 @@ class TestOllamaEndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# Claude adapter (most complex — wraps stream-json through pipe)
+# Claude adapter (most complex - wraps stream-json through pipe)
 # ---------------------------------------------------------------------------
 
 
@@ -725,7 +725,7 @@ class TestClaudeEndToEnd:
         fake_cli_fixture.configure(
             mode="error",
             exit_code=1,
-            stdout="rate limit hit — try again later\n",
+            stdout="rate limit hit - try again later\n",
             stderr="rate limit exceeded\n",
         )
         adapter = ClaudeCodeAdapter()
@@ -757,7 +757,7 @@ class TestAdapterTimeoutHandling:
 
         Configures the fake to ``hang`` (sleep forever), spawns with a
         2-second timeout, and asserts the process exits within the
-        SIGTERM grace window (default 30s — we use 5s for the assertion
+        SIGTERM grace window (default 30s - we use 5s for the assertion
         because pytest tests should not hang for half a minute).
         """
         _isolated_env(monkeypatch, tmp_path, ANTHROPIC_API_KEY="ant-x")
@@ -822,7 +822,7 @@ class TestAdapterBugRegressions:
         fake_cli_fixture: FakeCLIHandle,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Same regression for OllamaAdapter — both adapters share the
+        """Same regression for OllamaAdapter - both adapters share the
         ``aider`` upstream and originally diverged from the codex/gemini/
         claude adapters in dropping the ``proc`` handle.
         """
@@ -852,7 +852,7 @@ class TestAdapterBugRegressions:
         ``log_path``, but the Claude Code adapter pipes upstream stdout
         through a wrapper that drops non-JSON.  Real-world rate-limit
         messages ("you've hit your limit, resets at...") arrive as
-        non-JSON stderr text and were silently swallowed — the probe
+        non-JSON stderr text and were silently swallowed - the probe
         would raise a generic SpawnError instead of RateLimitError, so
         the orchestrator's rate-limit cooldown never engaged.
 
@@ -864,7 +864,7 @@ class TestAdapterBugRegressions:
         _isolated_env(monkeypatch, tmp_path, ANTHROPIC_API_KEY="x")
         workdir = _make_workdir(tmp_path)
         # Stdout will contain valid JSON (so the wrapper consumes it),
-        # but stderr will contain ONLY the rate-limit banner — exactly
+        # but stderr will contain ONLY the rate-limit banner - exactly
         # the shape that previously slipped past detection.
         fake_cli_fixture.configure(
             mode="error",
@@ -884,7 +884,7 @@ class TestAdapterBugRegressions:
 
 
 # ---------------------------------------------------------------------------
-# Cross-adapter env isolation regression — confirms the harness itself works
+# Cross-adapter env isolation regression - confirms the harness itself works
 # ---------------------------------------------------------------------------
 
 

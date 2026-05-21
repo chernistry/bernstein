@@ -3,7 +3,7 @@
 Each phase boundary writes a lineage record so the audit trail becomes
 per-phase, per-rule.  We reuse the existing
 :class:`bernstein.core.persistence.lineage.LineageWriter` rather than
-creating a parallel store — verifying the WAL hash chain
+creating a parallel store - verifying the WAL hash chain
 (``WALReader.verify_chain``) and the audit-log HMAC chain remains a
 single operation.
 
@@ -66,7 +66,7 @@ def gate_results_summary(results: list[GateResult]) -> dict[str, Any]:
 
 
 def _prompt_sha(results: list[GateResult]) -> str:
-    """Stable hash of the rule outcomes — replay-friendly fn_hash."""
+    """Stable hash of the rule outcomes - replay-friendly fn_hash."""
     canonical = json.dumps(
         [(r.rule_id, r.outcome.value) for r in results],
         sort_keys=True,

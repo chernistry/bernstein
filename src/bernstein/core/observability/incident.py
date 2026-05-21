@@ -216,7 +216,7 @@ class IncidentManager:
             self._pause_requested = True
             self._pause_started_at = time.time()
             logger.critical(
-                "INCIDENT %s [%s]: %s — orchestration pause requested",
+                "INCIDENT %s [%s]: %s - orchestration pause requested",
                 incident_id,
                 severity.value,
                 title,
@@ -277,7 +277,7 @@ class IncidentManager:
             "description": (
                 f"Investigate incident {incident.id} ({incident.severity.value}).\n\n"
                 f"## What happened\n{incident.description}\n\n"
-                f"## Root cause\n{incident.root_cause or 'TBD — needs investigation'}\n\n"
+                f"## Root cause\n{incident.root_cause or 'TBD - needs investigation'}\n\n"
                 f"## Blast radius\n{len(incident.blast_radius)} tasks affected\n\n"
                 "## Action items\n"
                 "- [ ] Identify root cause\n"

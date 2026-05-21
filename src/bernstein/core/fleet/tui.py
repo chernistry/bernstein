@@ -93,7 +93,7 @@ def format_footer(config: FleetConfig, rows: list[FleetRow], fleet_total: float)
     the TUI.
     """
     chunks: list[str] = []
-    chunks.append(f"{len(rows)} project(s) — fleet 7d: ${fleet_total:.2f}")
+    chunks.append(f"{len(rows)} project(s) - fleet 7d: ${fleet_total:.2f}")
     if config.errors:
         for err in config.errors:
             tag = "global" if err.index < 0 else f"project[{err.index}]"
@@ -108,7 +108,7 @@ def format_footer(config: FleetConfig, rows: list[FleetRow], fleet_total: float)
 
 
 # ---------------------------------------------------------------------------
-# Textual app — guarded import so unit tests can reach the helpers without a TTY.
+# Textual app - guarded import so unit tests can reach the helpers without a TTY.
 # ---------------------------------------------------------------------------
 
 

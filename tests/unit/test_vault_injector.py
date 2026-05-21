@@ -1,4 +1,4 @@
-"""Tests for src/bernstein/core/vault_injector.py — JIT credential injection."""
+"""Tests for src/bernstein/core/vault_injector.py - JIT credential injection."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ class TestCredentialLease:
 
 
 # ---------------------------------------------------------------------------
-# VaultInjector — Vault provider (mocked HTTP)
+# VaultInjector - Vault provider (mocked HTTP)
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ class TestVaultProvider:
 
 
 # ---------------------------------------------------------------------------
-# VaultInjector — AWS provider (mocked boto3)
+# VaultInjector - AWS provider (mocked boto3)
 # ---------------------------------------------------------------------------
 
 
@@ -303,7 +303,7 @@ class TestAwsProvider:
 
 
 # ---------------------------------------------------------------------------
-# VaultInjector — 1Password provider (mocked subprocess)
+# VaultInjector - 1Password provider (mocked subprocess)
 # ---------------------------------------------------------------------------
 
 

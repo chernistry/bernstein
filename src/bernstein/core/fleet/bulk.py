@@ -3,7 +3,7 @@
 Every bulk action delegates to the per-project ``bernstein`` CLI command
 so the orchestrator's existing audit/logging path handles each individual
 operation. We never reach into the per-project task server directly for
-state-changing operations — that would split the audit chain.
+state-changing operations - that would split the audit chain.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Session command group — record, replay, and fork deterministic run sessions.
+"""Session command group - record, replay, and fork deterministic run sessions.
 
 Every ``bernstein run`` that completes task planning records a session to
 ``.sdd/runtime/sessions/<session_id>.json``.  The session captures the

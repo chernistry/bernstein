@@ -355,12 +355,12 @@ class TestAllowedFor:
             enabled=False,
             known_keys=frozenset({"ANTHROPIC_API_KEY", "OPENAI_API_KEY"}),
         )
-        # Disabled policy must not fail-close — it is a no-op.
+        # Disabled policy must not fail-close - it is a no-op.
         assert policy.allowed_for("any-agent") == policy.known_keys
 
 
 class TestFilterKeys:
-    """Tests for AgentCredentialPolicy.filter_keys — the hot-path."""
+    """Tests for AgentCredentialPolicy.filter_keys - the hot-path."""
 
     def test_scoped_agent_sees_only_its_subset(self, sample_policy: AgentCredentialPolicy) -> None:
         got = sample_policy.filter_keys(

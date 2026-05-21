@@ -6,19 +6,19 @@ to catch regressions that would silently corrupt readers under adverse
 conditions:
 
 * **Round-trip soundness** across every Hypothesis-generated payload
-  (binary, UTF-8 text, JSON values) — readers must always see the
+  (binary, UTF-8 text, JSON values) - readers must always see the
   exact bytes/text/value the writer was handed.
 
-* **No stale tmp slot leakage** — after any successful write the
+* **No stale tmp slot leakage** - after any successful write the
   parent directory must contain only ``path`` itself; the
   ``.tmp.<pid>.<rand>`` shim file is never visible after replace().
 
-* **Repeat-write convergence** — repeated writes with different
+* **Repeat-write convergence** - repeated writes with different
   payloads on the same path always leave the *last* payload visible,
   never an intermediate value. Catches accidental write-then-fsync
   ordering bugs.
 
-* **Concurrent writers do not corrupt readers** — when N threads
+* **Concurrent writers do not corrupt readers** - when N threads
   hammer the same path with distinct payloads, a concurrent reader
   always observes a fully-formed previous payload, never a torn
   intermediate. Catches non-atomic rename regressions (e.g. a refactor
@@ -50,7 +50,7 @@ _JSON_PRIMITIVES = (
     st.none()
     | st.booleans()
     | st.integers(min_value=-(2**62), max_value=2**62)
-    # NaN/Inf are intentionally excluded — ``json.dumps`` raises on them
+    # NaN/Inf are intentionally excluded - ``json.dumps`` raises on them
     # by default. The behaviour is locked elsewhere; here we exercise
     # the happy path with values that *should* round-trip exactly.
     | st.floats(allow_nan=False, allow_infinity=False, width=64)
@@ -167,7 +167,7 @@ def test_concurrent_writers_never_corrupt_reader(
 
     Spawns one writer per payload plus one reader thread. The reader
     polls the target and records every distinct payload it observes.
-    Every observation must equal one of the inputs verbatim — never
+    Every observation must equal one of the inputs verbatim - never
     a truncated, empty, or interleaved snapshot. This catches
     regressions that swap ``os.replace`` for a non-atomic write
     sequence.

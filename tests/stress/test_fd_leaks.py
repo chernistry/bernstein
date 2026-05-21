@@ -2,7 +2,7 @@
 
 Each test does work that opens transient handles and then asserts the
 fd count returned to (near) baseline.  Tolerances allow a few fds of
-slack — pytest's capture machinery and lazy logger handlers can churn
+slack - pytest's capture machinery and lazy logger handlers can churn
 1-2 fds on first touch, but those churns settle quickly.
 
 Bug class: forgotten ``with``s, exception paths that bypass
@@ -48,7 +48,7 @@ async def test_task_store_construct_replay_no_fd_leak(tmp_path: Path) -> None:
     jsonl.parent.mkdir(parents=True, exist_ok=True)
     jsonl.write_text("")  # ensure file exists for replay path
 
-    # Warm-up — first construction touches lazy imports + opens the
+    # Warm-up - first construction touches lazy imports + opens the
     # archive directory.  Measure after that settles.
     warm = TaskStore(jsonl)
     warm.replay_jsonl()
@@ -75,7 +75,7 @@ def test_subprocess_spawn_reap_no_fd_leak() -> None:
     Catches: pipe descriptors that survive ``communicate()`` or
     Popen objects that retain their stdin/stdout references after the
     child exits.  We use ``capture_output=True`` so each spawn opens
-    two pipes — a leak path would compound quickly.
+    two pipes - a leak path would compound quickly.
     """
 
     # Warm-up to settle one-time fd allocations.

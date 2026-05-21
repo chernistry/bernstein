@@ -12,7 +12,7 @@ from bernstein.plugins.manager import HookBlockingError, PluginManager
 
 
 class _NoopPlugin:
-    """Test plugin that does nothing — used for timing tests."""
+    """Test plugin that does nothing - used for timing tests."""
 
     @hookimpl
     def on_task_created(self, task_id: str, role: str, title: str) -> None:
@@ -60,7 +60,7 @@ class TestHookTiming:
         class SlowPlugin:
             @hookimpl
             def on_task_created(self, task_id: str, role: str, title: str) -> None:
-                time.sleep(0.05)  # 50ms — small but measurable
+                time.sleep(0.05)  # 50ms - small but measurable
 
         pm = PluginManager()
         pm.register(SlowPlugin(), name="slow")

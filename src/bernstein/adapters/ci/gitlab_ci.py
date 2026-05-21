@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _SECTION_START_RE = re.compile(r"section_start:\d+:(\S+)\r?\[.*?\]\r?\n")
 _SECTION_END_RE = re.compile(r"section_end:\d+:(\S+)\r?\n")
 
-# ANSI escape sequences — GitLab CI logs are heavily styled.
+# ANSI escape sequences - GitLab CI logs are heavily styled.
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
 # Error / failure indicators in GitLab CI logs.

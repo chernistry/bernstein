@@ -91,7 +91,7 @@ class Feature:
         acceptance_check: Machine-executable command (shell or pytest
             selector) whose exit code decides ``passes``.
         passes: True iff the most recent run of ``acceptance_check``
-            succeeded. Defaults to False — a feature is pending until proven.
+            succeeded. Defaults to False - a feature is pending until proven.
         evidence_path: Optional path to a log/screenshot/output artefact
             captured the last time the check was run.
     """
@@ -130,7 +130,7 @@ class Feature:
 def _canonical_payload(features: Iterable[Feature]) -> bytes:
     """Return the canonical bytes used to compute the integrity anchor.
 
-    The anchor only covers the *immutable* shape of the contract — the set
+    The anchor only covers the *immutable* shape of the contract - the set
     of feature ids, their descriptions, acceptance steps and acceptance
     checks. Mutable fields (``passes``, ``evidence_path``) are excluded so
     that legitimately flipping a feature to passing does not invalidate the

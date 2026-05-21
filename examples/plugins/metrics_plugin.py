@@ -4,7 +4,7 @@ Appends structured JSON events to `.sdd/metrics/plugin_events.jsonl` for
 every hook that fires.  Useful as a foundation for custom dashboards or
 feeding data into an external observability platform.
 
-Usage — add to bernstein.yaml:
+Usage - add to bernstein.yaml:
 
     plugins:
       - examples.plugins.metrics_plugin:MetricsPlugin

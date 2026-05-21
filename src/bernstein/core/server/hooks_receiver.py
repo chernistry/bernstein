@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Strict pattern for session_id values arriving from the URL path.
-# Allows alphanumerics, underscore, and dash only — rejects dots, slashes,
+# Allows alphanumerics, underscore, and dash only - rejects dots, slashes,
 # backslashes, null bytes, whitespace, and any URL-decoded traversal chars.
 _SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 
@@ -99,8 +99,8 @@ def _safe_child(base: Path, session_id: str, *, suffix: str = "") -> Path:
 
     The candidate path is resolved (following symlinks) and compared with
     the resolved base via ``Path.is_relative_to``.  Any path that escapes
-    the base — whether through traversal characters, symlinks pointing
-    elsewhere, or case-folding tricks on case-insensitive filesystems —
+    the base - whether through traversal characters, symlinks pointing
+    elsewhere, or case-folding tricks on case-insensitive filesystems -
     raises :class:`InvalidSessionIdError`.
 
     Args:
@@ -122,7 +122,7 @@ def _safe_child(base: Path, session_id: str, *, suffix: str = "") -> Path:
         resolved_base = base.resolve()
         # ``strict=False`` so we can resolve a file that does not yet exist.
         resolved_candidate = candidate.resolve(strict=False)
-    except (OSError, RuntimeError) as exc:  # pragma: no cover — defensive
+    except (OSError, RuntimeError) as exc:  # pragma: no cover - defensive
         raise InvalidSessionIdError(f"could not resolve path: {exc}") from exc
     if not resolved_candidate.is_relative_to(resolved_base):
         raise InvalidSessionIdError(
@@ -312,11 +312,11 @@ def process_hook_event(event: HookEvent, workdir: Path) -> dict[str, str]:
     # Event-specific handling
     if event.event_type == HookEventType.STOP:
         write_stop_marker(event.session_id, workdir)
-        logger.info("Hook Stop received for session %s — completion marker written", event.session_id)
+        logger.info("Hook Stop received for session %s - completion marker written", event.session_id)
         return {"status": "ok", "action": "stop_marker_written"}
 
     if event.event_type == HookEventType.PRE_COMPACT:
-        logger.info("Hook PreCompact received for session %s — context pressure detected", event.session_id)
+        logger.info("Hook PreCompact received for session %s - context pressure detected", event.session_id)
         return {"status": "ok", "action": "compaction_logged"}
 
     if event.event_type == HookEventType.SUBAGENT_START:

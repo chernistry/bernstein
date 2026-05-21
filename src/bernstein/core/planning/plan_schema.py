@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Enum constants — single source of truth for allowed values
+# Enum constants - single source of truth for allowed values
 # ---------------------------------------------------------------------------
 
 KNOWN_ROLES: list[str] = [
@@ -276,7 +276,7 @@ def _check_type(value: object, expected: str, path: str, errors: list[str]) -> b
     }
     py_type = type_map.get(expected)
     if py_type is None:
-        return True  # unknown type — skip
+        return True  # unknown type - skip
     if not isinstance(value, py_type):
         errors.append(f"{path}: expected type {expected}, got {type(value).__name__}")
         return False

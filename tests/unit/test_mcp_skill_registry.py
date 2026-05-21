@@ -1,4 +1,4 @@
-"""Tests for MCP skill registry — T1: bridge MCP servers to skill-like prompts."""
+"""Tests for MCP skill registry - T1: bridge MCP servers to skill-like prompts."""
 
 from __future__ import annotations
 

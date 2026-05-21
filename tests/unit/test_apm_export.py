@@ -144,7 +144,7 @@ class TestDefaultConfigs:
 
 
 # ---------------------------------------------------------------------------
-# APMExporter — span / metric / log creation
+# APMExporter - span / metric / log creation
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +213,7 @@ class TestAPMExporterEventCreation:
 
 
 # ---------------------------------------------------------------------------
-# APMExporter — build_payload (Datadog)
+# APMExporter - build_payload (Datadog)
 # ---------------------------------------------------------------------------
 
 
@@ -285,7 +285,7 @@ class TestBuildPayloadDatadog:
 
 
 # ---------------------------------------------------------------------------
-# APMExporter — build_payload (New Relic)
+# APMExporter - build_payload (New Relic)
 # ---------------------------------------------------------------------------
 
 
@@ -343,7 +343,7 @@ class TestBuildPayloadNewRelic:
 
 
 # ---------------------------------------------------------------------------
-# APMExporter — build_payload (Generic)
+# APMExporter - build_payload (Generic)
 # ---------------------------------------------------------------------------
 
 
@@ -361,7 +361,7 @@ class TestBuildPayloadGeneric:
 
 
 # ---------------------------------------------------------------------------
-# APMExporter — get_headers
+# APMExporter - get_headers
 # ---------------------------------------------------------------------------
 
 

@@ -54,7 +54,7 @@ def _event(payload: dict[str, Any] | None = None, kind: str = "task_spawned") ->
 
 
 class TestCostRunaway:
-    """``cost_runaway_detector`` — task >$2 or run >50% budget."""
+    """``cost_runaway_detector`` - task >$2 or run >50% budget."""
 
     def test_fires_on_task_cost_above_hard_ceiling(self) -> None:
         sigs = cost_runaway_detector(
@@ -92,10 +92,10 @@ class TestCostRunaway:
         assert sigs == []
 
     def test_zero_or_missing_budget_does_not_div_by_zero(self) -> None:
-        # No budget field — should still fire on task_cost > 2.
+        # No budget field - should still fire on task_cost > 2.
         sigs = cost_runaway_detector(_event({"task_cost_usd": 3.0}))
         assert len(sigs) == 1
-        # Budget of 0 is treated as no-budget — no run-leg fire.
+        # Budget of 0 is treated as no-budget - no run-leg fire.
         sigs = cost_runaway_detector(
             _event({"task_cost_usd": 0.0, "run_cost_usd": 5.0, "run_budget_usd": 0.0}),
         )
@@ -108,7 +108,7 @@ class TestCostRunaway:
 
 
 class TestStuckSpawn:
-    """``stuck_spawn_detector`` — claim_confirmed >30 min, no audit."""
+    """``stuck_spawn_detector`` - claim_confirmed >30 min, no audit."""
 
     def test_fires_when_claim_confirmed_and_idle_too_long(self) -> None:
         sigs = stuck_spawn_detector(
@@ -176,7 +176,7 @@ class TestStuckSpawn:
 
 
 class TestRepeatedFailure:
-    """``repeated_failure_detector`` — same exit signature 3 times."""
+    """``repeated_failure_detector`` - same exit signature 3 times."""
 
     def test_fires_on_three_consecutive_failures(self) -> None:
         sigs = repeated_failure_detector(
@@ -218,7 +218,7 @@ class TestRepeatedFailure:
 
 
 class TestSuspiciousToolMask:
-    """``suspicious_tool_mask_detector`` — masking >50% of tools."""
+    """``suspicious_tool_mask_detector`` - masking >50% of tools."""
 
     def test_fires_when_more_than_half_masked(self) -> None:
         sigs = suspicious_tool_mask_detector(
@@ -228,7 +228,7 @@ class TestSuspiciousToolMask:
         assert sigs[0].detector == "suspicious_tool_mask"
 
     def test_silent_when_exactly_half_masked(self) -> None:
-        # Boundary — a 50% mask is permitted; anything over fires.
+        # Boundary - a 50% mask is permitted; anything over fires.
         sigs = suspicious_tool_mask_detector(
             _event({"available_tools": 10, "masked_tools": 5}),
         )
@@ -253,7 +253,7 @@ class TestSuspiciousToolMask:
 
 
 class TestAuditChainBreak:
-    """``audit_chain_break_detector`` — prev_hmac mismatch on append."""
+    """``audit_chain_break_detector`` - prev_hmac mismatch on append."""
 
     def test_fires_on_mismatch(self) -> None:
         sigs = audit_chain_break_detector(

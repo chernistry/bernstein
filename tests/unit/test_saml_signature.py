@@ -36,7 +36,7 @@ from bernstein.core.security.auth import (
 )
 
 # ---------------------------------------------------------------------------
-# Test fixtures — self-signed cert + signed SAML response
+# Test fixtures - self-signed cert + signed SAML response
 # ---------------------------------------------------------------------------
 
 
@@ -129,7 +129,7 @@ def signed_saml_response(idp_cert: _TestCert) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# _verify_saml_signature — lowest-level guard
+# _verify_saml_signature - lowest-level guard
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +172,7 @@ class TestVerifySamlSignature:
 
 
 # ---------------------------------------------------------------------------
-# AuthService.handle_saml_response — end-to-end guard
+# AuthService.handle_saml_response - end-to-end guard
 # ---------------------------------------------------------------------------
 
 

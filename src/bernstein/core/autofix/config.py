@@ -48,7 +48,7 @@ DEFAULT_POLL_INTERVAL_SECONDS: int = 60
 #: traceback, small enough to keep follow-up prompt budgets predictable.
 DEFAULT_LOG_BYTE_BUDGET: int = 65_536
 
-#: Default per-repo cost cap (USD).  Zero means "unlimited" — operators
+#: Default per-repo cost cap (USD).  Zero means "unlimited" - operators
 #: typically configure a non-zero value.
 DEFAULT_COST_CAP_USD: float = 5.0
 
@@ -139,7 +139,7 @@ def _coerce_repo(raw: dict[str, Any]) -> RepoConfig:
         the module-level defaults.
 
     Raises:
-        ValueError: If ``name`` is missing or empty — every repo entry
+        ValueError: If ``name`` is missing or empty - every repo entry
             must have an explicit identifier.
     """
     name = str(raw.get("name", "")).strip()

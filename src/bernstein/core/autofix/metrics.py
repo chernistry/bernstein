@@ -3,11 +3,11 @@
 The autofix daemon exports two counters via the existing observability
 stack:
 
-* ``autofix_attempts_total{repo,outcome,classifier}`` — increments
+* ``autofix_attempts_total{repo,outcome,classifier}`` - increments
   once per dispatched attempt.  ``outcome`` is one of ``success``,
   ``failed``, ``cost_capped``, ``needs_human``.  ``classifier`` is
   one of ``security``, ``flaky``, ``config``.
-* ``autofix_cost_usd_total{repo}`` — increments by the per-attempt
+* ``autofix_cost_usd_total{repo}`` - increments by the per-attempt
   spend in USD.
 
 Both metrics live in the dedicated registry exposed by

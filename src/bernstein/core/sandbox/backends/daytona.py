@@ -10,13 +10,13 @@ Environment variables
 
 The backend reads the following variables on construction:
 
-- ``DAYTONA_API_KEY`` — required. Personal access token (Daytona
+- ``DAYTONA_API_KEY`` - required. Personal access token (Daytona
   Dashboard -> Settings -> API Keys).
-- ``DAYTONA_API_URL`` — optional override of the API root. Defaults to
+- ``DAYTONA_API_URL`` - optional override of the API root. Defaults to
   ``https://app.daytona.io/api``.
-- ``DAYTONA_TARGET`` — optional region/target identifier (e.g.
+- ``DAYTONA_TARGET`` - optional region/target identifier (e.g.
   ``us``, ``eu``).
-- ``DAYTONA_ORG_ID`` — optional organisation identifier sent as the
+- ``DAYTONA_ORG_ID`` - optional organisation identifier sent as the
   ``X-Daytona-Organization-ID`` header for multi-org accounts.
 
 Capabilities

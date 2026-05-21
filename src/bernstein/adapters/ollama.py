@@ -1,4 +1,4 @@
-"""Ollama / OpenAI-compatible local LLM adapter — run coding agents without cloud API keys.
+"""Ollama / OpenAI-compatible local LLM adapter - run coding agents without cloud API keys.
 
 Uses Aider as the coding frontend with Ollama (or any OpenAI-compatible
 local server such as vLLM, llama.cpp's HTTP server, LM Studio) as the LLM
@@ -18,7 +18,7 @@ Prerequisites:
 EU-residency / vLLM note:
     For DeepSeek V4-Pro (1.6T MoE / 49B active) the single-GPU Ollama
     profile is too small; deploy via vLLM tensor-parallel and point
-    ``OLLAMA_API_BASE`` at the vLLM ``/v1`` endpoint — aider/litellm's
+    ``OLLAMA_API_BASE`` at the vLLM ``/v1`` endpoint - aider/litellm's
     OpenAI-compatible path treats the two interchangeably.  Callers
     that need an EU-residency guarantee MUST pass ``eu_residency=True``
     AND pin ``base_url`` to a self-hosted (e.g. RFC-1918 / *.internal /
@@ -48,10 +48,10 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 # Maps Bernstein abstract model names to Ollama / OpenAI-compatible model IDs.
 # Users can also pass native model IDs directly (e.g. "qwen2.5-coder:32b").
 #
-# DeepSeek V4 entries (added 2026-05-07 — FEAT deepseek-v4-flash-eu):
-#   - ``deepseek-v4-flash`` — 284B / 13B-active MoE, MIT-licensed, fits a
+# DeepSeek V4 entries (added 2026-05-07 - FEAT deepseek-v4-flash-eu):
+#   - ``deepseek-v4-flash`` - 284B / 13B-active MoE, MIT-licensed, fits a
 #     single H100/A100; primary cheap-first arm for EU-residency runs.
-#   - ``deepseek-v4-pro``   — 1.6T / 49B-active MoE, MIT-licensed, requires
+#   - ``deepseek-v4-pro``   - 1.6T / 49B-active MoE, MIT-licensed, requires
 #     vLLM tensor-parallel deployment (does not fit single-GPU Ollama).
 #     Set ``OLLAMA_API_BASE`` to the vLLM ``/v1`` endpoint to route here.
 _MODEL_MAP: dict[str, str] = {
@@ -168,7 +168,7 @@ class OllamaAdapter(CLIAdapter):
 
         host = (urlparse(base_url).hostname or "").lower()
         if not host:
-            # Empty / malformed URL — fail closed under residency mode.
+            # Empty / malformed URL - fail closed under residency mode.
             return False
         if host == "localhost":
             return True

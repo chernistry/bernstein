@@ -1,4 +1,4 @@
-"""Bernstein MCP server — thin shim that re-exports from bernstein.mcp.server.
+"""Bernstein MCP server - thin shim that re-exports from bernstein.mcp.server.
 
 Kept for backwards compatibility with any direct imports.
 """

@@ -1,7 +1,7 @@
 """Terminal capability detection for graphics protocol selection.
 
 Inspects environment variables and terminal state to determine the best
-available image rendering protocol. Immutable, cacheable dataclass — construct
+available image rendering protocol. Immutable, cacheable dataclass - construct
 once per process with :func:`detect_capabilities` (cached) or
 :meth:`TerminalCaps.detect` (uncached, for testing).
 """
@@ -98,7 +98,7 @@ class TerminalCaps:
         """Detect capabilities from the current process environment.
 
         Uses environment variables only (no terminal query round-trips), which
-        keeps detection instant and safe for use at import time.  Uncached —
+        keeps detection instant and safe for use at import time.  Uncached -
         use :func:`detect_capabilities` for a cached, production-safe call.
         """
         term = os.environ.get("TERM", "")
@@ -119,7 +119,7 @@ class TerminalCaps:
         )
 
         # Sixel: WezTerm, foot, mlterm, Windows Terminal (1.23+),
-        #        Konsole (22.04+).  TERM=xterm-256color is too broad — hundreds
+        #        Konsole (22.04+).  TERM=xterm-256color is too broad - hundreds
         #        of emulators set it without sixel support (Tabby, Alacritty,
         #        Terminal.app, etc.).  Only match explicit TERM_PROGRAM values.
         sixel = (
@@ -218,7 +218,7 @@ def detect_capabilities() -> TerminalCaps:
     """Detect terminal capabilities, cached after first call.
 
     On non-TTY environments (CI, pipes, redirected output) all capability
-    flags are False — safe to call unconditionally.
+    flags are False - safe to call unconditionally.
 
     Returns:
         Frozen :class:`TerminalCaps` with detected capability flags.

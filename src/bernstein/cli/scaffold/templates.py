@@ -2,14 +2,14 @@
 
 A scaffold template is a small, deterministic recipe: a tuple of files plus
 the keywords that route a free-form prompt to it. Rendering is a plain
-string-template ``$placeholder`` substitution — no Jinja, no LLM, no I/O
+string-template ``$placeholder`` substitution - no Jinja, no LLM, no I/O
 beyond writing the rendered files.
 
 Three template families ship today, one per common stack shape:
 
-* ``python-cli`` — pyproject.toml + entrypoint + README.
-* ``node-cli``   — package.json + entrypoint + README.
-* ``static-site`` — index.html + style.css + README.
+* ``python-cli`` - pyproject.toml + entrypoint + README.
+* ``node-cli``   - package.json + entrypoint + README.
+* ``static-site`` - index.html + style.css + README.
 
 Richer scaffolds (Next.js + SQLite, FastAPI + React, Streamlit) and a
 multi-stage flow plug into this same registry as follow-ups.
@@ -18,7 +18,7 @@ multi-stage flow plug into this same registry as follow-ups.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003 — used at runtime in materialize_template
+from pathlib import Path  # noqa: TC003 - used at runtime in materialize_template
 from string import Template
 
 
@@ -66,7 +66,7 @@ class ScaffoldError(RuntimeError):
 
 _PYTHON_CLI = ScaffoldTemplate(
     name="python-cli",
-    description="Python CLI app — pyproject.toml + entrypoint + README.",
+    description="Python CLI app - pyproject.toml + entrypoint + README.",
     keywords=(
         "python",
         "cli",
@@ -136,7 +136,7 @@ _PYTHON_CLI = ScaffoldTemplate(
 
 _NODE_CLI = ScaffoldTemplate(
     name="node-cli",
-    description="Node.js CLI app — package.json + entrypoint + README.",
+    description="Node.js CLI app - package.json + entrypoint + README.",
     keywords=(
         "node",
         "nodejs",
@@ -169,7 +169,7 @@ _NODE_CLI = ScaffoldTemplate(
         ),
         ScaffoldFile(
             relative_path="bin/cli.js",
-            content=('#!/usr/bin/env node\n// Entrypoint for $slug — $prompt.\nconsole.log("hello from $slug");\n'),
+            content=('#!/usr/bin/env node\n// Entrypoint for $slug - $prompt.\nconsole.log("hello from $slug");\n'),
         ),
         ScaffoldFile(
             relative_path="README.md",
@@ -190,7 +190,7 @@ _NODE_CLI = ScaffoldTemplate(
 
 _STATIC_SITE = ScaffoldTemplate(
     name="static-site",
-    description="Plain static site — index.html + style.css + README.",
+    description="Plain static site - index.html + style.css + README.",
     keywords=(
         "static",
         "site",

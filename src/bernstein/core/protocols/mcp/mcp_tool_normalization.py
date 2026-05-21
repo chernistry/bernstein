@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# McpToolError — consistent error wrapper
+# McpToolError - consistent error wrapper
 # ---------------------------------------------------------------------------
 
 
@@ -304,7 +304,7 @@ def _type_matches(value: Any, expected: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# ToolNormalizer — registry-based normalization layer
+# ToolNormalizer - registry-based normalization layer
 # ---------------------------------------------------------------------------
 
 

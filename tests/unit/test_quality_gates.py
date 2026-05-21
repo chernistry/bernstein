@@ -560,7 +560,7 @@ class TestParseIntentResponse:
 
 class TestGetIntentDiff:
     def test_returns_string_on_subprocess_failure(self, tmp_path: Path) -> None:
-        # Not a git repo — subprocess will fail
+        # Not a git repo - subprocess will fail
         diff = _get_intent_diff(tmp_path, [])
         assert isinstance(diff, str)
         assert len(diff) > 0
@@ -584,7 +584,7 @@ class TestIntentVerificationGate:
         )
 
     def test_disabled_by_default(self, tmp_path: Path) -> None:
-        """Intent verification gate is off by default — no LLM calls made."""
+        """Intent verification gate is off by default - no LLM calls made."""
         config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False)
         task = self._make_task_with_summary()
         with patch("bernstein.core.quality.quality_gates._run_intent_gate") as mock_gate:

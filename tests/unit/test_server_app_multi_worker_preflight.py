@@ -1,4 +1,4 @@
-"""Preflight guard tests — audit-025.
+"""Preflight guard tests - audit-025.
 
 ``TaskStore`` is single-process. The server must refuse to boot when
 ``BERNSTEIN_WORKERS`` / ``WEB_CONCURRENCY`` request more than one uvicorn
@@ -63,13 +63,13 @@ class TestResolveConfiguredWorkers:
 
 
 class TestPreflightMultiWorkerGuard:
-    """The guard itself — exits on workers>1, passes on single worker."""
+    """The guard itself - exits on workers>1, passes on single worker."""
 
     def test_passes_when_single_worker(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("BERNSTEIN_WORKERS", "1")
         monkeypatch.delenv("WEB_CONCURRENCY", raising=False)
 
-        # No exception — function returns None.
+        # No exception - function returns None.
         assert preflight_multi_worker_guard() is None
 
     def test_passes_when_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -101,7 +101,7 @@ class TestPreflightMultiWorkerGuard:
         assert "workers=8" in str(exc.value)
 
     def test_create_app_fires_preflight(self, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
-        """create_app() must call the guard before any work — audit-025."""
+        """create_app() must call the guard before any work - audit-025."""
         from bernstein.core.server.server_app import create_app
 
         monkeypatch.setenv("BERNSTEIN_WORKERS", "4")

@@ -593,7 +593,7 @@ class GateRunnerCommandsMixin:
                 if "def downgrade" not in source:
                     issues.append(f"{rel}: missing downgrade() function")
                 elif _migration_downgrade_is_pass(source):
-                    issues.append(f"{rel}: downgrade() is empty (pass-only) — no rollback defined")
+                    issues.append(f"{rel}: downgrade() is empty (pass-only) - no rollback defined")
         return count, issues
 
     @staticmethod
@@ -630,7 +630,7 @@ class GateRunnerCommandsMixin:
         issues = alembic_issues + sql_issues
 
         if migration_count == 0:
-            return self._skipped(step, "No migration files found — skipping reversibility check.")
+            return self._skipped(step, "No migration files found - skipping reversibility check.")
 
         if not issues:
             return GateResult(
@@ -697,7 +697,7 @@ class GateRunnerCommandsMixin:
 
         lines = [f"  {path}: {count} lines (>{threshold})" for path, count in sorted(oversized)]
         detail = f"{len(oversized)} file(s) exceed {threshold} lines and should be decomposed:\n" + "\n".join(lines)
-        # Always warn; never block — this is a heuristic, not a hard requirement.
+        # Always warn; never block - this is a heuristic, not a hard requirement.
         return GateResult(
             name=step.name,
             status="warn",
@@ -724,7 +724,7 @@ class GateRunnerCommandsMixin:
         Go (gofmt) via a pluggable registry.  Custom per-language commands from
         the gate config are injected as overrides.
 
-        The gate always passes — it fixes rather than blocks.  Any files
+        The gate always passes - it fixes rather than blocks.  Any files
         reformatted are reported in the gate details so that the commit/push
         step can stage the changes.
         """
@@ -929,7 +929,7 @@ class GateRunnerCommandsMixin:
         if not source_files:
             return self._skipped(step, "No Python source files changed.")
 
-        # Always pass — this is an advisory gate. Record uncovered files in metadata
+        # Always pass - this is an advisory gate. Record uncovered files in metadata
         # and write needs_coverage.json for downstream consumers.
         if uncovered:
             import json as _json

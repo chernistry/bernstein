@@ -1,13 +1,13 @@
 """Public-key signatures over a multi-tenant export's ``head_sha256``.
 
 The v1 multi-tenant audit export (PR #1175) signs the chain with HMAC
-only — the auditor must share the operator's HMAC key to verify, which
+only - the auditor must share the operator's HMAC key to verify, which
 breaks the typical "sovereign auditor reads the bundle without holding
 secrets" workflow. v2 layers an Ed25519 signature over the bundle's
 ``head_sha256`` so a key-less auditor can still authenticate the bundle's
 origin.
 
-The signing key is shared with the lineage signer (PR #1151) — same
+The signing key is shared with the lineage signer (PR #1151) - same
 rotation cadence, same KMS plumbing. The orchestrator hands a
 :class:`~bernstein.core.security.lineage_kms.KMSAdapter` to the multi-
 tenant exporter; the exporter calls ``adapter.sign(head_sha256_bytes)``
@@ -29,7 +29,7 @@ The v2 verifier accepts a ``head_signature`` block of the shape:
 When the verifier is given an explicit ``trusted_public_key_jwk``, it
 confirms the bundle's embedded JWK matches before trusting the
 signature. When no trusted JWK is supplied, the bundle's embedded JWK
-is used directly — the operator is opting into "trust-on-first-use".
+is used directly - the operator is opting into "trust-on-first-use".
 
 Determinism
 -----------
@@ -95,7 +95,7 @@ def build_head_signature(
     """Sign ``head_sha256`` and return the v2 ``head_signature`` block.
 
     The signed payload is the **raw 32-byte digest** of the canonical
-    JSONL — i.e. ``bytes.fromhex(head_sha256_hex)``. We sign the bytes
+    JSONL - i.e. ``bytes.fromhex(head_sha256_hex)``. We sign the bytes
     rather than the hex string because:
 
     1. Other tooling (cosign, sigstore, scitt) signs binary payloads

@@ -14,7 +14,7 @@ from bernstein.core.ab_test_results import (
 )
 
 # ---------------------------------------------------------------------------
-# model_for_task — deterministic 50/50 routing
+# model_for_task - deterministic 50/50 routing
 # ---------------------------------------------------------------------------
 
 
@@ -45,7 +45,7 @@ class TestModelForTask:
 
 
 # ---------------------------------------------------------------------------
-# ABTestRecord — serialisation round-trip
+# ABTestRecord - serialisation round-trip
 # ---------------------------------------------------------------------------
 
 
@@ -87,7 +87,7 @@ class TestABTestRecord:
 
 
 # ---------------------------------------------------------------------------
-# ABTestStore — append / load
+# ABTestStore - append / load
 # ---------------------------------------------------------------------------
 
 
@@ -149,7 +149,7 @@ class TestABTestStore:
 
 
 # ---------------------------------------------------------------------------
-# record_ab_outcome — convenience helper
+# record_ab_outcome - convenience helper
 # ---------------------------------------------------------------------------
 
 

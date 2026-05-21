@@ -1,4 +1,4 @@
-"""Tests for dual_approval — two-factor approval for destructive operations."""
+"""Tests for dual_approval - two-factor approval for destructive operations."""
 
 from __future__ import annotations
 

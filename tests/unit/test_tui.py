@@ -256,7 +256,7 @@ class TestLoadHistoricalLogs:
         assert len(loaded_lines) == 2
 
     def test_empty_log_skipped(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Empty log files are skipped — no offset recorded, no widget call."""
+        """Empty log files are skipped - no offset recorded, no widget call."""
         monkeypatch.chdir(tmp_path)
         runtime = tmp_path / ".sdd" / "runtime"
         runtime.mkdir(parents=True)

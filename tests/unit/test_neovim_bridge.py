@@ -173,7 +173,7 @@ class TestFormatSplitOutput:
     def test_wraps_long_lines(self, bridge: NeovimBridge) -> None:
         long = "x" * 200
         lines = bridge.format_split_output(long)
-        # Should be wrapped — no single line > 120 chars
+        # Should be wrapped - no single line > 120 chars
         for line in lines:
             assert len(line) <= 120
 

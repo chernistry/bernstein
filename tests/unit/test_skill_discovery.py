@@ -1,4 +1,4 @@
-"""Tests for T797 — skill discovery priority order."""
+"""Tests for T797 - skill discovery priority order."""
 
 from __future__ import annotations
 

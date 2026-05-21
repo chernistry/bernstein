@@ -51,7 +51,7 @@ def test_task_create_title_at_limit_accepted() -> None:
 def test_task_create_accepts_long_descriptive_title() -> None:
     """Real audit-169-style title (~210 chars) must round-trip cleanly."""
     long_title = (
-        "audit-169-knowledge-test-only-modules — 10 test-only knowledge "
+        "audit-169-knowledge-test-only-modules - 10 test-only knowledge "
         "modules: doc_generator, file_relevance, graduated_memory_guard, "
         "memory_extractor/sanitizer, repo_index, semantic_diff, synthesis, "
         "web_graph"
@@ -204,7 +204,7 @@ def _standalone_app_with_cap(max_bytes: int = _DEFAULT_MAX_BODY_BYTES) -> TestCl
 def test_content_length_reject_100mb_header_with_413() -> None:
     """A 100MB body (declared via Content-Length) is rejected with 413."""
     client = _standalone_app_with_cap()
-    # Build a small actual body but lie about size — middleware must trust the
+    # Build a small actual body but lie about size - middleware must trust the
     # header and reject without buffering 100MB.
     large_length = 100 * 1024 * 1024
     resp = client.post(

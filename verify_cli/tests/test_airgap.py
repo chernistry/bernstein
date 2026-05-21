@@ -2,7 +2,7 @@
 
 The promise: `bernstein-verify` works on an air-gapped laptop. No remote
 lookups, no telemetry, no DNS. This module proves it by static AST analysis
-of the `bernstein_verify` package — we never import a network module.
+of the `bernstein_verify` package - we never import a network module.
 
 We deliberately do NOT use `unshare -n` here; that test belongs in a
 Linux-only integration suite. macOS doesn't have unshare. The static-import
@@ -18,7 +18,7 @@ from pathlib import Path
 import bernstein_verify
 
 # Modules that would let the package make a network call. Importing any
-# of these is a hard fail — even transitively. Note: `cryptography` is
+# of these is a hard fail - even transitively. Note: `cryptography` is
 # allowed (it doesn't touch the network).
 _BANNED_IMPORTS: frozenset[str] = frozenset(
     {
@@ -33,7 +33,7 @@ _BANNED_IMPORTS: frozenset[str] = frozenset(
         "smtplib",
         "poplib",
         "imaplib",
-        "socket",  # raw socket — no need for verification
+        "socket",  # raw socket - no need for verification
         "asyncio.open_connection",
         "ssl",  # no TLS in offline verifier
         "websocket",
@@ -99,7 +99,7 @@ def test_runtime_monkeypatch_breaks_nothing(monkeypatch):
     NB: we DO NOT reload `bernstein_verify.verify` here. Reloading would
     rebind the `VerifyResult` dataclass and break `isinstance` checks
     in sibling tests run after this one. Importing it fresh under the
-    guard is enough — the import would fail if a banned module were
+    guard is enough - the import would fail if a banned module were
     referenced anywhere reachable from module-level code.
     """
     import builtins

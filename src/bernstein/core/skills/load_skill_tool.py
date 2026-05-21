@@ -1,6 +1,6 @@
 """``load_skill`` MCP tool implementation.
 
-Exposed to agents via :mod:`bernstein.mcp.server` — the tool returns the
+Exposed to agents via :mod:`bernstein.mcp.server` - the tool returns the
 SKILL.md body by default and can also fetch a single ``references/`` or
 ``scripts/`` file when the agent names one. Every invocation emits a WAL
 event (best-effort) and a structured return dict that the MCP harness
@@ -66,7 +66,7 @@ def load_skill(
         script: Optional filename under ``scripts/``.
         loader: Inject a pre-built loader (tests use this). When omitted,
             a default loader is built from ``templates_roles_dir``.
-        templates_roles_dir: Path to ``templates/roles/`` — used only when
+        templates_roles_dir: Path to ``templates/roles/`` - used only when
             ``loader`` is ``None`` to discover the ``skills/`` sibling.
             When both are ``None`` the function raises ``ValueError``.
         wal_sink: Optional callback receiving a ``skill_loaded`` event
@@ -167,7 +167,7 @@ def _build_error_result(name: str, detail: str) -> SkillLoadResult:
 
 
 def _log_wal_sink(event: dict[str, Any]) -> None:
-    """Default WAL sink — structured log line at ``INFO``.
+    """Default WAL sink - structured log line at ``INFO``.
 
     Real production callers inject :meth:`bernstein.core.persistence.wal.Wal.append`
     (or equivalent) so the event hits the durable log.
@@ -183,7 +183,7 @@ def _log_wal_sink(event: dict[str, Any]) -> None:
     )
 
 
-# Protocol for WAL sinks — used only for pyright narrowing; Python's
+# Protocol for WAL sinks - used only for pyright narrowing; Python's
 # structural typing checks the callable shape at runtime.
 class _WalSinkProto:
     """Callable ``(event: dict) -> None`` protocol alias."""

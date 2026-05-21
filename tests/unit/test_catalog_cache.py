@@ -286,7 +286,7 @@ class TestDiscover:
         )
         registry = CatalogRegistry(_cache_path=cache_path)
         registry.discover()
-        # Fresh cache used — custom-role persists, no builtin overwrite
+        # Fresh cache used - custom-role persists, no builtin overwrite
         assert "custom-role" in registry._cached_roles
         assert registry._cached_roles["custom-role"].source == "remote"
 
@@ -310,7 +310,7 @@ class TestDiscover:
         )
         registry = CatalogRegistry(_cache_path=cache_path)
         registry.discover(force=True)
-        # Forced refresh — custom-role gone, builtins loaded
+        # Forced refresh - custom-role gone, builtins loaded
         assert "custom-role" not in registry._cached_roles
         assert "backend" in registry._cached_roles
 

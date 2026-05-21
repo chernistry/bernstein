@@ -7,12 +7,12 @@ every entry in `log.jsonl` is:
   2. Backed by a matching detached JWS sidecar that verifies against the
      agent's published Agent Card (Ed25519, RFC 7515 detached).
   3. (Optional) HMAC-protected with the supplied operator secret.
-  4. Anchored — every `parent_hash` resolves to another entry in the log.
+  4. Anchored - every `parent_hash` resolves to another entry in the log.
   5. Free of unresolved forks (each open tip is single OR is a merge entry).
   6. (Optional) Authored by a steward-allow-listed agent when the entry is
      a merge (parent_hashes length >= 2).
 
-The check is read-only and does not depend on the LineageStore — it can
+The check is read-only and does not depend on the LineageStore - it can
 operate on a frozen log + cards directory (e.g. an audit pack).
 """
 
@@ -155,7 +155,7 @@ def check(
                 failures.append(f"{entry.artefact_path}: invalid signature on entry {eh}")
         # HMAC. Body covers every entry field (with ``operator_hmac`` blanked)
         # so a substitution swapping ``agent_id`` or ``artefact_path`` after
-        # signing is independently caught here — see ADR-009 §5.2.
+        # signing is independently caught here - see ADR-009 §5.2.
         if operator_secret is not None:
             expected = compute_operator_hmac(entry, operator_secret)
             if not _hmac.compare_digest(expected, entry.operator_hmac):
@@ -179,7 +179,7 @@ def check(
             failures.append(f"{path}: {len(tipset['open'])} unresolved open tips: {tipset['open']}")
     for fork in detect_forks(entries):
         # A fork is "resolved" iff some entry has parent_hashes covering ALL
-        # of the fork's child_hashes (subset thereof — diamond merges count).
+        # of the fork's child_hashes (subset thereof - diamond merges count).
         resolved = False
         children = set(fork.child_hashes)
         for entry in entries:

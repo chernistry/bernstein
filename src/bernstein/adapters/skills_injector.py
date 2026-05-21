@@ -9,7 +9,7 @@ Bernstein writes role-specific skills into the worktree's ``.claude/skills/``
 directory before spawning an agent so that:
 
 - Orchestration protocols (completion, signal-check) survive context compaction
-- Prompt size is reduced by 30-40% — boilerplate moves to skills loaded only
+- Prompt size is reduced by 30-40% - boilerplate moves to skills loaded only
   when relevant
 - Skills compose cleanly: a backend agent automatically gets the test-runner
   skill, a commit skill, and orchestration protocol skills
@@ -116,7 +116,7 @@ def render_skill_template(
     complete_cmds = (
         "\n\n".join(complete_cmds_parts)
         if complete_cmds_parts
-        else ("```bash\n# No task IDs available — check with the orchestrator\n```")
+        else ("```bash\n# No task IDs available - check with the orchestrator\n```")
     )
 
     task_ids = " ".join(t.id for t in task_list)
@@ -154,7 +154,7 @@ def inject_skills(
     skills_source_dir = templates_dir.parent / "skills"
     if not skills_source_dir.is_dir():
         _logger.debug(
-            "Skills templates directory not found: %s — skipping injection",
+            "Skills templates directory not found: %s - skipping injection",
             skills_source_dir,
         )
         return
@@ -167,7 +167,7 @@ def inject_skills(
     for template_name in templates_to_inject:
         source_path = skills_source_dir / template_name
         if not source_path.exists():
-            _logger.debug("Skill template not found: %s — skipping", source_path)
+            _logger.debug("Skill template not found: %s - skipping", source_path)
             continue
 
         try:

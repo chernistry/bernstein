@@ -6,7 +6,7 @@ update endpoint (``PUT .../notes/:note_id``) so a single Bernstein cost
 comment is kept up to date instead of stacking duplicates.
 
 All operations degrade gracefully when ``httpx`` is not installed or
-when the API returns non-2xx — the helpers simply return ``False``.
+when the API returns non-2xx - the helpers simply return ``False``.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def post_mr_cost_comment(
         ``True`` on success, ``False`` when not configured or HTTP fails.
     """
     if not token or not project_id or not mr_iid:
-        logger.debug("post_mr_cost_comment: missing token/project/iid — skip")
+        logger.debug("post_mr_cost_comment: missing token/project/iid - skip")
         return False
 
     body = build_cost_summary(cost_usd, task_count, model)

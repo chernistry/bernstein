@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 
 class RuleAction(StrEnum):
-    """Permission rule action — maps to DecisionType."""
+    """Permission rule action - maps to DecisionType."""
 
     DENY = "deny"
     ASK = "ask"
@@ -133,7 +133,7 @@ class PermissionRuleEngine:
         """Evaluate a tool call against all rules (first match wins).
 
         When *mode* is provided, the matched rule's action is filtered through
-        the permission mode hierarchy — relaxed severities become ``allow``.
+        the permission mode hierarchy - relaxed severities become ``allow``.
 
         Args:
             tool_name: Name of the tool being invoked (e.g. ``"Bash"``).
@@ -199,13 +199,13 @@ class PermissionRuleEngine:
         if not _glob_match(rule.tool, tool_name, case_insensitive=True):
             return False
 
-        # Path match — check path-like fields in tool input
+        # Path match - check path-like fields in tool input
         if rule.path is not None:
             path_value = _extract_path(tool_input)
             if path_value is None or not _glob_match(rule.path, path_value):
                 return False
 
-        # Command match — check command field in tool input
+        # Command match - check command field in tool input
         if rule.command is not None:
             cmd_value = tool_input.get("command")
             if not isinstance(cmd_value, str) or not _glob_match(rule.command, cmd_value):

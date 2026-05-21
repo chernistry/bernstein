@@ -1,4 +1,4 @@
-"""Tests for the policy engine — policy loading, evaluation, and management."""
+"""Tests for the policy engine - policy loading, evaluation, and management."""
 
 from __future__ import annotations
 

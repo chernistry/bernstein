@@ -25,10 +25,10 @@ _INFRASTRUCTURE_PATHS: frozenset[str] = frozenset(
         "/openapi.json",
         "/redoc",
         # The versioned router mount point itself shows up as a bare "/api/v1"
-        # route — its own counterpart would be "/api/v1/api/v1", which is
+        # route - its own counterpart would be "/api/v1/api/v1", which is
         # nonsense. Skip it from both sides of the diff.
         "/api/v1",
-        # Web UI mount (v2.0.0). The SPA is intentionally root-only — it is
+        # Web UI mount (v2.0.0). The SPA is intentionally root-only - it is
         # not an API surface and has no `/api/v1/ui` counterpart.
         "/ui",
         "/ui/{full_path:path}",
@@ -121,7 +121,7 @@ def _collect_paths(app: FastAPI) -> tuple[set[str], set[str]]:
         if path.startswith("/api/v1/"):
             v1_relative.add(path[len("/api/v1") :])
         elif path == "/api/v1":
-            # Mount point itself — recorded in _INFRASTRUCTURE_PATHS.
+            # Mount point itself - recorded in _INFRASTRUCTURE_PATHS.
             continue
         else:
             root.add(path)
@@ -177,5 +177,5 @@ class TestVersionedRoutesParity:
         """
         _root_paths, v1_relative = _collect_paths(app)
         assert len(v1_relative) >= 40, (
-            f"Only {len(v1_relative)} paths under /api/v1 — the routers list may have been truncated."
+            f"Only {len(v1_relative)} paths under /api/v1 - the routers list may have been truncated."
         )

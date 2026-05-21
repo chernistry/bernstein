@@ -1,4 +1,4 @@
-"""Multi-source plugin installation — GitHub, git, npm, file, and directory.
+"""Multi-source plugin installation - GitHub, git, npm, file, and directory.
 
 Provides a :class:`PluginSource` union type with five concrete source
 variants and a :func:`install_plugin` dispatcher that routes each variant
@@ -45,7 +45,7 @@ _GITHUB_API_LATEST = "latest"
 _DEFAULT_ASSET_SUFFIXES = (".zip", ".tar.gz", ".tgz")
 
 # ---------------------------------------------------------------------------
-# PluginSource union — 5 source variants
+# PluginSource union - 5 source variants
 # ---------------------------------------------------------------------------
 
 
@@ -189,7 +189,7 @@ def _fetch_github_release_asset_url(repo: str, tag: str, asset: str | None) -> s
     req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
     # Internal-only: ``_GITHUB_API_RELEASE_URL`` is a hard-coded constant
     # template; only the ``repo``/``tag`` placeholders are interpolated, both
-    # of which come from a parsed plugin descriptor — not raw operator URLs.
+    # of which come from a parsed plugin descriptor - not raw operator URLs.
     # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     with urllib.request.urlopen(req, timeout=30) as resp:
         data: dict[str, object] = json.loads(resp.read())

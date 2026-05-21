@@ -3,7 +3,7 @@
 This is the smallest-viable slice of repo-wiki + code-search. It
 materialises a single Markdown page summarising a repository's top-level
 structure, public API by sub-package, and test layout. It does **not**
-ship HTTP routes, MCP tools, or git-hook re-indexing — those remain
+ship HTTP routes, MCP tools, or git-hook re-indexing - those remain
 follow-ups.
 
 The renderer is a pure function over a :class:`SemanticGraph` plus the
@@ -125,7 +125,7 @@ def _collect_test_dirs(files: Iterable[str]) -> list[str]:
 def _render_header(repo_name: str) -> list[str]:
     """First lines of the wiki: title + provenance disclaimer."""
     return [
-        f"# {repo_name} — Repo Wiki",
+        f"# {repo_name} - Repo Wiki",
         "",
         "Auto-generated from the AST symbol graph by `bernstein wiki`.",
         "Re-run after significant changes; commit only if you want a tracked snapshot.",
@@ -154,7 +154,7 @@ def _format_symbol(node: SymbolNode) -> str:
     # Keep the signature inline-coded so it reads like a Python preview.
     bullet = f"- `{sig}` ({kind}, `{node.file}:{node.line_start}`)"
     if doc:
-        bullet += f" — {doc}"
+        bullet += f" - {doc}"
     return bullet
 
 
@@ -216,7 +216,7 @@ def render_wiki(
         structure, public API summary by sub-package, and test layout.
         Output is fully deterministic given the same inputs.
     """
-    # Defensive copy — sort once so callers can pass in any iterable
+    # Defensive copy - sort once so callers can pass in any iterable
     # without surprising us with order-dependent output.
     sorted_files = sorted(files)
     sections: list[str] = []

@@ -8,7 +8,7 @@ reviewers agree on, and what should we surface to the PR author?".
 
 Pipeline:
 
-1. Parse each free-text issue string into a :class:`PRFinding` —
+1. Parse each free-text issue string into a :class:`PRFinding` -
    best-effort extraction of file, line, severity, and a normalised
    message used for cross-reviewer dedupe.
 2. Cluster findings into :class:`FindingCluster` groups using
@@ -20,7 +20,7 @@ Pipeline:
    and rank top-K, grouped by file for readable output.
 
 Designed as the smallest viable slice of multi-pass PR review with
-voting + autofix.  No LLM calls live here — the module is pure logic
+voting + autofix.  No LLM calls live here - the module is pure logic
 over already-collected :class:`AgentVerdict` data so it is fully unit
 testable without network access.
 
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Constants — tuneable knobs surfaced as module-level for ease of override.
+# Constants - tuneable knobs surfaced as module-level for ease of override.
 # ---------------------------------------------------------------------------
 
 #: Severity tags the parser recognises, ordered by ascending seriousness.
@@ -76,7 +76,7 @@ _SEVERITY_WEIGHT: dict[Severity, float] = {
     "critical": 1.5,
 }
 
-#: Severities that bypass the minimum-reviewer-count vote — a single
+#: Severities that bypass the minimum-reviewer-count vote - a single
 #: reviewer flagging a critical/high finding still surfaces to the
 #: author.  Mirrors security-team conventions where a lone hit on a
 #: real CVE class should never be silenced by majority vote.
@@ -94,7 +94,7 @@ DEFAULT_TOKEN_OVERLAP: float = 0.4
 #: Default cap on how many clusters to surface in the final report.
 DEFAULT_TOP_K: int = 15
 
-#: Tokens stripped before computing message similarity — they add no
+#: Tokens stripped before computing message similarity - they add no
 #: discriminative signal across reviewers.
 _STOPWORDS: frozenset[str] = frozenset(
     {
@@ -161,7 +161,7 @@ class PRFinding:
         severity: Normalised severity tag; defaults to ``medium`` when
             the reviewer did not flag one explicitly.
         message: Cleaned-up reviewer message with file/line/severity
-            markers stripped — used for display and similarity.
+            markers stripped - used for display and similarity.
         source_role: Reviewer role that produced this finding (e.g.
             ``security``, ``qa``).  Drives the "≥N distinct roles"
             voting threshold.
@@ -188,7 +188,7 @@ class FindingCluster:
     Attributes:
         file: Anchoring file path; empty string for global findings.
         line: Anchoring line (median across members) or ``None``.
-        severity: Highest severity across members — surface the worst.
+        severity: Highest severity across members - surface the worst.
         canonical_message: Longest member message, used for display.
         members: All findings folded into this cluster.
         score: Final ranking score from :func:`score_cluster`.
@@ -208,7 +208,7 @@ class FindingCluster:
 
     @property
     def reviewer_count(self) -> int:
-        """Distinct reviewer roles count — drives the voting threshold."""
+        """Distinct reviewer roles count - drives the voting threshold."""
         return len(self.reviewer_roles)
 
 
@@ -270,7 +270,7 @@ def _detect_severity(text: str) -> Severity:
 def _detect_file_line(text: str) -> tuple[str, int | None]:
     """Return ``(file, line)`` extracted from *text* or ``("", None)``.
 
-    Picks the first plausible match — reviewers occasionally cite multiple
+    Picks the first plausible match - reviewers occasionally cite multiple
     files in a single bullet; the first is usually the primary one.
     """
     match = _FILE_LINE_RE.search(text)
@@ -296,7 +296,7 @@ def _strip_markers(text: str, file: str) -> str:
     out = text
     if file:
         # Strip `file:line` form first, then bare file.  The order matters
-        # — the colon-line form is a strict superset of the bare path.
+        # - the colon-line form is a strict superset of the bare path.
         out = re.sub(rf"{re.escape(file)}:\d+", "", out, count=1)
         out = out.replace(file, "", 1)
     out = _SEVERITY_RE.sub("", out)
@@ -320,7 +320,7 @@ def parse_finding(
     use it as a filter without an extra guard.
 
     Args:
-        raw: Reviewer issue text — what comes out of
+        raw: Reviewer issue text - what comes out of
             :class:`AgentVerdict.issues`.
         source_role: Reviewer role tag.
         source_model: Reviewer model identifier.
@@ -413,7 +413,7 @@ def _findings_match(
        otherwise treated as compatible.
     3. Token-overlap ≥ ``token_overlap`` *unless* both file AND line
        agree exactly (in which case file/line agreement is strong
-       enough on its own — reviewers often phrase the same issue very
+       enough on its own - reviewers often phrase the same issue very
        differently).
     """
     if a.file != b.file:
@@ -441,7 +441,7 @@ def cluster_findings(
     preserved.
 
     Multi-stage matching against an anchor is acceptable here because
-    real PR-review inputs rarely exceed a few hundred raw findings —
+    real PR-review inputs rarely exceed a few hundred raw findings -
     embedding-based similarity is tracked as a follow-up.
     """
     clusters_members: list[list[PRFinding]] = []
@@ -521,10 +521,10 @@ def vote_clusters(
 
     * ≥ ``min_reviewers`` distinct reviewer roles raised it, **or**
     * its severity is in :data:`_SINGLE_REVIEWER_VETO_SEVERITIES`
-      (critical / high) — security-class issues are never silenced by
+      (critical / high) - security-class issues are never silenced by
       majority vote.
 
-    Returns the surviving clusters in input order — ranking happens in
+    Returns the surviving clusters in input order - ranking happens in
     :func:`rank_clusters`.
     """
     threshold = min_reviewers if min_reviewers is not None else _default_min_reviewers(n_reviewers)
@@ -565,7 +565,7 @@ def score_cluster(cluster: FindingCluster, *, n_reviewers: int) -> float:
     Empirically gives security/critical findings a steady lead over
     style nits while still letting unanimous low-severity issues bubble
     above lone-flagger medium ones.  Coefficients are tuned for
-    behaviour, not statistical optimality — revisit when real telemetry
+    behaviour, not statistical optimality - revisit when real telemetry
     is available.
     """
     severity_weight = _SEVERITY_WEIGHT[cluster.severity]
@@ -645,7 +645,7 @@ def aggregate_pr_review(
         findings: Already-parsed findings from
             :func:`parse_findings_from_pipeline` or constructed manually.
         n_reviewers: Total distinct reviewer roles in the run.  When
-            ``None``, derived from *findings* — pass it explicitly when
+            ``None``, derived from *findings* - pass it explicitly when
             some reviewers approved (and therefore contributed zero
             findings), otherwise the threshold will under-count.
         min_reviewers: Override the ``⌈N/2⌉`` quorum.  ``None`` keeps
@@ -708,7 +708,7 @@ def aggregate_from_pipeline(
 def render_report_markdown(report: PRReviewReport) -> str:
     """Render *report* as markdown for stdout / PR comment posting.
 
-    Intentionally simple — emoji-free, GitHub-Flavoured-Markdown safe,
+    Intentionally simple - emoji-free, GitHub-Flavoured-Markdown safe,
     deterministic line ordering.  Downstream code (e.g. a future
     ``post_grouped_review``) wraps this in a PR-review API call.
 

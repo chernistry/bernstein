@@ -3,7 +3,7 @@
 Creates compressed tarballs of all persistent .sdd/ subdirectories,
 including the durable subset of ``runtime/`` (WAL, file locks, session
 state, team roster, task graph, budgets, incident history), and excluding
-only truly transient data — process-lifecycle markers (``runtime/pids/``,
+only truly transient data - process-lifecycle markers (``runtime/pids/``,
 ``runtime/signals/``, ``runtime/draining/``, ``*.kill`` files), liveness
 streams (``runtime/heartbeats/``, ``runtime/hooks/``), and log files
 (``*.log``, ``*.log.1``, ``access.jsonl*``, ``retrospective.md``,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Top-level directories included in backup (persistent state only).
 #
-# ``runtime/`` is included — it hosts live state (WAL, file locks,
+# ``runtime/`` is included - it hosts live state (WAL, file locks,
 # sessions, team roster, task graph, budgets) that makes the difference
 # between a warm restart and a cold start.  Transient contents inside
 # ``runtime/`` are filtered out by ``_EXCLUDE_PATTERNS`` below.
@@ -342,17 +342,17 @@ def restore_sdd(
     import io
 
     if decrypt:
-        # In-memory BytesIO — no OS file descriptor to leak.
+        # In-memory BytesIO - no OS file descriptor to leak.
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tar:
             # filter="data" (Python 3.12+) blocks absolute paths, ".."
-            # components, and special file types — mitigating path traversal.
+            # components, and special file types - mitigating path traversal.
             tar.extractall(path=sdd_path, filter="data")  # NOSONAR S5042 - filter=data blocks traversal
     else:
         # Bind the source fd to a context manager so it is closed even if
         # tarfile.open raises.  tarfile does not own fileobj-supplied fds.
         with source.open("rb") as fh, tarfile.open(fileobj=fh, mode="r:*") as tar:
             # filter="data" (Python 3.12+) blocks absolute paths, ".."
-            # components, and special file types — mitigating path traversal.
+            # components, and special file types - mitigating path traversal.
             tar.extractall(path=sdd_path, filter="data")  # NOSONAR S5042 - filter=data blocks traversal
 
     # Count restored files

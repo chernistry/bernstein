@@ -227,7 +227,7 @@ def set_rate_limit_emit_callback(
 
     The orchestrator owns its :class:`HookRegistry`; calling this with a
     bound emit lets adapters surface the event without importing the
-    lifecycle subsystem directly. Passing ``None`` clears the binding —
+    lifecycle subsystem directly. Passing ``None`` clears the binding -
     used by tests that want to assert no event was emitted.
     """
     global _RATE_LIMIT_EMIT
@@ -241,7 +241,7 @@ def fold_rate_limit_events(
 ) -> list[str]:
     """Collapse a sequence of ``rate_limit.hit`` events into one line per adapter.
 
-    Each input dict is expected to carry at least an ``adapter`` key — the
+    Each input dict is expected to carry at least an ``adapter`` key - the
     standard payload emitted by :func:`record_rate_limit_hit`. Events
     missing an adapter label are grouped under ``"unknown"`` so they
     remain visible to operators rather than being silently dropped.
@@ -542,12 +542,12 @@ class CLIAdapter(ABC):
             session_id: Session identifier for structured logging.
 
         Returns:
-            The started Timer — caller should store it for cancellation.
+            The started Timer - caller should store it for cancellation.
         """
 
         def _kill_on_timeout() -> None:
             logger.warning(
-                "Timeout after %ds: pid=%d session=%s — sending SIGTERM",
+                "Timeout after %ds: pid=%d session=%s - sending SIGTERM",
                 timeout_seconds,
                 pid,
                 session_id,
@@ -563,7 +563,7 @@ class CLIAdapter(ABC):
                 time.sleep(1)
 
             logger.warning(
-                "Agent did not exit after SIGTERM grace period: pid=%d session=%s — sending SIGKILL",
+                "Agent did not exit after SIGTERM grace period: pid=%d session=%s - sending SIGKILL",
                 pid,
                 session_id,
             )
@@ -683,13 +683,13 @@ class CLIAdapter(ABC):
 
         Processes are spawned with ``start_new_session=True``, so the PID
         equals the PGID.  Using the PID directly avoids ``os.getpgid()``
-        failing when the wrapper process has already exited — this prevents
+        failing when the wrapper process has already exited - this prevents
         orphan child processes from accumulating.
 
         Sends SIGTERM first, polls for exit for a short grace period, then
         escalates to SIGKILL if the group is still alive.  Without this
         escalation, agents that trap SIGTERM survive reap paths (wall-clock
-        timeout and stale heartbeat) — see prior audit.
+        timeout and stale heartbeat) - see prior audit.
         """
         kill_process_group_graceful(pid)
 
@@ -761,7 +761,7 @@ class CLIAdapter(ABC):
         ``RESUME_CAPABILITY_MATRIX``). Adapters that can stitch back into a
         provider-side session override this method and return a
         :class:`SpawnResult`. The default returns ``None`` to signal "I
-        cannot resume natively — please fall back to a fresh spawn with
+        cannot resume natively - please fall back to a fresh spawn with
         scratchpad reinjection".
 
         Args:
@@ -948,7 +948,7 @@ def post_write_lineage_hook(
 
     Soft mode (the v1 default): any failure inside the recorder is caught,
     logged at WARNING level, and the function returns ``None``. Lineage is
-    additive — a recorder bug must never block a successful write from
+    additive - a recorder bug must never block a successful write from
     completing.
 
     Returns:
@@ -971,7 +971,7 @@ def post_write_lineage_hook(
         )
     except Exception as exc:
         logger.warning(
-            "lineage post-write hook failed for %s (soft mode — write proceeds): %s",
+            "lineage post-write hook failed for %s (soft mode - write proceeds): %s",
             artefact_path,
             exc,
         )

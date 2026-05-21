@@ -22,7 +22,7 @@ ticket calls for. It is **deferred** to a follow-up PR (TODO below) because
 the substrate in :mod:`bernstein.core.security.sigstore_attestation` is
 attestation-side only and the verify path needs a Rekor-fetch + bundle
 parse that warrants its own review surface. Ed25519 alone is a complete,
-non-mocked crypto path on its own — losing the cosign/Sigstore identity
+non-mocked crypto path on its own - losing the cosign/Sigstore identity
 attestation only loses the *who-published-this* signal, not the *content
 integrity* signal.
 
@@ -74,7 +74,7 @@ __all__ = [
 #: one source of truth instead of stringly-typed prefixes.
 ED25519_FINGERPRINT_PREFIX: str = "ed25519/"
 
-#: Type tag baked into the manifest signing input — mirrors the
+#: Type tag baked into the manifest signing input - mirrors the
 #: ``agent-card+jws`` typ binding used in :mod:`agent_card_signer`. Without
 #: this binding, a signature minted for a different JWS context with the
 #: same key would verify here.
@@ -286,7 +286,7 @@ def _load_yaml_or_json(text: str) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Canonicalization (RFC 8785 JCS — same approach as agent_card_signer)
+# Canonicalization (RFC 8785 JCS - same approach as agent_card_signer)
 # ---------------------------------------------------------------------------
 
 
@@ -344,8 +344,8 @@ def verify_mcp_server(
         trusted_publishers: Set of fingerprints (``ed25519/<hex>``) the
             local site has explicitly trusted. A signature that verifies
             mathematically but isn't from a trusted publisher returns
-            :data:`VerificationVerdict.UNTRUSTED_PUBLISHER` — never
-            ``OK`` — so a stolen-key + new-fingerprint scenario doesn't
+            :data:`VerificationVerdict.UNTRUSTED_PUBLISHER` - never
+            ``OK`` - so a stolen-key + new-fingerprint scenario doesn't
             silently pass.
         bundle_bytes: Optional canonical server bundle. When provided
             **and** the manifest declares a ``content_hash``, the bytes
@@ -433,7 +433,7 @@ def _verify_ed25519(
     """Return True iff Ed25519 signature verifies under public_key_pem.
 
     Reuses the same ``cryptography`` package already vendored for
-    :mod:`agent_card_signer` — no new heavy deps.
+    :mod:`agent_card_signer` - no new heavy deps.
     """
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import serialization

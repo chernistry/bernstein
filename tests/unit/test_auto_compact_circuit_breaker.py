@@ -342,7 +342,7 @@ class TestCheckTokenGrowthCompaction:
         # will try again. Let me verify the behavior...
         # After record_compaction_success, breaker is CLOSED again.
         # Next tick: util > 90% → should_compact True → wakeup fires again.
-        # This is actually fine — each tick that util is high and breaker CLOSED
+        # This is actually fine - each tick that util is high and breaker CLOSED
         # sends a compaction signal. The circuit breaker only blocks after
         # _COMPACT_MAX_FAILURES consecutive failures.
 

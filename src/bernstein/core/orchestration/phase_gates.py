@@ -13,7 +13,7 @@ This module adds a small, deterministic, stdlib-only rule runner that
 fires between phases.  Every rule produces a :class:`GateResult` with
 PASS/PARTIAL/FAIL/SKIPPED and a machine-parseable ``repair`` hint.  On
 ``FAIL`` the runner re-fires the *failing* phase exactly once with the
-violation list pushed into the seed ``open_questions`` field — fully
+violation list pushed into the seed ``open_questions`` field - fully
 closed loop, no human in the inner loop.
 
 Each gate result is also recorded as a ``phase_gate`` lineage event in
@@ -39,7 +39,7 @@ Rules
 
 ``R004-monotonic-constraint-set``
     ``prior.constraints`` ⊆ ``current.constraints`` for the
-    ``plan→implement`` boundary — implement may not silently drop
+    ``plan→implement`` boundary - implement may not silently drop
     constraints.
 
 ``R005-byte-budget``
@@ -105,7 +105,7 @@ class GateResult:
 
     @property
     def passed(self) -> bool:
-        """``True`` for PASS/PARTIAL/SKIPPED — only FAIL blocks the boundary."""
+        """``True`` for PASS/PARTIAL/SKIPPED - only FAIL blocks the boundary."""
         return self.outcome is not GateOutcome.FAIL
 
 
@@ -198,7 +198,7 @@ _R001_BOUNDARIES = frozenset({(Phase.RESEARCH, Phase.PLAN), (Phase.PLAN, Phase.I
 def _r001(prior: PhaseArtifact, current: PhaseArtifact, _spec: PhaseSpec) -> GateResult:
     """Plan and implement must have an empty ``open_questions`` list.
 
-    Research is allowed to leave them open — that's how research works.
+    Research is allowed to leave them open - that's how research works.
     """
     del prior  # unused
     if not current.open_questions:
@@ -233,7 +233,7 @@ def _r002(prior: PhaseArtifact, current: PhaseArtifact, _spec: PhaseSpec) -> Gat
     for entry in (*prior.decisions, *prior.constraints):
         known.update(_ID_MARKER_RE.findall(entry))
         # The plain text after a ``<id:foo>`` marker is also addressable.
-        # Tokens without markers are addressable by exact-string match —
+        # Tokens without markers are addressable by exact-string match -
         # rare, but we want decisions like ``"python 3.12"`` to count.
         if entry not in known:
             known.add(entry)
@@ -454,7 +454,7 @@ def _select_rules(
 def parse_rule_filter(items: list[str] | None) -> tuple[list[str], list[str]]:
     """Split a ``phase_gates: [-R005, R001]`` list into (allow, deny).
 
-    Empty / ``None`` input returns ``([], [])`` — no filter applied.
+    Empty / ``None`` input returns ``([], [])`` - no filter applied.
     """
     allowed: list[str] = []
     denied: list[str] = []

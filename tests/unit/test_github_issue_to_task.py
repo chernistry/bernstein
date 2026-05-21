@@ -104,7 +104,7 @@ class TestTriggerLabels:
 
 
 # ---------------------------------------------------------------------------
-# trigger_label_to_task — bernstein label
+# trigger_label_to_task - bernstein label
 # ---------------------------------------------------------------------------
 
 
@@ -161,7 +161,7 @@ class TestTriggerLabelToTask:
         assert task["priority"] == 2
 
     def test_bernstein_bug_label_raises_priority_to_1(self) -> None:
-        # "bug" must come before "bernstein" — _priority_from_labels returns on first match
+        # "bug" must come before "bernstein" - _priority_from_labels returns on first match
         payload = _labeled_payload(label_name="bernstein", all_labels=["bug", "bernstein"])
         event = _make_event(payload)
         task = trigger_label_to_task(event)
@@ -254,7 +254,7 @@ class TestTriggerLabelToTask:
 
 
 # ---------------------------------------------------------------------------
-# Webhook endpoint integration — bernstein label → task in store
+# Webhook endpoint integration - bernstein label → task in store
 # ---------------------------------------------------------------------------
 
 

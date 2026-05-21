@@ -37,7 +37,7 @@ class HistoryEntry:
 
 
 # ---------------------------------------------------------------------------
-# Undo map — maps destructive commands to their logical inverse
+# Undo map - maps destructive commands to their logical inverse
 # ---------------------------------------------------------------------------
 
 UNDO_MAP: dict[str, str] = {

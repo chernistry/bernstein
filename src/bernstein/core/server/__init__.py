@@ -1,4 +1,4 @@
-"""server sub-package — re-exports for backward compatibility.
+"""server sub-package - re-exports for backward compatibility.
 
 Imports directly from subpackage modules (NOT parent-level shims)
 to avoid circular imports through parent-level shim modules.

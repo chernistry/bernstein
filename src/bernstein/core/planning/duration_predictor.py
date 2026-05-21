@@ -1,4 +1,4 @@
-"""ML-predicted task duration — feature extraction, training, and inference.
+"""ML-predicted task duration - feature extraction, training, and inference.
 
 Uses a local GradientBoostingRegressor trained on historical completions stored in
 ``.sdd/models/duration_training.jsonl``.  Falls back to a static scope/complexity
@@ -10,9 +10,9 @@ Prediction API::
 
     predictor = get_predictor(workdir / ".sdd" / "models")
     estimate: DurationEstimate = predictor.predict(task)
-    # estimate.p50_seconds — median expected duration
-    # estimate.p90_seconds — use for deadline slack calculation
-    # estimate.confidence  — 0.3 = cold start, up to 0.95 at 1k+ samples
+    # estimate.p50_seconds - median expected duration
+    # estimate.p90_seconds - use for deadline slack calculation
+    # estimate.confidence  - 0.3 = cold start, up to 0.95 at 1k+ samples
 """
 
 from __future__ import annotations
@@ -35,11 +35,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# HMAC helpers — prevent deserialization of tampered pickle files
+# HMAC helpers - prevent deserialization of tampered pickle files
 # ---------------------------------------------------------------------------
 
 # Key is derived from the hostname so the HMAC is machine-local.
-# This is NOT a secret-key scheme — it guards against *accidental*
+# This is NOT a secret-key scheme - it guards against *accidental*
 # injection from a different repo or user, not a determined attacker.
 _HMAC_KEY: bytes = hashlib.sha256(f"bernstein-duration-predictor-{__name__}".encode()).digest()
 
@@ -62,7 +62,7 @@ def _write_model_hmac(data: bytes, model_path: Path) -> None:
 def _verify_model_hmac(data: bytes, model_path: Path) -> bool:
     """Return True if the HMAC file matches *data*.
 
-    Returns True (permissive) when no HMAC file exists yet — this
+    Returns True (permissive) when no HMAC file exists yet - this
     handles the migration case for models saved before HMAC was added.
     """
     hmac_path = _model_hmac_path(model_path)
@@ -107,7 +107,7 @@ class DurationEstimate:
 
     Attributes:
         p50_seconds: Median expected duration.
-        p90_seconds: 90th-percentile duration — use this for deadline slack.
+        p90_seconds: 90th-percentile duration - use this for deadline slack.
         confidence: Estimate quality 0.0-1.0. Values below 0.5 indicate cold
             start or insufficient training data.
         is_cold_start: True when no trained model is available and the
@@ -157,7 +157,7 @@ class TaskFeatureExtractor:
          estimated_minutes, description_length, owned_files_count,
          depends_on_count, model_tier]
 
-    All values are numeric — no one-hot encoding — so the tree-based model
+    All values are numeric - no one-hot encoding - so the tree-based model
     handles ordinality natively without dimensionality explosion.
     """
 
@@ -280,7 +280,7 @@ class DurationPredictor:
         try:
             raw = self._model_path.read_bytes()
             if not _verify_model_hmac(raw, self._model_path):
-                logger.warning("Duration predictor HMAC mismatch — refusing to load")
+                logger.warning("Duration predictor HMAC mismatch - refusing to load")
                 return
             self._model = pickle.loads(raw)  # HMAC-verified local file
             if self._meta_path.exists():
@@ -440,7 +440,7 @@ class DurationPredictor:
         try:
             from sklearn.ensemble import GradientBoostingRegressor  # type: ignore[import-untyped]
         except ImportError:
-            logger.warning("scikit-learn not installed — duration predictor disabled")
+            logger.warning("scikit-learn not installed - duration predictor disabled")
             return
 
         X = [self._extractor.extract_from_record(r) for r in records]
@@ -567,6 +567,6 @@ def get_predictor(models_dir: Path | None = None) -> DurationPredictor:
 
 
 def reset_predictor() -> None:
-    """Reset the global predictor — intended for testing only."""
+    """Reset the global predictor - intended for testing only."""
     global _default_predictor
     _default_predictor = None

@@ -1,4 +1,4 @@
-"""CircuitBreaker — halt evolution when safety conditions are violated.
+"""CircuitBreaker - halt evolution when safety conditions are violated.
 
 Implements tri-state circuit breaker (Closed/Open/Half-Open) with
 rate limiting per modification type.
@@ -101,7 +101,7 @@ class CircuitBreaker:
             elapsed = time.time() - self.opened_at
             if elapsed < COOLDOWN_SECONDS:
                 remaining = int(COOLDOWN_SECONDS - elapsed)
-                return False, f"Circuit OPEN — cooling off ({remaining}s remaining)"
+                return False, f"Circuit OPEN - cooling off ({remaining}s remaining)"
             # Transition to half-open
             self.state = CircuitState.HALF_OPEN
             self._save_state()
@@ -109,7 +109,7 @@ class CircuitBreaker:
 
         if self.state == CircuitState.HALF_OPEN and risk_level != RiskLevel.L0_CONFIG:
             # Only allow L0 in half-open
-            return False, "Circuit HALF_OPEN — only L0 config changes allowed"
+            return False, "Circuit HALF_OPEN - only L0 config changes allowed"
 
         # Check rate limits
         now = time.time()

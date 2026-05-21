@@ -2,7 +2,7 @@
 
 Demonstrates how to add a third-party CLI agent as a Bernstein adapter.
 Install your package and declare it under the ``bernstein.adapters``
-entry-point group — Bernstein auto-discovers it at runtime.
+entry-point group - Bernstein auto-discovers it at runtime.
 
 Example ``pyproject.toml`` entry:
 

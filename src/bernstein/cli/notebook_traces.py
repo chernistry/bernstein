@@ -1,4 +1,4 @@
-"""Notebook-aware traces — detect and track Jupyter notebook cell edits.
+"""Notebook-aware traces - detect and track Jupyter notebook cell edits.
 
 Provides utilities to detect .ipynb files in agent tool results and
 extract cell metadata (index, type, content) for trace recording.

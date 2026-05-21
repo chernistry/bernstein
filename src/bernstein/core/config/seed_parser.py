@@ -96,7 +96,7 @@ def _parse_budget(raw: str | int | float | None) -> float | None:
     """Extract a numeric dollar amount from a budget value.
 
     Args:
-        raw: Value from YAML — may be "$20", 20, 20.0, or None.
+        raw: Value from YAML - may be "$20", 20, 20.0, or None.
 
     Returns:
         Parsed float amount or None.
@@ -119,7 +119,7 @@ def _parse_budget(raw: str | int | float | None) -> float | None:
 
 
 def _parse_team(raw: object) -> Literal["auto"] | list[str]:
-    """Parse team field — "auto", a list of role strings, or empty list (=> "auto").
+    """Parse team field - "auto", a list of role strings, or empty list (=> "auto").
 
     Args:
         raw: Value from YAML.
@@ -146,7 +146,7 @@ def _parse_string_list(raw: object, field_name: str) -> tuple[str, ...]:
     """Parse an optional list-of-strings field from YAML.
 
     Args:
-        raw: Value from YAML — should be None or a list of strings.
+        raw: Value from YAML - should be None or a list of strings.
         field_name: Name of the field, for error messages.
 
     Returns:
@@ -274,7 +274,7 @@ def _parse_network_config(raw: object) -> NetworkConfig | None:
     return NetworkConfig(allowed_ips=allowed_ips)
 
 
-# Accepted glob origin shape — scheme and host are literal, only
+# Accepted glob origin shape - scheme and host are literal, only
 # the port may be a ``*`` wildcard (e.g. ``http://localhost:*``).  Anything
 # outside this shape is rejected with a clear error because
 # ``starlette.middleware.cors.CORSMiddleware`` compares ``allow_origins``
@@ -286,7 +286,7 @@ def _validate_cors_origin(origin: str) -> None:
     """Reject CORS origin strings CORSMiddleware cannot match literally.
 
     A bare ``*`` is allowed (starlette treats it specially).  A glob that
-    matches ``scheme://host:*`` is allowed — ``server_app._split_cors_origins``
+    matches ``scheme://host:*`` is allowed - ``server_app._split_cors_origins``
     will translate it into an ``allow_origin_regex`` argument.  Any other
     use of ``*`` is rejected because CORSMiddleware would compare it
     literally and silently drop the origin header.
@@ -1465,11 +1465,11 @@ def _parse_mcp_signing_mode(data: dict[str, object]) -> Literal["warn", "strict"
     ``False -> "off"`` so operators who write ``signing_mode: off``
     (the obvious form) get the intuitive behaviour without remembering
     to quote.  The ``on``/``True`` form is rejected because there is
-    no ``on`` mode — they likely meant ``warn`` or ``strict``.
+    no ``on`` mode - they likely meant ``warn`` or ``strict``.
 
     Raises:
         SeedError: When the value is not one of the three permitted
-            literals — operators must spell it correctly so a typo
+            literals - operators must spell it correctly so a typo
             doesn't silently downgrade enforcement.
     """
     mcp_block = data.get("mcp")

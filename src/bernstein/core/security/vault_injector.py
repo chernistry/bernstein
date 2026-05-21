@@ -1,4 +1,4 @@
-"""Runtime secrets vault integration — just-in-time credential injection.
+"""Runtime secrets vault integration - just-in-time credential injection.
 
 Fetches credentials from HashiCorp Vault, AWS Secrets Manager, or 1Password
 at agent spawn time, injects them as environment variables, and revokes /
@@ -101,7 +101,7 @@ class CredentialLease:
         lease_id: Provider-specific revocation handle (Vault lease ID, AWS
             access key ID, or empty string for 1Password).
         expires_at: When the credential expires (UTC).  The injector does not
-            enforce this — it is informational for callers.
+            enforce this - it is informational for callers.
         revocable: Whether active revocation is supported.  AWS STS credentials
             expire automatically; 1Password has no revocation API.
     """
@@ -218,7 +218,7 @@ class _VaultInjector:
                 pass  # Response body not needed for revocation
             logger.info("Vault lease revoked: %s", lease.lease_id)
         except urllib.error.HTTPError as exc:
-            # 404 means already expired — not an error
+            # 404 means already expired - not an error
             if exc.code == 404:
                 logger.debug("Vault lease already expired: %s", lease.lease_id)
             else:
@@ -314,7 +314,7 @@ class _OnePasswordInjector:
             )
         except FileNotFoundError as exc:
             raise VaultInjectionError(
-                "1Password CLI (op) not found — install from https://1password.com/downloads/command-line/"
+                "1Password CLI (op) not found - install from https://1password.com/downloads/command-line/"
             ) from exc
         except subprocess.TimeoutExpired as exc:
             raise VaultInjectionError("1Password CLI timed out") from exc
@@ -428,7 +428,7 @@ class VaultInjector:
 
         Returns:
             Tuple of (env_vars, lease).  ``env_vars`` is a dict mapping
-            environment variable names to credential values — merge this into
+            environment variable names to credential values - merge this into
             the agent's process environment.  ``lease`` tracks the issued
             credential for later revocation.
 

@@ -50,7 +50,7 @@ def _default_settings(**overrides: str | None) -> LLMSettings:
 
 
 # ---------------------------------------------------------------------------
-# QwenAdapter.spawn() — command construction
+# QwenAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -295,7 +295,7 @@ class TestQwenAdapterSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -417,7 +417,7 @@ class TestQwenSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

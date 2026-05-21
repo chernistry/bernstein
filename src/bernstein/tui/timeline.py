@@ -22,7 +22,7 @@ class TimelineEntry:
         start_time: Unix timestamp when the entry started.
         end_time: Unix timestamp when the entry ended (None = in-progress).
         status: Task status string ("done", "failed", etc.).
-        kind: Entry type — "task" or "compaction" for distinct markers.
+        kind: Entry type - "task" or "compaction" for distinct markers.
     """
 
     task_id: str

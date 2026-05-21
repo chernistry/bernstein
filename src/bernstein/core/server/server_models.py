@@ -30,16 +30,16 @@ class CompletionSignalSchema(BaseModel):
 # input-size caps for TaskCreate (prevents OOM via 200MB descriptions).
 # Titles are short human-readable summaries; descriptions can carry a plan but must
 # stay below the per-request body cap (1MB) enforced by ContentLengthMiddleware.
-_MAX_TITLE_LEN = 500  # Raised from 200 — real backlog/audit tickets use
+_MAX_TITLE_LEN = 500  # Raised from 200 - real backlog/audit tickets use
 # long descriptive titles (-… runs to 206 chars). 500 still caps
 # abusive multi-MB titles but stops ingest_backlog batch POSTs 422-ing every
 # 20 s whenever the backlog carries any title > 200.
 _MAX_DESCRIPTION_LEN = 100_000
-_MAX_SHORT_STR_LEN = 1_000  # role, scope, complexity, etc. — enum-like fields
+_MAX_SHORT_STR_LEN = 1_000  # role, scope, complexity, etc. - enum-like fields
 _MAX_PATH_LEN = 4_096  # owned_files / parent_task_id / depends_on entries
 _MAX_LIST_LEN = 100
 _MAX_DICT_SERIALIZED_LEN = 50_000  # cap serialized size of dict[str, Any] fields
-_MAX_META_MESSAGE_LEN = 10_000  # retry meta_messages — operational hints
+_MAX_META_MESSAGE_LEN = 10_000  # retry meta_messages - operational hints
 
 
 def _enforce_dict_size(value: dict[str, Any] | None, *, field_name: str) -> dict[str, Any] | None:
@@ -148,7 +148,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskSelfCreate(BaseModel):
-    """Body for POST /tasks/self-create — agent-initiated subtask creation.
+    """Body for POST /tasks/self-create - agent-initiated subtask creation.
 
     Agents use this to decompose work into subtasks during execution.
     The parent_task_id is required and links the new subtask to the calling
@@ -257,7 +257,7 @@ class TaskBlockRequest(BaseModel):
 
 
 class TaskPatchRequest(BaseModel):
-    """Body for PATCH /tasks/{task_id} — manager corrections."""
+    """Body for PATCH /tasks/{task_id} - manager corrections."""
 
     role: str | None = None
     priority: int | None = None
@@ -275,7 +275,7 @@ class TaskProgressRequest(BaseModel):
     tests_passing: int | None = None
     errors: int | None = None
     last_file: str = ""
-    # Last shell command executed by the agent — used for real-time anomaly detection.
+    # Last shell command executed by the agent - used for real-time anomaly detection.
     # Agents report this so the orchestrator can detect dangerous commands (exfiltration,
     # reverse shells, privilege escalation) before the task completes.
     last_command: str = ""
@@ -467,7 +467,7 @@ class ClusterStatusResponse(BaseModel):
 
 
 class TaskStealRequest(BaseModel):
-    """Body for POST /cluster/steal — report queue depths and request rebalancing."""
+    """Body for POST /cluster/steal - report queue depths and request rebalancing."""
 
     queue_depths: dict[str, int] = Field(default_factory=dict)
 
@@ -488,11 +488,11 @@ class TaskStealResponse(BaseModel):
 
 
 class TaskCountsResponse(BaseModel):
-    """Lightweight status counts — no task bodies.
+    """Lightweight status counts - no task bodies.
 
     Every value in :class:`bernstein.core.tasks.models.TaskStatus` is exposed
     as a field so the GUI's status-chip badges can render real numbers
-    instead of ``—``.  Adding fields here is non-breaking — existing clients
+    instead of ``-``.  Adding fields here is non-breaking - existing clients
     that consume only ``open``/``claimed``/``done`` continue to work and the
     new fields default to ``0``.
     """
@@ -638,7 +638,7 @@ class ChannelResponseResponse(BaseModel):
 
 
 class A2ATaskSendRequest(BaseModel):
-    """Body for POST /a2a/tasks/send — receive a task from an external A2A agent."""
+    """Body for POST /a2a/tasks/send - receive a task from an external A2A agent."""
 
     sender: str
     message: str
@@ -646,7 +646,7 @@ class A2ATaskSendRequest(BaseModel):
 
 
 class A2AArtifactRequest(BaseModel):
-    """Body for POST /a2a/tasks/{id}/artifacts — attach an artifact."""
+    """Body for POST /a2a/tasks/{id}/artifacts - attach an artifact."""
 
     name: str
     data: str = ""

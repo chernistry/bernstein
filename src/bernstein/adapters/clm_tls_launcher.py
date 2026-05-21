@@ -3,7 +3,7 @@
 Aider talks to the customer-side CLM gateway via the OpenAI Python SDK,
 which dispatches through :class:`httpx.Client`. Plain ``OPENAI_API_BASE``
 gets the URL onto the gateway, but mTLS needs the client cert / key /
-CA bundle threaded into the underlying HTTP client — and httpx 0.28+
+CA bundle threaded into the underlying HTTP client - and httpx 0.28+
 deliberately does *not* read those from environment variables.
 
 This launcher monkey-patches :class:`httpx.Client` and
@@ -46,7 +46,7 @@ from bernstein.core.protocols.cluster.cluster_tls import (
 def _resolve_tls_from_env() -> TLSConfig | None:
     """Build a :class:`TLSConfig` from the CLM_*_FILE env triple.
 
-    Returns ``None`` if any of the three is unset — in that case the
+    Returns ``None`` if any of the three is unset - in that case the
     launcher is being run without mTLS (defensive: the adapter only
     invokes us when all three are set, but we don't crash if it's not).
     """

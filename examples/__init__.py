@@ -1,1 +1,1 @@
-# Examples package — makes example modules importable as ``examples.plugins.*``.
+# Examples package - makes example modules importable as ``examples.plugins.*``.

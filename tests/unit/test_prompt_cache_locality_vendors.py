@@ -4,10 +4,10 @@ The default ``vendor="generic"`` path is exercised in
 ``test_prompt_cache_locality.py``.  This module covers the three
 vendor-aware paths added by the observability hardening wave:
 
-* ``"openai"`` — pads the prefix to the next 256-token boundary.
-* ``"anthropic"`` — emits a message structure tagged with
+* ``"openai"`` - pads the prefix to the next 256-token boundary.
+* ``"anthropic"`` - emits a message structure tagged with
   ``cache_control: {"type": "ephemeral"}`` markers (≤4 segments).
-* ``"gemini"`` — emits a candidate ``cachedContents/<sha256>`` handle.
+* ``"gemini"`` - emits a candidate ``cachedContents/<sha256>`` handle.
 
 At least 4 tests per vendor.
 """
@@ -31,7 +31,7 @@ from bernstein.core.agents.prompt_cache_locality import (
 
 
 def test_generic_default_returns_str_for_back_compat() -> None:
-    """Default behaviour unchanged — generic path returns bare ``str``."""
+    """Default behaviour unchanged - generic path returns bare ``str``."""
     out = build_stable_prefix(header={"role": "backend"}, body="b")
     assert isinstance(out, str)
 
@@ -42,7 +42,7 @@ def test_explicit_generic_returns_str() -> None:
 
 
 # ---------------------------------------------------------------------------
-# OpenAI path — 256-token boundary alignment
+# OpenAI path - 256-token boundary alignment
 # ---------------------------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ class TestOpenAIVendor:
             vendor="openai",
         )
         assert len(out.padded_text) >= len(out.text)
-        # Padded text starts with the canonical text — alignment never
+        # Padded text starts with the canonical text - alignment never
         # mutates the original prefix bytes; padding goes to the right.
         assert out.padded_text.startswith(out.text)
 
@@ -90,7 +90,7 @@ class TestOpenAIVendor:
         # The padded text must still be aligned.
         assert _count_openai_tokens(out.padded_text) % _OPENAI_BOUNDARY_TOKENS == 0
         # No extra padding beyond what the original text already needed
-        # to reach a boundary — the padded text is shorter than two
+        # to reach a boundary - the padded text is shorter than two
         # boundaries' worth of characters.
         assert len(out.padded_text) <= len(out.text) + (_OPENAI_BOUNDARY_TOKENS * 4)
 
@@ -98,7 +98,7 @@ class TestOpenAIVendor:
         """Even a short canonical text (just the header separator) aligns."""
         out = build_stable_prefix(header={}, body="", vendor="openai")
         # Canonical text contains the separator sentinel even when both
-        # header and body are empty — alignment still applies.
+        # header and body are empty - alignment still applies.
         assert out.text  # non-empty due to the separator
         token_count = _count_openai_tokens(out.padded_text)
         assert token_count % _OPENAI_BOUNDARY_TOKENS == 0
@@ -106,7 +106,7 @@ class TestOpenAIVendor:
 
 
 # ---------------------------------------------------------------------------
-# Anthropic path — segmented message structure with cache_control
+# Anthropic path - segmented message structure with cache_control
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +167,7 @@ class TestAnthropicVendor:
 
 
 # ---------------------------------------------------------------------------
-# Gemini path — cachedContents handle from canonical SHA-256
+# Gemini path - cachedContents handle from canonical SHA-256
 # ---------------------------------------------------------------------------
 
 

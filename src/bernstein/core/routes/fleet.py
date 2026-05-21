@@ -1,7 +1,7 @@
 """Fleet aggregator stub for the operator UI.
 
 The Bernstein fleet dashboard (``bernstein fleet --web``) is a separate
-FastAPI application served on its own port — see
+FastAPI application served on its own port - see
 :mod:`bernstein.core.fleet.web`. The operator UI ("/ui") talks to the
 *single-project* task server, which historically had no fleet endpoints.
 

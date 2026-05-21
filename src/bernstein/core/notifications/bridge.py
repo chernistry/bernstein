@@ -3,13 +3,13 @@
 The dispatcher sits between the lifecycle bridge and the per-sink
 drivers. Its responsibilities:
 
-  * **Dedup** — keep an in-memory LRU plus an on-disk window keyed by
+  * **Dedup** - keep an in-memory LRU plus an on-disk window keyed by
     ``event_id`` so a restart-loop cannot spam a sink.
-  * **Retry** — exponential backoff with configurable ``max_attempts``
+  * **Retry** - exponential backoff with configurable ``max_attempts``
     and ``initial_delay_ms``.
-  * **Dead-letter** — append permanent failures to
+  * **Dead-letter** - append permanent failures to
     ``.sdd/runtime/notifications/dead_letter.jsonl`` with rotation.
-  * **Audit** — every terminal outcome is appended to the HMAC chain
+  * **Audit** - every terminal outcome is appended to the HMAC chain
     (``event_id``, ``sink_id``, ``outcome``).
 
 Drivers are not aware of any of this; they just implement the

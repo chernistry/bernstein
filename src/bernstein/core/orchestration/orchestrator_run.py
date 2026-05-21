@@ -94,7 +94,7 @@ def _recover_wal(orch: Any) -> None:
     try:
         orch._recover_from_wal()
     except Exception:
-        logger.exception("WAL recovery failed (non-fatal) — continuing startup")
+        logger.exception("WAL recovery failed (non-fatal) - continuing startup")
 
 
 def _verify_audit_integrity(orch: Any) -> None:
@@ -105,7 +105,7 @@ def _verify_audit_integrity(orch: Any) -> None:
         _integrity = verify_on_startup(orch._workdir / ".sdd")
         if not _integrity.valid:
             logger.warning(
-                "Audit integrity check found %d error(s) — review with 'bernstein audit verify'",
+                "Audit integrity check found %d error(s) - review with 'bernstein audit verify'",
                 len(_integrity.errors),
             )
         elif _integrity.entries_checked > 0:
@@ -115,7 +115,7 @@ def _verify_audit_integrity(orch: Any) -> None:
                 _integrity.duration_ms,
             )
     except Exception:
-        logger.exception("Audit integrity check failed (non-fatal) — continuing startup")
+        logger.exception("Audit integrity check failed (non-fatal) - continuing startup")
 
 
 def _cleanup_zombies(orch: Any) -> None:
@@ -133,7 +133,7 @@ def _cleanup_zombies(orch: Any) -> None:
                 len(_zr.errors),
             )
     except Exception:
-        logger.exception("Zombie cleanup failed (non-fatal) — continuing startup")
+        logger.exception("Zombie cleanup failed (non-fatal) - continuing startup")
 
 
 def _run_loop(orch: Any) -> None:

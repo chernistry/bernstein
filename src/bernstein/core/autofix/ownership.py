@@ -2,11 +2,11 @@
 
 Two gates protect Bernstein from touching arbitrary pull requests:
 
-1. **Session ownership** — the PR description (or commit trailers)
+1. **Session ownership** - the PR description (or commit trailers)
    must contain a ``bernstein-session-id: <id>`` line written by
    ``bernstein pr``.  The daemon refuses to touch a PR without a
    matching trailer.
-2. **Label gating** — the operator must add the
+2. **Label gating** - the operator must add the
    ``bernstein-autofix`` label to the PR; removing the label aborts
    any in-flight attempt within one tick.
 
@@ -85,7 +85,7 @@ def render_session_trailer(session_id: str) -> str:
 def session_id_known(session_id: str, sessions_dir: Path) -> bool:
     """Return ``True`` when ``session_id`` is present in the local session store.
 
-    The check is intentionally cheap — it scans for any file in
+    The check is intentionally cheap - it scans for any file in
     ``sessions_dir`` whose name contains the id (the wrap-up file
     naming convention used by ``pr_gen``).  When the directory is
     absent the function returns ``False`` so unknown sessions never
@@ -127,7 +127,7 @@ class PullRequestMetadata:
         body: PR body (where ``bernstein pr`` writes the session
             trailer).
         labels: Labels currently attached to the PR.
-        head_sha: SHA of the latest commit on the PR head — used to
+        head_sha: SHA of the latest commit on the PR head - used to
             key the per-push attempt cap.
         head_branch: Source branch.
         head_repo_full_name: ``owner/name`` of the source repo; for
@@ -178,7 +178,7 @@ def decide_ownership(
     The gate proceeds in three steps so the caller can attribute a
     rejection to a single, specific reason:
 
-    1. Cross-fork PRs are rejected outright — the daemon cannot
+    1. Cross-fork PRs are rejected outright - the daemon cannot
        push there.
     2. The PR must carry the ``expected_label``.  A removed label
        is the documented escape hatch for operators.

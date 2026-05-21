@@ -68,7 +68,7 @@ def ensure_http_url(
     allowed = _HTTP_AND_HTTPS if allow_http else _HTTPS_ONLY
     host = (parsed.hostname or "").lower()
     if scheme == "http" and host in _LOCAL_HOSTS:
-        # Loopback hosts are always permitted on plain HTTP — most operator
+        # Loopback hosts are always permitted on plain HTTP - most operator
         # toolchains expect to be able to point Bernstein at a local mock.
         return url
     if scheme not in allowed:

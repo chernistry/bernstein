@@ -150,7 +150,7 @@ class TestRequestDeduplicator:
             mock_time.time.return_value = 300.0
             dedup.store("c", 200, {})
 
-            # Cache full — adding "d" should evict "a" (oldest).
+            # Cache full - adding "d" should evict "a" (oldest).
             mock_time.time.return_value = 400.0
             dedup.store("d", 200, {})
 
@@ -165,7 +165,7 @@ class TestRequestDeduplicator:
         dedup.store("x", 200, {"v": 1})
         dedup.store("y", 200, {"v": 2})
 
-        # Overwrite "x" — should NOT evict "y".
+        # Overwrite "x" - should NOT evict "y".
         dedup.store("x", 201, {"v": 3})
         cached = dedup.check("x")
         assert cached is not None

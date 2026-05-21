@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.agent_discovery — agent auto-discovery."""
+"""Tests for bernstein.core.agent_discovery - agent auto-discovery."""
 
 from __future__ import annotations
 

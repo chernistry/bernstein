@@ -398,7 +398,7 @@ def test_compare_no_regression_when_identical() -> None:
 def test_compare_detects_throughput_regression() -> None:
     bench = ReproducibleBenchmark(tasks=[])
     baseline = _make_run(tasks_per_hour=100.0)
-    # Drop throughput by 20% — exceeds 10% threshold
+    # Drop throughput by 20% - exceeds 10% threshold
     current = _make_run(run_id="cur", tasks_per_hour=80.0)
     report = bench.compare_to_baseline(current=current, baseline=baseline)
     assert report.is_regression
@@ -416,7 +416,7 @@ def test_compare_does_not_flag_throughput_improvement() -> None:
 def test_compare_detects_cost_regression() -> None:
     bench = ReproducibleBenchmark(tasks=[])
     baseline = _make_run(per_task_usd=0.001)
-    # 20% cost increase — exceeds 15% threshold
+    # 20% cost increase - exceeds 15% threshold
     current = _make_run(run_id="cur", per_task_usd=0.0012)
     report = bench.compare_to_baseline(current=current, baseline=baseline)
     assert report.is_regression
@@ -434,7 +434,7 @@ def test_compare_does_not_flag_cost_reduction() -> None:
 def test_compare_detects_quality_regression() -> None:
     bench = ReproducibleBenchmark(tasks=[])
     baseline = _make_run(pass_rate=0.90)
-    # Drop by 6pp — exceeds 5pp threshold
+    # Drop by 6pp - exceeds 5pp threshold
     current = _make_run(run_id="cur", pass_rate=0.84)
     report = bench.compare_to_baseline(current=current, baseline=baseline)
     assert report.is_regression
@@ -452,7 +452,7 @@ def test_compare_does_not_flag_quality_improvement() -> None:
 def test_compare_quality_at_threshold_boundary() -> None:
     bench = ReproducibleBenchmark(tasks=[])
     baseline = _make_run(pass_rate=0.90)
-    # Exactly at threshold (5pp drop) — should NOT trigger (strictly greater)
+    # Exactly at threshold (5pp drop) - should NOT trigger (strictly greater)
     current = _make_run(run_id="cur", pass_rate=0.85)
     report = bench.compare_to_baseline(current=current, baseline=baseline)
     assert not report.is_regression
@@ -546,7 +546,7 @@ def test_load_skips_malformed_lines(tmp_path: Path) -> None:
     path = tmp_path / "benchmark_runs.jsonl"
     path.write_text('{"bad": "data"}\nnot json at all\n')
     runs = ReproducibleBenchmark.load(path)
-    # Both lines malformed (missing required keys) — should return empty or skip
+    # Both lines malformed (missing required keys) - should return empty or skip
     assert isinstance(runs, list)
 
 

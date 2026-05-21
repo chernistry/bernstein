@@ -103,7 +103,7 @@ class TestAccessPolicy:
 
 
 # ---------------------------------------------------------------------------
-# GraduatedAccessManager — basic operations
+# GraduatedAccessManager - basic operations
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ class TestPromotion:
         mgr = GraduatedAccessManager()
         # 1 success -> PROBATIONARY
         mgr.record_outcome("a1", success=True)
-        # 2nd success (total 2) — not enough for TRUSTED
+        # 2nd success (total 2) - not enough for TRUSTED
         mgr.record_outcome("a1", success=True)
         assert mgr.get_trust_level("a1") == TrustLevel.PROBATIONARY
         # 3rd success (total 3) -> TRUSTED
@@ -247,7 +247,7 @@ class TestDemotion:
         # Get to PROBATIONARY, then violate
         mgr.record_outcome("a1", success=True)  # -> PROBATIONARY
         mgr.record_outcome("a1", success=False, security_violation=True)  # -> UNTRUSTED
-        # Now have 1 success, 1 violation — should not auto-promote even
+        # Now have 1 success, 1 violation - should not auto-promote even
         # after more successes
         mgr.record_outcome("a1", success=True)  # 2 successes, 1 violation
         mgr.record_outcome("a1", success=True)  # 3 successes, 1 violation

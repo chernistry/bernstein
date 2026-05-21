@@ -133,7 +133,7 @@ def test_dirty_rect_changed_row_omits_unchanged_prefix() -> None:
     buf.render_frame("HELLO\nWORLD")
     stream.writes.clear()
     buf.render_frame("HELLO\nWORXX")
-    # "WOR" is the shared prefix — it must not appear in the delta
+    # "WOR" is the shared prefix - it must not appear in the delta
     assert "WOR" not in stream.combined
 
 
@@ -201,7 +201,7 @@ def test_fps_limiter_does_not_sleep_after_long_gap() -> None:
     buf = FrameBuffer(fps=1, stream=stream)  # 1 fps → 1 s interval
     buf.render_frame("first")
     with patch("bernstein.cli.frame_buffer.time") as mock_time:
-        # monotonic returns a value 2 s after last frame — no sleep needed
+        # monotonic returns a value 2 s after last frame - no sleep needed
         mock_time.monotonic.return_value = buf._last_frame_time + 2.0
         buf.render_frame("second")
         mock_time.sleep.assert_not_called()

@@ -143,7 +143,7 @@ def _terminate_process(pid: int, *, grace_seconds: int = DEFAULT_SIGTERM_GRACE_S
             return True
         time.sleep(0.5)
 
-    # Process still alive — force kill
+    # Process still alive - force kill
     if process_alive(pid):
         logger.warning("Process %d did not exit after SIGTERM, sending SIGKILL", pid)
         if IS_WINDOWS:

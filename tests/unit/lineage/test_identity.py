@@ -72,7 +72,7 @@ def test_every_byte_flip_in_signature_fails():
     jws = sign_detached(payload, priv, kid="k1")
     protected, _, sig = jws.split(".")
     sig_bytes = bytearray(sig.encode("ascii"))
-    # Flip one character in the base64 signature — half should still decode,
+    # Flip one character in the base64 signature - half should still decode,
     # but the underlying bytes change → verify fails.
     failures = 0
     for i in range(len(sig_bytes)):

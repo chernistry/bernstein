@@ -68,7 +68,7 @@ def rotate_log_file(
     """Rotate *log_path* when it exceeds *max_bytes*, keeping up to *max_backups*.
 
     With ``max_backups=1`` (default) the file is rotated to ``<name>.1``,
-    overwriting any previous rollover — preserving the historical single-backup
+    overwriting any previous rollover - preserving the historical single-backup
     behaviour. With ``max_backups>1`` older backups are shifted (``.1 -> .2``,
     ``.2 -> .3`` …) and anything beyond ``.max_backups`` is deleted.
 

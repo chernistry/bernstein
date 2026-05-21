@@ -1,4 +1,4 @@
-"""diff command — show the git diff of what an agent changed for a task.
+"""diff command - show the git diff of what an agent changed for a task.
 
 Includes side-by-side comparison mode for comparing two agents' work on
 the same (or related) tasks: ``bernstein diff --compare agent1 agent2``.

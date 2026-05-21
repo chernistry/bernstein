@@ -16,11 +16,11 @@ suspended (laptop lid closed, VM paused, etc.).  Call :meth:`SleepDetector.tick`
 on each poll iteration; it returns ``True`` on the tick that follows a sleep.
 
     >>> detector = SleepDetector(poll_interval_ms=5_000)
-    >>> detector.tick(now_ms=0)       # first tick — no prior reference
+    >>> detector.tick(now_ms=0)       # first tick - no prior reference
     False
-    >>> detector.tick(now_ms=5_100)   # normal gap — no sleep
+    >>> detector.tick(now_ms=5_100)   # normal gap - no sleep
     False
-    >>> detector.tick(now_ms=25_000)  # gap > 2 x 5000 ms — sleep detected
+    >>> detector.tick(now_ms=25_000)  # gap > 2 x 5000 ms - sleep detected
     True
 """
 
@@ -108,9 +108,9 @@ def _validate_interval(value: int | None, field: str) -> list[str]:
         return []
     errors: list[str] = []
     if value < MIN_INTERVAL_MS:
-        errors.append(f"{field} is {value} ms — below the minimum of {MIN_INTERVAL_MS} ms")
+        errors.append(f"{field} is {value} ms - below the minimum of {MIN_INTERVAL_MS} ms")
     if value > MAX_INTERVAL_MS:
-        errors.append(f"{field} is {value} ms — above the maximum of {MAX_INTERVAL_MS} ms")
+        errors.append(f"{field} is {value} ms - above the maximum of {MAX_INTERVAL_MS} ms")
     return errors
 
 
@@ -236,7 +236,7 @@ class SleepDetector:
         self._last_tick_ms = now_ms
 
         if prev is None:
-            return False  # first tick — no reference point yet
+            return False  # first tick - no reference point yet
 
         elapsed_ms = now_ms - prev
         return elapsed_ms > 2 * self.poll_interval_ms

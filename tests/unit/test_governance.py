@@ -1,4 +1,4 @@
-"""Tests for adaptive governance — weight adjustment and decision logging."""
+"""Tests for adaptive governance - weight adjustment and decision logging."""
 
 from __future__ import annotations
 
@@ -315,7 +315,7 @@ def test_persist_weights_appended_to_jsonl(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# log_evolution_decision — standalone function
+# log_evolution_decision - standalone function
 # ---------------------------------------------------------------------------
 
 

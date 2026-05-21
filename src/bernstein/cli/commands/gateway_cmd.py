@@ -1,4 +1,4 @@
-"""Gateway CLI commands — start and replay MCP proxy sessions.
+"""Gateway CLI commands - start and replay MCP proxy sessions.
 
 Commands:
     bernstein gateway start --upstream <cmd>   Transparent MCP proxy (stdio or SSE).
@@ -71,7 +71,7 @@ def gateway_group() -> None:
 def start_cmd(upstream: str, transport: str, port: int, run_id: str | None, server_name: str) -> None:
     """Start the MCP gateway proxy.
 
-    In stdio mode the gateway acts as an MCP stdio server — point your MCP
+    In stdio mode the gateway acts as an MCP stdio server - point your MCP
     client at ``bernstein gateway start --upstream <cmd>`` instead of the
     real server command.
 
@@ -104,7 +104,7 @@ def start_cmd(upstream: str, transport: str, port: int, run_id: str | None, serv
         console.print(f"  Upstream: [cyan]{upstream}[/cyan]")
         console.print(f"  Server: [cyan]{server_name}[/cyan]")
     else:
-        # stdio: suppress console output — stdout is the MCP transport
+        # stdio: suppress console output - stdout is the MCP transport
         pass
 
     asyncio.run(_run_gateway(gateway, transport=transport, port=port))
@@ -133,7 +133,7 @@ def start_cmd(upstream: str, transport: str, port: int, run_id: str | None, serv
 def replay_cmd(run_id: str, transport: str, port: int) -> None:
     """Replay recorded MCP tool calls from a previous gateway run.
 
-    Serves responses from the WAL without connecting to an upstream server —
+    Serves responses from the WAL without connecting to an upstream server -
     useful for offline debugging and development.
 
     \b

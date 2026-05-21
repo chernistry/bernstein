@@ -1,4 +1,4 @@
-"""Tests for CLI UI components — token usage display."""
+"""Tests for CLI UI components - token usage display."""
 
 from __future__ import annotations
 

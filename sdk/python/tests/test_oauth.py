@@ -1,4 +1,4 @@
-"""Tests for bernstein_sdk.oauth — OAuth 2.0 Authorization Code + PKCE."""
+"""Tests for bernstein_sdk.oauth - OAuth 2.0 Authorization Code + PKCE."""
 
 from __future__ import annotations
 
@@ -188,7 +188,7 @@ class TestExchangeCode:
 
 
 # ---------------------------------------------------------------------------
-# Full flow (authorize — manual mode)
+# Full flow (authorize - manual mode)
 # ---------------------------------------------------------------------------
 
 

@@ -57,12 +57,12 @@ class TestParseChangelog:
         # The BREAKING line should not appear in changes
         assert all("BREAKING" not in c for c in entries[0].changes)
 
-        # Second entry — check warning-prefix breaking change
+        # Second entry - check warning-prefix breaking change
         assert entries[1].version == "1.8.0"
         assert entries[1].date == "2026-03-15"
         assert "Config format changed to TOML" in entries[1].breaking
 
-        # Third entry — no breaking changes
+        # Third entry - no breaking changes
         assert entries[2].version == "1.7.0"
         assert entries[2].breaking == []
         assert len(entries[2].changes) == 2

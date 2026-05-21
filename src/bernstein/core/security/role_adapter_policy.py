@@ -7,11 +7,11 @@ but cannot say "security role cannot spawn the cloud-LLM
 → allow-list of adapters, enforced at the adapter-spawn site
 (``bernstein.adapters.registry.get_adapter``).
 
-Default semantics — back-compat:
+Default semantics - back-compat:
 
 * Empty allow-list for a role = **all adapters allowed**. Existing operators
   see no behaviour change after the policy module loads.
-* A non-empty allow-list = strict — any adapter not on the list raises
+* A non-empty allow-list = strict - any adapter not on the list raises
   :exc:`RoleAdapterDenied` and emits a structured ``role.adapter.denied``
   audit event.
 
@@ -143,7 +143,7 @@ def reset_policy() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Persistence helpers (CLI uses these — keeps the CLI itself trivial)
+# Persistence helpers (CLI uses these - keeps the CLI itself trivial)
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +167,7 @@ def load_policy_file(path: Path = DEFAULT_POLICY_PATH) -> RolePolicy:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("role_adapter_policy: failed to load %s — %s", path, exc)
+        logger.warning("role_adapter_policy: failed to load %s - %s", path, exc)
         return RolePolicy()
     if not isinstance(data, dict):
         logger.warning("role_adapter_policy: %s does not contain a JSON object", path)
@@ -199,7 +199,7 @@ def enforce(
 
     Args:
         role: The effective role of the spawn site (``backend``, ``security``,
-            etc.). Free-form string — unrecognised roles are treated as
+            etc.). Free-form string - unrecognised roles are treated as
             unrestricted for back-compat.
         adapter: Adapter id (e.g. ``claude``, ``aider``, ``mock``).
         audit_log: Optional :class:`AuditLog`. When provided, a deny emits a
@@ -230,7 +230,7 @@ def enforce(
                 },
             )
         except Exception as exc:
-            logger.warning("role_adapter_policy: audit emit failed for %s/%s — %s", role, adapter, exc)
+            logger.warning("role_adapter_policy: audit emit failed for %s/%s - %s", role, adapter, exc)
     raise RoleAdapterDenied(role=role, adapter=adapter, allowed=allowed)
 
 

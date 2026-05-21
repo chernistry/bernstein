@@ -1,4 +1,4 @@
-"""``bernstein wiki`` — emit a deterministic ``WIKI.md`` for the repo.
+"""``bernstein wiki`` - emit a deterministic ``WIKI.md`` for the repo.
 
 Smallest-viable slice of repo-wiki + code-search. Builds the AST symbol
 graph in-process and renders a Markdown summary to stdout, or writes it

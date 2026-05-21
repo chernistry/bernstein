@@ -549,7 +549,7 @@ class TestMetricsSummary:
 # ---------------------------------------------------------------------------
 
 
-# TestExportMetrics removed — export_metrics method was removed
+# TestExportMetrics removed - export_metrics method was removed
 
 
 # ---------------------------------------------------------------------------

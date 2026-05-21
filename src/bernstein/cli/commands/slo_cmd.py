@@ -1,7 +1,7 @@
-"""CLI command: ``bernstein slo`` — SLO burn-down rate dashboard.
+"""CLI command: ``bernstein slo`` - SLO burn-down rate dashboard.
 
 Displays the current SLO compliance, error budget consumption, burn rate,
-and a linear projection of when the SLO will be breached — the error-budget
+and a linear projection of when the SLO will be breached - the error-budget
 concept from SRE applied to agent orchestration.
 
 Data source:
@@ -113,13 +113,13 @@ def _load_offline(workdir: str) -> dict[str, Any] | None:
             is_depleted = budget_obj.is_depleted
 
             if is_depleted:
-                projection = "Error budget exhausted — SLO breached now"
+                projection = "Error budget exhausted - SLO breached now"
                 status = "red"
             elif burn_rate > 1.5 or budget_fraction < 0.3:
-                projection = "Error budget at risk — monitor closely"
+                projection = "Error budget at risk - monitor closely"
                 status = "yellow"
             else:
-                projection = "On track — error budget not at risk"
+                projection = "On track - error budget not at risk"
                 status = "green"
 
             return {

@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.researcher — web research for evolve mode."""
+"""Tests for bernstein.core.researcher - web research for evolve mode."""
 
 from __future__ import annotations
 
@@ -143,7 +143,7 @@ class TestRunResearch:
             mock_search.return_value = "Search result"
             await run_research(tmp_path)
 
-            # Second run should use cache exclusively — zero new API calls
+            # Second run should use cache exclusively - zero new API calls
             mock_search.reset_mock()
             await run_research(tmp_path)
             assert mock_search.call_count == 0

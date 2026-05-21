@@ -7,7 +7,7 @@ append / kill-and-restart / verify cycles and asserts that:
 - After every restart, the writer resumes the chain at the previous
   ``entry_hash`` (no chain breakage on boot).
 - ``WALReader.verify_chain()`` always succeeds against the on-disk
-  history (no torn-line breakage from a clean shutdown — torn-line
+  history (no torn-line breakage from a clean shutdown - torn-line
   recovery is a separate concern handled by the truncation tests).
 - Every appended entry survives the simulated kill, regardless of
   whether ``committed`` was True or False at append time.
@@ -74,7 +74,7 @@ class WALRecoveryMachine(RuleBasedStateMachine):
     @rule()
     def restart_writer(self) -> None:
         """Simulate a clean restart of the orchestrator."""
-        # ``WALWriter.__init__`` reloads the tail from disk — that's the
+        # ``WALWriter.__init__`` reloads the tail from disk - that's the
         # single source of truth we want to hammer. Drop the reference
         # to the old writer; nothing flushes pending state because per-
         # entry fsync already guaranteed durability.

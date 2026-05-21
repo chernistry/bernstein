@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# CheckpointState — serialization
+# CheckpointState - serialization
 # ---------------------------------------------------------------------------
 
 
@@ -71,7 +71,7 @@ def test_checkpoint_state_from_dict_missing_timestamp_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CheckpointState — staleness
+# CheckpointState - staleness
 # ---------------------------------------------------------------------------
 
 CHECKPOINT_STALE_MINUTES = 30
@@ -96,7 +96,7 @@ def test_checkpoint_state_custom_stale_minutes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CheckpointState — file I/O
+# CheckpointState - file I/O
 # ---------------------------------------------------------------------------
 
 
@@ -161,7 +161,7 @@ def test_save_checkpoint_creates_parent_dirs(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# WrapUpBrief — serialization
+# WrapUpBrief - serialization
 # ---------------------------------------------------------------------------
 
 
@@ -205,7 +205,7 @@ def test_wrapup_brief_from_dict_missing_timestamp_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WrapUpBrief — file I/O
+# WrapUpBrief - file I/O
 # ---------------------------------------------------------------------------
 
 

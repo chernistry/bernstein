@@ -46,7 +46,7 @@ def clean_adapter_state() -> Generator[None, None, None]:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — command-line argument construction
+# spawn() - command-line argument construction
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +185,7 @@ class TestSpawnCommandArgs:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — two-process pipeline wiring
+# spawn() - two-process pipeline wiring
 # ---------------------------------------------------------------------------
 
 
@@ -435,7 +435,7 @@ class TestKill:
 
 
 # ---------------------------------------------------------------------------
-# load_mcp_config() — merge logic
+# load_mcp_config() - merge logic
 # ---------------------------------------------------------------------------
 
 
@@ -516,7 +516,7 @@ class TestResolveEnvVars:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — missing CLI binary / PermissionError
+# spawn() - missing CLI binary / PermissionError
 # ---------------------------------------------------------------------------
 
 
@@ -557,7 +557,7 @@ class TestSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# _wrapper_script() — completion marker (CRITICAL-002)
+# _wrapper_script() - completion marker (CRITICAL-002)
 # ---------------------------------------------------------------------------
 
 
@@ -641,7 +641,7 @@ class TestWrapperScriptCompletionMarker:
 
 
 # ---------------------------------------------------------------------------
-# is_rate_limited() — pre-spawn rate limit detection (CRITICAL-003)
+# is_rate_limited() - pre-spawn rate limit detection (CRITICAL-003)
 # ---------------------------------------------------------------------------
 
 
@@ -675,7 +675,7 @@ class TestIsRateLimited:
         result = self._make_run_result(stderr="You've hit your limit")
         with patch("bernstein.adapters.claude.subprocess.run", return_value=result) as mock_run:
             assert adapter.is_rate_limited() is True
-            # Second call should NOT invoke subprocess again — cached cooldown
+            # Second call should NOT invoke subprocess again - cached cooldown
             assert adapter.is_rate_limited() is True
             assert mock_run.call_count == 1
 
@@ -735,7 +735,7 @@ class TestIsRateLimited:
 
 
 # ---------------------------------------------------------------------------
-# _build_command() — --append-system-prompt support
+# _build_command() - --append-system-prompt support
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""InvariantsGuard — hash-lock safety-critical files.
+"""InvariantsGuard - hash-lock safety-critical files.
 
 This module runs OUTSIDE the agent's context window. Agents cannot see,
 modify, or reason about these constraints. This is by design.
@@ -95,7 +95,7 @@ def verify_invariants(repo_root: Path) -> tuple[bool, list[str]]:
     """
     lockfile = repo_root / ".sdd" / "invariants.lock"
     if not lockfile.exists():
-        # No lockfile means first run — compute and write it
+        # No lockfile means first run - compute and write it
         write_lockfile(repo_root)
         return True, []
 
@@ -112,7 +112,7 @@ def verify_invariants(repo_root: Path) -> tuple[bool, list[str]]:
 
     if violations:
         logger.error(
-            "INVARIANT VIOLATION — %d safety-critical file(s) modified: %s",
+            "INVARIANT VIOLATION - %d safety-critical file(s) modified: %s",
             len(violations),
             violations,
         )

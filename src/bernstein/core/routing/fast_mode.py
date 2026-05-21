@@ -218,4 +218,4 @@ class FastModeCoordinator:
         self._fast_mode = True
         self._cooldown = None
         self._transition_count += 1
-        logger.info("Fast mode cooldown expired — resuming fast mode")
+        logger.info("Fast mode cooldown expired - resuming fast mode")

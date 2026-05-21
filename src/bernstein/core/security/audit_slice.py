@@ -1,4 +1,4 @@
-"""Slice extractor — deterministic subset of the HMAC-chained audit log.
+"""Slice extractor - deterministic subset of the HMAC-chained audit log.
 
 First slice of the time-travel/replay epic.  Given a ``--from`` and ``--to``
 HMAC fence-post, return the contiguous run of audit events whose HMACs fall
@@ -12,11 +12,11 @@ Design notes:
       ``from_hmac``: every event's ``prev_hmac`` chains to its predecessor,
       and the final event's HMAC equals ``to_hmac`` (when supplied).
     * "from" / "to" semantics: each is the HMAC OF an event already in the
-      log (not its ``prev_hmac``).  Both bounds are inclusive — so a slice
+      log (not its ``prev_hmac``).  Both bounds are inclusive - so a slice
       with ``from == to`` yields exactly one event.  Pass ``from_hmac=None``
       to start at the genesis event; pass ``to_hmac=None`` to run to the
       last recorded event.
-    * No PII redaction in this slice — that is deferred to the
+    * No PII redaction in this slice - that is deferred to the
       ``replay publish`` flow.  Operators slicing locally already trust
       the audit dir.
 
@@ -106,9 +106,9 @@ def slice_audit_log(
 
     Args:
         audit_dir: Directory containing daily ``YYYY-MM-DD.jsonl`` audit files.
-        from_hmac: Lower bound — inclusive.  Must be the HMAC of an event in
+        from_hmac: Lower bound - inclusive.  Must be the HMAC of an event in
             the log.  Pass ``None`` to start at the first recorded event.
-        to_hmac: Upper bound — inclusive.  Must be the HMAC of an event in
+        to_hmac: Upper bound - inclusive.  Must be the HMAC of an event in
             the log and must occur at or after ``from_hmac``.  Pass ``None``
             to run to the final event.
 
@@ -168,7 +168,7 @@ def write_slice_jsonl(result: AuditSliceResult, out_path: Path) -> Path:
 
     Output bytes are stable across runs: each line uses ``sort_keys=True``
     and ends with a single ``\\n``.  No trailing whitespace, no header
-    comments — so downstream consumers can hash the file directly.
+    comments - so downstream consumers can hash the file directly.
 
     Args:
         result: Slice produced by :func:`slice_audit_log`.
@@ -187,7 +187,7 @@ def write_slice_jsonl(result: AuditSliceResult, out_path: Path) -> Path:
 def verify_slice_chain(result: AuditSliceResult) -> tuple[bool, list[str]]:
     """Confirm that ``prev_hmac`` linkage is intact across the slice.
 
-    This is a structural check only — it does NOT recompute HMACs against
+    This is a structural check only - it does NOT recompute HMACs against
     the signing key (that requires ``AuditLog.verify`` against the source
     files).  The check ensures the slice itself is contiguous, i.e. each
     event's ``prev_hmac`` matches the previous event's ``hmac``.
@@ -196,7 +196,7 @@ def verify_slice_chain(result: AuditSliceResult) -> tuple[bool, list[str]]:
         result: Slice to validate.
 
     Returns:
-        ``(valid, errors)`` — ``errors`` lists every gap or mismatch.
+        ``(valid, errors)`` - ``errors`` lists every gap or mismatch.
     """
     errors: list[str] = []
     prev_hmac: str | None = None

@@ -4,26 +4,26 @@ The CAS store is the deduplication primitive backing artefact storage.
 A regression here either silently drops content (data loss) or causes
 hash collisions on benign inputs (correctness bug). Properties:
 
-* **put-then-get round-trip** — any byte payload stored under its
+* **put-then-get round-trip** - any byte payload stored under its
   digest reads back identically.
 
-* **Digest is content-determined** — two stores of the same bytes
+* **Digest is content-determined** - two stores of the same bytes
   yield the same digest; two stores of distinct bytes yield distinct
   digests. The first is the contract the orchestrator relies on for
   deduplication; the second is the no-collision-on-benign-input
   guarantee.
 
-* **Digest validates as 64 hex chars** — the producer must always
+* **Digest validates as 64 hex chars** - the producer must always
   emit a value the validator accepts. A drift here would cause
   read paths to refuse to serve content that the write path just
   stored.
 
-* **Path-traversal digests are rejected by ``get``** — feeding a
+* **Path-traversal digests are rejected by ``get``** - feeding a
   ``../../etc/passwd``-style string into the digest API must raise
   ``ValueError`` before any filesystem call. This is a defence-in-
   depth check on the CAS root.
 
-* **Repeated puts dedup correctly** — the second put of an
+* **Repeated puts dedup correctly** - the second put of an
   identical payload increments the dedup counter and does not touch
   the blob on disk.
 """
@@ -166,6 +166,6 @@ def test_get_returns_none_for_unknown_digest(tmp_path_factory: pytest.TempPathFa
     """
     store = CASStore(tmp_path_factory.mktemp("cas"))
     digest = hashlib.sha256(content).hexdigest()
-    # Don't put — the digest is unknown to the store.
+    # Don't put - the digest is unknown to the store.
     assert store.get(digest) is None
     assert not store.has(digest)

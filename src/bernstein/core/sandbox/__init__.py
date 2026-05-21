@@ -2,7 +2,7 @@
 
 Bernstein's agent isolation has historically been git-worktree-only.
 This package introduces a protocol-based abstraction so isolation is
-no longer worktree-hardcoded — new backends (Docker, E2B, Modal ...)
+no longer worktree-hardcoded - new backends (Docker, E2B, Modal ...)
 can register via the ``bernstein.sandbox_backends`` entry-point group.
 
 Phase 1 exposes the protocol, manifest, registry, and four first-party

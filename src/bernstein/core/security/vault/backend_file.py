@@ -27,7 +27,7 @@ The plaintext payload (a dict ``{provider_id: envelope}``) is what gets
 encrypted. Loading a record decrypts the entire blob; writes re-encrypt
 with a fresh nonce.
 
-The backend refuses to start if the passphrase env-var is unset or empty —
+The backend refuses to start if the passphrase env-var is unset or empty -
 booting with no protection would silently downgrade security versus the
 keyring backend.
 """
@@ -86,7 +86,7 @@ class FileBackend(CredentialVault):
     Args:
         passphrase_env: Name of the environment variable that holds the
             passphrase. The backend refuses to start if this env-var is
-            unset or empty — there is no implicit zero-passphrase mode.
+            unset or empty - there is no implicit zero-passphrase mode.
         path: Override the on-disk vault location. Defaults to
             :data:`DEFAULT_VAULT_PATH`.
         environ: Optional mapping for tests; defaults to :data:`os.environ`.
@@ -154,7 +154,7 @@ class FileBackend(CredentialVault):
         try:
             return aesgcm.decrypt(nonce, ct, None)
         except Exception as exc:
-            raise FileBackendUnavailable("Vault decryption failed — passphrase mismatch or file corrupted.") from exc
+            raise FileBackendUnavailable("Vault decryption failed - passphrase mismatch or file corrupted.") from exc
 
     # ------------------------------------------------------------------
     # File I/O

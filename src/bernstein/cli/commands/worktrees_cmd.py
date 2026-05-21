@@ -1,4 +1,4 @@
-"""``bernstein worktrees`` — inspect and reap orphan worktrees.
+"""``bernstein worktrees`` - inspect and reap orphan worktrees.
 
 Two subcommands::
 
@@ -84,8 +84,8 @@ def render_worktrees_table(rows: Iterable[ClassifiedWorktree]) -> Table:
 
     for row in rows:
         style = _STATE_STYLE.get(row.state, "white")
-        task_display = row.task_id[:12] if row.task_id else "—"
-        pid_display = "—" if row.pid is None else (str(row.pid) + ("" if row.pid_alive else "✗"))
+        task_display = row.task_id[:12] if row.task_id else "-"
+        pid_display = "-" if row.pid is None else (str(row.pid) + ("" if row.pid_alive else "✗"))
         table.add_row(
             str(row.path),
             task_display,
@@ -204,7 +204,7 @@ def _shared_registry():  # type: ignore[no-untyped-def]
     """Return the process-wide :class:`HookRegistry`, if one is installed.
 
     Bernstein bootstrap stashes a singleton on a module-level attribute.
-    The lookup is intentionally defensive — running the CLI as a
+    The lookup is intentionally defensive - running the CLI as a
     standalone script should not require the orchestrator to be alive.
     """
     try:
@@ -249,7 +249,7 @@ def list_cmd(workdir: Path, as_json: bool) -> None:
     reapable = sum(1 for r in rows if r.is_reapable)
     if reapable:
         console.print(
-            f"[yellow]{reapable} worktree(s) reapable — run [bold]bernstein worktrees gc[/bold] to clean up.[/yellow]"
+            f"[yellow]{reapable} worktree(s) reapable - run [bold]bernstein worktrees gc[/bold] to clean up.[/yellow]"
         )
 
 
@@ -277,7 +277,7 @@ def gc_cmd(workdir: Path, yes: bool, dry_run: bool) -> None:
 
     console = Console()
     if not reapable:
-        console.print("[green]No reapable worktrees — nothing to do.[/green]")
+        console.print("[green]No reapable worktrees - nothing to do.[/green]")
         return
 
     console.print(render_worktrees_table(reapable))

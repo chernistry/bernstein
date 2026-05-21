@@ -1,4 +1,4 @@
-"""Unit tests for SQLiteMemoryStore — persistent cross-session memory."""
+"""Unit tests for SQLiteMemoryStore - persistent cross-session memory."""
 
 from __future__ import annotations
 
@@ -158,7 +158,7 @@ class TestSQLiteMemoryStorePrune:
 
 
 class TestSQLiteMemoryStoreGetRelevant:
-    """Test tag-based relevance retrieval — the agent context injection path."""
+    """Test tag-based relevance retrieval - the agent context injection path."""
 
     def test_get_relevant_returns_tagged_entries(self, store: SQLiteMemoryStore) -> None:
         store.add(type="convention", content="Use pytest fixtures", tags=["testing", "pytest"])
@@ -196,7 +196,7 @@ class TestSQLiteMemoryStoreGetRelevant:
             tags=["testing", "pytest"],
         )
 
-        # Simulate agent B starting a new session — same DB, new instance
+        # Simulate agent B starting a new session - same DB, new instance
         store_b = SQLiteMemoryStore(db_path)
         results = store_b.get_relevant(["testing"])
 

@@ -29,7 +29,7 @@ RESUME_BANNER: str = (
     "## Resume context\n"
     "You are resuming a previously interrupted task. Use the captured "
     "scratchpad below as recovered context and continue from the next "
-    "step boundary — do not restart from scratch.\n"
+    "step boundary - do not restart from scratch.\n"
 )
 """Top-of-prompt banner injected when an adapter falls back to fresh."""
 
@@ -75,6 +75,6 @@ def build_resume_context(checkpoint: TaskResumeCheckpoint) -> str:
     if scratchpad_text.strip():
         parts.extend(("```", scratchpad_text.rstrip(), "```"))
     else:
-        parts.append("_(empty — no scratchpad was captured before interruption)_")
+        parts.append("_(empty - no scratchpad was captured before interruption)_")
     parts.append("")
     return "\n".join(parts)

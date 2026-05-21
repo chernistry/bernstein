@@ -193,7 +193,7 @@ def _monitor_logs(
 def main() -> None:
     """Entry point for bernstein-worker."""
     parser = argparse.ArgumentParser(
-        description="Bernstein agent worker — wraps CLI agents for process visibility",
+        description="Bernstein agent worker - wraps CLI agents for process visibility",
     )
     parser.add_argument("--role", required=True, help="Agent role (qa, backend, etc.)")
     parser.add_argument("--session", required=True, help="Session ID")

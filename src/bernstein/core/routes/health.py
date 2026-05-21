@@ -1,6 +1,6 @@
 """WEB-013: API health endpoint with dependency status.
 
-GET /health/deps — health check with component-level status for server,
+GET /health/deps - health check with component-level status for server,
 store, and adapters.
 """
 

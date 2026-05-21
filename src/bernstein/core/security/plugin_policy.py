@@ -119,11 +119,11 @@ def load_plugin_policy(workdir: Path) -> PluginPolicy:
 
         raw = json.loads(policy_path.read_text(encoding="utf-8"))
     except Exception as exc:
-        log.warning("Could not parse plugin policy %s: %s — using permit-all policy", policy_path, exc)
+        log.warning("Could not parse plugin policy %s: %s - using permit-all policy", policy_path, exc)
         return PluginPolicy()
 
     if not isinstance(raw, dict):
-        log.warning("Plugin policy %s must be a YAML mapping — using permit-all policy", policy_path)
+        log.warning("Plugin policy %s must be a YAML mapping - using permit-all policy", policy_path)
         return PluginPolicy()
 
     policy_dict: dict[str, Any] = cast("dict[str, Any]", raw)
@@ -132,7 +132,7 @@ def load_plugin_policy(workdir: Path) -> PluginPolicy:
         if value is None:
             return frozenset()
         if not isinstance(value, list):
-            log.warning("Plugin policy field %r must be a list — ignoring", field_name)
+            log.warning("Plugin policy field %r must be a list - ignoring", field_name)
             return frozenset()
         return frozenset(str(item) for item in cast("list[object]", value) if item)
 
@@ -178,7 +178,7 @@ def check_plugin_allowed(plugin_name: str, policy: PluginPolicy) -> None:
     if plugin_name in policy.managed:
         return
 
-    # Rule 3: allowlist mode — reject anything not explicitly listed.
+    # Rule 3: allowlist mode - reject anything not explicitly listed.
     if policy.allowlist and plugin_name not in policy.allowlist:
         raise PluginPolicyViolation(
             plugin_name,

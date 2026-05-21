@@ -64,7 +64,7 @@ def test_brier_monotonic_in_error(preds: list[float], obs: list[bool]) -> None:
         target = 1.0 if o else 0.0
         # Move further from target while staying in [0, 1].
         delta = target - p
-        # If p == target, perturb away — otherwise nudge further.
+        # If p == target, perturb away - otherwise nudge further.
         if delta == 0:
             worse.append(0.0 if target == 1.0 else 1.0)
         else:

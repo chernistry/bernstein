@@ -31,7 +31,7 @@ def check_compatibility(current_results: dict, baseline: dict) -> dict:
             if result["status"] == "pass":
                 new_compatibilities.append(key)
         else:
-            # Existing baseline — check for regression
+            # Existing baseline - check for regression
             if baseline_entry.get("status") == "pass" and result["status"] != "pass":
                 breaking_changes.append(f"{key}: regression from {baseline_entry['status']} to {result['status']}")
 
@@ -64,7 +64,7 @@ def main():
         with open(baseline_file) as f:
             baseline_data = json.load(f)
     else:
-        # First run — use current as baseline
+        # First run - use current as baseline
         print(f"⚠️  Baseline not found. Using current results as baseline: {baseline_file}")
         baseline_file.parent.mkdir(parents=True, exist_ok=True)
         baseline_file.write_text(json.dumps(current_data, indent=2))

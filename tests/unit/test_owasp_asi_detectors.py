@@ -289,7 +289,7 @@ class TestPipelineFlagWiring:
         assert "owasp_asi" not in names
 
     def test_legacy_truthy_enable_var_is_noop_under_default_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The pack is on either way once default flips — the truthy opt-in is harmless."""
+        """The pack is on either way once default flips - the truthy opt-in is harmless."""
         monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
         monkeypatch.setenv("BERNSTEIN_ENABLE_OWASP_ASI", "1")
         pipeline = GuardrailPipeline.default()

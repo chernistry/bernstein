@@ -8,10 +8,10 @@ The classifier is the single source of truth shared by
 
 Inputs (all read-only):
 
-* ``git worktree list --porcelain`` in the project repo — definitive
+* ``git worktree list --porcelain`` in the project repo - definitive
   list of every git-registered worktree.
-* ``.sdd/runtime/pids/<session_id>.json`` — task / worker PID record.
-* ``.sdd/traces/<session_id>.jsonl`` — last-trace mtime for staleness.
+* ``.sdd/runtime/pids/<session_id>.json`` - task / worker PID record.
+* ``.sdd/traces/<session_id>.jsonl`` - last-trace mtime for staleness.
 * The on-disk worktree directory itself for size and ``.git`` presence.
 
 The classifier never modifies state. ``reap_worktree`` performs the only
@@ -89,7 +89,7 @@ class ClassifiedWorktree:
 
     Attributes:
         path: Absolute filesystem path of the worktree directory.
-        session_id: Directory basename — Bernstein uses the session id
+        session_id: Directory basename - Bernstein uses the session id
             as the worktree slug, so this also identifies the owning
             task when one exists.
         task_id: Task identifier from the PID record, or ``None`` when
@@ -98,7 +98,7 @@ class ClassifiedWorktree:
         age_seconds: Wall-clock age of the worktree directory, computed
             from its ``ctime`` (creation when the FS reports it,
             metadata-change otherwise).
-        size_bytes: Recursive size on disk in bytes (best effort —
+        size_bytes: Recursive size on disk in bytes (best effort -
             unreadable entries are skipped silently).
         pid: Worker PID read from the task record, or ``None``.
         pid_alive: Whether ``os.kill(pid, 0)`` succeeded. ``False`` when
@@ -221,7 +221,7 @@ def _classify_one(
     size_bytes = _dir_size(path)
     age_seconds = _dir_age(path, now=now)
 
-    # 1. Corrupt — directory exists but git can't see a .git anchor.
+    # 1. Corrupt - directory exists but git can't see a .git anchor.
     git_anchor = path / ".git"
     if not git_anchor.exists():
         return ClassifiedWorktree(
@@ -243,7 +243,7 @@ def _classify_one(
     alive = pid is not None and _process_alive(pid)
     last_trace_mtime = _last_trace_mtime(repo_root, session_id)
 
-    # 2. Orphan — directory has no task record at all.
+    # 2. Orphan - directory has no task record at all.
     if pid_record is None:
         return ClassifiedWorktree(
             path=path,
@@ -257,7 +257,7 @@ def _classify_one(
             last_trace_mtime=last_trace_mtime,
         )
 
-    # 3. Active — task record exists and PID is alive.
+    # 3. Active - task record exists and PID is alive.
     if alive:
         return ClassifiedWorktree(
             path=path,
@@ -271,7 +271,7 @@ def _classify_one(
             last_trace_mtime=last_trace_mtime,
         )
 
-    # 4. Stale — task record exists but PID dead AND last trace > threshold.
+    # 4. Stale - task record exists but PID dead AND last trace > threshold.
     # If trace freshness is below the threshold we cannot prove staleness
     # yet, so leave the worktree marked ``active`` to be safe. The
     # operator can re-run ``gc`` later.
@@ -316,7 +316,7 @@ def reap_worktree(
     """Delete the worktree directory and prune git state.
 
     The caller MUST hold the GC lock at :data:`GC_LOCK_RELPATH`. This
-    function never acquires the lock on its own — leave that decision to
+    function never acquires the lock on its own - leave that decision to
     the CLI / TUI driver so a batch reap takes the lock once.
 
     Args:

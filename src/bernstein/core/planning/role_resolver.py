@@ -1,17 +1,17 @@
-"""Role resolver — picks between a skill-pack index and the legacy role template.
+"""Role resolver - picks between a skill-pack index and the legacy role template.
 
 Called from :mod:`bernstein.core.agents.spawn_prompt` during prompt
 rendering. The resolver tries three things in order:
 
-1. **Skill pack** (new; oai-004) — if ``templates/skills/<role>/SKILL.md``
+1. **Skill pack** (new; oai-004) - if ``templates/skills/<role>/SKILL.md``
    exists the resolver returns the compact index built by
    :func:`~bernstein.core.skills.build_skill_index` *plus* the matched
    skill's body as a "primary" hint. Downstream adapters inject this into
    the system prompt.
-2. **Legacy role template** — ``templates/roles/<role>/system_prompt.md``
+2. **Legacy role template** - ``templates/roles/<role>/system_prompt.md``
    rendered via the existing Jinja-like template engine. This preserves
    backwards compatibility during migration.
-3. **Fallback stub** — ``"You are a {role} specialist."``
+3. **Fallback stub** - ``"You are a {role} specialist."``
 
 The resolver is stateless: each call walks the filesystem fresh. For
 high-traffic spawn paths, ``_cached_loader`` caches the :class:`SkillLoader`
@@ -45,7 +45,7 @@ class ResolvedRolePrompt:
 
     Attributes:
         body: The text the adapter injects for the role section.
-        source: ``"skill"`` | ``"legacy"`` | ``"fallback"`` — used for
+        source: ``"skill"`` | ``"legacy"`` | ``"fallback"`` - used for
             observability and the token-reduction regression test.
         skill_name: Name of the skill whose index was injected, when
             ``source == "skill"``. ``None`` otherwise.
@@ -56,7 +56,7 @@ class ResolvedRolePrompt:
     skill_name: str | None = None
 
 
-# ``(templates_dir, mtime) -> SkillLoader`` — the mtime lets us pick up
+# ``(templates_dir, mtime) -> SkillLoader`` - the mtime lets us pick up
 # edits during dev without restarting.
 _loader_cache: dict[tuple[str, float], SkillLoader] = {}
 
@@ -84,7 +84,7 @@ def resolve_role_prompt(
         include_plugins: Whether to include third-party skill sources.
 
     Returns:
-        :class:`ResolvedRolePrompt` — callers append its ``body`` into
+        :class:`ResolvedRolePrompt` - callers append its ``body`` into
         the system prompt's ``role`` section.
     """
     loader = _get_loader(templates_dir, include_plugins=include_plugins)
@@ -218,10 +218,10 @@ def _compose_skill_body(*, index: str, skill: _LoadedSkillLike) -> str:
 
     Args:
         index: Index from :func:`build_skill_index` (marks the primary).
-        skill: The matched :class:`LoadedSkill` — we reference its ``name``
+        skill: The matched :class:`LoadedSkill` - we reference its ``name``
             in the header so the agent knows who it is at a glance.
     """
-    # One-line pointer; keep it terse — every byte multiplies by spawn count.
+    # One-line pointer; keep it terse - every byte multiplies by spawn count.
     hint = f'Role: {skill.name}. load_skill(name="{skill.name}").\n'
     return hint + index.strip() + "\n"
 
@@ -234,7 +234,7 @@ class _LoadedSkillLike(Protocol):
     """Contract: a loaded skill exposes a ``name`` and ``description``."""
 
     @property
-    def name(self) -> str: ...  # pragma: no cover — structural only
+    def name(self) -> str: ...  # pragma: no cover - structural only
 
     @property
-    def description(self) -> str: ...  # pragma: no cover — structural only
+    def description(self) -> str: ...  # pragma: no cover - structural only

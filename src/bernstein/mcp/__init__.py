@@ -1,1 +1,1 @@
-"""Bernstein MCP server — expose orchestration as MCP tools."""
+"""Bernstein MCP server - expose orchestration as MCP tools."""

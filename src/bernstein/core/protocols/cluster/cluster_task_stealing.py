@@ -53,7 +53,7 @@ def _steal_metric_label(result: StealResult) -> str:
         return "cooldown"
     if result is StealResult.VERSION_CONFLICT:
         return "rejected_version_mismatch"
-    # NO_CANDIDATES / VICTIM_BELOW_THRESHOLD / TASK_PINNED — all "no_victim".
+    # NO_CANDIDATES / VICTIM_BELOW_THRESHOLD / TASK_PINNED - all "no_victim".
     return "no_victim"
 
 

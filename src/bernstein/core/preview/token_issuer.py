@@ -4,12 +4,12 @@ Wraps the security layer's :class:`~bernstein.core.security.jwt_tokens.JWTManage
 so a preview link can be served behind a short-lived JWT or HTTP-basic
 credential. Three auth modes are supported:
 
-* ``"token"`` — JWT bearer token; the public URL gets a ``?token=…``
+* ``"token"`` - JWT bearer token; the public URL gets a ``?token=…``
   query string the user can paste straight into ``curl``.
-* ``"basic"`` — HTTP basic auth; we generate a strong random password
+* ``"basic"`` - HTTP basic auth; we generate a strong random password
   and store the credentials so the manager can render
   ``https://user:pass@host`` URLs.
-* ``"none"`` — no auth; the URL is the bare public tunnel URL.
+* ``"none"`` - no auth; the URL is the bare public tunnel URL.
 
 A single :class:`PreviewTokenIssuer` instance is intended to live for
 the lifetime of the orchestrator: token expiries are derived from the
@@ -35,9 +35,9 @@ class IssuedAuth:
 
     Attributes:
         mode: ``"token"``, ``"basic"`` or ``"none"``.
-        token: JWT bearer token (``"token"`` mode) — empty otherwise.
-        basic_user: HTTP-basic username (``"basic"`` mode) — empty otherwise.
-        basic_password: HTTP-basic password (``"basic"`` mode) — empty otherwise.
+        token: JWT bearer token (``"token"`` mode) - empty otherwise.
+        basic_user: HTTP-basic username (``"basic"`` mode) - empty otherwise.
+        basic_password: HTTP-basic password (``"basic"`` mode) - empty otherwise.
         expires_at_epoch: Unix timestamp at which the credentials expire.
             Always set; the token mode honours it directly, basic mode
             uses it as the orchestrator-side validity window.
@@ -148,7 +148,7 @@ class PreviewTokenIssuer:
         # basic
         user = "preview"
         password = secrets.token_urlsafe(24)
-        # No JWT here — but we still produce an expiry so the manager
+        # No JWT here - but we still produce an expiry so the manager
         # can prune stale credentials.
         token_for_meta = manager.create_token(
             session_id=preview_id,

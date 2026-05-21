@@ -13,8 +13,8 @@ endpoint:
 
 Errors map to HTTP status codes:
 
-* ``404`` — token never issued.
-* ``410`` — token expired or already claimed.
+* ``404`` - token never issued.
+* ``410`` - token expired or already claimed.
 
 The route uses ``request.app.state.workdir`` when set (the test server
 sets this); otherwise it falls back to the directory containing the

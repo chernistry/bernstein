@@ -1,13 +1,13 @@
 """FastAPI web view for the fleet dashboard.
 
 Mounts:
-    * ``GET /``                — minimal HTML fleet table.
-    * ``GET /api/projects``    — JSON snapshots.
-    * ``GET /api/cost``        — fleet cost rollup.
-    * ``GET /api/audit``       — filtered audit entries.
-    * ``GET /api/audit/chain`` — per-project chain status.
-    * ``GET /events``          — SSE proxy of the unified event bus.
-    * ``GET /metrics``         — aggregated Prometheus exposition.
+    * ``GET /``                - minimal HTML fleet table.
+    * ``GET /api/projects``    - JSON snapshots.
+    * ``GET /api/cost``        - fleet cost rollup.
+    * ``GET /api/audit``       - filtered audit entries.
+    * ``GET /api/audit/chain`` - per-project chain status.
+    * ``GET /events``          - SSE proxy of the unified event bus.
+    * ``GET /metrics``         - aggregated Prometheus exposition.
 
 The web view is bound to loopback by default; the ticket explicitly
 defers wider exposure to the existing tunnel wrapper.
@@ -91,7 +91,7 @@ async function refresh() {
     tbody.appendChild(row);
   });
   document.getElementById('footer').textContent =
-    `${data.projects.length} project(s) — fleet 7d: $${cost.fleet_total_usd.toFixed(2)}`;
+    `${data.projects.length} project(s) - fleet 7d: $${cost.fleet_total_usd.toFixed(2)}`;
 }
 
 const events = new EventSource('/events');

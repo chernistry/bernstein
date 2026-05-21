@@ -51,7 +51,7 @@ def _default_gh_runner(args: list[str]) -> subprocess.CompletedProcess[str]:
 class PollingListener:
     """Periodically fetches comments via the GitHub REST API.
 
-    The listener owns no thread by itself — callers schedule
+    The listener owns no thread by itself - callers schedule
     :meth:`tick` on whatever loop they prefer (the daemon command uses
     a bare ``threading.Timer``).  This keeps the listener trivially
     testable: feed it a mock runner, call ``tick``, assert the callback.
@@ -89,7 +89,7 @@ class PollingListener:
         if self._gh is not _default_gh_runner:
             return True
         if shutil.which("gh") is None:
-            logger.warning("gh CLI not found — PollingListener cannot fetch comments")
+            logger.warning("gh CLI not found - PollingListener cannot fetch comments")
             return False
         return True
 

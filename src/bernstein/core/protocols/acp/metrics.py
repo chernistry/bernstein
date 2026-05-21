@@ -17,7 +17,7 @@ from bernstein.core.observability.prometheus import (
     registry,
 )
 
-# Allowed outcomes — closed set to avoid label cardinality explosions.
+# Allowed outcomes - closed set to avoid label cardinality explosions.
 VALID_OUTCOMES: Final[frozenset[str]] = frozenset({"ok", "error", "rejected", "cancelled", "permission_denied"})
 
 acp_messages_total: Counter = Counter(

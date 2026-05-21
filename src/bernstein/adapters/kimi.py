@@ -42,14 +42,14 @@ class KimiAdapter(CLIAdapter):
         Args:
             prompt: The task prompt for the agent (passed via ``-c``).
             workdir: Working directory for the Kimi process.
-            model_config: Model and effort configuration (unused — Kimi
+            model_config: Model and effort configuration (unused - Kimi
                 selects the model via its own configuration).
             session_id: Unique session identifier used for log naming.
             mcp_config: Optional MCP server definitions (unused).
             timeout_seconds: Process timeout in seconds.
             task_scope: Task scope label (unused by this adapter).
             budget_multiplier: Retry budget multiplier (unused by this adapter).
-            system_addendum: Protocol-critical instructions (unused — Kimi
+            system_addendum: Protocol-critical instructions (unused - Kimi
                 does not expose a separate system-prompt channel).
 
         Returns:

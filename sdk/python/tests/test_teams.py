@@ -88,7 +88,7 @@ class TestTeamsAdapter:
             "bernstein_sdk.adapters.teams.urllib.request.urlopen",
             side_effect=OSError("refused"),
         ):
-            # Should not raise — exception is caught in daemon thread
+            # Should not raise - exception is caught in daemon thread
             adapter.notify_task_completed("t1", "Title", "backend")
             import time
 

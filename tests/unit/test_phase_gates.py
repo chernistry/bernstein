@@ -31,7 +31,7 @@ def _spec(phase: Phase = Phase.PLAN, *, max_tokens: int = 30_000) -> PhaseSpec:
 
 
 # ---------------------------------------------------------------------------
-# R001 — no-open-questions
+# R001 - no-open-questions
 # ---------------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ def test_r001_fails_when_questions_remain() -> None:
 
 
 def test_r001_does_not_apply_to_research_to_research() -> None:
-    """Boundary filter excludes research entry — research is allowed to leave Qs."""
+    """Boundary filter excludes research entry - research is allowed to leave Qs."""
     prior = PhaseArtifact(summary="x", open_questions=[])
     current = PhaseArtifact(summary="research", open_questions=["still thinking"])
     results = evaluate_boundary(
@@ -69,7 +69,7 @@ def test_r001_does_not_apply_to_research_to_research() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R002 — decisions-reference-prior
+# R002 - decisions-reference-prior
 # ---------------------------------------------------------------------------
 
 
@@ -100,7 +100,7 @@ def test_r002_fails_for_unknown_marker() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R003 — acyclic-decision-graph
+# R003 - acyclic-decision-graph
 # ---------------------------------------------------------------------------
 
 
@@ -149,7 +149,7 @@ def test_r003_consumes_dependencies_extra() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R004 — monotonic-constraint-set
+# R004 - monotonic-constraint-set
 # ---------------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ def test_r004_fails_when_constraint_silently_dropped() -> None:
 
 
 # ---------------------------------------------------------------------------
-# R005 — byte-budget
+# R005 - byte-budget
 # ---------------------------------------------------------------------------
 
 

@@ -52,7 +52,7 @@ from bernstein.core.credential_scoping import (
 )
 
 # ---------------------------------------------------------------------------
-# Adapter enumeration — share the consistency suite's pattern.
+# Adapter enumeration - share the consistency suite's pattern.
 # ---------------------------------------------------------------------------
 
 
@@ -72,7 +72,7 @@ def _all_testable_adapters() -> list[tuple[str, CLIAdapter]]:
     for name in sorted([*_ADAPTERS.keys(), "generic"]):
         try:
             pairs.append((name, _instantiate_adapter(name)))
-        except Exception:  # pragma: no cover — environmental skips
+        except Exception:  # pragma: no cover - environmental skips
             continue
     return pairs
 
@@ -108,7 +108,7 @@ def _spawn_with_mock(
 
     Returns ``(result, popen_mock)``.  When the adapter declines to spawn
     because of an external dependency, both elements are ``None`` and the
-    test should pytest.skip — the contract is unchecked, not violated.
+    test should pytest.skip - the contract is unchecked, not violated.
     """
     popen_mock = _make_popen_mock()
     mod = type(adapter).__module__
@@ -145,7 +145,7 @@ def _spawn_with_mock(
 # OSError errno 92, and Linux ext4 + tmpfs round-trip them but the test
 # harness still has to bytes-encode the path. The curated ``sampled_from``
 # list covers the genuine adversarial cases (shell metacharacters, unicode
-# zero-width, Cyrillic) — the property assertion fires on those regardless
+# zero-width, Cyrillic) - the property assertion fires on those regardless
 # of the random fuzz dimension. In production the orchestrator constructs
 # session IDs itself; this is a test-harness constraint, not a contract gap.
 _session_id_strategy = st.one_of(
@@ -166,7 +166,7 @@ _session_id_strategy = st.one_of(
     ),
 )
 
-# Prompts go into a file via ``log_file.write(prompt)`` or stdin pipe —
+# Prompts go into a file via ``log_file.write(prompt)`` or stdin pipe -
 # the bytes must be encodable by the default filesystem encoding. We
 # blacklist NUL (rejected by ``open`` on prompt files) and surrogates
 # (UnicodeEncodeError on UTF-8 fs encoders).
@@ -206,14 +206,14 @@ def test_spawn_result_proc_is_threaded_through(
     ``SpawnResult(pid=proc.pid, log_path=log_path)`` and never assigned
     ``proc=proc``.  The dataclass default is ``None``, so downstream
     spawner_core skipped registering stdin/IPC and the
-    ``bernstein adapter run`` CLI couldn't ``wait()`` on completion —
+    ``bernstein adapter run`` CLI couldn't ``wait()`` on completion -
     zombie pids until the timeout watchdog fired.
 
     Interviewer probe: "What if a malicious task name has shell
     metachars?" → the adapter wraps the inner command via
     ``build_worker_cmd`` (no shell), passes argv as a list to
     ``subprocess.Popen`` (no ``shell=True``), and the session_id is
-    only used in worker argv positions and log paths — never expanded
+    only used in worker argv positions and log paths - never expanded
     by /bin/sh.
     """
     result, popen_mock = _spawn_with_mock(
@@ -226,7 +226,7 @@ def test_spawn_result_proc_is_threaded_through(
         pytest.skip(f"{adapter_name} requires external setup (binary/auth)")
 
     # Cancel any timeout watchdog the adapter may have started even with
-    # timeout_seconds=0 (defensive — most adapters skip when zero).
+    # timeout_seconds=0 (defensive - most adapters skip when zero).
     if result.timeout_timer is not None:
         result.timeout_timer.cancel()
 
@@ -256,7 +256,7 @@ def test_spawn_passes_env_and_cwd_no_shell(
     tmp_path: Path,
 ) -> None:
     """Popen must receive an explicit ``env=`` (not None / inheriting all)
-    and ``cwd=`` set to the worktree.  ``shell=True`` is forbidden — every
+    and ``cwd=`` set to the worktree.  ``shell=True`` is forbidden - every
     adapter must pass argv as a list so shell-metachar task IDs cannot
     escape into /bin/sh -c.
     """
@@ -293,7 +293,7 @@ def test_spawn_passes_env_and_cwd_no_shell(
     # shell=True is a leak vector even with a list argv.
     assert not kwargs.get("shell", False), f"{adapter_name}: shell=True forbidden"
 
-    # env= must be explicit and a dict — None inherits the orchestrator env.
+    # env= must be explicit and a dict - None inherits the orchestrator env.
     assert "env" in kwargs, f"{adapter_name}: Popen call missing env="
     assert isinstance(kwargs["env"], dict), f"{adapter_name}: env must be a dict"
 
@@ -321,7 +321,7 @@ def test_no_registry_entry_shadows_builtin() -> None:
 
     Python keywords (``continue`` is a real-world entry, mirroring the
     upstream CLI's marketing name) are accepted because the registry
-    uses string keys throughout — no attribute access by adapter name
+    uses string keys throughout - no attribute access by adapter name
     happens anywhere downstream.
     """
     import builtins
@@ -331,7 +331,7 @@ def test_no_registry_entry_shadows_builtin() -> None:
 
 
 # ---------------------------------------------------------------------------
-# build_filtered_env — credential scoping properties.
+# build_filtered_env - credential scoping properties.
 # ---------------------------------------------------------------------------
 
 
@@ -431,7 +431,7 @@ def test_fork_cache_key_stable_for_same_prefix() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "BERNSTEIN_RUN_ID is not currently part of the spawn contract — "
+        "BERNSTEIN_RUN_ID is not currently part of the spawn contract - "
         "the audit brief calls for an injected per-run identifier in the "
         "child env-var set, but no adapter or env_isolation surface emits "
         "it today.  Tracking via xfail until the contract is added."

@@ -1,7 +1,7 @@
 """Top-6 through top-10 fake-CLI adapter integration tests.
 
 Extends the original top-5 harness (tests/integration/test_adapter_e2e.py)
-with five more popular adapters drawn from the registry — Cursor Agent,
+with five more popular adapters drawn from the registry - Cursor Agent,
 AWS Q Developer, JetBrains Junie, Devin / Windsurf Terminal, and the
 Mistral ``vibe`` CLI. Each adapter gets:
 
@@ -41,7 +41,7 @@ pytestmark = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
-# Helpers (shared with test_adapter_e2e.py — duplicated to keep this
+# Helpers (shared with test_adapter_e2e.py - duplicated to keep this
 # file self-contained; the duplication is short and the helpers are
 # unlikely to drift)
 # ---------------------------------------------------------------------------
@@ -423,7 +423,7 @@ class TestMistralEndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# Harness self-check — confirms the new wrappers resolve on PATH
+# Harness self-check - confirms the new wrappers resolve on PATH
 # ---------------------------------------------------------------------------
 
 

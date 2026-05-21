@@ -1,4 +1,4 @@
-"""Contextual bandit routing — learns (model, effort) selection from task outcomes.
+"""Contextual bandit routing - learns (model, effort) selection from task outcomes.
 
 ``BanditRouter`` wraps the existing static cascade routing with a LinUCB
 contextual bandit.  During cold-start (fewer than ``warmup_min`` completions),
@@ -76,7 +76,7 @@ _EXPLORATION_HISTORY_LIMIT: int = 100
 _POLICY_FORMAT_VERSION: int = 2
 
 # Effort arms the bandit may choose from. ``"medium"`` is omitted only because
-# Claude Code exposes it as the default when nothing is specified — adding it
+# Claude Code exposes it as the default when nothing is specified - adding it
 # would just dilute the exploration budget without a distinct reward signal.
 _EFFORT_ARMS: tuple[str, ...] = ("low", "high", "max")
 # UCB1 exploration constant for the effort bandit. The classical value is
@@ -94,7 +94,7 @@ _CLAUDE_COMPATIBLE_ADAPTERS: frozenset[str] = frozenset({"claude", "claude code"
 # High-stakes roles never start at haiku (mirrors cascade_router logic)
 _HIGH_STAKES_ROLES: frozenset[str] = frozenset({"manager", "architect", "security"})
 
-# Model capability tiers — used to clamp bandit picks to a per-task floor so
+# Model capability tiers - used to clamp bandit picks to a per-task floor so
 # the bandit can still learn on high-stakes tasks without ever dropping below
 # a minimum capability. Higher number = more capable.
 _MODEL_TIER: dict[str, int] = {"haiku": 0, "sonnet": 1, "opus": 2}
@@ -253,7 +253,7 @@ def _hash_role(role: str, dim: int) -> list[float]:
 
 
 # ---------------------------------------------------------------------------
-# Linear algebra helpers (pure Python — no numpy dependency)
+# Linear algebra helpers (pure Python - no numpy dependency)
 # ---------------------------------------------------------------------------
 
 
@@ -664,7 +664,7 @@ class BanditPolicy:
         to pretending the arm has been updated ``virtual_observations``
         times with ``x = e_bias`` and reward ``mean_reward``. This shifts
         the arm's expected exploit score without committing to any specific
-        task shape — the LinUCB analogue of the legacy
+        task shape - the LinUCB analogue of the legacy
         ``EpsilonGreedyBandit.seed_arm`` primitive.
 
         The prior is only installed when the arm has no live signal yet
@@ -683,7 +683,7 @@ class BanditPolicy:
             self._b[arm] = [0.0] * d
 
         if any(abs(v) > 1e-9 for v in self._b[arm]):
-            logger.debug("BanditPolicy: refusing to seed arm %s — live signal present", arm)
+            logger.debug("BanditPolicy: refusing to seed arm %s - live signal present", arm)
             return
 
         clamped = max(0.0, min(1.0, mean_reward))
@@ -771,7 +771,7 @@ class BanditPolicy:
                     logger.warning("BanditPolicy: could not rewrite legacy policy format at %s: %s", path, exc)
             return policy
         except Exception as exc:
-            logger.warning("BanditPolicy: could not load from %s: %s — starting fresh", path, exc)
+            logger.warning("BanditPolicy: could not load from %s: %s - starting fresh", path, exc)
             return cls(arms=default_arms)
 
 
@@ -796,7 +796,7 @@ class EffortBandit:
     * Only 3 arms and a coarse key space, so tabular counts converge fast.
     * Effort choice depends mostly on task-type and model, not the full
       feature vector already consumed by ``BanditPolicy``.
-    * Keeps reward-feedback cheap — no matrix inversions on the hot path.
+    * Keeps reward-feedback cheap - no matrix inversions on the hot path.
 
     Attributes:
         arms: Effort arm names considered by the bandit.
@@ -891,7 +891,7 @@ class EffortBandit:
         """Record an observed reward for the selected effort arm.
 
         Unknown effort strings (e.g. ``"medium"`` from a manager override)
-        are silently ignored — they map to no arm in the bandit's action
+        are silently ignored - they map to no arm in the bandit's action
         space, so feeding them in would only contaminate the counters.
 
         Args:
@@ -1692,17 +1692,17 @@ def _capability_floor(task: Task) -> str:
     gate forced every high-stakes task through the static heuristic forever,
     so the bandit never learned whether ``opus`` was actually better than
     ``sonnet`` on e.g. architect reviews. With a floor, the bandit still
-    chooses freely between the arms at or above the floor — it just cannot
+    chooses freely between the arms at or above the floor - it just cannot
     drop below a safe minimum.
 
     Floors (from lowest to highest):
 
-    * ``"opus"`` — ``manager`` / ``architect`` / ``security`` roles that
+    * ``"opus"`` - ``manager`` / ``architect`` / ``security`` roles that
       combine HIGH complexity with LARGE scope; these jobs have never fit
       in ``sonnet`` context in practice.
-    * ``"sonnet"`` — high-stakes roles, HIGH complexity, LARGE scope, or
+    * ``"sonnet"`` - high-stakes roles, HIGH complexity, LARGE scope, or
       priority-1 work. Mirrors the old ``_is_high_stakes`` bar.
-    * ``"haiku"`` — everything else (no clamp).
+    * ``"haiku"`` - everything else (no clamp).
     """
     if task.role in _HIGH_STAKES_ROLES and task.complexity == Complexity.HIGH and task.scope == Scope.LARGE:
         return "opus"
@@ -1715,8 +1715,8 @@ def _clamp_to_floor(bandit_pick: str, floor: str) -> tuple[str, bool]:
     """Raise ``bandit_pick`` to ``floor`` if it would fall below capability.
 
     Uses the tier ordering in :data:`_MODEL_TIER` (``haiku < sonnet < opus``).
-    Unknown arms are passed through unchanged — we only clamp when we can
-    compare tiers — so custom model names in a future adapter never get
+    Unknown arms are passed through unchanged - we only clamp when we can
+    compare tiers - so custom model names in a future adapter never get
     silently promoted.
 
     Args:

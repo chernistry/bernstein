@@ -1,7 +1,7 @@
 """TUI visual regression snapshot testing utilities.
 
 Provides helpers for capturing widget text output, comparing against saved
-snapshots, and reporting diffs — enabling lightweight visual regression
+snapshots, and reporting diffs - enabling lightweight visual regression
 tests without a full Textual pilot session.
 """
 
@@ -109,7 +109,7 @@ def compare_snapshot(
     snap_path = snapshot_dir / f"{widget_name}.snap"
 
     if not snap_path.exists():
-        # First run — persist the baseline.
+        # First run - persist the baseline.
         update_snapshot(widget_name, current, snapshot_dir)
         return SnapshotResult(
             widget_name=widget_name,

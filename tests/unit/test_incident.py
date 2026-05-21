@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.incident — Incident response."""
+"""Tests for bernstein.core.incident - Incident response."""
 
 from __future__ import annotations
 

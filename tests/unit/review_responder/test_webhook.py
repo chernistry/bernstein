@@ -45,7 +45,7 @@ def test_verify_signature_mismatch() -> None:
 
 
 def test_verify_signature_empty_secret_rejected() -> None:
-    """Empty secret rejects every signature — no silent allow-all."""
+    """Empty secret rejects every signature - no silent allow-all."""
     assert verify_signature(secret=b"", body=b"x", signature="sha256=anything") is False
 
 

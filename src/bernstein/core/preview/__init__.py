@@ -1,9 +1,9 @@
-"""``bernstein preview`` — sandboxed dev-server with public tunnel link.
+"""``bernstein preview`` - sandboxed dev-server with public tunnel link.
 
 The :mod:`bernstein.core.preview` package stitches together pieces that
-already exist in the codebase — :class:`SandboxBackend`, the
+already exist in the codebase - :class:`SandboxBackend`, the
 ``bernstein tunnel`` wrapper, and the security layer's signed-token
-issuer — into a single ``bernstein preview {start|stop|list|status}``
+issuer - into a single ``bernstein preview {start|stop|list|status}``
 flow.
 
 Public API::

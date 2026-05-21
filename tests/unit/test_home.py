@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.home — BernsteinHome global config."""
+"""Tests for bernstein.core.home - BernsteinHome global config."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ class TestBernsteinHomeGetSet:
 
 
 # ---------------------------------------------------------------------------
-# resolve_config() — precedence
+# resolve_config() - precedence
 # ---------------------------------------------------------------------------
 
 
@@ -182,7 +182,7 @@ class TestResolveConfig:
 
 
 # ---------------------------------------------------------------------------
-# BernsteinHome.default() — uses real ~/.bernstein
+# BernsteinHome.default() - uses real ~/.bernstein
 # ---------------------------------------------------------------------------
 
 

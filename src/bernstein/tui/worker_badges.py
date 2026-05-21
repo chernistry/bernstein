@@ -1,4 +1,4 @@
-"""Worker badge identity module — format worker metadata into Rich badge strings.
+"""Worker badge identity module - format worker metadata into Rich badge strings.
 
 Status icons and tier color coding. Provides a deterministic badge for each
 worker that shows role, model and tier with status indication.

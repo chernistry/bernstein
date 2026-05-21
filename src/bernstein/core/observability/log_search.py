@@ -12,10 +12,10 @@ Usage::
         print(r.timestamp, r.source, r.message)
 
 Log sources scanned (in priority order):
-- ``.sdd/runtime/*.log``          — orchestrator + agent runtime logs
-- ``.sdd/logs/*.log``             — archived session logs
-- ``.sdd/worktrees/*/``           — per-worktree runtime and log dirs
-- ``.sdd/runtime/mcp_*.log``      — MCP server logs (if present)
+- ``.sdd/runtime/*.log``          - orchestrator + agent runtime logs
+- ``.sdd/logs/*.log``             - archived session logs
+- ``.sdd/worktrees/*/``           - per-worktree runtime and log dirs
+- ``.sdd/runtime/mcp_*.log``      - MCP server logs (if present)
 """
 
 from __future__ import annotations

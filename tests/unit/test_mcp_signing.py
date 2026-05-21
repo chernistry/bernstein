@@ -120,7 +120,7 @@ class TestCanonicalizeManifest:
 
 
 # ---------------------------------------------------------------------------
-# verify_mcp_server — the four parent-required scenarios
+# verify_mcp_server - the four parent-required scenarios
 # ---------------------------------------------------------------------------
 
 
@@ -206,7 +206,7 @@ class TestVerifyMCPServer:
 
 
 # ---------------------------------------------------------------------------
-# Static scanner — OpenClaw CVE patterns
+# Static scanner - OpenClaw CVE patterns
 # ---------------------------------------------------------------------------
 
 
@@ -299,7 +299,7 @@ class TestMCPScanner:
 
 
 # ---------------------------------------------------------------------------
-# Policy enforcement — strict vs warn-only
+# Policy enforcement - strict vs warn-only
 # ---------------------------------------------------------------------------
 
 
@@ -439,7 +439,7 @@ class TestEnforceMCPServerLoad:
     def test_unknown_publisher_key_falls_to_untrusted(self) -> None:
         """Manifest's publisher fingerprint not in publisher_keys → UNTRUSTED."""
         manifest, sig, _fp, _pem = _make_signed_manifest()
-        # No publisher_keys — verifier sees empty PEM, falls through to
+        # No publisher_keys - verifier sees empty PEM, falls through to
         # UNTRUSTED_PUBLISHER (since the fingerprint isn't in the
         # trusted_publishers set either).
         policy = MCPSigningPolicy(

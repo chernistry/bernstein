@@ -338,7 +338,7 @@ def test_claim_and_spawn_batches_blocked_by_high_error_rate(tmp_path: Path, make
 
     claim_and_spawn_batches(orch, [[task]], alive_count=0, assigned_task_ids=set(), done_ids=set(), result=result)
 
-    # Spawn must not happen — convergence guard blocked it
+    # Spawn must not happen - convergence guard blocked it
     orch._client.post.assert_not_called()
     orch._spawner.spawn_for_tasks.assert_not_called()
     assert result.spawned == []
@@ -719,7 +719,7 @@ def test_verify_via_janitor_runs_run_janitor_for_llm_judge(
 
 
 # ---------------------------------------------------------------------------
-# Formal verification gate — audit-030
+# Formal verification gate - audit-030
 # ---------------------------------------------------------------------------
 
 

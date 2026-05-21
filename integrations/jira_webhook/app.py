@@ -7,19 +7,19 @@ can push status changes back to Jira via the REST API v3.
 Environment variables
 ---------------------
 Required:
-    JIRA_BASE_URL       — e.g. https://your-org.atlassian.net
-    JIRA_EMAIL          — Jira account email
-    JIRA_API_TOKEN      — Jira API token (from id.atlassian.com)
+    JIRA_BASE_URL       - e.g. https://your-org.atlassian.net
+    JIRA_EMAIL          - Jira account email
+    JIRA_API_TOKEN      - Jira API token (from id.atlassian.com)
 
 Optional:
-    BERNSTEIN_URL       — Bernstein task server (default: http://127.0.0.1:8052)
-    JIRA_WEBHOOK_SECRET — Shared secret; include as ?secret=<value> in the
+    BERNSTEIN_URL       - Bernstein task server (default: http://127.0.0.1:8052)
+    JIRA_WEBHOOK_SECRET - Shared secret; include as ?secret=<value> in the
                           webhook URL or as Authorization: Bearer <value>
-    JIRA_PROJECT_FILTER — Comma-separated project keys, e.g. "PROJ,BACK"
+    JIRA_PROJECT_FILTER - Comma-separated project keys, e.g. "PROJ,BACK"
                           (empty = accept all projects)
-    JIRA_LABEL_FILTER   — Comma-separated labels, e.g. "bernstein,agent"
+    JIRA_LABEL_FILTER   - Comma-separated labels, e.g. "bernstein,agent"
                           (empty = no label filter; combined with AND if both set)
-    JIRA_DEFAULT_ROLE   — Bernstein agent role for tasks (default: backend)
+    JIRA_DEFAULT_ROLE   - Bernstein agent role for tasks (default: backend)
 
 Running
 -------
@@ -130,7 +130,7 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
 
 
 app = FastAPI(
-    title="Bernstein — Jira Webhook",
+    title="Bernstein - Jira Webhook",
     description="Bridge Jira issues to Bernstein tasks and sync status back.",
     version="1.0.0",
     lifespan=lifespan,
@@ -253,7 +253,7 @@ async def receive_jira_webhook(
     adapter = _get_adapter()
     task_create = adapter.task_from_webhook(payload)
     if task_create is None:
-        # Terminal issue (Done / Cancelled) — nothing to do
+        # Terminal issue (Done / Cancelled) - nothing to do
         log.debug("Issue %s is terminal, skipping task creation", issue_ref.key)
         return JSONResponse({"status": "ignored", "reason": "terminal_issue"})
 

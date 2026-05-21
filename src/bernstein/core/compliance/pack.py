@@ -4,7 +4,7 @@ See ``docs/decisions/009-lineage-v1.md`` §8 for the design rationale.
 
 Public surface:
 
-* :func:`build_pack` — assemble a ZIP bundle for the
+* :func:`build_pack` - assemble a ZIP bundle for the
   ``(since, until, org)`` triple, signed by the operator key.
 
 The pack's manifest follows the SLSA v1.1 provenance shape (a flat dict
@@ -81,20 +81,20 @@ def _sha256(data: bytes) -> str:
 
 def _readme_text(*, org: str, since: date, until: date, entry_count: int) -> str:
     return (
-        f"# Compliance pack — {org}\n\n"
+        f"# Compliance pack - {org}\n\n"
         f"**Period:** {since.isoformat()} → {until.isoformat()}\n"
         f"**Entries in period:** {entry_count}\n\n"
         "This bundle implements the record-keeping obligations of Article 12 of\n"
         "Regulation (EU) 2024/1689 (EU AI Act).\n\n"
         "## Contents\n\n"
-        "- `article12-evidence.pdf` — human-readable summary keyed to Article 12 paragraphs.\n"
-        "- `article12-evidence.csv` — one row per artefact write event.\n"
-        "- `lineage-log.jsonl` — raw lineage log filtered to the period.\n"
-        "- `signatures/` — per-entry detached Ed25519 JWS (RFC 7515, RFC 8785 JCS).\n"
-        "- `agent-cards/` — A2A v1.0 Agent Cards used to verify the signatures.\n"
-        "- `verify-instructions.md` — how to re-verify this bundle independently.\n"
-        "- `pack-manifest.json` — SLSA-style provenance for this pack.\n"
-        "- `pack-manifest.json.sig` — operator-issued Ed25519 JWS over the manifest.\n"
+        "- `article12-evidence.pdf` - human-readable summary keyed to Article 12 paragraphs.\n"
+        "- `article12-evidence.csv` - one row per artefact write event.\n"
+        "- `lineage-log.jsonl` - raw lineage log filtered to the period.\n"
+        "- `signatures/` - per-entry detached Ed25519 JWS (RFC 7515, RFC 8785 JCS).\n"
+        "- `agent-cards/` - A2A v1.0 Agent Cards used to verify the signatures.\n"
+        "- `verify-instructions.md` - how to re-verify this bundle independently.\n"
+        "- `pack-manifest.json` - SLSA-style provenance for this pack.\n"
+        "- `pack-manifest.json.sig` - operator-issued Ed25519 JWS over the manifest.\n"
     )
 
 
@@ -267,7 +267,7 @@ def build_pack(
     manifest["output_hash"] = _sha256(manifest_bytes_no_output)
     manifest_bytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
-    # 9. pack-manifest.json.sig — operator-signed.
+    # 9. pack-manifest.json.sig - operator-signed.
     operator_pem = _load_operator_signer(operator_key_path)
     sig = sign_detached(manifest_bytes, operator_pem, kid=_OPERATOR_KID)
 

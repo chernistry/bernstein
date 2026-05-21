@@ -15,8 +15,8 @@ Usage::
 
 Environment variables::
 
-    BERNSTEIN_DATABASE_URL   — PostgreSQL DSN (enables postgres backend)
-    BERNSTEIN_REDIS_URL      — Redis URL for distributed locking (optional)
+    BERNSTEIN_DATABASE_URL   - PostgreSQL DSN (enables postgres backend)
+    BERNSTEIN_REDIS_URL      - Redis URL for distributed locking (optional)
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ _ARCHIVE_INSERT_SQL = """
 
 logger = logging.getLogger(__name__)
 
-# ``asyncpg`` is an optional dependency — only required for postgres mode.
+# ``asyncpg`` is an optional dependency - only required for postgres mode.
 try:
     import asyncpg  # type: ignore[import-untyped]
 
@@ -68,7 +68,7 @@ _ASYNCPG_AVAILABLE: bool = _has_asyncpg
 
 
 # ---------------------------------------------------------------------------
-# DDL — created on startup if not present
+# DDL - created on startup if not present
 # ---------------------------------------------------------------------------
 
 _DDL = """
@@ -414,7 +414,7 @@ class PostgresTaskStore(BaseTaskStore):
         selection, dependency check, and status update are guaranteed to
         observe a consistent snapshot.  Dependency filtering is pushed down
         into ``_CLAIM_NEXT_SQL`` via a ``NOT EXISTS`` sub-clause, so a task
-        whose prerequisites are unmet is never claimed in the first place —
+        whose prerequisites are unmet is never claimed in the first place -
         removing the former re-open path that could roll back a legitimate
         concurrent claim from another node.
 
@@ -616,7 +616,7 @@ class PostgresTaskStore(BaseTaskStore):
         return _row_to_task(row)
 
     async def update(self, task_id: str, role: str | None, priority: int | None) -> Task:
-        """Update mutable task fields (role, priority) — manager corrections."""
+        """Update mutable task fields (role, priority) - manager corrections."""
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             current = await conn.fetchrow("SELECT id FROM tasks WHERE id=$1", task_id)

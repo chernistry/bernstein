@@ -119,7 +119,7 @@ def build_pack(demo_dir: Path, org_name: str, window: tuple[str, str]) -> Path:
     out_zip.parent.mkdir(parents=True, exist_ok=True)
 
     readme = (
-        f"# Compliance pack — {org_name}\n\n"
+        f"# Compliance pack - {org_name}\n\n"
         f"Demo bundle for the {demo_dir.name} lineage scenario.\n"
         f"Window: {window[0]} .. {window[1]}\n"
         f"Entries: {len(entries)}\n\n"

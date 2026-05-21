@@ -26,7 +26,7 @@ import schemathesis
 from hypothesis import settings
 from schemathesis import checks as st_checks
 
-# Disable Bernstein auth before the app is built — the OpenAPI schema
+# Disable Bernstein auth before the app is built - the OpenAPI schema
 # endpoint is itself behind the auth middleware and Schemathesis cannot
 # fetch it otherwise. Setting the env var here (before the import) is
 # the documented opt-out path.
@@ -43,7 +43,7 @@ schema = schemathesis.openapi.from_asgi("/openapi.json", _app)
 _PROFILE = os.environ.get("SCHEMATHESIS_PROFILE", "smoke")
 _MAX_EXAMPLES = {"smoke": 5, "deep": 50}.get(_PROFILE, 5)
 
-# PR-time critical-surface allow-list. Keep tight — every entry adds
+# PR-time critical-surface allow-list. Keep tight - every entry adds
 # 5×endpoint examples to the wall-clock. The deep profile drops this
 # filter and fuzzes the entire schema.
 _SMOKE_PATH_PREFIXES = (
@@ -72,7 +72,7 @@ def test_no_unhandled_exceptions(case: schemathesis.Case) -> None:
     """Every documented endpoint must respond without 500-class crash.
 
     `case.call_and_validate()` invokes the app via the ASGI in-process
-    transport, so each example is a sub-millisecond round-trip — fast
+    transport, so each example is a sub-millisecond round-trip - fast
     enough that a focused critical-surface fuzz stays under 90 s at
     smoke settings.
     """

@@ -1,4 +1,4 @@
-"""Tests for comparative benchmark — YAML loading, report aggregation, markdown."""
+"""Tests for comparative benchmark - YAML loading, report aggregation, markdown."""
 
 from __future__ import annotations
 

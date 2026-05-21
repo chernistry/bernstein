@@ -12,7 +12,7 @@ The wrapper is intentionally tolerant of three failure modes:
 1. ``gh`` is not on ``$PATH``.  The dispatcher should fail open (skip
    the attempt with a clear reason) rather than crashing the daemon.
 2. ``gh`` exits non-zero (auth issue, run id not found).
-3. The log is *empty* — sometimes a job fails before producing
+3. The log is *empty* - sometimes a job fails before producing
    output.  In that case the classifier still runs against the empty
    string and falls back to the default bucket.
 """
@@ -108,7 +108,7 @@ def extract_failed_log(
         repo: Optional ``owner/name`` repo override; passed to ``gh``
             via ``-R`` so the CLI does not require the operator to
             ``cd`` into the right checkout.
-        runner: Test seam — when provided this callable is used
+        runner: Test seam - when provided this callable is used
             instead of :func:`subprocess.run`.  The default behaviour
             calls ``gh`` directly.
         timeout_seconds: Subprocess timeout.  ``gh`` typically

@@ -47,7 +47,7 @@ def test_slice_full_range_returns_all_events(tmp_path: Path) -> None:
 
 
 def test_slice_with_from_and_to_inclusive(tmp_path: Path) -> None:
-    """Both bounds inclusive — slice covers from..to events."""
+    """Both bounds inclusive - slice covers from..to events."""
     audit_dir = tmp_path / "audit"
     hmacs = _build_log(audit_dir, 5)
 
@@ -148,7 +148,7 @@ def test_slice_chain_verifies(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# write_slice_jsonl — determinism guarantees
+# write_slice_jsonl - determinism guarantees
 # ---------------------------------------------------------------------------
 
 
@@ -179,7 +179,7 @@ def test_slice_jsonl_contains_expected_events(tmp_path: Path) -> None:
 
 
 def test_slice_jsonl_keys_are_sorted(tmp_path: Path) -> None:
-    """Each line's keys are in canonical (sorted) order — required for hashing."""
+    """Each line's keys are in canonical (sorted) order - required for hashing."""
     audit_dir = tmp_path / "audit"
     _build_log(audit_dir, 1)
 
@@ -187,7 +187,7 @@ def test_slice_jsonl_keys_are_sorted(tmp_path: Path) -> None:
     out_path = write_slice_jsonl(result, tmp_path / "slice.jsonl")
 
     line = out_path.read_text(encoding="utf-8").splitlines()[0]
-    # Expect "actor" before "details" before "event_type" — confirms sort_keys.
+    # Expect "actor" before "details" before "event_type" - confirms sort_keys.
     actor_pos = line.index('"actor"')
     details_pos = line.index('"details"')
     event_type_pos = line.index('"event_type"')
@@ -195,7 +195,7 @@ def test_slice_jsonl_keys_are_sorted(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI surface — `bernstein audit slice`
+# CLI surface - `bernstein audit slice`
 # ---------------------------------------------------------------------------
 
 
@@ -208,7 +208,7 @@ def _audit_dir_in_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_cli_slice_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`bernstein audit slice` happy path — exits 0 and writes the events."""
+    """`bernstein audit slice` happy path - exits 0 and writes the events."""
     audit_dir = _audit_dir_in_cwd(tmp_path, monkeypatch)
     hmacs = _build_log(audit_dir, 4)
 

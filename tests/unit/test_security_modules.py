@@ -157,7 +157,7 @@ class TestJWTManager:
 
         header_b64 = _b64(_json.dumps(header).encode())
         payload_b64 = _b64(_json.dumps(payload).encode())
-        # Intentionally empty signature — classic "alg: none" bypass.
+        # Intentionally empty signature - classic "alg: none" bypass.
         forged = f"{header_b64}.{payload_b64}."
 
         assert manager.verify_token(forged) is None

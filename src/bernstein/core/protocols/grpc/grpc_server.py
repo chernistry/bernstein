@@ -392,7 +392,7 @@ class BernsteinGrpcServer:
         node_registry: NodeRegistry | None = None,
     ) -> None:
         if not GRPC_AVAILABLE:
-            logger.warning("grpcio not installed — gRPC server disabled")
+            logger.warning("grpcio not installed - gRPC server disabled")
             return
 
         from bernstein.core.grpc_gen import tasks_pb2_grpc

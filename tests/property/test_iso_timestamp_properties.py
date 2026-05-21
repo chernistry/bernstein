@@ -2,14 +2,14 @@
 
 Several modules parse operator-supplied or self-emitted ISO timestamps:
 
-* ``bernstein.core.security.article12_bundle._parse_iso`` — accepts
+* ``bernstein.core.security.article12_bundle._parse_iso`` - accepts
   ``"Z"``-suffixed strings (the audit log's emission format) by
   normalising to ``"+00:00"`` before delegation to
   ``datetime.fromisoformat``.
 
-* ``bernstein.core.agents.heartbeat`` — same normalisation pattern.
+* ``bernstein.core.agents.heartbeat`` - same normalisation pattern.
 
-* ``bernstein.core.orchestration.run_changelog`` — same.
+* ``bernstein.core.orchestration.run_changelog`` - same.
 
 A regression in any of these (dropped ``Z`` handling, accidental
 ``%S`` truncation) silently shifts timestamps by hours or rejects
@@ -19,7 +19,7 @@ the audit log's own output. The properties here pin the contract:
 * **Round-trip through ``isoformat`` + ``_parse_iso`` is the identity**.
 * **The audit log's literal emission format parses cleanly**.
 * **Timezone-aware datetimes survive the parser without dropping
-  tzinfo** — a regression would interpret persisted UTC as local
+  tzinfo** - a regression would interpret persisted UTC as local
   time, an hours-magnitude bug.
 """
 
@@ -49,7 +49,7 @@ def test_z_suffix_equals_plus_zero(dt: datetime) -> None:
     The audit log emits its timestamps with a literal ``Z`` suffix;
     if ``_parse_iso`` ever dropped the normalisation step, every
     audit-export bundle generation would shift those timestamps to
-    naive (local-zone-interpreted) datetimes — a silent hours-scale
+    naive (local-zone-interpreted) datetimes - a silent hours-scale
     drift in compliance reports.
     """
     iso_z = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -62,7 +62,7 @@ def test_round_trip_isoformat(dt: datetime) -> None:
     """``_parse_iso(dt.isoformat())`` equals ``dt``.
 
     Catches regressions where the parser drops microseconds (which
-    would shift up to a second per parse — too small for unit tests
+    would shift up to a second per parse - too small for unit tests
     to notice but a real bug in chronological event ordering).
     """
     iso = dt.isoformat()
@@ -76,7 +76,7 @@ def test_audit_log_emission_format_parses(dt: datetime) -> None:
 
     The audit log produces ``%Y-%m-%dT%H:%M:%S.%fZ``. If the parser
     couldn't accept that format, every audit export bundle generation
-    would crash on its own input — a CI-time regression worth catching
+    would crash on its own input - a CI-time regression worth catching
     before it merges.
     """
     audit_format = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -102,7 +102,7 @@ def test_nonzero_offset_preserved(dt: datetime, offset_hours: int) -> None:
     iso = shifted.isoformat()
     parsed = _parse_iso(iso)
     assert parsed == shifted
-    # The instant is the same; the tzinfo may be normalised — only
+    # The instant is the same; the tzinfo may be normalised - only
     # the absolute UTC moment is the load-bearing contract.
     assert parsed.utcoffset() == timedelta(hours=offset_hours)
 

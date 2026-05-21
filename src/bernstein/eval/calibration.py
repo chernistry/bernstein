@@ -6,12 +6,12 @@ that emits a probability paired with an eventually-observed binary outcome.
 
 Three core primitives are exported:
 
-* :func:`BrierScore` — mean squared error between predicted probability and
+* :func:`BrierScore` - mean squared error between predicted probability and
   observed outcome. Lower is better; range is ``[0, 1]``.
-* :func:`expected_calibration_error` — weighted average bucket gap between
+* :func:`expected_calibration_error` - weighted average bucket gap between
   predicted-probability mean and observed-outcome mean (the classic 10-bin
   ECE reference implementation).
-* :func:`reliability_diagram_data` — per-bucket data for a reliability plot
+* :func:`reliability_diagram_data` - per-bucket data for a reliability plot
   (predicted mean, observed mean, count, lower edge, upper edge).
 
 Additionally, helpers manage the on-disk JSONL log at
@@ -59,7 +59,7 @@ DEFAULT_LOG_PATH: Final[Path] = Path(".sdd/metrics/calibration.jsonl")
 """Default on-disk location for the calibration JSONL log."""
 
 _DEFAULT_BIN_COUNT: Final[int] = 10
-"""Default number of reliability buckets — the standard 10-bin ECE config."""
+"""Default number of reliability buckets - the standard 10-bin ECE config."""
 
 _DURATION_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s*(\d+)\s*(s|m|h|d|w)\s*$",
@@ -87,7 +87,7 @@ class CalibrationRecord:
             the probability (e.g. ``"bandit/v3"``).
         predicted_prob: Probability that the decision will be a win,
             in the closed interval ``[0.0, 1.0]``.
-        observed_outcome: Binary outcome — ``True`` for win, ``False`` for loss.
+        observed_outcome: Binary outcome - ``True`` for win, ``False`` for loss.
         decision_id: Optional identifier for joining with external logs.
         metadata: Optional auxiliary fields preserved on round-trip.
     """
@@ -112,7 +112,7 @@ class CalibrationRecord:
             msg = f"predicted_prob {self.predicted_prob!r} outside [0, 1]"
             raise CalibrationLogError(msg)
         # We *intentionally* keep this isinstance check despite the static
-        # type — callers reaching us from JSON deserialisation may slip in
+        # type - callers reaching us from JSON deserialisation may slip in
         # an ``int``; we want to reject that rather than silently coerce.
         if type(self.observed_outcome) is not bool:
             msg = "observed_outcome must be a bool"
@@ -147,7 +147,7 @@ class BrierScore:
 
     Attributes:
         score: Mean squared error in ``[0, 1]`` between predicted probability
-            and observed outcome — lower is better.
+            and observed outcome - lower is better.
         sample_count: Number of predictions used to compute the score.
     """
 
@@ -161,8 +161,8 @@ class CalibrationReport:
 
     Attributes:
         decisions: Total number of decisions considered.
-        brier: Brier score for the window — ``None`` when ``decisions == 0``.
-        ece: Expected calibration error — ``None`` when ``decisions == 0``.
+        brier: Brier score for the window - ``None`` when ``decisions == 0``.
+        ece: Expected calibration error - ``None`` when ``decisions == 0``.
         buckets: Reliability diagram buckets (always returned, may be empty).
         decision_kind: Optional filter that produced this report.
         since: Optional duration that produced this report (e.g. ``"7d"``).
@@ -274,7 +274,7 @@ def reliability_diagram_data(
         bin_count: Number of equal-width buckets across ``[0, 1]``.
 
     Returns:
-        A tuple of :class:`ReliabilityBucket` entries — one per bucket,
+        A tuple of :class:`ReliabilityBucket` entries - one per bucket,
         in monotonically non-decreasing ``lower`` order. Empty buckets are
         included with ``count=0``, ``predicted_mean=lower``,
         ``observed_mean=0.0`` so the diagram retains its axis structure.
@@ -341,7 +341,7 @@ def expected_calibration_error(
 
     Returns:
         A scalar in ``[0, 1]``. Returns ``0.0`` when no predictions are
-        supplied — there is no error to report.
+        supplied - there is no error to report.
 
     Raises:
         CalibrationLogError: On length mismatch or invalid prediction value.
@@ -581,7 +581,7 @@ def compute_report(
 
     Returns:
         A :class:`CalibrationReport`. When ``records`` is empty, ``brier``
-        and ``ece`` are ``None`` and ``buckets`` is empty — never raises.
+        and ``ece`` are ``None`` and ``buckets`` is empty - never raises.
     """
     if not records:
         return CalibrationReport(
@@ -607,5 +607,5 @@ def compute_report(
 
 
 def iter_records(records: Iterable[CalibrationRecord]) -> Iterator[CalibrationRecord]:
-    """Yield records lazily — used for streaming callers."""
+    """Yield records lazily - used for streaming callers."""
     yield from records

@@ -51,7 +51,7 @@ def test_list_subdirs_cached_returns_sorted_names(tmp_path: Path) -> None:
     (tmp_path / "alpha").mkdir()
     (tmp_path / "file.txt").write_text("", encoding="utf-8")
 
-    # Use real filesystem stat — no mocking needed for this test
+    # Use real filesystem stat - no mocking needed for this test
     names = _list_subdirs_cached(tmp_path)
     assert names == ["alpha", "zeta"]
 

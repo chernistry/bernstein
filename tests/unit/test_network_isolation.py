@@ -49,7 +49,7 @@ class TestNetworkIsolationValidator:
         )
         validator = NetworkIsolationValidator(policy)
         check = validator.check_endpoint_blocked(Endpoint("192.0.2.1", 1))
-        # This endpoint is RFC 5737 documentation — it should be unreachable
+        # This endpoint is RFC 5737 documentation - it should be unreachable
         assert check.status == CheckStatus.PASS
 
     def test_check_endpoint_reachable_unreachable_host(self) -> None:

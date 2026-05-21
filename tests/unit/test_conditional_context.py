@@ -59,7 +59,7 @@ class TestFilesMatchPatterns:
 
     def test_double_star_not_fnmatch(self) -> None:
         # fnmatch treats ** the same as * (no recursive), but the user intent
-        # is "anything under src/" — single * suffices for flat matching.
+        # is "anything under src/" - single * suffices for flat matching.
         assert _files_match_patterns(["src/foo.py"], ("src/*.py",))
 
     def test_no_match(self) -> None:

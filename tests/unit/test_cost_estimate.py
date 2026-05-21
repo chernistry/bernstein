@@ -58,7 +58,7 @@ def test_task_cost_estimate_is_frozen() -> None:
 
 
 # ---------------------------------------------------------------------------
-# estimate_task_cost — different complexities
+# estimate_task_cost - different complexities
 # ---------------------------------------------------------------------------
 
 
@@ -103,7 +103,7 @@ def test_estimate_task_cost_tokens_positive() -> None:
 
 
 # ---------------------------------------------------------------------------
-# estimate_task_cost — historical average
+# estimate_task_cost - historical average
 # ---------------------------------------------------------------------------
 
 
@@ -131,7 +131,7 @@ def test_estimate_task_cost_historical_zero_ignored() -> None:
 
 
 # ---------------------------------------------------------------------------
-# estimate_run_cost — aggregation
+# estimate_run_cost - aggregation
 # ---------------------------------------------------------------------------
 
 
@@ -170,7 +170,7 @@ def test_estimate_run_cost_confidence_bounds() -> None:
 
 
 # ---------------------------------------------------------------------------
-# estimate_run_cost — over-budget detection
+# estimate_run_cost - over-budget detection
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ def test_estimate_run_cost_no_budget() -> None:
 
 
 # ---------------------------------------------------------------------------
-# format_cost_estimate — readable output
+# format_cost_estimate - readable output
 # ---------------------------------------------------------------------------
 
 

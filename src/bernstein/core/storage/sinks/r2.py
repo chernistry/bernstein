@@ -5,14 +5,14 @@ of :class:`~bernstein.core.storage.sinks.s3.S3ArtifactSink` that wires
 R2-specific credential env vars and constructs the per-account endpoint
 URL.
 
-Install with ``pip install bernstein[r2]`` (which pulls boto3 — the
+Install with ``pip install bernstein[r2]`` (which pulls boto3 - the
 same SDK used by :mod:`bernstein.core.storage.sinks.s3`).
 
 Credentials:
 
-- ``R2_ACCOUNT_ID`` — required; determines the endpoint URL.
-- ``R2_ACCESS_KEY_ID`` — preferred; falls back to ``AWS_ACCESS_KEY_ID``.
-- ``R2_SECRET_ACCESS_KEY`` — preferred; falls back to
+- ``R2_ACCOUNT_ID`` - required; determines the endpoint URL.
+- ``R2_ACCESS_KEY_ID`` - preferred; falls back to ``AWS_ACCESS_KEY_ID``.
+- ``R2_SECRET_ACCESS_KEY`` - preferred; falls back to
   ``AWS_SECRET_ACCESS_KEY``.
 
 Explicit constructor arguments take priority over environment

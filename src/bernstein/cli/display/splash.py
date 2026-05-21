@@ -1,7 +1,7 @@
-"""Startup splash — BIOS-style, ultra-compact, minimal vertical space.
+"""Startup splash - BIOS-style, ultra-compact, minimal vertical space.
 
 Everything fits on a small laptop screen. Dense monospace output like
-a computer booting up — no wasted lines, no empty gaps.
+a computer booting up - no wasted lines, no empty gaps.
 """
 
 from __future__ import annotations

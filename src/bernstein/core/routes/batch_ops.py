@@ -1,6 +1,6 @@
 """WEB-017: Batch operations endpoint for task management.
 
-POST /tasks/batch-ops — execute bulk cancel, retry, reprioritize, or tag
+POST /tasks/batch-ops - execute bulk cancel, retry, reprioritize, or tag
 operations on up to 200 tasks in a single request.
 """
 

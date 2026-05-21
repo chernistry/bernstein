@@ -1,4 +1,4 @@
-"""Tests for POST /tasks/self-create — agent-initiated subtask creation."""
+"""Tests for POST /tasks/self-create - agent-initiated subtask creation."""
 
 from __future__ import annotations
 

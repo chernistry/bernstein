@@ -11,7 +11,7 @@ override path is exercised without bandit interference.
 
 The CLI surface tests (``bernstein criterion-profile show``,
 ``bernstein add-task --criterion-profile``, etc.) hit the Click runner
-in-process to avoid spinning up the full task server — the CLI
+in-process to avoid spinning up the full task server - the CLI
 performs early validation locally, which is what the integration
 contract guarantees.
 """
@@ -244,7 +244,7 @@ def test_env_var_propagated_to_router_path(
     """Setting ``BERNSTEIN_RUN_CRITERION_PROFILE`` doesn't crash the router.
 
     The env var is set by the ``bernstein run`` bootstrap; the router
-    itself does not read it directly — tasks carry the metadata.  This
+    itself does not read it directly - tasks carry the metadata.  This
     test pins the contract: the env var presence alone never alters
     routing for tasks that lack the metadata key.
     """

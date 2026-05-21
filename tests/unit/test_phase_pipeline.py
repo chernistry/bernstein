@@ -53,7 +53,7 @@ def _make_task(
 def _stub_executor(task: Task, spec: PhaseSpec, prior: PhaseArtifact | None) -> PhaseArtifact:
     """Deterministic executor that fabricates an artefact per phase.
 
-    For RESEARCH it pretends to have read 60 KB of source — the resulting
+    For RESEARCH it pretends to have read 60 KB of source - the resulting
     artefact's serialised form is what the next phase will see, so the
     ratio between ``len(serialised)`` and 60 KB exercises the
     "next phase input < 10% of previous output" claim.
@@ -217,7 +217,7 @@ def test_artifact_store_gc_removes_task_dir(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# PhasedRunner — the meat of the pattern
+# PhasedRunner - the meat of the pattern
 # ---------------------------------------------------------------------------
 
 
@@ -253,7 +253,7 @@ def test_runner_picks_high_reasoning_model_for_research_only(tmp_path: Path) -> 
 def test_runner_handoff_is_strictly_smaller_than_simulated_research(tmp_path: Path) -> None:
     """The implement phase must see <10% of the simulated research bulk.
 
-    The stub research artefact is intentionally terse — the whole point of
+    The stub research artefact is intentionally terse - the whole point of
     distillation is that 60 KB of exploration compresses to a few hundred
     bytes of conclusions.
     """
@@ -290,7 +290,7 @@ def test_runner_implement_prompt_is_only_distilled_json(tmp_path: Path) -> None:
     impl_input = captured[Phase.IMPLEMENT]
     assert isinstance(plan_input, PhaseArtifact)
     assert isinstance(impl_input, PhaseArtifact)
-    # The implement phase's input is the plan artefact — small, structured.
+    # The implement phase's input is the plan artefact - small, structured.
     assert "decisions" in impl_input.to_json()
     assert len(impl_input.to_json()) < 2_000
 

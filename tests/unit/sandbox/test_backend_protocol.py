@@ -113,7 +113,7 @@ class TestWorktreeConformance(SandboxBackendConformance):
     ) -> None:
         session = await backend.create(manifest, options={"repo_root": manifest.root})
         try:
-            payload = "hello world — ✓".encode()
+            payload = "hello world - ✓".encode()
             await session.write("hello.txt", payload)
             got = await session.read("hello.txt")
             assert got == payload

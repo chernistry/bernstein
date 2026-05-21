@@ -144,7 +144,7 @@ _LIVE_ADAPTER_NAMES = ["mock", *_REAL_ADAPTER_NAMES]
 
 
 # ---------------------------------------------------------------------------
-# Live conformance suite — spawns real processes, requires --live flag.
+# Live conformance suite - spawns real processes, requires --live flag.
 # ---------------------------------------------------------------------------
 
 
@@ -155,10 +155,10 @@ class TestLiveAdapterConformance:
     included; real CLI adapters are discovered via ``shutil.which``.
 
     Each test verifies the four observable properties described in AGENT-011:
-    1. **Successful spawn** — ``SpawnResult`` with a valid PID is returned.
-    2. **Heartbeat emission** — ``is_alive(pid)`` returns ``True`` after spawn.
-    3. **Structured output** — log file exists and has non-empty content.
-    4. **Clean shutdown** — process is no longer alive after it finishes or is
+    1. **Successful spawn** - ``SpawnResult`` with a valid PID is returned.
+    2. **Heartbeat emission** - ``is_alive(pid)`` returns ``True`` after spawn.
+    3. **Structured output** - log file exists and has non-empty content.
+    4. **Clean shutdown** - process is no longer alive after it finishes or is
        killed.
     """
 
@@ -169,7 +169,7 @@ class TestLiveAdapterConformance:
             pytest.skip("Pass --live to run live adapter conformance tests")
 
     # ------------------------------------------------------------------
-    # Mock adapter — always available, completes naturally in ~2 s
+    # Mock adapter - always available, completes naturally in ~2 s
     # ------------------------------------------------------------------
 
     def test_mock_spawn_succeeds(self, tmp_path: Path) -> None:
@@ -201,10 +201,10 @@ class TestLiveAdapterConformance:
             session_id="live-mock-heartbeat",
         )
 
-        time.sleep(0.2)  # Brief pause — process must still be running
+        time.sleep(0.2)  # Brief pause - process must still be running
         assert adapter.is_alive(result.pid), "Process must be alive immediately after spawn"
 
-        # Clean up — wait for natural completion
+        # Clean up - wait for natural completion
         proc = result.proc
         if hasattr(proc, "wait"):
             proc.wait(timeout=15)  # type: ignore[union-attr]
@@ -255,7 +255,7 @@ class TestLiveAdapterConformance:
         CLIAdapter.cancel_timeout(result)
 
     # ------------------------------------------------------------------
-    # Real installed adapters — parametrized over whatever is on PATH.
+    # Real installed adapters - parametrized over whatever is on PATH.
     # Each test is a no-op parametrization skip when no binary is found.
     # ------------------------------------------------------------------
 

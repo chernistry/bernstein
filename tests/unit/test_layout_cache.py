@@ -1,4 +1,4 @@
-"""Tests for layout_cache — dirty-flag layout caching."""
+"""Tests for layout_cache - dirty-flag layout caching."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for AGENT-003 — prompt size pre-check before spawn."""
+"""Tests for AGENT-003 - prompt size pre-check before spawn."""
 
 from __future__ import annotations
 

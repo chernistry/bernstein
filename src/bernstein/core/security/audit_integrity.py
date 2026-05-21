@@ -129,7 +129,7 @@ def _load_audit_key(audit_dir: Path) -> bytes | None:
 
     1. ``$BERNSTEIN_AUDIT_KEY_PATH`` environment variable.
     2. XDG state default (``~/.local/state/bernstein/audit.key``).
-    3. Legacy location ``<audit_dir>/../config/audit-key`` — retained as a
+    3. Legacy location ``<audit_dir>/../config/audit-key`` - retained as a
        read-only fallback so systems that have not yet migrated can still
        verify their chain. Permissions are enforced in all cases.
 
@@ -190,7 +190,7 @@ def _verify_entry_chain(
         # moves onto a network surface.
         if prev_hmac is not None and not _hmac.compare_digest(entry_prev_hmac, prev_hmac):
             errors.append(
-                f"{filename}:{line_no}: chain broken — "
+                f"{filename}:{line_no}: chain broken - "
                 f"prev_hmac {entry_prev_hmac[:16]}... != expected {prev_hmac[:16]}..."
             )
 
@@ -199,7 +199,7 @@ def _verify_entry_chain(
 
         if not _hmac.compare_digest(stored_hmac, expected_hmac):
             errors.append(
-                f"{filename}:{line_no}: HMAC mismatch — "
+                f"{filename}:{line_no}: HMAC mismatch - "
                 f"stored {stored_hmac[:16]}... != computed {expected_hmac[:16]}..."
             )
 

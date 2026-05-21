@@ -119,7 +119,7 @@ class TestPerspectiveSchema:
 
 
 # ---------------------------------------------------------------------------
-# Runner — fake adapter stubs
+# Runner - fake adapter stubs
 # ---------------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ class TestSequentialChain:
 
         asyncio.run(run_perspectives(cfg, "+ diff line", adapter_call=adapter))
 
-        # Head of chain has no prior context — diff is passed verbatim.
+        # Head of chain has no prior context - diff is passed verbatim.
         assert "Prior reviewer verdicts" not in seen_envelopes["security"]
         assert "+ diff line" in seen_envelopes["security"]
         assert seen_priors["security"] == []
@@ -294,7 +294,7 @@ class TestChainPosition:
 
 
 # ---------------------------------------------------------------------------
-# Audit records — replay determinism
+# Audit records - replay determinism
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +310,7 @@ class TestAuditRecords:
         second_records = [v.audit_record(chain=cfg.chain) for v in second]
 
         # Two independent runs against the same fake adapter must produce
-        # byte-identical audit records — that is the issue's
+        # byte-identical audit records - that is the issue's
         # replay-determinism acceptance criterion.
         assert first_records == second_records
         # And the dict must NOT carry the wall-clock timestamp.

@@ -36,7 +36,7 @@ def _safe_id(session_id: str) -> str:
     """Sanitize a session_id for use in log records.
 
     Explicit chained ``str.replace`` calls (rather than a regex) so static
-    analysers — CodeQL ``py/log-injection`` in particular — recognise the
+    analysers - CodeQL ``py/log-injection`` in particular - recognise the
     sanitiser and stop flagging the surrounding logger callsites.
     """
     return (session_id.replace("\n", "_").replace("\r", "_").replace("\t", "_").replace("\x1b", "_"))[:_SAFE_ID_MAX_LEN]

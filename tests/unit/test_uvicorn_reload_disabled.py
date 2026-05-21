@@ -1,4 +1,4 @@
-"""Regression tests for audit-115 — uvicorn ``--reload`` must never be enabled.
+"""Regression tests for audit-115 - uvicorn ``--reload`` must never be enabled.
 
 Context:
     On 2026-04-11 a bernstein evolve run launched uvicorn with ``--reload`` so
@@ -8,7 +8,7 @@ Context:
     task claims. The server hung for 127s and the orchestrator gave up.
 
     Audit-115 removes ``--reload`` from the production launch paths entirely.
-    Evolve mode is the self-modifying flow — it MUST NOT enable auto-reload.
+    Evolve mode is the self-modifying flow - it MUST NOT enable auto-reload.
 
 These tests ensure both server-launch code paths (``server_supervisor`` and
 ``server_launch``) never pass ``--reload`` / ``reload=True`` to uvicorn,

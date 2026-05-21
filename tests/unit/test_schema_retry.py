@@ -93,7 +93,7 @@ def test_error_accumulation_across_steps() -> None:
     def ask_a(_prompt: str) -> str:
         return '{"a": 1}'
 
-    # Step 1 — fail then recover.
+    # Step 1 - fail then recover.
     validate_with_retry(
         initial_response="bad-a",
         validate=_ok_validator,
@@ -102,7 +102,7 @@ def test_error_accumulation_across_steps() -> None:
         step_id="step.a",
     )
 
-    # Step 2 — capture the prompt to confirm step.a's error is included.
+    # Step 2 - capture the prompt to confirm step.a's error is included.
     captured: list[str] = []
 
     def ask_b(prompt: str) -> str:

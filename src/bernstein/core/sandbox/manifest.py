@@ -1,4 +1,4 @@
-"""WorkspaceManifest — declarative description of a sandbox workspace.
+"""WorkspaceManifest - declarative description of a sandbox workspace.
 
 The manifest is the value object backends consume via
 :meth:`SandboxBackend.create`. Phase 1 (oai-002) covered the minimum
@@ -86,7 +86,7 @@ class S3Mount:
         credentials_env: Tuple of env-var names the sandbox must forward
             to the mount helper (e.g. ``("AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY")``). The orchestrator strips these
-            from the spawned agent's environment — only the mount tool
+            from the spawned agent's environment - only the mount tool
             receives them.
         read_only: When True, the mount is bound ``ro``. Useful for
             read-only artifact inspection jobs.
@@ -197,7 +197,7 @@ class WorkspaceManifest:
             override per call via ``env=``.
         timeout_seconds: Default wall-clock timeout for
             :meth:`SandboxSession.exec` when the caller doesn't pass
-            one explicitly. Not a hard session lifetime cap — individual
+            one explicitly. Not a hard session lifetime cap - individual
             backends may still honour longer sessions.
         artifact_mounts: Tuple of provider-specific cloud mounts
             (oai-003). Cloud sandbox backends translate these into

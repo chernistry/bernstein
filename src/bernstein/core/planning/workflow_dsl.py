@@ -1,4 +1,4 @@
-"""Workflow DSL — declarative YAML/Python for conditional task DAGs.
+"""Workflow DSL - declarative YAML/Python for conditional task DAGs.
 
 Extends governed workflow mode (``WorkflowDefinition``) with user-authored
 conditional DAGs.  DAG nodes map to workflow phases; edges carry guard
@@ -272,7 +272,7 @@ def _parse_condition(raw: str) -> ast.Expression:
     try:
         return ast.parse(raw, mode="eval")
     except SyntaxError as exc:
-        msg = f"Invalid condition syntax: {raw!r} — {exc}"
+        msg = f"Invalid condition syntax: {raw!r} - {exc}"
         raise ConditionError(msg) from exc
 
 
@@ -826,7 +826,7 @@ TERMINAL_STATUSES: frozenset[TaskStatus] = frozenset({TaskStatus.DONE, TaskStatu
 class DAGExecutor:
     """Drives task scheduling through a conditional DAG.
 
-    Works alongside ``WorkflowExecutor`` — phases gate which nodes are
+    Works alongside ``WorkflowExecutor`` - phases gate which nodes are
     eligible; the ``DAGExecutor`` resolves conditional edges within those
     phases.
 

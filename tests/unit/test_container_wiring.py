@@ -13,7 +13,7 @@ from bernstein.core.models import ContainerIsolationConfig
 from bernstein.core.orchestrator import _build_container_config
 
 # ---------------------------------------------------------------------------
-# _build_container_config — disabled
+# _build_container_config - disabled
 # ---------------------------------------------------------------------------
 
 
@@ -28,7 +28,7 @@ class TestBuildContainerConfigDisabled:
 
 
 # ---------------------------------------------------------------------------
-# _build_container_config — enabled, basic fields
+# _build_container_config - enabled, basic fields
 # ---------------------------------------------------------------------------
 
 
@@ -113,7 +113,7 @@ class TestBuildContainerConfigEnabled:
 
 
 # ---------------------------------------------------------------------------
-# _build_container_config — two-phase sandbox
+# _build_container_config - two-phase sandbox
 # ---------------------------------------------------------------------------
 
 

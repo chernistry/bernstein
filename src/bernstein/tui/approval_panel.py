@@ -20,7 +20,7 @@ from bernstein.tui.task_list import generate_sparkline
 _APPROVAL_DETAILS_SELECTOR = "#approval-details"
 
 # ---------------------------------------------------------------------------
-# ApprovalPanel — interactive permission approval widget
+# ApprovalPanel - interactive permission approval widget
 # ---------------------------------------------------------------------------
 
 
@@ -346,7 +346,7 @@ class ToolObserverEntry:
         session_id: Agent session that invoked the tool.
         total_ms: Wall-clock execution time in milliseconds.
         timestamp: Unix epoch when the call completed.
-        status: Completion status — always ``"done"`` for JSONL-sourced records.
+        status: Completion status - always ``"done"`` for JSONL-sourced records.
     """
 
     tool_name: str
@@ -505,7 +505,7 @@ class ToolObserverWidget(Static):
     def refresh_from_jsonl(self, jsonl_path: Path | None = None) -> None:
         """Pull new records from JSONL into the ring buffer and repaint.
 
-        This is O(new bytes) — safe to call on every poll cycle even under
+        This is O(new bytes) - safe to call on every poll cycle even under
         high tool churn, because only newly appended lines are read.
 
         Args:

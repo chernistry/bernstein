@@ -3,10 +3,10 @@
 Delegates secret storage to the OS-native keychain via the ``keyring``
 package:
 
-* macOS  — Keychain Services
-* Linux  — Secret Service / libsecret (when a desktop environment is running
+* macOS  - Keychain Services
+* Linux  - Secret Service / libsecret (when a desktop environment is running
   or ``dbus-daemon`` + a backend like ``gnome-keyring`` is reachable)
-* Windows — Credential Manager via DPAPI
+* Windows - Credential Manager via DPAPI
 
 A single keychain entry per provider holds a JSON envelope::
 
@@ -20,7 +20,7 @@ A single keychain entry per provider holds a JSON envelope::
     }
 
 The envelope shape lets us evolve metadata without breaking the keyring
-read path — older callers see new keys and ignore them.
+read path - older callers see new keys and ignore them.
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ implemented ``integrate_idle_detection`` function with zero callers in
 1. ``integrate_idle_detection`` behaviour in isolation (baseline, shutdown,
    dead-session skip, active-session skip).
 2. A regression guard that ``Orchestrator._tick_internal`` actually wires
-   the heuristic in — so future refactors can't silently delete the call
+   the heuristic in - so future refactors can't silently delete the call
    again.
 """
 
@@ -143,7 +143,7 @@ class TestIntegrateIdleDetection:
         orch._signal_mgr.write_shutdown.assert_not_called()
 
     def test_leaves_active_agents_alone(self, tmp_path: Path) -> None:
-        """Growing log means agent is active — no shutdown signal."""
+        """Growing log means agent is active - no shutdown signal."""
         sess = _make_session("sess-active")
         orch = _make_orch(tmp_path, {"sess-active": sess})
         orch._last_known_log_lines = {"sess-active": 50}

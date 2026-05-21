@@ -6,7 +6,7 @@ is tagged with which of the three capabilities it carries
 union of capabilities along a single execution path covers all three, the
 chain is denied.
 
-This is a structural orchestration-time check — not a guardrail prompt —
+This is a structural orchestration-time check - not a guardrail prompt -
 so it cannot be bypassed by injection attempts in untrusted content.
 
 Usage::
@@ -78,7 +78,7 @@ class ToolCapabilities:
     Attributes:
         tool_name: Stable identifier (MCP tool, adapter command, hook).
         capabilities: Capability axes the tool carries.
-        source: Where the tags came from — declared YAML, inferred from
+        source: Where the tags came from - declared YAML, inferred from
             heuristics, or defaulted because the tool was unknown.
     """
 
@@ -112,7 +112,7 @@ class ChainDecision:
 class CapabilityRegistry:
     """In-memory map of tool name → :class:`ToolCapabilities`.
 
-    Unknown tools are treated as carrying *all three* capabilities — the
+    Unknown tools are treated as carrying *all three* capabilities - the
     safest default, since the orchestrator cannot prove otherwise.
     """
 
@@ -259,7 +259,7 @@ def _coerce_capabilities(values: Iterable[object]) -> frozenset[Capability]:
         try:
             out.add(Capability(token))
         except ValueError:
-            logger.warning("Unknown capability token %r — ignoring", token)
+            logger.warning("Unknown capability token %r - ignoring", token)
     return frozenset(out)
 
 

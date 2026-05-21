@@ -5,7 +5,7 @@ run.  Groups changes by component, summarizes each change in plain English,
 flags breaking changes, and links back to the originating task.
 
 This is distinct from ``changelog_cmd.py`` (which generates changelogs from
-conventional commits for Bernstein itself) — this module generates changelogs
+conventional commits for Bernstein itself) - this module generates changelogs
 for the *target project* based on what agents actually changed.
 """
 

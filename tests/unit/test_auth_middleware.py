@@ -56,7 +56,7 @@ def test_admin_only_routes_require_admin_manage() -> None:
 
 
 def test_unknown_write_route_falls_closed_to_admin_manage() -> None:
-    """Unknown write routes require admin:manage — fail CLOSED (audit-119)."""
+    """Unknown write routes require admin:manage - fail CLOSED (audit-119)."""
     # Previously fell through to tasks:write; now requires operator-level access.
     assert _get_required_permission("/some/unmapped/write/path", "POST") == "admin:manage"
     assert _get_required_permission("/brand-new-endpoint", "DELETE") == "admin:manage"

@@ -2,7 +2,7 @@
 
 Tests the FastAPI app in integrations/jira_webhook/app.py using
 httpx.AsyncClient against the ASGI app directly (no real Jira or
-Bernstein server required — external calls are mocked).
+Bernstein server required - external calls are mocked).
 """
 
 from __future__ import annotations
@@ -108,7 +108,7 @@ async def test_health(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /jira/webhook — authentication
+# /jira/webhook - authentication
 # ---------------------------------------------------------------------------
 
 
@@ -173,7 +173,7 @@ async def test_webhook_bearer_token_accepted(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /jira/webhook — event filtering
+# /jira/webhook - event filtering
 # ---------------------------------------------------------------------------
 
 
@@ -221,7 +221,7 @@ async def test_webhook_missing_issue_ignored(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /jira/webhook — project + label filters
+# /jira/webhook - project + label filters
 # ---------------------------------------------------------------------------
 
 
@@ -286,7 +286,7 @@ async def test_webhook_label_filter_blocks(client: AsyncClient) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /jira/webhook — task creation payload
+# /jira/webhook - task creation payload
 # ---------------------------------------------------------------------------
 
 
@@ -324,7 +324,7 @@ async def test_webhook_creates_task_with_correct_fields(client: AsyncClient) -> 
 
 
 # ---------------------------------------------------------------------------
-# /bernstein/task-update — Bernstein → Jira sync
+# /bernstein/task-update - Bernstein → Jira sync
 # ---------------------------------------------------------------------------
 
 

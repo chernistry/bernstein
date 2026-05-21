@@ -58,7 +58,7 @@ pytestmark = pytest.mark.skipif(
 class TestS3SinkConformance(ArtifactSinkConformance):
     """Runs the shared conformance suite against a live (emulated) S3."""
 
-    # Keep the large-payload test modest — 256 KB round-trips against
+    # Keep the large-payload test modest - 256 KB round-trips against
     # LocalStack in <100 ms.
     large_payload_bytes = 256 * 1024
 
@@ -71,7 +71,7 @@ class TestS3SinkConformance(ArtifactSinkConformance):
         prefix = f"it/{uuid.uuid4()}"
         s = S3ArtifactSink(bucket=bucket, prefix=prefix)
 
-        # Pre-create the bucket against LocalStack — real AWS buckets
+        # Pre-create the bucket against LocalStack - real AWS buckets
         # must exist ahead of time.
         if os.environ.get("AWS_ENDPOINT_URL"):
             client = await s._ensure_client()

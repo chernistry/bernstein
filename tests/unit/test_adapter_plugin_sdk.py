@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Helpers — concrete PluginAdapter for testing
+# Helpers - concrete PluginAdapter for testing
 # ---------------------------------------------------------------------------
 
 

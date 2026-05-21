@@ -34,7 +34,7 @@ def fake_q_login(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
     Points ``Path.home`` at a temporary directory and pre-creates *both* the
     Linux/macOS layout (``~/.local/share/amazon-q``) and the Windows layout
-    (``~/AppData/Local/amazon-q``) so the fixture is platform-agnostic —
+    (``~/AppData/Local/amazon-q``) so the fixture is platform-agnostic -
     ``_has_q_login_cache()`` branches on ``platform.system()`` and we don't
     want the test outcome to depend on which OS the runner happens to be.
     Clears the XDG and Windows env hints so the cache lookup deterministically
@@ -50,7 +50,7 @@ def fake_q_login(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter — registry / contract surface
+# QDevAdapter - registry / contract surface
 # ---------------------------------------------------------------------------
 
 
@@ -70,7 +70,7 @@ class TestQDevRegistry:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter.spawn() — command construction
+# QDevAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -122,7 +122,7 @@ class TestQDevSpawnCommand:
         assert inner[-1] == "my-unique-prompt"
 
     def test_system_addendum_grafted_onto_prompt(self, tmp_path: Path, fake_q_login: Path) -> None:
-        """``q`` accepts a single positional — addendum must reach the agent."""
+        """``q`` accepts a single positional - addendum must reach the agent."""
         adapter = QDevAdapter()
         proc_mock = make_popen_mock(903)
         with patch("bernstein.adapters.q_dev.subprocess.Popen", return_value=proc_mock) as popen:
@@ -176,7 +176,7 @@ class TestQDevSpawnCommand:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter.spawn() — login cache pre-flight
+# QDevAdapter.spawn() - login cache pre-flight
 # ---------------------------------------------------------------------------
 
 
@@ -236,7 +236,7 @@ class TestQDevLoginCachePreflight:
 
         proc_mock = make_popen_mock(950)
         with patch("bernstein.adapters.q_dev.subprocess.Popen", return_value=proc_mock):
-            # Should not raise — XDG cache is enough.
+            # Should not raise - XDG cache is enough.
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -246,7 +246,7 @@ class TestQDevLoginCachePreflight:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter.spawn() — env isolation
+# QDevAdapter.spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -285,7 +285,7 @@ class TestQDevEnvIsolation:
         assert "AWS_ACCESS_KEY_ID" not in env
         assert "AWS_SECRET_ACCESS_KEY" not in env
         assert "AWS_SESSION_TOKEN" not in env
-        # Profile/region hints DO pass through — they're metadata, not
+        # Profile/region hints DO pass through - they're metadata, not
         # authentication material.
         assert env.get("AWS_PROFILE") == "dev"
         assert env.get("AWS_REGION") == "us-east-1"
@@ -335,7 +335,7 @@ class TestQDevEnvIsolation:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter — external endpoint declaration
+# QDevAdapter - external endpoint declaration
 # ---------------------------------------------------------------------------
 
 
@@ -356,7 +356,7 @@ class TestQDevExternalEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# QDevAdapter — missing binary / PermissionError
+# QDevAdapter - missing binary / PermissionError
 # ---------------------------------------------------------------------------
 
 
@@ -395,7 +395,7 @@ class TestQDevSpawnMissingBinary:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

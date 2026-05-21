@@ -194,7 +194,7 @@ class TestRequestRateLimitMiddleware:
 
         app = FastAPI()
         limiter = RequestRateLimiter()
-        # Write limit=1, read limit=3 — reads should not be blocked after 2 writes
+        # Write limit=1, read limit=3 - reads should not be blocked after 2 writes
         app.add_middleware(RequestRateLimitMiddleware, limiter=limiter, write_rpm=1, read_rpm=3)
         app.state.seed_config = None
 
@@ -331,7 +331,7 @@ class TestRateLimitKeyingAgainstHeaderSpoofing:
         now = time.monotonic()
         limiter._hits[("auth", "203.0.113.10")] = [now - 120.0, now - 120.0]
 
-        # Next request must be accepted again — bucket has reset.
+        # Next request must be accepted again - bucket has reset.
         assert limiter.check("203.0.113.10") is None
 
     @pytest.mark.anyio
@@ -373,7 +373,7 @@ class TestRateLimitKeyingAgainstHeaderSpoofing:
             return {"status": "ok"}
 
         # Local reverse-proxy scenario: peer is loopback but request carries
-        # XFF — must NOT be exempted from rate limiting.
+        # XFF - must NOT be exempted from rate limiting.
         transport = ASGITransport(app=app, client=("127.0.0.1", 40001))
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             first = await client.post("/data", headers={"X-Forwarded-For": "8.8.8.8"})
@@ -401,7 +401,7 @@ class TestRateLimitKeyingAgainstHeaderSpoofing:
             second = await client.post("/data")
             third = await client.post("/data")
 
-        # All three succeed — loopback callers without XFF remain exempt.
+        # All three succeed - loopback callers without XFF remain exempt.
         assert first.status_code == 200
         assert second.status_code == 200
         assert third.status_code == 200

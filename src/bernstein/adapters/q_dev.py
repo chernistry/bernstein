@@ -8,7 +8,7 @@ non-interactive shape::
     q chat --no-interactive --trust-all-tools "<prompt>"
 
 The agent reads its bearer token from the on-disk login cache that
-``q login`` writes — there is no ``Q_API_KEY`` style env var.  The cache
+``q login`` writes - there is no ``Q_API_KEY`` style env var.  The cache
 location is platform-dependent (XDG-anchored on Linux/macOS,
 ``%LOCALAPPDATA%`` on Windows) and Bernstein refuses to spawn when no
 plausible cache directory is present, surfacing a clear "run ``q login``"
@@ -23,7 +23,7 @@ Authentication backends supported by the upstream binary:
 Important risk: when the spawn env carries an IAM Identity Center session,
 ``q``'s tool calls execute with **the user's IAM Identity Center role**.
 Routing infra-touching tasks (Terraform plans, AWS resource mutations)
-through this adapter therefore inherits that role's permissions —
+through this adapter therefore inherits that role's permissions -
 operators should scope the role narrowly or route those tasks via a
 dedicated ``IaCAdapter`` instead.
 
@@ -86,7 +86,7 @@ class QDevAdapter(CLIAdapter):
     on the host before pointing Bernstein at this adapter.
 
     Permissions are bound to the underlying AWS Builder ID / IAM Identity
-    Center principal — see the module docstring for the role-scoping
+    Center principal - see the module docstring for the role-scoping
     caveat.
     """
 
@@ -115,7 +115,7 @@ class QDevAdapter(CLIAdapter):
         """Launch a one-shot ``q chat`` session.
 
         Args:
-            prompt: Task prompt — passed as the trailing positional after
+            prompt: Task prompt - passed as the trailing positional after
                 the documented ``--no-interactive --trust-all-tools``
                 flags.
             workdir: Working directory; ``q`` treats it as the project
@@ -126,7 +126,7 @@ class QDevAdapter(CLIAdapter):
                 observability but not forwarded.
             session_id: Unique session identifier used for log naming and
                 the bernstein-worker process title.
-            mcp_config: Optional MCP server definitions (unused — Q
+            mcp_config: Optional MCP server definitions (unused - Q
                 manages MCP via its own ``q mcp`` subcommand).
             timeout_seconds: Process wall-clock timeout.
             task_scope: Task scope hint (unused).
@@ -147,7 +147,7 @@ class QDevAdapter(CLIAdapter):
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Fail fast when no Q login cache is present — q would otherwise
+        # Fail fast when no Q login cache is present - q would otherwise
         # block on an OAuth browser flow that no unattended agent can
         # complete.  This must happen *before* subprocess.Popen so the
         # error never gets buried inside the agent log.
@@ -236,7 +236,7 @@ class QDevAdapter(CLIAdapter):
 def _has_q_login_cache() -> bool:
     """Return True when a plausible ``q login`` cache directory exists.
 
-    We don't validate token freshness here — that's q's job at runtime.
+    We don't validate token freshness here - that's q's job at runtime.
     The check is purely "did anyone log in on this host at least once?"
     so we can fail with a clean error message instead of letting q
     deadlock on the OAuth handshake.

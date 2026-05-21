@@ -60,7 +60,7 @@ def test_classify_prompt_flags_model_question() -> None:
 
 
 def test_classify_prompt_model_question_wins_over_safety() -> None:
-    # If both lookalike patterns appear, the model question must win —
+    # If both lookalike patterns appear, the model question must win -
     # auto-answering a model question is the failure mode this primitive
     # must never hit.
     text = "Which file did you mean?\nContinue? [y/N]"
@@ -75,7 +75,7 @@ def test_classify_prompt_returns_none_for_blank() -> None:
 
 
 # ---------------------------------------------------------------------------
-# tick — feature gate
+# tick - feature gate
 # ---------------------------------------------------------------------------
 
 
@@ -95,7 +95,7 @@ def test_tick_disabled_when_flag_off(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# tick — recovery action
+# tick - recovery action
 # ---------------------------------------------------------------------------
 
 
@@ -236,28 +236,28 @@ def test_tick_handles_multiple_sessions(tmp_path: Path) -> None:
     audit = tmp_path / "watchdog.jsonl"
     env = {FEATURE_FLAG_ENV: "1"}
     snapshots = [
-        # Eligible safety prompt — auto-answered.
+        # Eligible safety prompt - auto-answered.
         SessionSnapshot(
             session_id="s-safety",
             recent_output="Continue? [y/N]",
             is_paused=True,
             approved_prompt_classes=frozenset({"safety"}),
         ),
-        # Model question — escalated, not answered.
+        # Model question - escalated, not answered.
         SessionSnapshot(
             session_id="s-question",
             recent_output="Which file did you mean?",
             is_paused=True,
             approved_prompt_classes=frozenset({"safety"}),
         ),
-        # Running session — skipped entirely.
+        # Running session - skipped entirely.
         SessionSnapshot(
             session_id="s-running",
             recent_output="Continue? [y/N]",
             is_paused=False,
             approved_prompt_classes=frozenset({"safety"}),
         ),
-        # No safety approval — skipped.
+        # No safety approval - skipped.
         SessionSnapshot(
             session_id="s-noapproval",
             recent_output="Continue? [y/N]",

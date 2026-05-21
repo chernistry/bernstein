@@ -708,7 +708,7 @@ def _init_impl(
                 if changed:
                     console.print(f"[green]Updated[/green] README.md (added '{variant.name}' badge)")
                 else:
-                    console.print("[dim]README.md already has a bernstein badge — skipped.[/dim]")
+                    console.print("[dim]README.md already has a bernstein badge - skipped.[/dim]")
 
     # Print clear next steps
     console.print("")
@@ -758,7 +758,7 @@ def exec_restart() -> None:
     """Re-exec the current process as ``bernstein run`` (full stack restart).
 
     On macOS/Linux, uses ``os.execv`` which replaces the current process
-    image entirely — no orphan.  On Windows, ``os.execv`` does not truly
+    image entirely - no orphan.  On Windows, ``os.execv`` does not truly
     replace the process (it spawns a child), so we use ``subprocess.Popen``
     and ``sys.exit`` instead.
     """
@@ -771,7 +771,7 @@ def exec_restart() -> None:
         subprocess.Popen(argv, close_fds=True)
         raise SystemExit(0)
     else:
-        # Unix: execv replaces the process image — clean restart.
+        # Unix: execv replaces the process image - clean restart.
         os.execv(sys.executable, argv)
 
 
@@ -960,7 +960,7 @@ def exec_restart() -> None:
     help=(
         "GUI-dev mode: force every adapter to ``mock`` and have each spawned "
         "agent sleep for $BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (defaults: "
-        "min=15, max=120) instead of calling an LLM. Zero token spend — used "
+        "min=15, max=120) instead of calling an LLM. Zero token spend - used "
         "to populate the web GUI with live state. NOTE: the orchestrator "
         "subprocess otherwise defaults to ``--adapter claude``; pin "
         "``cli: mock`` at the top of bernstein.yaml in your workdir so the "
@@ -1397,7 +1397,7 @@ def _run_impl(
         skip_gate_reason=skip_gate_reason,
     )
 
-    # --idle: GUI-development mode — force mock adapter + idle behavior on every spawn.
+    # --idle: GUI-development mode - force mock adapter + idle behavior on every spawn.
     if idle:
         if dry_run:
             raise click.UsageError("--idle and --dry-run are mutually exclusive.")

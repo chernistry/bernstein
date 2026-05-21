@@ -339,7 +339,7 @@ FORBIDDEN_SUBSTRINGS: tuple[str, ...] = (
     "ai search",
     "aio probe",
     "umami",
-    "—",  # em-dash forbidden by Bernstein hard constraints
+    "-",  # em-dash forbidden by Bernstein hard constraints
 )
 
 

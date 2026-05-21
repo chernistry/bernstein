@@ -47,7 +47,7 @@ def _simulate_run(card: AgentIdentityCard, *, tokens_per_turn: int) -> tuple[int
     for step in range(1, card.max_steps + 1):
         tokens_used += tokens_per_turn
         state = TurnState(step=step, tokens_used=tokens_used)
-        # Each turn the agent emits the banner — assert it stays a single
+        # Each turn the agent emits the banner - assert it stays a single
         # line so the prompt-cache prefix remains stable across turns.
         line = format_countdown(card, tracker, state)
         assert "\n" not in line

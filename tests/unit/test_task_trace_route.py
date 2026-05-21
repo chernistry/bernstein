@@ -5,7 +5,7 @@ chronologically-ordered timeline. We test:
 
 * 404 when the task does not exist.
 * Empty events list when the task exists but no trace has been recorded.
-* JSONL parsing — multiple traces, ordering, malformed lines, has_open_trace.
+* JSONL parsing - multiple traces, ordering, malformed lines, has_open_trace.
 * Pagination via ``limit`` + ``cursor``.
 * Mounting under both ``/`` and ``/api/v1/`` (legacy + versioned surface).
 """

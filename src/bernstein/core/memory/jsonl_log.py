@@ -8,7 +8,7 @@ short identifier.  Each key maps to exactly one JSONL file at
 
 Design goals (smallest-viable slice):
 
-- No retrieval / scoring / decay — that lives in the SQLite layer.
+- No retrieval / scoring / decay - that lives in the SQLite layer.
 - No locking primitives beyond what append-write to a POSIX file gives us;
   callers needing strict cross-process serialisation should use the SQLite
   store instead.

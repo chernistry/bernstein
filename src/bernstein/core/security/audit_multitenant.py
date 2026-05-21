@@ -5,12 +5,12 @@ orchestrator emits. Enterprise operators running bernstein on behalf of
 multiple internal customers need to hand each customer (or each external
 auditor) a slice that:
 
-* Contains **only** that customer's events — no leakage of sibling tenants.
+* Contains **only** that customer's events - no leakage of sibling tenants.
 * **Re-verifies offline** so an auditor with the operator's HMAC key can
   replay-check every link without consulting the live orchestrator state.
 * Carries a **tamper-evident anchor** (sha256 of the canonical JSONL) so a
   cross-tenant flip in the slice is detected even without the key.
-* Is **byte-deterministic** — same input window + tenant id produces a
+* Is **byte-deterministic** - same input window + tenant id produces a
   byte-identical bundle on every run, so spot-audit reproducibility holds.
 
 Design:
@@ -34,15 +34,15 @@ exported slice is detectable because:
 
 Schema versions
 ---------------
-* **1.0.0** — HMAC chain + optional RFC 3161 token (spec-only, no
+* **1.0.0** - HMAC chain + optional RFC 3161 token (spec-only, no
   cryptographic chain validation) + optional offline anchor.
-* **2.0.0** — Adds two regulator-friendly extensions, both opt-in:
+* **2.0.0** - Adds two regulator-friendly extensions, both opt-in:
 
-  * ``head_signature`` — Ed25519 signature over the raw ``head_sha256``
+  * ``head_signature`` - Ed25519 signature over the raw ``head_sha256``
     bytes, signed by the operator's lineage KMS adapter (see
     :mod:`bernstein.core.security.lineage_kms`). Lets a key-less auditor
     authenticate the bundle's origin without sharing the HMAC key.
-  * RFC 3161 cryptographic chain validation — the existing
+  * RFC 3161 cryptographic chain validation - the existing
     ``rfc3161_token_b64`` field is now verifiable end-to-end via
     :mod:`bernstein.core.security.rfc3161_verifier`. The bundle field
     layout did not change for this; only the verifier surface did.
@@ -54,18 +54,18 @@ Schema versions
 
 References:
 
-* W3C Verifiable Credentials Data Model 2.0 — conceptually similar
+* W3C Verifiable Credentials Data Model 2.0 - conceptually similar
   citation/proof split, but rejected as the wire format because VC v2 is
   RDF/JSON-LD-shaped and forces JSON-LD context resolution at verify
   time. Audit chains are line-oriented JSONL; a custom schema (see
   ``schemas/audit-multitenant-export-v2.json``) is leaner. The schema
   is versioned (``schema_version: 2.0.0``) so future migrations to VC v2
   or in-toto attestations stay open.
-* RFC 3161 — Time-Stamp Protocol. The token is now cryptographically
+* RFC 3161 - Time-Stamp Protocol. The token is now cryptographically
   validated end-to-end (see :mod:`rfc3161_verifier`).
-* RFC 8037 — JOSE OKP curves. The ``head_signature`` block uses an
+* RFC 8037 - JOSE OKP curves. The ``head_signature`` block uses an
   RFC 8037 JWK to advertise the verifying key.
-* IETF SCITT — future direction; the public-key signature wraps cleanly
+* IETF SCITT - future direction; the public-key signature wraps cleanly
   into a SCITT envelope when the WG locks v1.
 """
 
@@ -291,10 +291,10 @@ def _rebuild_slice_chain(
     (timestamp, event_type, actor, resource_type, resource_id, details)
     and adds:
 
-    * ``details._original_hmac`` — the HMAC the event carried in the
+    * ``details._original_hmac`` - the HMAC the event carried in the
       orchestrator-wide chain. Witness for cross-reference.
-    * ``prev_hmac`` — the slice-local predecessor HMAC.
-    * ``hmac`` — the slice-local HMAC.
+    * ``prev_hmac`` - the slice-local predecessor HMAC.
+    * ``hmac`` - the slice-local HMAC.
 
     Args:
         events: Filtered events in chronological order (originals).
@@ -436,15 +436,15 @@ def export_tenant_slice(
             ``audit_dir.parent / 'evidence'`` (``.sdd/evidence/``).
         signature_kind: Which verifier path the bundle declares. v2 adds:
 
-            * ``hmac-chain+pubkey`` — HMAC chain + Ed25519 signature
+            * ``hmac-chain+pubkey`` - HMAC chain + Ed25519 signature
               over ``head_sha256``. Requires ``head_kms_adapter``.
-            * ``hmac-chain+rfc3161+pubkey`` — both layers.
+            * ``hmac-chain+rfc3161+pubkey`` - both layers.
 
             v1 kinds remain valid:
 
-            * ``hmac-chain-only`` — bare HMAC.
-            * ``hmac-chain+rfc3161`` — HMAC + TSA token.
-            * ``hmac-chain+offline-anchor`` — air-gap.
+            * ``hmac-chain-only`` - bare HMAC.
+            * ``hmac-chain+rfc3161`` - HMAC + TSA token.
+            * ``hmac-chain+offline-anchor`` - air-gap.
         rfc3161_token_b64: Base64-encoded DER TimeStampToken from a TSA.
             Required iff ``signature_kind`` includes ``rfc3161``.
         rfc3161_tsa_url: URL of the TSA that issued the token.
@@ -456,7 +456,7 @@ def export_tenant_slice(
             material that signs lineage records so operators do not have
             to plumb a second signing key.
         write: When False, build everything in-memory and skip the disk
-            write — useful for ``--dry-run`` and tests.
+            write - useful for ``--dry-run`` and tests.
 
     Returns:
         :class:`TenantScopedExport` with the serialized bundle bytes,
@@ -480,7 +480,7 @@ def export_tenant_slice(
     if signature_kind in _PUBKEY_KINDS and head_kms_adapter is None:
         raise ValueError(
             f"signature_kind={signature_kind!r} requires head_kms_adapter "
-            "(pass a configured KMSAdapter — file/env/hsm)",
+            "(pass a configured KMSAdapter - file/env/hsm)",
         )
 
     all_events = _read_audit_events(audit_dir)
@@ -722,26 +722,26 @@ def verify_tenant_slice(
 ) -> TenantSliceVerification:
     """Re-verify a tenant-scoped audit slice offline.
 
-    Runs without orchestrator state — the verifier needs only the bundle
+    Runs without orchestrator state - the verifier needs only the bundle
     bytes and the operator's HMAC key. Performs the v1 checks plus two
     optional v2 cryptographic checks when the matching trust material
     is supplied:
 
     1. Envelope structure (schema_version, required fields, types).
-    2. Tenant purity — every event carries the declared tenant id.
-    3. Chain integrity — re-derive each event's HMAC, confirm the chain
+    2. Tenant purity - every event carries the declared tenant id.
+    3. Chain integrity - re-derive each event's HMAC, confirm the chain
        links forward correctly, and confirm the declared ``head_hmac``
        matches the recomputed tail.
-    4. Anchor consistency — recompute ``head_sha256`` from the canonical
+    4. Anchor consistency - recompute ``head_sha256`` from the canonical
        JSONL and compare. (Catches single-byte flips even when the key
        is leaked or the chain check is somehow bypassed.)
-    5. Signature block sanity — base64 validity, offline anchor formula.
-    6. **(v2, opt-in)** RFC 3161 cryptographic chain validation —
+    5. Signature block sanity - base64 validity, offline anchor formula.
+    6. **(v2, opt-in)** RFC 3161 cryptographic chain validation -
        confirm the embedded TSA token actually covers ``head_sha256``
        and that the TSA cert chains to the supplied trust anchor. Skipped
        silently with a log warning when ``rfc3161_trusted_tsa_certs`` is
        not supplied (back-compat with v1 verifier callers).
-    7. **(v2, opt-in)** Public-key signature — when the bundle carries
+    7. **(v2, opt-in)** Public-key signature - when the bundle carries
        a ``head_signature`` block, verify the Ed25519 signature against
        the embedded JWK. When ``head_signature_trusted_jwk`` is also
        supplied, the embedded JWK must match it (key pinning).
@@ -806,7 +806,7 @@ def _verify_rfc3161_chain(
 
     * The bundle declares no RFC 3161 path (``signature_kind`` does not
       include ``rfc3161``).
-    * The caller did not supply trust anchors (back-compat — the v1
+    * The caller did not supply trust anchors (back-compat - the v1
       verifier never did chain validation).
 
     Returns a non-empty list iff trust anchors were supplied AND the
@@ -819,7 +819,7 @@ def _verify_rfc3161_chain(
     if not trusted_tsa_certs:
         logger.warning(
             "Bundle declares signature_kind=%s but no rfc3161_trusted_tsa_certs "
-            "were supplied — RFC 3161 chain validation skipped (set "
+            "were supplied - RFC 3161 chain validation skipped (set "
             "rfc3161_trusted_tsa_certs to enable).",
             kind,
         )
@@ -834,7 +834,7 @@ def _verify_rfc3161_chain(
 
     head_sha256 = str((bundle.get("chain_anchor") or {}).get("head_sha256", ""))
     if not head_sha256:
-        return ["chain_anchor.head_sha256 missing — cannot validate RFC 3161 imprint"]
+        return ["chain_anchor.head_sha256 missing - cannot validate RFC 3161 imprint"]
 
     # Lazy import: keeps verifier callers that never enable RFC 3161 free
     # of the asn1crypto dep at import time.
@@ -846,7 +846,7 @@ def _verify_rfc3161_chain(
         return [f"chain_anchor.head_sha256 not valid hex: {exc}"]
 
     # The TSA's messageImprint covers the ``head_sha256`` digest bytes
-    # directly — the operator timestamps the bundle anchor, not the raw
+    # directly - the operator timestamps the bundle anchor, not the raw
     # JSONL. The verifier compares the digest bytes to
     # ``TSTInfo.messageImprint.hashedMessage`` directly.
     result = verify_rfc3161_token(
@@ -879,7 +879,7 @@ def _verify_head_signature(
         return ["head_signature is not an object"]
     head_sha256 = str((bundle.get("chain_anchor") or {}).get("head_sha256", ""))
     if not head_sha256:
-        return ["chain_anchor.head_sha256 missing — cannot verify head_signature"]
+        return ["chain_anchor.head_sha256 missing - cannot verify head_signature"]
     result = verify_head_signature(
         head_sha256,
         head_signature,

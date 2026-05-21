@@ -187,7 +187,7 @@ class DrainScreen(Screen[DrainReport | None]):
         phase_text = f"Phase: {phase.detail or phase.name}  [{phase.number}/{_TOTAL_PHASES}]"
         self.query_one("#phase-label", Static).update(phase_text)
 
-        # Progress bar — advance to the number of completed phases.
+        # Progress bar - advance to the number of completed phases.
         bar = self.query_one("#drain-progress", ProgressBar)
         completed = phase.number - 1 if phase.status == "running" else phase.number
         bar.update(progress=float(completed))

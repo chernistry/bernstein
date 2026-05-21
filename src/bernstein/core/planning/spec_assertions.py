@@ -1,8 +1,8 @@
 """Spec-as-test layer: derive executable assertions from the feature contract.
 
 The :mod:`bernstein.core.planning.feature_contract` module persists what the
-operator promised — a frozen list of features with ``acceptance_steps`` and an
-``acceptance_check`` command — at ``.sdd/contract/features.json``. This module
+operator promised - a frozen list of features with ``acceptance_steps`` and an
+``acceptance_check`` command - at ``.sdd/contract/features.json``. This module
 **consumes** that file and turns each feature into one or more
 :class:`Assertion` records that can be executed deterministically against a
 checkout to detect drift between *what was promised* and *what is currently
@@ -11,7 +11,7 @@ true on disk*.
 The on-disk contract is the only source of truth. We never invent our own
 shadow store; if a feature is not in ``features.json`` it is not asserted.
 
-Assertion kinds (intentionally small — start narrow, grow with evidence):
+Assertion kinds (intentionally small - start narrow, grow with evidence):
 
 ``file_exists``
     ``target`` is a relative path that must exist.
@@ -95,7 +95,7 @@ class AssertionExtractionReport:
 
     Attributes:
         assertions: Successfully parsed assertions.
-        unparsed: Steps that matched no grammar — kept so an upstream layer
+        unparsed: Steps that matched no grammar - kept so an upstream layer
             can decide whether to log, escalate, or hand off to an LLM.
         skipped_features: Features with no ``acceptance_check`` and no
             parseable steps; these are essentially un-verifiable today.
@@ -139,7 +139,7 @@ def load_contract(path: Path = DEFAULT_CONTRACT_PATH) -> FeatureContract | None:
     """Load the feature contract or return None when the file is absent.
 
     Tampering and schema-version errors propagate from
-    :meth:`FeatureContract.load` — they are *not* swallowed because a corrupt
+    :meth:`FeatureContract.load` - they are *not* swallowed because a corrupt
     contract is a louder signal than a missing one.
     """
     if not path.exists():
@@ -375,7 +375,7 @@ def apply_results_to_contract(contract: FeatureContract, report: AssertionReport
 
     A feature flips to ``passes=True`` only when *every* assertion that
     references it succeeds. Any single failure flips it to ``passes=False``.
-    Features that produced no assertions are left untouched — they are still
+    Features that produced no assertions are left untouched - they are still
     pending and the upstream layer is expected to surface them via
     :attr:`AssertionExtractionReport.skipped_features`.
     """
@@ -428,7 +428,7 @@ def _render_pytest_case(idx: int, a: Assertion) -> str:
 
 
 _PYTEST_HEADER = (
-    '"""Auto-generated from .sdd/contract/features.json — do not edit by hand."""\n\n'
+    '"""Auto-generated from .sdd/contract/features.json - do not edit by hand."""\n\n'
     "from __future__ import annotations\n\n"
     "from pathlib import Path\n\n"
     "from bernstein.core.planning.spec_assertions import Assertion, run_assertions\n\n"
@@ -437,7 +437,7 @@ _PYTEST_HEADER = (
 
 _PYTEST_EMPTY_PLACEHOLDER = (
     "def test_no_assertions_extracted() -> None:\n"
-    '    """Contract produced zero assertions — placeholder so pytest collects the file."""\n'
+    '    """Contract produced zero assertions - placeholder so pytest collects the file."""\n'
     "    assert True\n"
 )
 

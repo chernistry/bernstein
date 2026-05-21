@@ -390,4 +390,4 @@ class TestRenderMarkdown:
     def test_version_fallback_to_run_id(self) -> None:
         cl = Changelog(run_id="run-42", version="", date="2026-04-12")
         md = render_markdown(cl)
-        assert "# Changelog — run-42" in md
+        assert "# Changelog - run-42" in md

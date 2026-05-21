@@ -105,7 +105,7 @@ class TestCaptureWidgetText:
 
 
 # ---------------------------------------------------------------------------
-# compare_snapshot — new snapshot
+# compare_snapshot - new snapshot
 # ---------------------------------------------------------------------------
 
 
@@ -127,7 +127,7 @@ class TestCompareSnapshotNew:
 
 
 # ---------------------------------------------------------------------------
-# compare_snapshot — match / mismatch
+# compare_snapshot - match / mismatch
 # ---------------------------------------------------------------------------
 
 

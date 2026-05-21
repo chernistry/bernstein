@@ -22,7 +22,7 @@ from bernstein.core.agents.prompt_cache_locality import (
 )
 
 # ---------------------------------------------------------------------------
-# build_stable_prefix — header sorting + body verbatim
+# build_stable_prefix - header sorting + body verbatim
 # ---------------------------------------------------------------------------
 
 
@@ -78,7 +78,7 @@ class TestBuildStablePrefix:
             header={"role": "backend"},
             body="b",
         )
-        # Both representations are *different* — the empty key is an
+        # Both representations are *different* - the empty key is an
         # explicit declaration; dropping it would silently change the
         # cache key in production.
         assert prefix_with != prefix_without
@@ -101,7 +101,7 @@ def test_hash_prefix_differs_on_change() -> None:
 
 
 # ---------------------------------------------------------------------------
-# PromptCacheLocality.observe — drift accounting per role
+# PromptCacheLocality.observe - drift accounting per role
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ class TestPromptCacheLocalityDriftCounter:
 
 
 # ---------------------------------------------------------------------------
-# Prometheus integration — ensure the counter is incremented
+# Prometheus integration - ensure the counter is incremented
 # ---------------------------------------------------------------------------
 
 
@@ -264,7 +264,7 @@ def test_prometheus_counter_silent_on_no_drift() -> None:
 
 
 # ---------------------------------------------------------------------------
-# DriftSnapshot is a copy — internal mutation is not exposed
+# DriftSnapshot is a copy - internal mutation is not exposed
 # ---------------------------------------------------------------------------
 
 

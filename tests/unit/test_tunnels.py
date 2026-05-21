@@ -268,7 +268,7 @@ def test_stop_all_sigterms_every_pid(tmp_path: Path, monkeypatch: pytest.MonkeyP
         "bernstein.cli.commands.tunnel_cmd.TunnelRegistry",
         lambda: TunnelRegistry(state_path=state),
     )
-    # Drivers registered in the command path are fresh instances; that's fine —
+    # Drivers registered in the command path are fresh instances; that's fine -
     # ``destroy`` tolerates a missing in-memory process, and we only check signals.
 
     from click.testing import CliRunner

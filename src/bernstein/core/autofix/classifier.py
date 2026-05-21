@@ -1,16 +1,16 @@
-"""Failure classifier — maps a log blob to a routing bucket.
+"""Failure classifier - maps a log blob to a routing bucket.
 
 The autofix daemon dispatches to one of three bandit arms depending
 on the *kind* of failure observed:
 
 * ``security`` failures (CodeQL alerts, leaked secrets, vulnerable
-  dependencies) need the most capable model — they are routed to
+  dependencies) need the most capable model - they are routed to
   ``opus``.
 * ``flaky`` failures (intermittent tests, timeouts, deadlocks) get
   ``sonnet``: the model that is good enough to fix unstable tests
   without overspending.
 * ``config`` failures (lint, formatter, missing config keys, broken
-  YAML) get ``haiku`` — these are mechanical and cheap.
+  YAML) get ``haiku`` - these are mechanical and cheap.
 
 The classifier is deliberately deterministic: it scans the failing
 log for keyword sets and picks the *highest* priority bucket that
@@ -110,14 +110,14 @@ class Classification:
     """The result of classifying a failing-log blob.
 
     Attributes:
-        kind: The classification bucket — ``security`` (regression in
+        kind: The classification bucket - ``security`` (regression in
             an auth/crypto/dependency path), ``flaky`` (intermittent
             test/timeout) or ``config`` (lint, formatter, missing
             setting).
         model: The bandit arm to route the dispatch to (one of
             ``opus``, ``sonnet``, ``haiku``).
         matched_signals: A tuple of human-readable signal names that
-            triggered the classification — recorded in the audit
+            triggered the classification - recorded in the audit
             trail so operators can audit why a route was chosen.
     """
 
@@ -148,7 +148,7 @@ def classify_failure(log: str) -> Classification:
     """
     text = log if isinstance(log, str) else ""
 
-    # Walk the buckets in priority order — the *first* hit wins.
+    # Walk the buckets in priority order - the *first* hit wins.
     for kind, patterns in (
         ("security", _SECURITY_PATTERNS),
         ("flaky", _FLAKY_PATTERNS),
@@ -163,7 +163,7 @@ def classify_failure(log: str) -> Classification:
                 matched_signals=signals,
             )
 
-    # Default fallback — treat as cheap "config" failure rather than
+    # Default fallback - treat as cheap "config" failure rather than
     # escalating to opus on an unknown payload.
     return Classification(
         kind="config",

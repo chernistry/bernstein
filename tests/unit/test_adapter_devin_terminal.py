@@ -26,7 +26,7 @@ pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
 
 
 # ---------------------------------------------------------------------------
-# DevinTerminalAdapter.spawn() — command construction
+# DevinTerminalAdapter.spawn() - command construction
 # ---------------------------------------------------------------------------
 
 
@@ -68,7 +68,7 @@ class TestDevinTerminalSpawn:
                 session_id="devin-s2",
             )
         inner = inner_cmd(popen.call_args.args[0])
-        # ``--print`` is the documented non-interactive flag — without it
+        # ``--print`` is the documented non-interactive flag - without it
         # devin opens a TTY session and never returns.
         assert "--print" in inner
 
@@ -206,7 +206,7 @@ class TestDevinTerminalSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation
 # ---------------------------------------------------------------------------
 
 
@@ -430,7 +430,7 @@ class TestDevinTerminalEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() / kill() — inherited from CLIAdapter base
+# is_alive() / kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 
@@ -461,7 +461,7 @@ class TestDevinTerminalKill:
 
 
 # ---------------------------------------------------------------------------
-# Fast-exit probe — early non-zero exit surfaces as SpawnError
+# Fast-exit probe - early non-zero exit surfaces as SpawnError
 # ---------------------------------------------------------------------------
 
 
@@ -533,7 +533,7 @@ class TestDevinTerminalFastExit:
 
 
 # ---------------------------------------------------------------------------
-# detect_tier() — base default returns None for this adapter.
+# detect_tier() - base default returns None for this adapter.
 # ---------------------------------------------------------------------------
 
 

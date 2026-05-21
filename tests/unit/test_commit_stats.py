@@ -1,4 +1,4 @@
-"""Tests for commit_stats module — git log subprocess and role aggregation."""
+"""Tests for commit_stats module - git log subprocess and role aggregation."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ class TestRoleStats:
 
 
 # ---------------------------------------------------------------------------
-# _run_git_log — mocked subprocess
+# _run_git_log - mocked subprocess
 # ---------------------------------------------------------------------------
 
 
@@ -116,7 +116,7 @@ class TestRunGitLog:
 
 
 # ---------------------------------------------------------------------------
-# collect_commit_stats — integration with mocked subprocess
+# collect_commit_stats - integration with mocked subprocess
 # ---------------------------------------------------------------------------
 
 
@@ -201,7 +201,7 @@ class TestCollectCommitStats:
 
 
 # ---------------------------------------------------------------------------
-# _make_table — Rich table rendering
+# _make_table - Rich table rendering
 # ---------------------------------------------------------------------------
 
 

@@ -8,11 +8,11 @@ handles I/O, git push and ``gh`` invocation.
 
 The module reuses existing Bernstein state:
 
-* :class:`bernstein.core.persistence.session.SessionState` — run-level
+* :class:`bernstein.core.persistence.session.SessionState` - run-level
   goal, completed task ids and cumulative cost.
-* :class:`bernstein.core.persistence.session.WrapUpBrief` — per-session
+* :class:`bernstein.core.persistence.session.WrapUpBrief` - per-session
   diff-stat and changes summary written on graceful stop.
-* :class:`bernstein.core.tasks.models.JanitorResult` — quality-gate
+* :class:`bernstein.core.tasks.models.JanitorResult` - quality-gate
   signal results used for the Verification section.
 """
 
@@ -40,7 +40,7 @@ __all__ = [
 ]
 
 
-# Hard cap on a PR title — GitHub renders long titles awkwardly and most
+# Hard cap on a PR title - GitHub renders long titles awkwardly and most
 # style guides recommend keeping headlines short.
 _TITLE_MAX_CHARS = 70
 
@@ -242,7 +242,7 @@ def _format_gates(gates: tuple[GateResult, ...]) -> str:
     lines: list[str] = []
     for gate in gates:
         mark = "✅" if gate.passed else "❌"
-        detail = f" — {gate.detail}" if gate.detail else ""
+        detail = f" - {gate.detail}" if gate.detail else ""
         lines.append(f"- {mark} **{gate.name}**{detail}")
     return "\n".join(lines)
 
@@ -280,8 +280,8 @@ def build_pr_body(session: SessionSummary) -> str:
     """Render the full markdown body for a pull request.
 
     The output is structured so downstream reviewers (and tooling) can
-    reliably grep for section headers.  All four sections — Summary,
-    Changes, Verification and Cost — are always present even when the
+    reliably grep for section headers.  All four sections - Summary,
+    Changes, Verification and Cost - are always present even when the
     underlying data is empty, so tests can rely on their presence.
 
     Args:
@@ -293,7 +293,7 @@ def build_pr_body(session: SessionSummary) -> str:
     bullets = "\n".join(f"- {line}" for line in _summary_bullets(session.goal))
 
     # The ``bernstein-session-id`` trailer is consumed by the autofix
-    # daemon to claim ownership of PRs Bernstein opened — keeping it
+    # daemon to claim ownership of PRs Bernstein opened - keeping it
     # on its own line lets ``gh pr view --json body`` callers parse it
     # with a single regex.
     short_id = session.session_id[:12] if session.session_id else "unknown"
@@ -348,7 +348,7 @@ def _read_json(path: Path) -> dict[str, object]:
         return {}
     if not isinstance(raw, dict):
         return {}
-    # Normalise to ``dict[str, object]`` — json.loads never produces
+    # Normalise to ``dict[str, object]`` - json.loads never produces
     # non-string keys at the top level, but pyright wants us to say so.
     return {str(key): value for key, value in raw.items()}  # type: ignore[reportUnknownVariableType]
 

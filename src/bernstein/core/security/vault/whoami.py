@@ -26,7 +26,7 @@ class WhoamiError(RuntimeError):
 def _format_template(template: str, fields: dict[str, str]) -> str:
     """Apply ``str.format(**fields)`` but tolerate unknown placeholders.
 
-    A missing key just leaves the placeholder intact rather than raising —
+    A missing key just leaves the placeholder intact rather than raising -
     handy for the Telegram URL where some fields don't apply.
     """
     try:

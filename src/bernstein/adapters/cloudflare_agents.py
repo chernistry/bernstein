@@ -83,9 +83,9 @@ class CloudflareAgentsAdapter(CLIAdapter):
         account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID") or os.environ.get("CF_ACCOUNT_ID")
         api_token = os.environ.get("CLOUDFLARE_API_TOKEN") or os.environ.get("CF_API_TOKEN")
         if not account_id:
-            logger.warning("CloudflareAgentsAdapter: CLOUDFLARE_ACCOUNT_ID is not set — spawn may fail")
+            logger.warning("CloudflareAgentsAdapter: CLOUDFLARE_ACCOUNT_ID is not set - spawn may fail")
         if not api_token:
-            logger.warning("CloudflareAgentsAdapter: CLOUDFLARE_API_TOKEN is not set — spawn may fail")
+            logger.warning("CloudflareAgentsAdapter: CLOUDFLARE_API_TOKEN is not set - spawn may fail")
 
         full_prompt = f"{prompt}\n\n{system_addendum}".strip() if system_addendum else prompt
 

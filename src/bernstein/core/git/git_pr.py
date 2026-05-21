@@ -167,7 +167,7 @@ def merge_with_conflict_detection(
                 error=f"Python syntax errors blocked merge: {error_summary}",
             )
 
-        # Clean merge — commit it
+        # Clean merge - commit it
         msg = message or f"Merge {branch}"
         commit_r = run_git(["commit", "-m", msg], cwd, timeout=30)
         if commit_r.ok:

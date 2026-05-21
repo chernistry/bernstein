@@ -311,7 +311,7 @@ def apply_policy(
 
     This is the integration point used by the orchestrator tick: given the
     current spend ratio and the pending task batch, this returns the policy
-    action and — for ``DOWNGRADE_MODEL`` — rewrites each task's ``model``
+    action and - for ``DOWNGRADE_MODEL`` - rewrites each task's ``model``
     attribute to a cheaper tier where possible.  Callers use the returned
     :class:`BudgetActionResult` to gate spawning (``ABORT``/``PAUSE``) or
     emit warnings.
@@ -338,7 +338,7 @@ def apply_policy(
         for task in tasks:
             current = getattr(task, "model", None) or ""
             if not current:
-                # Task uses default model — mark with cheapest tier so the
+                # Task uses default model - mark with cheapest tier so the
                 # spawner picks it up.
                 try:
                     task.model = _MODEL_TIER_ORDER[0]

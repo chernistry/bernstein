@@ -15,7 +15,7 @@ a shell wrapper script:
   ``BERNSTEIN:QUESTION {"question": "Proceed?", "options": ["y", "n"]}``.
 
 The parser is robust against malformed lines: it never raises on bad
-input — it returns ``None`` so the caller can simply continue scanning
+input - it returns ``None`` so the caller can simply continue scanning
 the stream.
 
 The vocabulary is **additive**: stream-json adapters (Claude, Codex)
@@ -109,7 +109,7 @@ class StreamSignal:
     Attributes:
         kind: The :class:`SignalKind` member identified on the line.
         payload: Decoded JSON object, or empty dict when the line carried
-            no payload. Always a dict — payloads that decode to lists,
+            no payload. Always a dict - payloads that decode to lists,
             strings, or numbers are rejected at parse time and return
             ``None`` from :func:`parse_signal` since the canonical shape
             is always an object.
@@ -148,7 +148,7 @@ def parse_signal(line: str) -> StreamSignal | None:
     Returns:
         A :class:`StreamSignal` when the line matches the grammar,
         otherwise ``None``. Lines that match the prefix but carry an
-        unknown kind or a malformed JSON payload also yield ``None`` —
+        unknown kind or a malformed JSON payload also yield ``None`` -
         with a debug log entry so operators investigating wrapper
         bugs can find them.
     """
@@ -201,7 +201,7 @@ def iter_signals(lines: list[str] | tuple[str, ...]) -> list[StreamSignal]:
     Convenience helper for callers that want to scan a buffered stdout
     chunk (e.g. a log tail) for canonical signals without writing the
     filter loop themselves. Lines that don't parse are silently
-    dropped — that's the whole point of the canonical signal having a
+    dropped - that's the whole point of the canonical signal having a
     unique prefix.
 
     Args:
@@ -228,7 +228,7 @@ def format_signal(kind: SignalKind, payload: dict[str, Any] | None = None) -> st
 
     Adapter wrappers written in Python can use this helper to emit
     canonical signals without hand-formatting the prefix and JSON.
-    Shell wrappers do the same job with a literal ``printf`` — the
+    Shell wrappers do the same job with a literal ``printf`` - the
     grammar is intentionally small enough that both producers stay in
     sync without sharing a library.
 

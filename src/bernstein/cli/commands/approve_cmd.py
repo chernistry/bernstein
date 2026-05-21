@@ -1,4 +1,4 @@
-"""``bernstein approve`` — resolve the human-in-the-loop approval gate.
+"""``bernstein approve`` - resolve the human-in-the-loop approval gate.
 
 Originally lived in :mod:`bernstein.cli.commands.task_cmd`; pulled into a
 dedicated module for #1110 so the pre-spawn ``ApprovalSpec`` gate has a
@@ -40,7 +40,7 @@ def _atomic_write_text(path: Path, content: str) -> bool:
     Returns:
         ``True`` if the path did not exist prior to the call (the caller
         is the first writer); ``False`` when an existing file was simply
-        overwritten — useful for the idempotent "already resolved"
+        overwritten - useful for the idempotent "already resolved"
         message used by both ``bernstein approve`` and ``bernstein
         reject``.
     """

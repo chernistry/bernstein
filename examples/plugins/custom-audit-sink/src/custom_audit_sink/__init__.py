@@ -1,4 +1,4 @@
-"""custom-audit-sink — mirror bernstein audit events to MQTT.
+"""custom-audit-sink - mirror bernstein audit events to MQTT.
 
 Worked example of the ``on_audit_event`` hookspec. Implements a
 fail-soft sink: a broker outage logs at WARNING but never raises into

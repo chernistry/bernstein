@@ -1,4 +1,4 @@
-"""Tests for bernstein.core.prompt_versioning — registry, A/B, metrics, auto-promote."""
+"""Tests for bernstein.core.prompt_versioning - registry, A/B, metrics, auto-promote."""
 
 from __future__ import annotations
 

@@ -2,18 +2,18 @@
 
 Coverage targets:
 
-* The four-axis dataclass invariants — non-negative weights, sum to
+* The four-axis dataclass invariants - non-negative weights, sum to
   1.0 within tolerance, NaN/inf rejection.
-* The three construction paths — :func:`from_dict`, :func:`resolve`
+* The three construction paths - :func:`from_dict`, :func:`resolve`
   (named preset / mapping / CriterionProfile pass-through), and the
   YAML loader.
-* The router-bias mapping — each dominant-axis branch and the
+* The router-bias mapping - each dominant-axis branch and the
   no-dominant-axis fallback.
-* Task-side helpers — :func:`extract_from_task` for missing /
+* Task-side helpers - :func:`extract_from_task` for missing /
   malformed / valid metadata; :func:`inherit_for_child` for both
   inheritance and override paths.
 * Feature flag honour via the ``BERNSTEIN_CRITERION_PROFILE`` env var.
-* Regression: weight overflow and NaN propagation — guard against the
+* Regression: weight overflow and NaN propagation - guard against the
   one concrete bug class the feature could introduce.
 """
 
@@ -107,7 +107,7 @@ class TestCriterionProfileConstruction:
 
 
 # ---------------------------------------------------------------------------
-# Validation — rejection paths
+# Validation - rejection paths
 # ---------------------------------------------------------------------------
 
 
@@ -202,7 +202,7 @@ class TestCriterionProfileValidationRejection:
             )
 
     def test_boolean_weight_rejected(self) -> None:
-        # ``bool`` is a subclass of ``int`` — guard against the silent
+        # ``bool`` is a subclass of ``int`` - guard against the silent
         # ``True == 1`` coercion that would let typos through.
         with pytest.raises(CriterionProfileError, match="must be numeric"):
             from_dict(
@@ -419,7 +419,7 @@ class TestDeriveBias:
         assert "0.60" in bias.rationale
 
     def test_derive_bias_revalidates(self) -> None:
-        # Pass a profile that bypassed from_dict — derive_bias should
+        # Pass a profile that bypassed from_dict - derive_bias should
         # still complain if it can't be validated.
         bad = CriterionProfile(
             correctness=0.9,
@@ -655,7 +655,7 @@ class TestEdgeCases:
 
 
 class TestRegressionNaNPropagation:
-    """Concrete bug class — NaN slipping through validation.
+    """Concrete bug class - NaN slipping through validation.
 
     Earlier drafts validated the sum first and short-circuited on a
     NaN total (since ``nan == anything`` is False, the comparison

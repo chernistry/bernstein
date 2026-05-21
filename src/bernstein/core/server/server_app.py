@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Default cap for request bodies.  Starlette accepts unlimited bodies by
-# default — without a cap, a single POST with a 200MB JSON body will load the
+# default - without a cap, a single POST with a 200MB JSON body will load the
 # full payload into memory before pydantic validation even runs, wedging the
 # server and bloating tasks.jsonl by 200MB per request.
 _DEFAULT_MAX_BODY_BYTES = 1_048_576  # 1 MB
@@ -85,7 +85,7 @@ class ContentLengthMiddleware:
 
     Behaviour:
     - If the ``Content-Length`` header is present and exceeds the cap, reject
-      immediately with 413 — no body bytes are consumed.
+      immediately with 413 - no body bytes are consumed.
     - Streaming / chunked requests without a ``Content-Length`` header are
       tallied on the ASGI receive channel and rejected with 413 the moment
       the cap is crossed.
@@ -158,12 +158,12 @@ class ContentLengthMiddleware:
             nonlocal response_started, response_finished
             if response_finished:
                 # Inner app is still trying to send after we've already
-                # emitted our 413 — drop its messages on the floor.
+                # emitted our 413 - drop its messages on the floor.
                 return
             msg_type = message.get("type")
             if msg_type == "http.response.start":
                 if cap_exceeded:
-                    # Body already crossed the cap — discard the inner app's
+                    # Body already crossed the cap - discard the inner app's
                     # response and emit our 413 instead.
                     await self._send_json(
                         send,
@@ -185,7 +185,7 @@ class ContentLengthMiddleware:
             await self.app(scope, limited_receive, wrapped_send)
         finally:
             if cap_exceeded and not response_started:
-                # Inner app finished without emitting a response — send 413.
+                # Inner app finished without emitting a response - send 413.
                 await self._send_json(
                     send,
                     413,
@@ -325,7 +325,7 @@ def task_to_response(task: Task) -> TaskResponse:
 
 
 # ---------------------------------------------------------------------------
-# SSE event bus — fan-out to all connected dashboard clients
+# SSE event bus - fan-out to all connected dashboard clients
 # ---------------------------------------------------------------------------
 
 
@@ -424,7 +424,7 @@ class SSEBus:
         while window and window[0] <= cutoff:
             window.popleft()
         if len(window) >= self._reconnect_max_per_window:
-            # Exceeded the window — trip the cooldown and reject.
+            # Exceeded the window - trip the cooldown and reject.
             self._reconnect_cooldown_until[ip] = ts + self._reconnect_cooldown_s
             logger.warning(
                 "SSE bus: blocking IP %s for %.0fs (>%d reconnects in %.0fs)",
@@ -446,7 +446,7 @@ class SSEBus:
             client_ip: Optional remote IP string. When provided, the
                 connection is subject to the reconnect-frequency
                 limiter and the per-IP buffer budget. ``None`` opts out
-                (used by synthetic callers — heartbeat loop, unit tests).
+                (used by synthetic callers - heartbeat loop, unit tests).
 
         Raises:
             PermissionError: If *client_ip* has exceeded the reconnect
@@ -680,7 +680,7 @@ def read_log_tail(path: Path, offset: int = 0) -> str:
         return ""
     text = data.decode("utf-8", errors="replace")
     # When seeking into the middle of a file, the first partial line is
-    # incomplete — strip it so callers only see whole lines.
+    # incomplete - strip it so callers only see whole lines.
     if offset > 0 and not text.startswith("\n"):
         idx = text.find("\n")
         if idx == -1:
@@ -700,7 +700,7 @@ def _split_cors_origins(
     """Separate literal CORS origins from glob patterns and build a regex.
 
     ``starlette.middleware.cors.CORSMiddleware`` compares ``allow_origins``
-    literally — ``"http://localhost:*"`` never matches a real browser
+    literally - ``"http://localhost:*"`` never matches a real browser
     origin such as ``"http://localhost:3000"``. requires us to
     translate glob-style origins into an ``allow_origin_regex`` that
     CORSMiddleware actually honors.
@@ -712,7 +712,7 @@ def _split_cors_origins(
 
     Returns:
         A ``(literal_origins, origin_regex)`` tuple.  ``literal_origins`` is
-        the subset containing no ``*`` — safe to pass to ``allow_origins``.
+        the subset containing no ``*`` - safe to pass to ``allow_origins``.
         ``origin_regex`` is ``None`` when no globs were present; otherwise
         it is a single combined regex matching any of the glob origins.
     """
@@ -728,7 +728,7 @@ def _split_cors_origins(
         return literal_origins, None
 
     # Translate each glob origin to a regex fragment.  Escape everything
-    # except ``*`` — and translate ``*`` to either ``\d+`` (when it is the
+    # except ``*`` - and translate ``*`` to either ``\d+`` (when it is the
     # port component, i.e. follows ``:``) or the generic ``[^/]*`` match.
     fragments: list[str] = []
     for origin in glob_origins:
@@ -737,7 +737,7 @@ def _split_cors_origins(
         while i < len(origin):
             ch = origin[i]
             if ch == "*":
-                # A ``:*`` suffix means "any port" — restrict to digits so we
+                # A ``:*`` suffix means "any port" - restrict to digits so we
                 # don't accept pathological inputs like ``http://localhost:evil``.
                 if parts and parts[-1].endswith(":"):
                     parts.append(r"\d+")
@@ -827,7 +827,7 @@ def preflight_multi_worker_guard() -> None:
     """Refuse to boot when multi-worker mode is requested.
 
     Bernstein's ``TaskStore`` coordinates mutations with an in-process
-    ``asyncio.Lock`` and appends to JSONL without ``fcntl.flock`` — running
+    ``asyncio.Lock`` and appends to JSONL without ``fcntl.flock`` - running
     under ``uvicorn --workers N`` (or ``WEB_CONCURRENCY>1``) causes torn
     JSONL lines and duplicate task claims.
 
@@ -882,7 +882,7 @@ def create_app(
 
     Raises:
         SystemExit: Via ``preflight_multi_worker_guard`` when the operator
-            requests more than one uvicorn worker — the ``TaskStore`` is
+            requests more than one uvicorn worker - the ``TaskStore`` is
             single-process and multi-worker mode corrupts state
             .
     """
@@ -915,7 +915,7 @@ def create_app(
     effective_token = auth_token or os.environ.get("BERNSTEIN_AUTH_TOKEN")
 
     # Auth is enabled by default.  Operators can opt out via the
-    # BERNSTEIN_AUTH_DISABLED env var or the ``auth.enabled`` seed key —
+    # BERNSTEIN_AUTH_DISABLED env var or the ``auth.enabled`` seed key -
     # both paths log a loud warning on startup.
     from bernstein.core.security.auth_middleware import auth_disabled_via_opt_out
 
@@ -1011,20 +1011,20 @@ def create_app(
         title="Bernstein Task Server",
         version="1.0.0",
         description=(
-            "Bernstein REST API — multi-agent orchestration for CLI coding agents.\n\n"
+            "Bernstein REST API - multi-agent orchestration for CLI coding agents.\n\n"
             "## Authentication\n\n"
             "Authentication is ENABLED by default.  Include a Bearer token in "
             "all requests:\n\n"
             "```\nAuthorization: Bearer <token>\n```\n\n"
             "To run without auth (development only), set `BERNSTEIN_AUTH_DISABLED=1` "
-            "— this logs a loud warning and passes every request through.\n\n"
+            "- this logs a loud warning and passes every request through.\n\n"
             "Public endpoints (no auth required): `/health`, `/health/ready`, "
             "`/health/live`, `/ready`, `/alive`, `/.well-known/agent.json`, "
             "`/docs`, `/openapi.json`, and the auth-flow endpoints "
             "(`/auth/login`, `/auth/oidc/callback`, etc.).\n\n"
             "Webhook and hook endpoints (`/webhook`, `/webhooks/*`, "
             "`/hooks/{session_id}`) authenticate via HMAC-SHA256 signatures "
-            "— they do NOT accept Bearer tokens.\n\n"
+            "- they do NOT accept Bearer tokens.\n\n"
             "## Base URL\n\n"
             "Default: `http://127.0.0.1:8052`. Override with env vars `BERNSTEIN_HOST` and "
             "`BERNSTEIN_PORT`.\n\n"
@@ -1038,13 +1038,13 @@ def create_app(
             "| 403 | Forbidden (IP not in allowlist) |\n"
             "| 404 | Resource not found |\n"
             "| 409 | Conflict (task already in terminal state) |\n"
-            "| 429 | Rate limited — respect the `Retry-After` header |\n"
+            "| 429 | Rate limited - respect the `Retry-After` header |\n"
             "| 500 | Internal server error |\n"
         ),
         lifespan=lifespan,
     )
 
-    # Crash guard — outermost middleware, catches unhandled exceptions
+    # Crash guard - outermost middleware, catches unhandled exceptions
     application.add_middleware(CrashGuardMiddleware)
 
     # body-size cap. Added BEFORE auth/rate-limit so oversized bodies
@@ -1061,7 +1061,7 @@ def create_app(
         policy=load_frame_embedding_policy(),
     )
 
-    # Structured request logging — logs after crash-guard normalization so the
+    # Structured request logging - logs after crash-guard normalization so the
     # final status code is always captured.
     application.add_middleware(
         StructuredAccessLogMiddleware,
@@ -1073,11 +1073,11 @@ def create_app(
 
     application.add_middleware(RequestLoggingMiddleware)
 
-    # Read-only mode — blocks all writes before auth is even checked
+    # Read-only mode - blocks all writes before auth is even checked
     if readonly:
         application.add_middleware(ReadOnlyMiddleware)
 
-    # Auth middleware — supports SSO JWTs, agent identity JWTs (zero-trust),
+    # Auth middleware - supports SSO JWTs, agent identity JWTs (zero-trust),
     # and legacy bearer tokens.  The agent identity store is shared with
     # application state so spawned agents can authenticate per-request.
     from bernstein.core.agent_identity import AgentIdentityStore
@@ -1101,17 +1101,17 @@ def create_app(
         expected_resource=expected_resource,
     )
 
-    # Per-endpoint request rate limiting — reads buckets from app.state.seed_config.
+    # Per-endpoint request rate limiting - reads buckets from app.state.seed_config.
     application.add_middleware(RequestRateLimitMiddleware)
 
     # SSE reconnect-frequency limiter. Rejects /events clients that
     # reconnect faster than 3 times per 60 s for a 5-minute cooldown.
     application.add_middleware(SSEReconnectLimiterMiddleware)
 
-    # IP allowlist — reads allowed_ips from app.state.seed_config.network dynamically.
+    # IP allowlist - reads allowed_ips from app.state.seed_config.network dynamically.
     application.add_middleware(IPAllowlistMiddleware)
 
-    # CORS middleware — configured from bernstein.yaml or defaults to localhost:*
+    # CORS middleware - configured from bernstein.yaml or defaults to localhost:*
     from bernstein.core.seed import CORSConfig
 
     cors_config = CORSConfig()  # default; overridden after seed_config loads
@@ -1127,7 +1127,7 @@ def create_app(
     from starlette.middleware.cors import CORSMiddleware
 
     # starlette.middleware.cors.CORSMiddleware compares
-    # ``allow_origins`` LITERALLY — so ``http://localhost:*`` never matches
+    # ``allow_origins`` LITERALLY - so ``http://localhost:*`` never matches
     # a real ``http://localhost:3000``.  Detect glob patterns, strip them
     # from the literal list, and translate them to a regex passed via
     # ``allow_origin_regex`` so wildcard ports actually work.
@@ -1167,7 +1167,7 @@ def create_app(
     application.state.sdd_dir = sdd_dir  # type: ignore[attr-defined]  # .sdd/
     application.state.workdir = workdir  # type: ignore[attr-defined]
 
-    # Real-time behavior anomaly monitor — checks file access and output-size on
+    # Real-time behavior anomaly monitor - checks file access and output-size on
     # every progress update and writes kill signals for compromised sessions.
     from bernstein.core.behavior_anomaly import RealtimeBehaviorMonitor
 
@@ -1185,7 +1185,7 @@ def create_app(
     application.state.draining = False  # type: ignore[attr-defined]
     application.state.readonly = readonly  # type: ignore[attr-defined]
 
-    # Config drift watcher — snapshot current config file checksums
+    # Config drift watcher - snapshot current config file checksums
     from bernstein.core.config_watcher import ConfigWatcher
 
     application.state.config_watcher = ConfigWatcher.snapshot(workdir)  # type: ignore[attr-defined]
@@ -1208,7 +1208,7 @@ def create_app(
     def root() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"name": "Bernstein Task Server", "status": "running", "docs": "/docs"}
 
-    # WEB-011: Paginated task search — must precede tasks_router so /tasks/search
+    # WEB-011: Paginated task search - must precede tasks_router so /tasks/search
     # is matched before /tasks/{task_id}.
     from bernstein.core.routes.acp import router as acp_router
     from bernstein.core.routes.agent_comparison import router as agent_comparison_router
@@ -1245,7 +1245,7 @@ def create_app(
 
     # Full roster of application routers.
     #
-    # AUDIT-126 — the /api/v1 mount used to receive only a hand-picked subset
+    # AUDIT-126 - the /api/v1 mount used to receive only a hand-picked subset
     # (tasks, status, costs, export, grafana, health, batch_ops, etc.), so
     # newer routes silently lacked a versioned counterpart. Collecting every
     # router here and iterating once guarantees that adding a new router
@@ -1309,7 +1309,7 @@ def create_app(
         # versioned surface stays in parity with the legacy root paths.
         api_v1_router.include_router(r)
 
-    # Gateway metrics — active only when a gateway session is running.
+    # Gateway metrics - active only when a gateway session is running.
     application.state.mcp_gateway = None  # type: ignore[attr-defined]
 
     application.include_router(api_v1_router)
@@ -1327,7 +1327,7 @@ def create_app(
         return _RedirectResponse(url="/openapi.json", status_code=307)
 
     # Web GUI auto-mount (best-effort): if the SPA build is present in the
-    # wheel, expose it at /ui/* and add /api/v1/gui-meta. Failure is silent —
+    # wheel, expose it at /ui/* and add /api/v1/gui-meta. Failure is silent -
     # source-checkout installs without `cd web && npm run build` simply do
     # not get the GUI mounted, and `bernstein gui serve` is the explicit
     # entry point in that case.

@@ -7,7 +7,7 @@ can compare quality (files changed) and cost (tokens) between the two models.
 
 Design:
 - **Routing**: ``model_for_task(task_id, model_a, model_b)`` assigns each task
-  to exactly one model — no extra agents are spawned.  The split is 50/50
+  to exactly one model - no extra agents are spawned.  The split is 50/50
   across a large number of tasks, and each individual task always gets the
   same model (deterministic).
 - **Recording**: ``record_ab_outcome()`` appends one JSON line per completed
@@ -328,7 +328,7 @@ def generate_ab_report(workdir: Path) -> ABTestReport:
             model_a=stats,
             model_b=empty,
             winner="insufficient_data",
-            summary=f"Only one model ({models[0]}) has records — need at least 2 to compare.",
+            summary=f"Only one model ({models[0]}) has records - need at least 2 to compare.",
         )
 
     model_a, model_b = models[0], models[1]

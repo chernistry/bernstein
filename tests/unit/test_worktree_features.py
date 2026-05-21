@@ -1,4 +1,4 @@
-"""Tests for worktree features — T572, T573, T580."""
+"""Tests for worktree features - T572, T573, T580."""
 
 from __future__ import annotations
 
@@ -134,7 +134,7 @@ class TestCleanupAllStaleWithLockDetection:
                 mgr = WorktreeManager(repo_root=td)
                 cleaned = mgr.cleanup_all_stale()
 
-            # Should NOT be cleaned — lock is still valid
+            # Should NOT be cleaned - lock is still valid
             assert cleanups == []
             assert cleaned == 0
 

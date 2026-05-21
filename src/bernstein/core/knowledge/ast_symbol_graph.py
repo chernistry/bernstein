@@ -1,9 +1,9 @@
-"""Semantic code graph — symbol-level dependency graph for context routing.
+"""Semantic code graph - symbol-level dependency graph for context routing.
 
 Builds a lightweight AST-level graph of symbols (functions, classes, methods)
 and their relationships (calls, imports, inheritance).  Given a task's owned
 files, extracts only the relevant code snippets and their dependency
-neighborhood — reducing context tokens sent to agents by 60-80%.
+neighborhood - reducing context tokens sent to agents by 60-80%.
 
 Usage::
 
@@ -201,7 +201,7 @@ class SemanticGraph:
 
 
 # ---------------------------------------------------------------------------
-# AST parsing — extract symbols and calls from Python files
+# AST parsing - extract symbols and calls from Python files
 # ---------------------------------------------------------------------------
 
 
@@ -529,7 +529,7 @@ def _resolve_import_target(graph: SemanticGraph, module_path: str, name: str) ->
 
 
 # ---------------------------------------------------------------------------
-# Context extraction — the core of context routing
+# Context extraction - the core of context routing
 # ---------------------------------------------------------------------------
 
 
@@ -644,7 +644,7 @@ def _format_dependency_symbols(sections: list[str], symbols: list[SymbolNode]) -
     for sym in symbols:
         sig_line = f"- `{sym.signature}`" if sym.signature else f"- `{sym.name}`"
         if sym.docstring:
-            sig_line += f" — {sym.docstring}"
+            sig_line += f" - {sym.docstring}"
         sections.append(sig_line)
 
 

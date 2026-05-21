@@ -1,4 +1,4 @@
-"""Dashboard-specific routes — file lock inspection endpoint."""
+"""Dashboard-specific routes - file lock inspection endpoint."""
 
 from __future__ import annotations
 

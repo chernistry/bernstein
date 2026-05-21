@@ -96,7 +96,7 @@ def _compose_prompt(round_obj: ReviewRound) -> str:
     """Render a deterministic prompt for the round runner.
 
     The prompt embeds, for every comment, the file path, line range,
-    reviewer username, and body — enough context for the spawned agent
+    reviewer username, and body - enough context for the spawned agent
     to act without re-reading the PR.
     """
     lines: list[str] = [
@@ -151,7 +151,7 @@ def classify_comments(
                 CommentDecision(
                     comment=c,
                     action="dismiss_question",
-                    reason="discussion-style question — needs a human reply",
+                    reason="discussion-style question - needs a human reply",
                 )
             )
             continue
@@ -265,7 +265,7 @@ class ReviewResponder:
             self._finalise(round_obj, result, default_outcome=RoundOutcome.NEEDS_HUMAN)
             return result
 
-        # Commit succeeded — post resolution per-comment + summary.
+        # Commit succeeded - post resolution per-comment + summary.
         result.commit_sha = outcome.commit_sha
         result.cost_usd = outcome.cost_usd
         result.outcome = RoundOutcome.COMMITTED
@@ -343,7 +343,7 @@ class ReviewResponder:
     ) -> None:
         """Reply to a discussion-style question with an apology."""
         body = (
-            f"@{decision.comment.reviewer} Sorry — this looks like a question "
+            f"@{decision.comment.reviewer} Sorry - this looks like a question "
             "rather than a change request, so the review responder is leaving it "
             "for a human teammate to answer."
         )
@@ -371,7 +371,7 @@ class ReviewResponder:
             return
         body = (
             f"Addressed in commit `{commit_sha[:12]}`. "
-            "(GitHub did not accept an automated resolve — please dismiss the thread manually.)"
+            "(GitHub did not accept an automated resolve - please dismiss the thread manually.)"
         )
         self.gh.reply_to_comment(
             repo=round_obj.repo,
@@ -473,7 +473,7 @@ def build_always_allow_gate(engine: AlwaysAllowEngine) -> GateConsult:
 
     The gate evaluates a synthetic ``"review_responder.commit"`` tool name
     against the supplied engine.  An ALLOW match permits the commit; any
-    other result blocks it (defensive default — operators must opt-in).
+    other result blocks it (defensive default - operators must opt-in).
 
     Args:
         engine: Already-loaded :class:`AlwaysAllowEngine`.

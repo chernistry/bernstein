@@ -3,7 +3,7 @@
 
 Resolves the full pinned dependency closure of Bernstein via
 ``uv export --format requirements-txt``, downloads each wheel
-(no transitive resolution — the closure is already pinned),
+(no transitive resolution - the closure is already pinned),
 writes them into ``dist/airgap-wheelhouse/<version>/``, and
 emits a ``MANIFEST.json`` listing every wheel with its sha256.
 
@@ -158,14 +158,14 @@ def build(*, version: str | None, output: Path | None, skip_project: bool = Fals
             req_file = _export_requirements(tmpdir)
             _download_deps(req_file, target)
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-            print(f"warning: dep download skipped — {exc}", file=sys.stderr)
+            print(f"warning: dep download skipped - {exc}", file=sys.stderr)
 
         if not skip_project:
             try:
                 project_wheel = _build_project_wheel(tmpdir)
                 shutil.copy2(project_wheel, target / project_wheel.name)
             except (subprocess.CalledProcessError, RuntimeError) as exc:
-                print(f"warning: project wheel build skipped — {exc}", file=sys.stderr)
+                print(f"warning: project wheel build skipped - {exc}", file=sys.stderr)
 
     wheels: list[WheelEntry] = []
     for path in sorted(target.glob("*.whl")):

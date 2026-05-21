@@ -13,7 +13,7 @@ from bernstein.core.prompt_token_analysis import (
 )
 
 # ---------------------------------------------------------------------------
-# _section_category — section → bucket mapping
+# _section_category - section → bucket mapping
 # ---------------------------------------------------------------------------
 
 

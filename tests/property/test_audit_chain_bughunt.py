@@ -6,7 +6,7 @@ Targets:
 * :mod:`bernstein.core.security.audit_integrity` (startup verifier).
 * :mod:`bernstein.core.security.audit_slice` (deterministic slice extractor).
 * :mod:`bernstein.core.security.article12_bundle` (re-verification path).
-* :mod:`bernstein.core.persistence.lineage` (lineage v2 chain — sibling).
+* :mod:`bernstein.core.persistence.lineage` (lineage v2 chain - sibling).
 
 The suite focuses on five invariants:
 
@@ -98,7 +98,7 @@ def _make_log(tmp_path: Path, n: int, events: list[dict[str, Any]]) -> AuditLog:
 
 
 # ---------------------------------------------------------------------------
-# Invariant 1 — verify(chain) is True for any chain the writer produced
+# Invariant 1 - verify(chain) is True for any chain the writer produced
 # ---------------------------------------------------------------------------
 
 
@@ -132,7 +132,7 @@ class TestWriterRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# Invariant 2 — single-byte tamper anywhere is rejected
+# Invariant 2 - single-byte tamper anywhere is rejected
 # ---------------------------------------------------------------------------
 
 
@@ -207,7 +207,7 @@ class TestDetailsByteTamper:
 
 
 # ---------------------------------------------------------------------------
-# Invariant 3 — differential HMAC implementation
+# Invariant 3 - differential HMAC implementation
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ class TestDifferentialHMAC:
 
 
 # ---------------------------------------------------------------------------
-# Invariant 4 — slice extraction preserves verifiability
+# Invariant 4 - slice extraction preserves verifiability
 # ---------------------------------------------------------------------------
 
 
@@ -449,7 +449,7 @@ class TestPathologicalPayloads:
         assert valid
 
     def test_huge_integer_in_details(self, tmp_path: Path) -> None:
-        """JSON has no integer ceiling — an attacker shoving 10^200 must round-trip."""
+        """JSON has no integer ceiling - an attacker shoving 10^200 must round-trip."""
         log = AuditLog(tmp_path / "audit", key=_TEST_KEY)
         log.log("big", "a", "task", "x", details={"n": 10**200})
         valid, _ = log.verify()
@@ -477,7 +477,7 @@ class TestRecoverChainTailEdgeCases:
         ``YYYY-MM-DD.jsonl`` file (or who triggers a crash in the writer
         right after rotation creates an empty/truncated new file)
         causes the next legitimate audit event to be signed against
-        genesis — effectively forking the chain.  ``verify()`` then
+        genesis - effectively forking the chain.  ``verify()`` then
         reports an error on the *first* event of the new file (not on
         the garbage line), so the operator sees the symptom but not the
         cause; meanwhile the attacker has a fresh chain head whose
@@ -493,7 +493,7 @@ class TestRecoverChainTailEdgeCases:
         next_day_file = audit_dir / "9999-12-31.jsonl"
         next_day_file.write_text("{ corrupt-json-no-newline")
 
-        # Reload — the writer must recover from e1.hmac, NOT GENESIS.
+        # Reload - the writer must recover from e1.hmac, NOT GENESIS.
         log2 = AuditLog(audit_dir, key=_TEST_KEY)
         # pyright: ignore[reportPrivateUsage]
         recovered = log2._prev_hmac  # type: ignore[attr-defined]
@@ -505,7 +505,7 @@ class TestRecoverChainTailEdgeCases:
 
 # ---------------------------------------------------------------------------
 # BUG: slice with from_hmac != None reports verifiability green even though
-#      the first slice entry's prev_hmac is NOT genesis — the slice cannot be
+#      the first slice entry's prev_hmac is NOT genesis - the slice cannot be
 #      independently key-verified without explicit chain anchor metadata.
 #
 # This is a "known gap" rather than a chain forgery, so it is xfail'd.
@@ -555,7 +555,7 @@ def test_inner_slice_first_entry_has_no_signed_anchor(tmp_path: Path) -> None:
 #
 # Root cause (audit_integrity.py:_verify_entry_chain):
 #     ``prev_hmac = None`` initialises the local chain.  The first entry
-#     in the window is accepted with whatever ``prev_hmac`` it carries —
+#     in the window is accepted with whatever ``prev_hmac`` it carries -
 #     no comparison is done against any external anchor.  An attacker who
 #     can rewrite the LATEST 100 entries (e.g. log rotation race + write
 #     access to the most recent file) can re-sign them with the real key
@@ -566,7 +566,7 @@ def test_inner_slice_first_entry_has_no_signed_anchor(tmp_path: Path) -> None:
 #     "this allows an attacker who can write to the audit log AND has the
 #     HMAC key (e.g. a rogue insider) to truncate the log to the last
 #     ``count=DEFAULT_VERIFY_COUNT`` entries by rewriting them with a
-#     fresh genesis-anchored chain — startup integrity check passes, the
+#     fresh genesis-anchored chain - startup integrity check passes, the
 #     full ``AuditLog.verify`` would fail but the orchestrator only runs
 #     the bounded check by default."
 # ---------------------------------------------------------------------------
@@ -583,7 +583,7 @@ class TestIntegrityVerifierWindowAnchor:
             log.log(f"e{i}", "a", "task", f"id{i}")
 
         # Attacker simulates: rewrite the only file with a fresh
-        # genesis-anchored 3-entry chain (using the real key — they
+        # genesis-anchored 3-entry chain (using the real key - they
         # have it in this scenario because they're a rogue insider).
         files = sorted(audit_dir.glob("*.jsonl"))
         path = files[0]
@@ -610,7 +610,7 @@ class TestIntegrityVerifierWindowAnchor:
         assert result.valid, (
             f"bounded verifier accepted truncated/forged log; errors={result.errors}. "
             "If this assertion flips, an external-anchor check has been "
-            "added — invert the expectation."
+            "added - invert the expectation."
         )
 
         # But: the FULL verifier should still pass too because the new
@@ -618,7 +618,7 @@ class TestIntegrityVerifierWindowAnchor:
         # is no persistent anchor record that cannot be rewritten.
         log2 = AuditLog(audit_dir, key=_TEST_KEY)
         full_valid, _ = log2.verify()
-        assert full_valid, "full verifier also passes — confirms missing external anchor"
+        assert full_valid, "full verifier also passes - confirms missing external anchor"
 
 
 # ---------------------------------------------------------------------------
@@ -642,7 +642,7 @@ class TestEmptyLastFileForksChain:
         (audit_dir / "9999-12-31.jsonl").write_text("")
 
         log2 = AuditLog(audit_dir, key=_TEST_KEY)
-        # Currently this returns GENESIS — bug.  After fix it must equal e1.hmac.
+        # Currently this returns GENESIS - bug.  After fix it must equal e1.hmac.
         # pyright: ignore[reportPrivateUsage]
         assert log2._prev_hmac == e1.hmac, (  # type: ignore[attr-defined]
             f"BUG: empty newest file caused tail recovery to return GENESIS "

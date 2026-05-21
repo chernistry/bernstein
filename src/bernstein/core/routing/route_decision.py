@@ -1,4 +1,4 @@
-"""Route decision tracking — explains why agent/model was chosen for a task."""
+"""Route decision tracking - explains why agent/model was chosen for a task."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ class RouteDecisionTracker:
         self._write_decision(decision)
 
         logger.info(
-            "Task %s routed to %s/%s (%s) — %s",
+            "Task %s routed to %s/%s (%s) - %s",
             decision.task_id,
             decision.adapter,
             decision.model,

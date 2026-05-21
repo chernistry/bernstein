@@ -3,7 +3,7 @@
 The :class:`ArtifactSinkConformance` suite is parametrized: every
 first-party sink gets its fixture here. Cloud sinks (S3/GCS/Azure/R2)
 run the same suite in ``tests/integration/storage/`` behind gating
-skipifs — they are excluded from the unit suite because they need
+skipifs - they are excluded from the unit suite because they need
 emulators or real credentials.
 """
 
@@ -30,7 +30,7 @@ class TestLocalFsSinkConformance(ArtifactSinkConformance):
     """Runs the shared conformance suite against LocalFsSink."""
 
     # Override the default 1 MB payload with 128 KB so the
-    # unit suite stays fast — large_payload_roundtrip still exercises
+    # unit suite stays fast - large_payload_roundtrip still exercises
     # the chunked-write path via atomic_write.
     large_payload_bytes = 128 * 1024
 

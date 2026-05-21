@@ -55,7 +55,7 @@ def sample_sections() -> list[AgentsMdSection]:
 
 
 # ---------------------------------------------------------------------------
-# render() — target dispatch
+# render() - target dispatch
 # ---------------------------------------------------------------------------
 
 
@@ -84,11 +84,11 @@ class TestRenderCanonical:
 
     def test_content_starts_with_h1(self, sample_sections: list[AgentsMdSection]) -> None:
         out = render(sample_sections, "canonical", repo_name="demo")
-        assert out.files["AGENTS.md"].startswith("# demo — AGENTS.md\n")
+        assert out.files["AGENTS.md"].startswith("# demo - AGENTS.md\n")
 
 
 # ---------------------------------------------------------------------------
-# Cursor — .cursor/rules/<key>.mdc with frontmatter
+# Cursor - .cursor/rules/<key>.mdc with frontmatter
 # ---------------------------------------------------------------------------
 
 
@@ -126,7 +126,7 @@ class TestRenderCursor:
 
 
 # ---------------------------------------------------------------------------
-# Claude Code — single CLAUDE.md
+# Claude Code - single CLAUDE.md
 # ---------------------------------------------------------------------------
 
 
@@ -143,12 +143,12 @@ class TestRenderClaude:
     def test_no_yaml_frontmatter(self, sample_sections: list[AgentsMdSection]) -> None:
         body = render(sample_sections, "claude", repo_name="demo").files["CLAUDE.md"]
         # Frontmatter would mean starting with `---` immediately. We start
-        # with `# {name} — CLAUDE.md`.
+        # with `# {name} - CLAUDE.md`.
         assert not body.lstrip().startswith("---")
 
 
 # ---------------------------------------------------------------------------
-# Aider — CONVENTIONS.md + .aider.conf.yml
+# Aider - CONVENTIONS.md + .aider.conf.yml
 # ---------------------------------------------------------------------------
 
 
@@ -171,7 +171,7 @@ class TestRenderAider:
 
 
 # ---------------------------------------------------------------------------
-# Goose — .goosehints (plaintext)
+# Goose - .goosehints (plaintext)
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +195,7 @@ class TestRoundTripEquivalence:
     """Issue #1087 invariant: rendering through *any* target preserves the
     content payload of *every* canonical section.
 
-    We don't claim byte-equivalence across targets — frontmatter, headings,
+    We don't claim byte-equivalence across targets - frontmatter, headings,
     and separators legitimately differ. We claim: for every section in the
     canonical IR, the substring of that section's first body-line appears
     in every target's emitted content.

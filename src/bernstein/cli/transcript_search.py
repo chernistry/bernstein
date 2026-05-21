@@ -185,8 +185,8 @@ def search_transcripts(
     """Search across trace files in *workdir*/ ``.sdd/traces/``.
 
     Supported file formats:
-    - ``.jsonl`` — searched line-by-line
-    - ``.json`` — parsed as JSON, then all leaf string values are searched
+    - ``.jsonl`` - searched line-by-line
+    - ``.json`` - parsed as JSON, then all leaf string values are searched
 
     Args:
         query: Case-insensitive search text.
@@ -196,7 +196,7 @@ def search_transcripts(
         page: Page number (1-based).
 
     Returns:
-        ``(matches, total_count)`` — a tuple of the current page of matches
+        ``(matches, total_count)`` - a tuple of the current page of matches
         and the total number of matches before pagination.
     """
     from pathlib import Path

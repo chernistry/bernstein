@@ -78,7 +78,7 @@ def test_cocoindex_code_install_command_is_argv_not_shell() -> None:
         assert "|" not in token
         assert ";" not in token
     # First token resolves to a real binary on the host (or is a known
-    # package manager) — we only assert the shape, not host availability.
+    # package manager) - we only assert the shape, not host availability.
     assert entry.install_command[0] in {"pip", "pipx", "uv", "uvx", "ccc"}
 
 

@@ -1,4 +1,4 @@
-"""Agent comparison view API — per-provider/model performance metrics.
+"""Agent comparison view API - per-provider/model performance metrics.
 
 Aggregates session data by (provider, model) to expose success rates, costs,
 completion times, and quality gate pass rates for side-by-side comparison

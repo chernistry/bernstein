@@ -1,4 +1,4 @@
-"""GitLab CI trigger source adapters — normalize GitLab webhook payloads into TriggerEvents."""
+"""GitLab CI trigger source adapters - normalize GitLab webhook payloads into TriggerEvents."""
 
 from __future__ import annotations
 

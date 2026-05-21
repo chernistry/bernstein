@@ -55,7 +55,7 @@ class TestCircuitBreakerConfig:
 
 
 # ---------------------------------------------------------------------------
-# ProviderCircuitBreaker — CLOSED state
+# ProviderCircuitBreaker - CLOSED state
 # ---------------------------------------------------------------------------
 
 
@@ -94,7 +94,7 @@ class TestClosedState:
 
 
 # ---------------------------------------------------------------------------
-# ProviderCircuitBreaker — OPEN state
+# ProviderCircuitBreaker - OPEN state
 # ---------------------------------------------------------------------------
 
 
@@ -118,7 +118,7 @@ class TestOpenState:
 
 
 # ---------------------------------------------------------------------------
-# ProviderCircuitBreaker — HALF_OPEN state
+# ProviderCircuitBreaker - HALF_OPEN state
 # ---------------------------------------------------------------------------
 
 

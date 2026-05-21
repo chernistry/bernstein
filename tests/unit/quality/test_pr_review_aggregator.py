@@ -4,7 +4,7 @@ Covers parsing, clustering, voting (including critical/high single-vote
 veto), ranking + top-K, file grouping, and the end-to-end
 ``aggregate_pr_review`` and ``aggregate_from_pipeline`` flows.
 
-Pure unit tests — no LLM, no subprocess calls.
+Pure unit tests - no LLM, no subprocess calls.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class TestParseFinding:
 
     def test_handles_no_file_or_line(self) -> None:
         f = parse_finding(
-            "scope creep — diff touches stuff outside ticket",
+            "scope creep - diff touches stuff outside ticket",
             source_role="reviewer",
             source_model="claude",
         )

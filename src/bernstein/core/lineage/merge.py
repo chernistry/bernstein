@@ -6,11 +6,11 @@ points to the resolved siblings of one fork. It carries the steward's
 and the operator HMAC. The choice of WHICH sibling's content wins is made
 by a `MergePolicy`:
 
-  - `HumanPolicy` (`"human"`)        — default; raises `LineageConflict`
+  - `HumanPolicy` (`"human"`)        - default; raises `LineageConflict`
                                        so the operator can run the CLI.
-  - `FirstWriterPolicy`              — earliest `ts_ns` wins; agent_id lex
+  - `FirstWriterPolicy`              - earliest `ts_ns` wins; agent_id lex
                                        tiebreak.
-  - `AgentPolicy("agent:<id>")`      — designated agent's tip always wins.
+  - `AgentPolicy("agent:<id>")`      - designated agent's tip always wins.
 
 Steward privilege is enforced by allow-listing at gate time, not by the
 shape of the entry (same key type as workers).
@@ -56,7 +56,7 @@ class HumanPolicy:
         raise LineageConflict(
             artefact_path=fork.artefact_path,
             candidate_hashes=fork.child_hashes,
-            reason="merge policy is 'human' — operator must choose",
+            reason="merge policy is 'human' - operator must choose",
         )
 
 
@@ -106,7 +106,7 @@ def resolve_policy(policy_name: str) -> MergePolicy:
 
 @dataclass(frozen=True, slots=True)
 class StewardKey:
-    """Steward's signing material — Agent Card + Ed25519 private key PEM."""
+    """Steward's signing material - Agent Card + Ed25519 private key PEM."""
 
     card: AgentCard
     private_key_pem: str
@@ -129,7 +129,7 @@ def build_merge_entry(
     """Construct one merge entry per fork.
 
     The merge entry's ``operator_hmac`` covers the JCS-canonical bytes of the
-    entry with the ``operator_hmac`` field blanked — identical to the scheme
+    entry with the ``operator_hmac`` field blanked - identical to the scheme
     used by :class:`bernstein.core.lineage.recorder.LineageRecorder` so the
     CI gate accepts both kinds of entry under the same operator secret.
 

@@ -637,7 +637,7 @@ class TestGatherLessonsWithStaleness:
 
 
 class TestMemoryTruncation:
-    """T654 — truncation warnings when memory exceeds budget."""
+    """T654 - truncation warnings when memory exceeds budget."""
 
     def test_truncation_warning_when_exceeds_budget(self, tmp_path: Path) -> None:
         """When lessons overflow, a truncation notice should be appended."""

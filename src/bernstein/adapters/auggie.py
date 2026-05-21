@@ -43,14 +43,14 @@ class AuggieAdapter(CLIAdapter):
         Args:
             prompt: The task prompt for the agent (passed positionally).
             workdir: Working directory for the Auggie process.
-            model_config: Model and effort configuration (unused — Auggie
+            model_config: Model and effort configuration (unused - Auggie
                 selects the model via its own configuration).
             session_id: Unique session identifier used for log naming.
             mcp_config: Optional MCP server definitions (unused).
             timeout_seconds: Process timeout in seconds.
             task_scope: Task scope label (unused by this adapter).
             budget_multiplier: Retry budget multiplier (unused by this adapter).
-            system_addendum: Protocol-critical instructions (unused — Auggie
+            system_addendum: Protocol-critical instructions (unused - Auggie
                 accepts only a single positional prompt).
 
         Returns:

@@ -1,4 +1,4 @@
-"""Tests for the chaos testing framework — scenarios, results, grading, formatting."""
+"""Tests for the chaos testing framework - scenarios, results, grading, formatting."""
 
 from __future__ import annotations
 

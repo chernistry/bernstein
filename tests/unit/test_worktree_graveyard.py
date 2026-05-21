@@ -129,7 +129,7 @@ def test_preserve_branch_to_graveyard_missing_branch_returns_none(repo: Path) ->
 
 
 # ----------------------------------------------------------------------------
-# cleanup_all_stale — end-to-end behavior
+# cleanup_all_stale - end-to-end behavior
 # ----------------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ def test_cleanup_all_stale_nukes_clean_worktree_without_graveyard(repo: Path) ->
     wt = repo / ".sdd" / "worktrees" / "clean-crash"
     wt.parent.mkdir(parents=True, exist_ok=True)
     _run(["git", "worktree", "add", "-b", "agent/clean-crash", str(wt)], repo)
-    # No commits after branch creation — branch tip == main tip.
+    # No commits after branch creation - branch tip == main tip.
 
     mgr = WorktreeManager(repo_root=repo, salvage_on_cleanup=False)
     cleaned = mgr.cleanup_all_stale()
@@ -205,7 +205,7 @@ def test_purge_graveyard_keeps_recent_entries(repo: Path) -> None:
     _add_worktree_with_commits(repo, "recent", commit_count=1)
     preserve_branch_to_graveyard(repo, "recent")
 
-    # Default 14-day window — fresh entry should NOT be purged.
+    # Default 14-day window - fresh entry should NOT be purged.
     purged = purge_graveyard(repo, older_than_days=14)
     assert purged == 0
 

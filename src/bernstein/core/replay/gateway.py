@@ -8,15 +8,15 @@ run can be re-executed deterministically against recorded fixtures.
 
 Design choices:
 
-* **Append-only JSONL** — same on-disk shape as existing trace files; works
+* **Append-only JSONL** - same on-disk shape as existing trace files; works
   with the rest of the observability stack and stays human-diffable.
-* **Recording is opt-in** — controlled by :data:`RECORD_ENV_VAR` or an
+* **Recording is opt-in** - controlled by :data:`RECORD_ENV_VAR` or an
   explicit ``record=True`` argument. We don't want to bloat ``.sdd/`` for
   users who never replay.
-* **Stable keys** — callers pass an explicit ``key`` (typically a SHA-256
+* **Stable keys** - callers pass an explicit ``key`` (typically a SHA-256
   of the request payload). The gateway never tries to fingerprint the
   request itself; key stability is the caller's job.
-* **First-call ordering preserved** — replay lookup falls back to FIFO
+* **First-call ordering preserved** - replay lookup falls back to FIFO
   consumption per ``kind`` when the key isn't found, so even hashed
   prompts with timestamp jitter replay cleanly.
 """
@@ -115,7 +115,7 @@ class ReplayGateway:
         mode: Explicit :class:`GatewayMode`. If omitted, defaults to
             :attr:`GatewayMode.RECORD` when :func:`is_recording_enabled`
             is true and ``record`` is not set, else :attr:`GatewayMode.OFF`.
-        record: Convenience flag — when ``True``, forces record mode even
+        record: Convenience flag - when ``True``, forces record mode even
             if the env var is unset. Ignored if ``mode`` is provided.
     """
 
@@ -222,7 +222,7 @@ class ReplayGateway:
         Sequence assignment AND the file write happen under ``self._lock``.
         Splitting these two steps (lock-then-release before opening the
         file) let two concurrent record calls swap their ``seq`` order in
-        the file, and worse — concurrent file writes past PIPE_BUF can
+        the file, and worse - concurrent file writes past PIPE_BUF can
         interleave bytes, producing malformed JSONL the replay loader
         then silently skips. The lock is local to the gateway, so the
         critical section is short and uncontended for typical adapter
@@ -293,7 +293,7 @@ class ReplayGateway:
             if bucket:
                 response = bucket.pop(0)
                 # Also remove the matching entry from the by-kind queue
-                # (FIFO match — first identical response).
+                # (FIFO match - first identical response).
                 kind_bucket = self._fixtures_by_kind.get(kind, [])
                 for i, item in enumerate(kind_bucket):
                     if item == response:

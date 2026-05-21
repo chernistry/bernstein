@@ -1,4 +1,4 @@
-"""Plugin manager — discovers, loads, and invokes Bernstein plugins."""
+"""Plugin manager - discovers, loads, and invokes Bernstein plugins."""
 
 from __future__ import annotations
 
@@ -565,9 +565,9 @@ class PluginManager:
 
     Plugins are discovered from two sources:
 
-    1. **Entry points** — any installed package that registers hooks under
+    1. **Entry points** - any installed package that registers hooks under
        the ``bernstein.plugins`` entry-point group.
-    2. **bernstein.yaml** ``plugins:`` field — a list of dotted import paths
+    2. **bernstein.yaml** ``plugins:`` field - a list of dotted import paths
        to be imported and registered as plugins.
 
     The manager handles lifecycle hooks (task creation, agent spawning, etc.)
@@ -649,7 +649,7 @@ class PluginManager:
         tool: str,
         tool_input: dict[str, Any],
     ) -> str | None:
-        """Fire on_pre_tool_use hook — can block via HookBlockingError (T681).
+        """Fire on_pre_tool_use hook - can block via HookBlockingError (T681).
 
         Returns:
             Optional denial hint from a firstresult hook, or None.
@@ -778,7 +778,7 @@ class PluginManager:
         """
         if not _is_interactive():
             log.warning(
-                "Elicitation requested for session %s, but stdin is not a TTY — returning non_interactive",
+                "Elicitation requested for session %s, but stdin is not a TTY - returning non_interactive",
                 session_id,
             )
             self._safe_call("on_elicitation", session_id=session_id, prompt=prompt, options=options)
@@ -914,7 +914,7 @@ class PluginManager:
         max_tokens: int = 4096,
         timeout_seconds: float = 30.0,
     ) -> dict[str, Any] | None:
-        """Fire on_agent_hook — forked LLM call with isolated context (T457).
+        """Fire on_agent_hook - forked LLM call with isolated context (T457).
 
         Invokes plugin hooks with a forked LLM context slice.  The hook
         result should be a structured decision (``allow``/``deny``/``ask``).
@@ -1116,7 +1116,7 @@ class PluginManager:
         Also discovers command hooks in ``.bernstein/hooks/``.
 
         Each subsystem (entry points, command hooks, config plugins) loads
-        independently — a failure in one does not prevent the others from
+        independently - a failure in one does not prevent the others from
         loading.
 
         Args:

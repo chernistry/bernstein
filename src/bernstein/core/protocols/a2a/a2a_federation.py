@@ -20,7 +20,7 @@ and updates the local ledger transactionally:
   peer transitions to ``UNREACHABLE``; an :class:`A2ADelegationError`
   is raised so the caller can react.
 
-The in-memory ledger is still authoritative for local state — HTTP is
+The in-memory ledger is still authoritative for local state - HTTP is
 only the wire transport. Synchronous :meth:`delegate_task` is preserved
 for bookkeeping-only use cases (tests, dry runs, planning) and remains
 the path used by all 25 existing unit tests.
@@ -68,7 +68,7 @@ DEFAULT_READ_TIMEOUT = 30.0
 
 # Retry policy for delegate_task_http.
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_BACKOFF_BASE = 0.25  # seconds — 0.25, 0.5, 1.0 by default
+DEFAULT_BACKOFF_BASE = 0.25  # seconds - 0.25, 0.5, 1.0 by default
 
 
 class A2ADelegationError(RuntimeError):
@@ -96,7 +96,7 @@ class A2ATaskRejectedError(RuntimeError):
     """Raised when the peer accepts the request but rejects the task body.
 
     Distinct from :class:`A2ADelegationError`: rejection means the peer is
-    reachable and authoritative — there is nothing to retry. The local
+    reachable and authoritative - there is nothing to retry. The local
     ledger reflects ``REJECTED`` for the task and the peer remains
     ``ACTIVE``.
     """
@@ -365,7 +365,7 @@ class A2AFederation:
             raise ValueError(f"Cannot delegate to peer '{peer_name}': not registered or deregistered")
 
         task = self.delegate_task(peer_name, message, role)
-        if task is None:  # pragma: no cover — guarded above
+        if task is None:  # pragma: no cover - guarded above
             raise ValueError(f"Failed to allocate ledger entry for peer '{peer_name}'")
 
         # Lock here so concurrent in-flight delegations to the same peer
@@ -570,7 +570,7 @@ class A2AFederation:
         Returns:
             The accepted FederatedTask (newly created or existing one).
         """
-        # Idempotent path — return the existing entry on duplicate posts.
+        # Idempotent path - return the existing entry on duplicate posts.
         if remote_task_id:
             for existing_id in self._by_peer.get(peer_name, ()):
                 existing = self._tasks.get(existing_id)

@@ -99,7 +99,7 @@ def svc(tmp_path: Path) -> AuthService:
     """Minimal AuthService wired enough to call parse_saml_assertion."""
     config = SSOConfig(
         enabled=True,
-        jwt_secret="test-jwt-secret-for-unit-tests",  # NOSONAR — test fixture
+        jwt_secret="test-jwt-secret-for-unit-tests",  # NOSONAR - test fixture
         jwt_expiry_seconds=3600,
         session_expiry_seconds=3600,
         default_role="viewer",
@@ -126,7 +126,7 @@ class TestSAMLXXEDefense:
         assert result is None, "billion-laughs payload must be refused"
         # 2s is deliberately generous for slow CI; a regression would take
         # orders of magnitude longer.
-        assert elapsed < 2.0, f"parse took {elapsed:.2f}s — entities may be expanding"
+        assert elapsed < 2.0, f"parse took {elapsed:.2f}s - entities may be expanding"
 
     def test_quadratic_blowup_is_rejected(self, svc: AuthService) -> None:
         """Even a shallow DTD with one entity must be refused."""

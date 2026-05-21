@@ -269,7 +269,7 @@ def _check_ref_paths_exist(spec_text: str, workspace_root: Path | None) -> RuleR
     """Every backtick-quoted path token must resolve under ``workspace_root``.
 
     When ``workspace_root`` is ``None`` the rule passes with an informational
-    hint — we cannot verify paths without a checkout.
+    hint - we cannot verify paths without a checkout.
     """
     if workspace_root is None:
         return RuleResult(
@@ -428,7 +428,7 @@ def _resolve_spec_input(spec: Path | str) -> tuple[Path, str]:
     A :class:`Path` is read from disk; a ``str`` is treated as raw spec
     content unless it points at an existing file, in which case the file
     contents are returned. The path component of the return value is
-    informational only — callers persist it on the report for display.
+    informational only - callers persist it on the report for display.
     """
     if isinstance(spec, Path):
         return spec, spec.read_text(encoding="utf-8")

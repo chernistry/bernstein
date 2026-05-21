@@ -14,8 +14,8 @@ Deadlock detection
 Two (or more) agents are "deadlocked" when each holds a file lock that the
 other is waiting for.  Detected by building a wait-for graph from:
 
-- ``FileLockManager.all_locks()`` — who holds what
-- :meth:`LoopDetector.record_lock_wait` — who is waiting for what
+- ``FileLockManager.all_locks()`` - who holds what
+- :meth:`LoopDetector.record_lock_wait` - who is waiting for what
 
 Resolution: release the lock held by the *older* agent (the one that has
 been holding its lock the longest), allowing the newer agent to proceed first.

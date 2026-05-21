@@ -1,6 +1,6 @@
 """Devin for Terminal (Cognition) CLI adapter.
 
-`Devin for Terminal` is Cognition's local coding agent — a single-binary
+`Devin for Terminal` is Cognition's local coding agent - a single-binary
 ``devin`` CLI installed via::
 
     curl -fsSL https://cli.devin.ai/install.sh | bash
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 # ``--`` separator. We use the inline form for parity with codex/aider.
 _NON_INTERACTIVE_FLAG = "--print"
 
-# ``--permission-mode bypass`` mirrors Codex's ``--full-auto`` —
+# ``--permission-mode bypass`` mirrors Codex's ``--full-auto`` -
 # required for unattended runs so Devin does not stop to ask for
 # tool-execution confirmations.
 _PERMISSION_MODE_FLAG = "--permission-mode"
@@ -60,7 +60,7 @@ class DevinTerminalAdapter(CLIAdapter):
     machine and can hand off to a cloud session via ``devin push``.
     Bernstein only drives the local agent; cloud handoff is a non-goal.
 
-    The adapter intentionally raises *only* at :meth:`spawn` time —
+    The adapter intentionally raises *only* at :meth:`spawn` time -
     importing this module never touches the env, so missing credentials
     surface as a runtime warning when an actual task is dispatched
     (matches the ``CLM`` adapter behaviour).
@@ -91,7 +91,7 @@ class DevinTerminalAdapter(CLIAdapter):
         """Launch a one-shot Devin for Terminal session.
 
         Args:
-            prompt: Task prompt — passed inline to ``devin --print``.
+            prompt: Task prompt - passed inline to ``devin --print``.
             workdir: Working directory; Devin treats this as the
                 project root.
             model_config: Bernstein model selection. ``model`` is
@@ -99,7 +99,7 @@ class DevinTerminalAdapter(CLIAdapter):
                 to its configured default.
             session_id: Unique session identifier used for log naming
                 and the bernstein-worker title.
-            mcp_config: Optional MCP server definitions (unused —
+            mcp_config: Optional MCP server definitions (unused -
                 Devin manages MCP via its own ``devin mcp`` subcommand
                 and config file).
             timeout_seconds: Process wall-clock timeout.
@@ -120,7 +120,7 @@ class DevinTerminalAdapter(CLIAdapter):
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # No first-class system-prompt channel — graft any addendum
+        # No first-class system-prompt channel - graft any addendum
         # onto the prompt so completion / heartbeat instructions still
         # reach the agent. Empty addenda are no-ops.
         full_prompt = f"{prompt}\n\n{system_addendum}".rstrip() if system_addendum else prompt
@@ -133,7 +133,7 @@ class DevinTerminalAdapter(CLIAdapter):
         if not (os.environ.get("DEVIN_API_KEY") or os.environ.get("WINDSURF_API_KEY")):
             logger.warning(
                 "DevinTerminalAdapter: neither DEVIN_API_KEY nor WINDSURF_API_KEY is set "
-                "and no `devin auth login` cache has been confirmed — spawn may fail "
+                "and no `devin auth login` cache has been confirmed - spawn may fail "
                 "with an authentication error.",
             )
 

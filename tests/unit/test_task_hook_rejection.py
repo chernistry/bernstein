@@ -12,7 +12,7 @@ from bernstein.plugins.manager import HookBlockingError, PluginManager
 
 
 class TestPreTaskCreateHook:
-    """T719 — pre-task-create hooks can block task creation."""
+    """T719 - pre-task-create hooks can block task creation."""
 
     def test_fire_pre_task_create_passes_when_no_hooks(self, tmp_path: Path) -> None:
         pm = PluginManager()
@@ -42,7 +42,7 @@ class TestPreTaskCreateHook:
 
 
 class TestCommandHookBlocking:
-    """T719 — command hooks (shell scripts) can block via exit code 2."""
+    """T719 - command hooks (shell scripts) can block via exit code 2."""
 
     def test_blocking_script_exits_2_raises(self, tmp_path: Path) -> None:
         # The CommandHook takes a base dir; _run_command looks for <base>/hook_name/

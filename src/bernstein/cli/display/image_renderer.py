@@ -6,7 +6,7 @@ via the best available protocol:
     Kitty → iTerm2 → Sixel → Half-block → Braille → (none)
 
 Each renderer is a self-contained class.  ``render_image()`` is the public
-entry point — it selects the renderer, optionally wraps output in
+entry point - it selects the renderer, optionally wraps output in
 synchronized-update mode (\\033[?2026h/l), and flushes to stdout or a caller-
 supplied file object.
 
@@ -61,7 +61,7 @@ class NullRenderer(BaseRenderer):
 
 
 class KittyRenderer(BaseRenderer):
-    """Kitty graphics protocol — chunked base64 PNG over APC sequences.
+    """Kitty graphics protocol - chunked base64 PNG over APC sequences.
 
     Transmits PNG pixel data with no color quantization.  Large payloads are
     split into ≤4096-byte chunks; each chunk uses ``m=1`` to signal
@@ -95,7 +95,7 @@ class KittyRenderer(BaseRenderer):
 
 
 class ITerm2Renderer(BaseRenderer):
-    """iTerm2 inline images via OSC 1337 — single-shot base64 PNG.
+    """iTerm2 inline images via OSC 1337 - single-shot base64 PNG.
 
     One escape sequence carries the entire PNG payload.  Width/height are
     expressed in terminal columns/rows so the terminal handles scaling.
@@ -118,7 +118,7 @@ class ITerm2Renderer(BaseRenderer):
 
 
 class SixelRenderer(BaseRenderer):
-    """Sixel DCS output — PIL quantize → 256-color DCS sixel sequence.
+    """Sixel DCS output - PIL quantize → 256-color DCS sixel sequence.
 
     Quantizes the image to at most 256 indexed colors, then encodes as a
     compliant DCS sixel string with RLE compression.  The output size is
@@ -226,7 +226,7 @@ def _encode_sixel(img: Image.Image, max_colors: int = 256) -> str:
 
 
 class HalfBlockRenderer(BaseRenderer):
-    """Truecolor half-block renderer — U+2584 (▄) with 24-bit ANSI colors.
+    """Truecolor half-block renderer - U+2584 (▄) with 24-bit ANSI colors.
 
     Each terminal character cell covers **two** vertical pixels:
 
@@ -282,10 +282,10 @@ _BRAILLE_DOTS: list[list[int]] = [
 
 
 class BrailleRenderer(BaseRenderer):
-    """Braille character renderer — best for line art and monochrome content.
+    """Braille character renderer - best for line art and monochrome content.
 
     Each Braille character covers a 2x4 pixel cell, yielding an effective
-    resolution of ``(widthx2) x (heightx4)`` — e.g., 160x96 on an 80x24
+    resolution of ``(widthx2) x (heightx4)`` - e.g., 160x96 on an 80x24
     terminal.  The trade-off: only 2 colors per cell (no per-pixel color), so
     this renderer suits plots, line drawings, and monochrome icons rather than
     photographs.

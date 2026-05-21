@@ -7,8 +7,8 @@ Implements a two-phase routing strategy:
    critical).  Skips a tier proactively when bandit data shows its success rate
    is below the quality threshold for this (role, complexity) class.
 
-2. **Confidence-based escalation**: after execution, inspect signals — janitor
-   result, agent output text, exit code — to decide whether to escalate to the
+2. **Confidence-based escalation**: after execution, inspect signals - janitor
+   result, agent output text, exit code - to decide whether to escalate to the
    next tier or accept the result.
 
 Cascade order (cheapest → most expensive):
@@ -92,7 +92,7 @@ _LOW_CONFIDENCE_PATTERN: re.Pattern[str] = re.compile(
 # Number of output chars from the tail to scan for confidence signals.
 _CONFIDENCE_SCAN_TAIL = 2_000
 
-# Cost per 1k tokens for Opus — used to compute savings vs all-opus baseline.
+# Cost per 1k tokens for Opus - used to compute savings vs all-opus baseline.
 _OPUS_COST_PER_1K: float = 0.015
 
 # Approximate average token usage per task (blended input + output).
@@ -634,7 +634,7 @@ class CascadeRouter:
                 return model, "proactive skip of cheaper tiers (bandit data)"
             return model, f"cheapest viable model for role={task.role!r}"
 
-        # All tiers below threshold — start at top anyway
+        # All tiers below threshold - start at top anyway
         top = cascade[-1]
         return top, "all tiers below quality threshold; using top"
 
@@ -672,7 +672,7 @@ class CascadeRouter:
         Returns:
             Tuple of (should_escalate, reason_string).
         """
-        # Hard failure — explicit task failure
+        # Hard failure - explicit task failure
         if not attempt.success and janitor_passed is output is None:
             # Caller explicitly set success=False without further info
             return True, "task failed"
@@ -791,7 +791,7 @@ def _apply_rework_promotion(
     )
     logger.info(reason)
 
-    # Best-effort metric emission — never block routing on a metrics path.
+    # Best-effort metric emission - never block routing on a metrics path.
     with contextlib.suppress(Exception):
         from bernstein.core.observability import prometheus as _p
 

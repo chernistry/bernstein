@@ -2,27 +2,27 @@
 
 The ``--expire`` flag on ``bernstein preview`` accepts compact duration
 strings (``"30m"``, ``"4h"``, ``"3600"``). The parser is shared
-machinery, but the input surface is user-supplied — adversarial values
+machinery, but the input surface is user-supplied - adversarial values
 are realistic. Properties:
 
-* **Suffix arithmetic is correct** — ``"<n>m"`` always parses to
+* **Suffix arithmetic is correct** - ``"<n>m"`` always parses to
   ``n * 60``, ``"<n>h"`` to ``n * 3600``, etc. Catches off-by-one
   regressions in ``_DURATION_UNITS``.
 
-* **Whitespace and casing are normalised** — ``"  30M  "`` parses
+* **Whitespace and casing are normalised** - ``"  30M  "`` parses
   identically to ``"30m"``. The production CLI strips and lowercases;
   this property locks the contract.
 
-* **Zero / negative values are rejected** — the parser must raise
+* **Zero / negative values are rejected** - the parser must raise
   ``ValueError`` rather than return ``0`` (which would mean
   "never-expiring" elsewhere and is a security footgun).
 
-* **Numeric inputs (int / float / numeric string) agree** —
+* **Numeric inputs (int / float / numeric string) agree** -
   ``parse_duration(60)`` == ``parse_duration("60")`` == 60. Catches
   type-dispatch regressions where the str branch handled ``"60s"``
   differently from the numeric branch handling ``60``.
 
-* **Invalid suffixes raise** — anything outside ``[s, m, h, d]``
+* **Invalid suffixes raise** - anything outside ``[s, m, h, d]``
   surfaces ValueError. Catches over-permissive regex changes.
 
 Hypothesis budget per property is the default smoke profile (50
@@ -59,7 +59,7 @@ def test_bare_number_is_seconds(n: int) -> None:
     """A bare digit string is interpreted as seconds.
 
     Catches a regression where the parser would default to a different
-    unit (e.g. minutes) when the suffix is absent — which would silently
+    unit (e.g. minutes) when the suffix is absent - which would silently
     extend or shrink every operator-supplied TTL by 60x.
     """
     assert parse_duration(str(n)) == n
@@ -90,7 +90,7 @@ def test_zero_or_negative_int_rejected(n: int) -> None:
     """Zero / negative integers must raise ``ValueError``.
 
     A returned ``0`` would mean "never expire" downstream in the share
-    link issuer — a security regression that the parser must refuse to
+    link issuer - a security regression that the parser must refuse to
     surface.
     """
     with pytest.raises(ValueError, match="duration must be > 0"):

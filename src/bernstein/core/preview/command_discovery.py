@@ -3,8 +3,8 @@
 The acceptance criteria fix the precedence:
 
 1. ``package.json :: scripts.dev`` (then ``scripts.start``).
-2. ``Procfile`` — first ``web:`` line wins, otherwise the first process.
-3. ``.tool-versions`` — best-effort hint that surfaces nothing on its own
+2. ``Procfile`` - first ``web:`` line wins, otherwise the first process.
+3. ``.tool-versions`` - best-effort hint that surfaces nothing on its own
    but is collected so ``preview start --list-commands`` can show the
    user which runtime is pinned.
 4. ``bernstein.yaml :: preview.command``.
@@ -13,7 +13,7 @@ The acceptance criteria fix the precedence:
 every candidate the discovery saw, in declaration order, so callers can
 expose them under ``preview start --list-commands``.
 
-Discovery is deliberately I/O-only and side-effect free — no subprocess
+Discovery is deliberately I/O-only and side-effect free - no subprocess
 calls. The caller decides what to execute.
 """
 
@@ -35,14 +35,14 @@ class DiscoveredCommand:
     """A candidate dev-server command surfaced by discovery.
 
     Attributes:
-        source: Human-readable origin of the command — one of
+        source: Human-readable origin of the command - one of
             ``"package.json:dev"``, ``"package.json:start"``,
             ``"Procfile:web"``, ``"Procfile:<name>"``,
             ``".tool-versions"``, ``"bernstein.yaml"``.
         command: The exact shell-quoted command to execute. ``None`` for
             sources (like ``.tool-versions``) that record metadata but
             don't yield an executable command.
-        details: Free-form annotations — for instance the runtime name
+        details: Free-form annotations - for instance the runtime name
             for ``.tool-versions`` entries.
     """
 
@@ -101,7 +101,7 @@ def _parse_procfile(path: Path) -> list[DiscoveredCommand]:
     """Extract process commands from a Heroku-style ``Procfile``.
 
     Returns processes in declaration order. ``web`` is annotated but not
-    re-ordered — the first ``web:`` line wins because we walk in order
+    re-ordered - the first ``web:`` line wins because we walk in order
     and discovery's auto-pick chooses the first runnable command.
 
     Args:
@@ -133,7 +133,7 @@ def _parse_procfile(path: Path) -> list[DiscoveredCommand]:
                 command=cmd,
             )
         )
-    # Sort so a "web" entry surfaces first even if declared later — a
+    # Sort so a "web" entry surfaces first even if declared later - a
     # web preview is the dominant use-case.
     found.sort(key=lambda c: 0 if c.source == "Procfile:web" else 1)
     return found
@@ -142,7 +142,7 @@ def _parse_procfile(path: Path) -> list[DiscoveredCommand]:
 def _parse_tool_versions(path: Path) -> list[DiscoveredCommand]:
     """Surface ``.tool-versions`` runtimes for visibility only.
 
-    ``.tool-versions`` doesn't contain a runnable command — it just
+    ``.tool-versions`` doesn't contain a runnable command - it just
     records the runtime versions an asdf-managed project pins. We list
     them so ``preview start --list-commands`` can show the user that the
     project pins, e.g., ``nodejs 20.10.0``.
@@ -232,7 +232,7 @@ def list_candidates(cwd: Path) -> list[DiscoveredCommand]:
     Returns:
         Every :class:`DiscoveredCommand` found, in precedence order.
         Non-runnable entries (``.tool-versions``) are included so the
-        ``--list-commands`` UI can show them — callers should call
+        ``--list-commands`` UI can show them - callers should call
         :meth:`DiscoveredCommand.is_runnable` to filter.
     """
     cwd = cwd.resolve()

@@ -395,7 +395,7 @@ class MCPRegistry:
         if auto_config is None:
             return base_config
 
-        # Both exist — merge auto into base (base takes precedence)
+        # Both exist - merge auto into base (base takes precedence)
         merged_servers = dict(auto_config.get("mcpServers", {}))
         merged_servers.update(base_config.get("mcpServers", {}))
         return {"mcpServers": merged_servers}

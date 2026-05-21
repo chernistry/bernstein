@@ -68,7 +68,7 @@ def test_worktree_manager_create_branch_exists_interpolates_stderr(manager: Work
     placeholder.
     """
     session_id = "test-session"
-    git_stderr = "fatal: 'agent/test-session' already exists — distinctive marker"
+    git_stderr = "fatal: 'agent/test-session' already exists - distinctive marker"
 
     with patch("bernstein.core.git.worktree.worktree_add") as mock_add:
         mock_add.return_value = GitResult(1, "", git_stderr)

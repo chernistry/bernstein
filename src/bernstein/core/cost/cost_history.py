@@ -4,7 +4,7 @@ Persists daily cost snapshots to ``.sdd/metrics/cost_history.jsonl``,
 maintains a 6-month trailing window, and generates alerts when spend
 reaches 80% of the configured budget.
 
-This module is append-only and read-mostly — it never mutates existing
+This module is append-only and read-mostly - it never mutates existing
 records.  Each record represents one day's aggregated spend.
 """
 
@@ -147,7 +147,7 @@ def append_daily_snapshot(
     """Append a daily cost snapshot to the history file.
 
     If a snapshot for *snapshot_date* already exists it is **not** replaced
-    — callers should aggregate before calling this function.  To update an
+    - callers should aggregate before calling this function.  To update an
     existing day, use :func:`upsert_daily_snapshot` instead.
 
     Args:
@@ -256,7 +256,7 @@ def load_history(sdd_dir: Path, days: int = _HISTORY_DAYS) -> list[DailyCostSnap
                     snapshots.append(snap)
             except Exception as exc:
                 logger.warning(
-                    "Skipping malformed cost_history line: %s — %s",
+                    "Skipping malformed cost_history line: %s - %s",
                     line[:80].replace("\n", "\\n").replace("\r", "\\r"),
                     exc,
                 )
@@ -361,7 +361,7 @@ def get_active_alerts(
                 percentage_used=round(pct, 4),
                 message=(
                     f"CRITICAL: ${current_spent_usd:.2f} of ${budget_usd:.2f} budget used "
-                    f"({pct * 100:.1f}%) — agent spawns will stop at 100%"
+                    f"({pct * 100:.1f}%) - agent spawns will stop at 100%"
                 ),
             )
         )

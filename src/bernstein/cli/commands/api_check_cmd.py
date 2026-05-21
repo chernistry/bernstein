@@ -1,4 +1,4 @@
-"""CLI command: ``bernstein api-check`` — detect breaking API changes via git diff.
+"""CLI command: ``bernstein api-check`` - detect breaking API changes via git diff.
 
 Compares Python function signatures between the current working tree and a
 base git ref (default ``HEAD~1``). Exits with code 1 when breaking changes

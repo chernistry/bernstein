@@ -1,4 +1,4 @@
-"""Tests for AGENT-005 — MCP server readiness probe."""
+"""Tests for AGENT-005 - MCP server readiness probe."""
 
 from __future__ import annotations
 
@@ -39,10 +39,10 @@ class TestProbeStdioServer:
             return None
 
         proc.poll.side_effect = fake_poll
-        # Will see None twice then 1 — should detect the crash
+        # Will see None twice then 1 - should detect the crash
         result = probe_stdio_server(proc, timeout=2.0, poll_interval=0.1)
         # First poll None, sleep, second poll None => returns True on second check
-        # But then the third poll returns 1 — depends on timing
+        # But then the third poll returns 1 - depends on timing
         # The function should return based on the state at check time
         assert isinstance(result, bool)
 

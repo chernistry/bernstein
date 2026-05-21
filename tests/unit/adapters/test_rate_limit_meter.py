@@ -75,7 +75,7 @@ def test_record_success_resets_streak_but_not_window() -> None:
 
     assert meter.consecutive_429_count == 0
     assert meter.backoff_seconds_current == 0.0
-    # The window keeps the historical hits — success only clears the streak.
+    # The window keeps the historical hits - success only clears the streak.
     assert meter.hits_in_window(now=515.0) == 2
 
 

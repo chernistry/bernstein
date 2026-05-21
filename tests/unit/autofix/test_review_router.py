@@ -210,7 +210,7 @@ def test_parse_review_threads_handles_missing_fields() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ReviewRouter.poll_once — dedup, sink, gh argv
+# ReviewRouter.poll_once - dedup, sink, gh argv
 # ---------------------------------------------------------------------------
 
 
@@ -489,7 +489,7 @@ def test_resolve_pr_number_ignores_non_integer_env() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WorktreeRegistry — pr_number -> worktree_path mapping
+# WorktreeRegistry - pr_number -> worktree_path mapping
 # ---------------------------------------------------------------------------
 
 

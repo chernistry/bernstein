@@ -426,7 +426,7 @@ class TestScenarioBatchResult:
 
 
 # ---------------------------------------------------------------------------
-# run_scenario_once — no executor
+# run_scenario_once - no executor
 # ---------------------------------------------------------------------------
 
 

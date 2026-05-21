@@ -424,7 +424,7 @@ def maybe_retry_task(
     # prefixes and ``[retry:N]`` description markers are no longer consulted
     # or written.  Legacy tasks with a stale ``[RETRY N]`` prefix retain it
     # in the title until they complete, but the counter they report is the
-    # typed field — never the regex match.
+    # typed field - never the regex match.
     retry_count = task.retry_count
     effective_max = min(task.max_retries, max_task_retries) if max_task_retries > 0 else task.max_retries
 
@@ -449,7 +449,7 @@ def maybe_retry_task(
     failure_context = _extract_failure_context(task, workdir, session_id)
 
     # Title is preserved unchanged so every retry of the same task carries
-    # the same title — downstream dedup / lineage keys no longer need to
+    # the same title - downstream dedup / lineage keys no longer need to
     # strip a prefix.  The retry_count field carries the attempt number.
     new_title = task.title
     new_description = task.description
@@ -555,7 +555,7 @@ def _enqueue_dlq_if_workdir(
 
     Looks up ``<workdir>/.sdd`` and appends an entry to ``runtime/dlq.jsonl``.
     A ``None`` workdir preserves legacy behaviour (no DLQ), and any OS or
-    serialisation error is logged and suppressed — the DLQ must never block
+    serialisation error is logged and suppressed - the DLQ must never block
     the primary failure path.
 
     Args:
@@ -588,7 +588,7 @@ def _enqueue_dlq_if_workdir(
             },
         )
     except Exception as exc:
-        # DLQ must never break the primary failure path — log and swallow.
+        # DLQ must never break the primary failure path - log and swallow.
         logger.warning(
             "DLQ enqueue failed for task %s (%s): %s",
             task.id,
@@ -625,7 +625,7 @@ def retry_or_fail_task(
 ) -> None:
     """Re-queue a task for retry, or fail it permanently if max retries reached.
 
-    Reads the current retry count from the typed ``task.retry_count`` field —
+    Reads the current retry count from the typed ``task.retry_count`` field -
     the single source of truth. Title and description are copied
     verbatim; no ``[RETRY N]`` / ``[retry:N]`` markers are written.  If the
     typed counter is below ``min(task.max_retries, dynamic_limit(reason))`` a
@@ -716,7 +716,7 @@ def retry_or_fail_task(
                 new_max_output_tokens,
             )
 
-        # Meta messages / Nudges (T423) — append the failure reason so the
+        # Meta messages / Nudges (T423) - append the failure reason so the
         # retry agent sees the previous attempt's outcome without us having
         # to pollute the description with ``[retry:N]`` markers.
         new_meta_messages = list(task.meta_messages)
@@ -774,7 +774,7 @@ def retry_or_fail_task(
         except httpx.HTTPError as exc:
             logger.error("Failed to re-create task %s for retry: %s", task_id, exc)
             # Fall through to permanent fail (DLQ-eligible: re-create failure
-            # is effectively an exhausted retry — the task will not run again).
+            # is effectively an exhausted retry - the task will not run again).
             _enqueue_dlq_if_workdir(
                 workdir=workdir,
                 task=task,
@@ -788,7 +788,7 @@ def retry_or_fail_task(
         with contextlib.suppress(httpx.HTTPError):
             fail_task(client, base, task_id, f"Retried: {reason}")
     else:
-        # retry budget exhausted — move to Dead Letter Queue
+        # retry budget exhausted - move to Dead Letter Queue
         # before marking the task failed so permanently-failed work is not
         # silently dropped.
         _enqueue_dlq_if_workdir(
@@ -884,11 +884,11 @@ def create_conflict_resolution_task(
     files_list = "\n".join(f"- {f}" for f in conflicting_files)
     description = (
         f"A merge conflict was detected when merging the work of agent session "
-        f"`{session_id}` (task: {conflicting_task.id} — {conflicting_task.title!r}).\n\n"
+        f"`{session_id}` (task: {conflicting_task.id} - {conflicting_task.title!r}).\n\n"
         f"## Conflicting files\n{files_list}\n\n"
         f"## Your job\n"
         f"1. For each conflicting file, read the conflict markers and understand both sides\n"
-        f"2. Resolve each conflict — preserve intent from both sides where possible\n"
+        f"2. Resolve each conflict - preserve intent from both sides where possible\n"
         f"3. After resolving all conflicts, run tests to verify correctness\n"
         f"4. Stage all resolved files and commit with a message explaining what was kept\n\n"
         f"Original task description:\n{conflicting_task.description}\n"
@@ -1051,7 +1051,7 @@ def _await_pre_spawn_approvals(
     :func:`bernstein.core.orchestration.approval_gate.wait_for_approval`,
     which writes a sentinel and emits HMAC-chained audit events. On
     rejection or reject-style timeout the entire batch is failed on the
-    server and the spawn is skipped — partial spawns would defeat the
+    server and the spawn is skipped - partial spawns would defeat the
     point of the gate (denied tasks ride along with approved siblings).
 
     Args:
@@ -1116,7 +1116,7 @@ def _pre_spawn_checks_pass(orch: Any, alive_count: int) -> bool:
 
     _adapter = getattr(getattr(orch, "_spawner", None), "_adapter", None)
     if _adapter is not None and _adapter.is_rate_limited():
-        logger.warning("Provider rate-limited — skipping all spawns this tick")
+        logger.warning("Provider rate-limited - skipping all spawns this tick")
         return False
 
     _cg = getattr(orch, "_convergence_guard", None)
@@ -1164,7 +1164,7 @@ def _apply_fair_scheduling(orch: Any, batches: list[list[Task]]) -> list[list[Ta
     if not batches:
         return batches
 
-    # Early-out for the common single-tenant case — reordering is a no-op.
+    # Early-out for the common single-tenant case - reordering is a no-op.
     tenant_ids = {(b[0].tenant_id if b and getattr(b[0], "tenant_id", None) else "default") for b in batches}
     if len(tenant_ids) <= 1:
         return batches
@@ -1265,7 +1265,7 @@ def claim_and_spawn_batches(
     # Prevents any single role from consuming all agent slots while other roles starve.
     _all_task_count = sum(len(b) for b in batches)
     _tasks_per_role: dict[str, int] = defaultdict(int)
-    # Count open task batches per role — direct cap prevents spawning more agents
+    # Count open task batches per role - direct cap prevents spawning more agents
     # than there are work items for a role (idle-agent accumulation guard).
     _batches_per_role: dict[str, int] = defaultdict(int)
     for _b in batches:
@@ -1355,7 +1355,7 @@ def claim_and_spawn_batches(
             continue
 
         # Response cache: skip spawning if an identical task was already completed.
-        # Check the semantic cache for a verified result — if found, complete the
+        # Check the semantic cache for a verified result - if found, complete the
         # task immediately (zero tokens, instant result).
         _response_cache: Any = getattr(orch, "_response_cache", None)
         if _response_cache is not None and len(batch) == 1:
@@ -1367,7 +1367,7 @@ def claim_and_spawn_batches(
                 _cached_entry, _sim = _response_cache.lookup_entry(_cache_key)
                 if _cached_entry is not None and _cached_entry.verified:
                     logger.info(
-                        "Cache hit for task '%s' (sim=%.2f) — skipping agent spawn",
+                        "Cache hit for task '%s' (sim=%.2f) - skipping agent spawn",
                         _task.title,
                         _sim,
                     )
@@ -1384,7 +1384,7 @@ def claim_and_spawn_batches(
             continue
 
         # Skip if inferred paths overlap with files actively being edited
-        # in other agents' worktrees (hot-file detection — CRITICAL-007).
+        # in other agents' worktrees (hot-file detection - CRITICAL-007).
         _active_files = _get_active_agent_files(orch)
         if _active_files:
             _batch_inferred: set[str] = set()
@@ -1393,7 +1393,7 @@ def claim_and_spawn_batches(
             _overlap = _batch_inferred & _active_files
             if _overlap:
                 logger.info(
-                    "Skipping batch — file overlap with active agent worktree: %s",
+                    "Skipping batch - file overlap with active agent worktree: %s",
                     _overlap,
                 )
                 continue
@@ -1468,7 +1468,7 @@ def claim_and_spawn_batches(
         # Pre-flight: auto-decompose large tasks before claiming.
         # Creates a lightweight manager task that breaks the large task into
         # 3-5 atomic subtasks; the original stays open until subtasks complete.
-        # Respects auto_decompose config — disabled by default.
+        # Respects auto_decompose config - disabled by default.
         if (
             getattr(orch._config, "auto_decompose", False)
             and len(batch) == 1
@@ -1566,7 +1566,7 @@ def claim_and_spawn_batches(
 
         # Response cache: if a functionally identical task was already completed,
         # return the cached result without spawning an agent (20-40% savings target).
-        # Only applied to single-task batches — multi-task batches have complex
+        # Only applied to single-task batches - multi-task batches have complex
         # inter-task dependencies that make result reuse unsafe.
         if len(batch) == 1:
             _rc = getattr(orch, "_response_cache", None)
@@ -1743,7 +1743,7 @@ def claim_and_spawn_batches(
                 routed_model = model_for_task(ab_task.id, primary_model, alt_model)
                 if routed_model != primary_model:
                     # Re-spawn this task with the alt model (the primary session is
-                    # discarded — spawn a new one with the correct model override).
+                    # discarded - spawn a new one with the correct model override).
                     try:
                         logger.info(
                             "A/B TEST: routing task %s to model %s (hash split)",
@@ -1762,7 +1762,7 @@ def claim_and_spawn_batches(
                     except Exception as ab_exc:
                         logger.warning("A/B TEST: alt-model spawn failed, keeping primary: %s", ab_exc)
                 else:
-                    # This task is assigned to the primary model — record it
+                    # This task is assigned to the primary model - record it
                     _ab_split_tracker = getattr(orch, "_ab_split_tracker", None)
                     if isinstance(_ab_split_tracker, dict):
                         _ab_split_tracker[ab_task.id] = primary_model
@@ -1828,7 +1828,7 @@ def claim_and_spawn_batches(
                         )
                     except OSError:
                         logger.debug("WAL write failed for claim_confirmed %s", _t.id)
-            # WAL: commit the claim — agent was successfully spawned.
+            # WAL: commit the claim - agent was successfully spawned.
             # This pairs with the committed=False entry written before spawn.
             if _wal is not None:
                 for _t in batch:
@@ -1926,7 +1926,7 @@ def claim_and_spawn_batches(
                 orch._spawn_failures.pop(batch_key, None)
                 spawn_failure_history.pop(batch_key, None)
             else:
-                # Transient failure — release claimed tasks immediately so they
+                # Transient failure - release claimed tasks immediately so they
                 # don't stay stuck in "claimed" status for the 15-min timeout.
                 for task in batch:
                     try:
@@ -2201,7 +2201,7 @@ def evict_degraded_sessions(orch: Any) -> list[str]:
     for session_id in detector.degraded_sessions():
         session = orch._agents.get(session_id)
         if session is None or getattr(session, "status", None) == "dead":
-            # Agent already gone — just flush tracking state so memory doesn't leak.
+            # Agent already gone - just flush tracking state so memory doesn't leak.
             detector.clear(session_id)
             continue
 
@@ -2442,7 +2442,7 @@ def _handle_merge_result(
     )
     orch._post_bulletin(
         "alert",
-        f"merge conflict in {len(merge_result.conflicting_files)} files — resolver task created (task {task.id})",
+        f"merge conflict in {len(merge_result.conflicting_files)} files - resolver task created (task {task.id})",
     )
     return False
 
@@ -2817,7 +2817,7 @@ def _resolve_janitor_result(
     try:
         passed, failed_signals = verify_futures[task.id].result()
     except Exception:
-        logger.warning("janitor verification raised for %s — treating as failed", task.id)
+        logger.warning("janitor verification raised for %s - treating as failed", task.id)
         passed = False
         failed_signals = ["janitor verification exception"]
 
@@ -3118,7 +3118,7 @@ def _move_backlog_ticket(workdir: Any, task: Any) -> None:
             continue
         for line in text.splitlines():
             if line.startswith("# "):
-                heading = re.sub(r"^[0-9a-fA-F]+\s*[—:\-]\s*", "", line[2:].strip())
+                heading = re.sub(r"^[0-9a-fA-F]+\s*[-:\-]\s*", "", line[2:].strip())
                 heading_slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
                 if heading_slug == title_slug:
                     with contextlib.suppress(OSError):

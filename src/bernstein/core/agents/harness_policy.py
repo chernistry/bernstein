@@ -5,26 +5,26 @@ This module names and toggles the five harness patterns published by Manus
 preserve current behaviour; orchestrators opt agents in either via the
 ``HarnessPolicy`` dataclass passed to spawn helpers or via per-role overrides
 loaded from ``.sdd/runtime/harness/<role>.yaml`` (loader to land in a follow-up
-PR — this module ships only the data model and the two patterns wired into
+PR - this module ships only the data model and the two patterns wired into
 ``mask_tools`` / ``format_failed_action_block`` today).
 
 The five Manus patterns:
 
-1. ``kv_cache_locality`` — keep system-prompt prefix byte-for-byte stable across
+1. ``kv_cache_locality`` - keep system-prompt prefix byte-for-byte stable across
    spawns of the same role; vary only the trailing user block.
-2. ``tool_masking`` — instead of removing tools to disable them, return them
+2. ``tool_masking`` - instead of removing tools to disable them, return them
    with ``unavailable: True`` so the cached prefix is preserved.
-3. ``filesystem_memory`` — agents read/write to ``.sdd/memory/<agent>/`` instead
+3. ``filesystem_memory`` - agents read/write to ``.sdd/memory/<agent>/`` instead
    of stuffing observations into the context.
-4. ``todo_recitation`` — every long-running task keeps a flat ``todo.md`` checked
+4. ``todo_recitation`` - every long-running task keeps a flat ``todo.md`` checked
    off in-place; the agent re-reads it each turn rather than re-deriving the
    plan.
-5. ``keep_failed_actions`` — failed tool calls and their tracebacks stay in the
+5. ``keep_failed_actions`` - failed tool calls and their tracebacks stay in the
    visible scrollback (with a recency weight) instead of being scrubbed; this
    is the implicit-learning pattern Manus published.
 
 This first slice ships **patterns 2 and 5 only**; the remaining three patterns
-have wiring stubs but no behaviour yet — see the parent ticket for the
+have wiring stubs but no behaviour yet - see the parent ticket for the
 follow-up PRs.
 """
 
@@ -46,7 +46,7 @@ class HarnessPolicy:
         kv_cache_locality: Keep system-prompt prefix byte-stable across spawns
             of the same role.
         tool_masking: Mask disabled tools with ``unavailable: True`` instead of
-            removing them — preserves prefix bytes for cache hits.
+            removing them - preserves prefix bytes for cache hits.
         filesystem_memory: Route long observations through
             ``.sdd/memory/<agent>/`` filesystem-as-memory.
         todo_recitation: Inject a starter ``todo.md`` for tasks at or above
@@ -77,7 +77,7 @@ class HarnessPolicy:
         return replace(self, **changes)
 
 
-#: Conservative all-off baseline — current Bernstein behaviour.
+#: Conservative all-off baseline - current Bernstein behaviour.
 DEFAULT_POLICY: HarnessPolicy = HarnessPolicy()
 
 #: All patterns enabled. Use only after the follow-up PRs ship the

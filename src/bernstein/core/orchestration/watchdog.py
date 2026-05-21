@@ -12,7 +12,7 @@ operator opted into yolo-mode for a class of safety prompts (e.g.
 ``Continue? [y/N]``) and the agent stalls on one of those prompts, the
 watchdog answers ``y`` once and emits an audit event. Prompts that look
 like the model asking the operator a clarifying question are explicitly
-*not* auto-answered — those escalate.
+*not* auto-answered - those escalate.
 
 Out of slice (deferred)
 -----------------------
@@ -67,7 +67,7 @@ Off by default so existing runs keep their current behaviour.
 
 # Patterns that look like the agent waiting on an operator confirmation
 # the operator has *already* said yes to in yolo mode. These are
-# deliberately conservative — the right side of the bracketed default
+# deliberately conservative - the right side of the bracketed default
 # (uppercase ``N``) marks the keystroke we'd send.
 DEFAULT_SAFETY_PROMPT_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(r"continue\?\s*\[y/n\]\s*$", re.IGNORECASE | re.MULTILINE),
@@ -91,9 +91,9 @@ PromptKind = str
 
 One of:
 
-- ``"safety"`` — pre-approved confirmation; safe to auto-answer.
-- ``"model_question"`` — model asking the operator; never auto-answer.
-- ``"none"`` — no prompt currently awaited.
+- ``"safety"`` - pre-approved confirmation; safe to auto-answer.
+- ``"model_question"`` - model asking the operator; never auto-answer.
+- ``"none"`` - no prompt currently awaited.
 """
 
 
@@ -109,8 +109,8 @@ class SessionSnapshot:
     Attributes:
         session_id: Stable identifier for the live adapter session.
         recent_output: The last few hundred bytes of streamed stdout
-            from the agent. The watchdog only inspects the tail —
-            specifically whatever shows up after the last newline — so
+            from the agent. The watchdog only inspects the tail -
+            specifically whatever shows up after the last newline - so
             callers may pass the full ring-buffer slice without
             trimming.
         is_paused: ``True`` when the session is blocked on an awaited
@@ -180,7 +180,7 @@ class WatchdogResult:
         recoveries: All recoveries the watchdog attempted this tick.
             One per session that hit a rule.
         skipped_model_questions: Sessions where a model-question
-            prompt was detected — auto-answer was suppressed and the
+            prompt was detected - auto-answer was suppressed and the
             caller should escalate via the existing notifier path.
     """
 
@@ -224,7 +224,7 @@ def classify_prompt(
 
     The classifier inspects the last line of ``recent_output``. It
     returns ``"model_question"`` whenever the line looks like the model
-    asking the operator a question — that branch wins even if a safety
+    asking the operator a question - that branch wins even if a safety
     pattern would also match, because mis-classifying a model question
     as a safety prompt is the worst failure mode for this primitive.
 
@@ -251,7 +251,7 @@ def classify_prompt(
 def _emit_audit_event(audit_path: Path, event: str, payload: dict[str, object]) -> None:
     """Append one JSONL audit event.
 
-    Failures are swallowed — the watchdog is a best-effort supervisor,
+    Failures are swallowed - the watchdog is a best-effort supervisor,
     so a write error must not crash the tick.
     """
     try:

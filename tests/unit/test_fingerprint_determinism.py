@@ -6,7 +6,7 @@ failure modes the lineage-trail audit surfaced:
 * sets/frozensets must hash to the same digest across processes
   (``PYTHONHASHSEED`` randomises ``set`` member order; without sorting,
   two CI runs on the same input get different cache keys);
-* concurrent ``put`` on the same digest must not raise — the original
+* concurrent ``put`` on the same digest must not raise - the original
   implementation reused one fixed ``.tmp`` filename so the second
   ``replace`` fired ``FileNotFoundError``;
 * corrupt cache files must self-heal so a single torn write does not

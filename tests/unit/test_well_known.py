@@ -97,13 +97,13 @@ def test_agent_card_payload_supports_custom_base_url() -> None:
 
 
 # ---------------------------------------------------------------------------
-# A2A v1.0 surface — protocolVersion, supportedInterfaces, securitySchemes,
+# A2A v1.0 surface - protocolVersion, supportedInterfaces, securitySchemes,
 # signatures.
 # ---------------------------------------------------------------------------
 
 
 def test_agent_json_advertises_protocol_v1(client: TestClient) -> None:
-    """A2A v1.0 conformance flag — verifiers route off this string."""
+    """A2A v1.0 conformance flag - verifiers route off this string."""
     data = client.get("/.well-known/agent.json").json()
     assert data["protocolVersion"] == "1.0"
 
@@ -132,7 +132,7 @@ def test_agent_json_signature_present(client: TestClient) -> None:
     assert sig["alg"] == "EdDSA"
     assert sig["typ"] == "agent-card+jws"
     assert sig["kid"] == _DEFAULT_KID
-    # Detached JWS — header..signature shape.
+    # Detached JWS - header..signature shape.
     parts = sig["jws"].split(".")
     assert len(parts) == 3
     assert parts[1] == "", "JWS payload segment must be empty (RFC 7515 A.5)"
@@ -175,7 +175,7 @@ def test_jwks_endpoint_shape(client: TestClient) -> None:
 def test_jws_signature_verifies_against_jwks(client: TestClient) -> None:
     """End-to-end: sign on /agent.json verifies with the JWKS pubkey.
 
-    This is the contract a third-party A2A v1.0 verifier executes — strip
+    This is the contract a third-party A2A v1.0 verifier executes - strip
     ``signatures`` from the body, JCS-canonicalise the rest, and verify
     each signature against the matching ``kid`` from the JWKS endpoint.
     """
@@ -222,7 +222,7 @@ def test_jwks_persists_across_module_resets(tmp_path: Path) -> None:
     """Resetting the in-process cache must replay the same on-disk keypair.
 
     This is the production guarantee: restarting the orchestrator does not
-    invalidate verifiers caching the previous JWK — the persistent keystore
+    invalidate verifiers caching the previous JWK - the persistent keystore
     keeps the ``kid`` stable across process boundaries.
     """
     from bernstein.core.routes import well_known as wk
@@ -233,7 +233,7 @@ def test_jwks_persists_across_module_resets(tmp_path: Path) -> None:
     app_a = create_app(jsonl_path=tmp_path / "a.jsonl")
     keys_a = TestClient(app_a).get("/.well-known/agent.json/keys").json()
 
-    # Drop the in-process cache as if we had restarted the orchestrator —
+    # Drop the in-process cache as if we had restarted the orchestrator -
     # but keep the same on-disk directory.
     wk._reset_signing_keypair_for_tests(keys_dir)
     app_b = create_app(jsonl_path=tmp_path / "b.jsonl")
@@ -258,7 +258,7 @@ def test_jwks_rotation_serves_both_current_and_archived_kid(tmp_path: Path) -> N
     keys_dir = tmp_path / "keys"
 
     # Pre-populate the keystore + perform a rotation against a freshly
-    # bound directory so the test is deterministic — no race with the
+    # bound directory so the test is deterministic - no race with the
     # process-wide cache.
     keystore = AgentCardKeystore(keys_dir)
     keystore.load_or_generate()

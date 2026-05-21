@@ -89,7 +89,7 @@ class IntentVerificationConfig:
     and blocks merge when the verdict is "no" (and optionally "partially").
 
     Attributes:
-        enabled: Master switch — when False, the gate does not run.
+        enabled: Master switch - when False, the gate does not run.
         model: OpenRouter model for verification (cheap model recommended).
         provider: LLM provider key passed to call_llm.
         max_diff_chars: Truncate diff at this length for cost control.
@@ -137,7 +137,7 @@ class QualityGatesConfig:
     """Configuration for automated quality gates.
 
     Attributes:
-        enabled: Master switch — when False, no gates run.
+        enabled: Master switch - when False, no gates run.
         lint: Run lint gate (ruff check by default).
         lint_command: Shell command for linting.
         type_check: Run type-check gate (pyright by default).
@@ -367,10 +367,10 @@ def _parse_intent_response(raw: str, model: str) -> IntentVerdict:
                 data = json.loads(text[start:end])
 
     if not data:
-        logger.warning("intent_verification: unparseable response — defaulting to yes: %.200s", text)
+        logger.warning("intent_verification: unparseable response - defaulting to yes: %.200s", text)
         return IntentVerdict(
             verdict="yes",
-            reason="Verifier returned unparseable response — defaulting to yes",
+            reason="Verifier returned unparseable response - defaulting to yes",
             model=model,
         )
 
@@ -391,7 +391,7 @@ def _parse_intent_response(raw: str, model: str) -> IntentVerdict:
 
 
 async def _verify_intent_async(task: Task, worktree_path: Path, config: IntentVerificationConfig) -> IntentVerdict:
-    """Async core for intent verification — call the LLM and return a verdict."""
+    """Async core for intent verification - call the LLM and return a verdict."""
     from bernstein.core.llm import call_llm
 
     diff = _get_intent_diff(worktree_path, task.owned_files)
@@ -434,13 +434,13 @@ async def _verify_intent_async(task: Task, worktree_path: Path, config: IntentVe
         )
     except RuntimeError as exc:
         logger.warning(
-            "intent_verification: LLM call failed for task %s: %s — defaulting to yes",
+            "intent_verification: LLM call failed for task %s: %s - defaulting to yes",
             task.id,
             exc,
         )
         return IntentVerdict(
             verdict="yes",
-            reason=f"Verifier call failed: {exc} — defaulting to yes",
+            reason=f"Verifier call failed: {exc} - defaulting to yes",
             model=config.model,
         )
 
@@ -548,7 +548,7 @@ def _parse_mutation_score(output: str) -> float | None:
         killed, total = int(m.group(1)), int(m.group(2))
         if total > 0:
             return killed / total
-        return None  # zero mutants — can't produce a meaningful score
+        return None  # zero mutants - can't produce a meaningful score
 
     # mutatest / generic:
     #   "Killed: 42\nSurvived: 58"   (keyword before number)
@@ -590,7 +590,7 @@ def _run_mutation_gate(config: QualityGatesConfig, run_dir: Path) -> tuple[bool,
         detail = f"Mutation score: {score:.1%} ({status} threshold {config.mutation_threshold:.1%})\n{output}"
         return passed, detail, score
 
-    # Could not parse a numeric score — treat non-zero exit as failure.
+    # Could not parse a numeric score - treat non-zero exit as failure.
     passed = _ok
     detail = (
         f"Could not parse mutation score (threshold {config.mutation_threshold:.1%}). "
@@ -702,13 +702,13 @@ def run_agent_test_mutation_gate_sync(
     diff = _get_intent_diff(run_dir, task.owned_files or [])
     test_files = _extract_agent_test_files(diff)
     if not test_files:
-        return True, "No agent-written test files detected in diff — skipping agent mutation gate.", None
+        return True, "No agent-written test files detected in diff - skipping agent mutation gate.", None
 
     source_files = _infer_source_files(test_files, run_dir)
     if not source_files:
         return (
             True,
-            f"Could not infer source files for tests: {test_files} — skipping agent mutation gate.",
+            f"Could not infer source files for tests: {test_files} - skipping agent mutation gate.",
             None,
         )
 
@@ -728,7 +728,7 @@ def run_agent_test_mutation_gate_sync(
         )
         return passed, detail, score
 
-    # Could not parse — fall back to exit code
+    # Could not parse - fall back to exit code
     passed = _ok
     detail = (
         f"Could not parse agent mutation score (threshold {threshold:.1%}). "
@@ -976,12 +976,12 @@ def _run_dlp_gate(
 
     has_blocks = any(f.block_merge for _, f in all_findings)
     categories = sorted({f.category for _, f in all_findings})
-    lines = [f"DLP scan: {len(all_findings)} finding(s) — categories: {', '.join(categories)}"]
+    lines = [f"DLP scan: {len(all_findings)} finding(s) - categories: {', '.join(categories)}"]
     for fpath_str, f in all_findings:
         block_label = "[BLOCK]" if f.block_merge else "[WARN]"
         lines.append(
             f"  {block_label} [{f.severity.upper()}] {fpath_str}"
-            f" (line {f.line_number}): {f.description} — {f.redacted_match}"
+            f" (line {f.line_number}): {f.description} - {f.redacted_match}"
         )
     detail = "\n".join(lines)
     if len(detail) > 2000:

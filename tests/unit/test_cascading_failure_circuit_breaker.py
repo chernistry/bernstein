@@ -70,7 +70,7 @@ class TestCircuitBreakerConfig:
 
 
 # ---------------------------------------------------------------------------
-# CircuitBreaker — basic state transitions
+# CircuitBreaker - basic state transitions
 # ---------------------------------------------------------------------------
 
 
@@ -109,7 +109,7 @@ class TestCircuitBreakerBasic:
         b.record_failure(0.0)
         b.record_failure(0.0)
         b.record_success(0.0)
-        # Counter reset — need 3 fresh failures to trip
+        # Counter reset - need 3 fresh failures to trip
         b.record_failure(0.0)
         b.record_failure(0.0)
         assert b.state == CircuitState.CLOSED
@@ -126,7 +126,7 @@ class TestCircuitBreakerBasic:
 
 
 # ---------------------------------------------------------------------------
-# CircuitBreaker — OPEN -> HALF_OPEN -> CLOSED transitions
+# CircuitBreaker - OPEN -> HALF_OPEN -> CLOSED transitions
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +184,7 @@ class TestCircuitBreakerRecovery:
 
 
 # ---------------------------------------------------------------------------
-# CircuitBreaker — latency threshold
+# CircuitBreaker - latency threshold
 # ---------------------------------------------------------------------------
 
 
@@ -215,7 +215,7 @@ class TestCircuitBreakerLatency:
 
 
 # ---------------------------------------------------------------------------
-# CircuitBreaker — reset and stats
+# CircuitBreaker - reset and stats
 # ---------------------------------------------------------------------------
 
 

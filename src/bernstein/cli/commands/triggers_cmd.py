@@ -1,9 +1,9 @@
 """CLI commands for managing event-driven triggers.
 
 Commands:
-  bernstein triggers list     — Show all configured triggers and status
-  bernstein triggers history  — Show recent trigger fire log
-  bernstein triggers fire     — Manually fire a trigger (for testing)
+  bernstein triggers list     - Show all configured triggers and status
+  bernstein triggers history  - Show recent trigger fire log
+  bernstein triggers fire     - Manually fire a trigger (for testing)
 """
 
 from __future__ import annotations

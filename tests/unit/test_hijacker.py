@@ -1,4 +1,4 @@
-"""Tests for TierHijacker — automatic free tier detection and routing."""
+"""Tests for TierHijacker - automatic free tier detection and routing."""
 
 from __future__ import annotations
 

@@ -167,7 +167,7 @@ def _sanitise_for_log(value: str) -> str:
 
     Used at every log site that touches data read out of the pending
     pushes file or subprocess stderr (CodeQL/Sonar py/log-injection
-    S5145). Keep this function cheap and side-effect-free — it is
+    S5145). Keep this function cheap and side-effect-free - it is
     called inside the spawner hot path.
     """
     return value.replace("\r", "").replace("\n", "") if value else value
@@ -206,7 +206,7 @@ def _render_auth_section(token_path: Path) -> str:
 
     The path is coerced to absolute form so the ``cat`` examples resolve
     correctly even when the agent's spawn cwd differs from the orchestrator
-    workdir (the worktree case — see #1261). ``resolve(strict=False)``
+    workdir (the worktree case - see #1261). ``resolve(strict=False)``
     keeps the call cheap when the file has not yet been written and never
     fails on missing intermediates.
 
@@ -222,19 +222,19 @@ def _render_auth_section(token_path: Path) -> str:
         "Your agent token is stored at this absolute path (do NOT print or "
         "log its contents):\n"
         f"```\n{absolute}\n```\n"
-        "Include this header in **all** task server requests — the path is "
+        "Include this header in **all** task server requests - the path is "
         "absolute, so it works regardless of your current shell directory:\n"
         "```bash\n"
         f'-H "Authorization: Bearer $(cat {absolute})"\n'
         "```\n"
-        "Example — creating a subtask:\n"
+        "Example - creating a subtask:\n"
         "```bash\n"
         f"curl -s -X POST http://127.0.0.1:8052/tasks \\\n"
         f'  -H "Authorization: Bearer $(cat {absolute})" \\\n'
         '  -H "Content-Type: application/json" \\\n'
         '  -d \'{"title": "...", "role": "backend", "description": "..."}\'\n'
         "```\n"
-        "Example — marking a task complete:\n"
+        "Example - marking a task complete:\n"
         "```bash\n"
         f"curl -s -X POST http://127.0.0.1:8052/tasks/<TASK_ID>/complete \\\n"
         f'  -H "Authorization: Bearer $(cat {absolute})" \\\n'
@@ -287,7 +287,7 @@ def _inject_scheduled_tasks(
     monitoring: the agent self-evaluates its progress and reports via MCP
     rather than the orchestrator guessing from external heartbeat signals.
 
-    The cron task survives context compaction — Claude Code re-fires it even
+    The cron task survives context compaction - Claude Code re-fires it even
     after the context window is compressed.
 
     Args:
@@ -402,7 +402,7 @@ def _extract_tags_from_tasks(tasks: list[Task]) -> list[str]:
     for task in tasks:
         tags.add(task.role.lower())
         for word in task.title.lower().split():
-            cleaned = word.strip("—-_.,;:!?()[]{}\"'`#")
+            cleaned = word.strip("-_.,;:!?()[]{}\"'`#")
             if len(cleaned) > 2 and cleaned not in stop_words:
                 tags.add(cleaned)
     return sorted(tags)
@@ -624,7 +624,7 @@ def _render_prompt(
         f"**Step 2: Mark tasks complete on the task server**\n"
         f"```bash\n{completion_cmds}\n```\n\n"
         f"**Important:** Only retry on connection refused / network errors. "
-        f"If the server returns HTTP 409 or any other 4xx error, do NOT retry — "
+        f"If the server returns HTTP 409 or any other 4xx error, do NOT retry - "
         f"the task state has changed and retrying will not help. Just exit.\n\n"
         f"**Step 3: Exit**"
     )
@@ -742,7 +742,7 @@ def _render_prompt(
         sections.append(
             deduplicate_section(
                 f"\n## Token budget\n"
-                f"You have {budget_hint} tokens for this task. Plan your work accordingly — "
+                f"You have {budget_hint} tokens for this task. Plan your work accordingly - "
                 f"focus on the task, avoid unnecessary exploration, and wrap up promptly.\n"
             )
         )
@@ -948,7 +948,7 @@ class AgentSpawner:
             logger.info("In-process agent backend enabled (wrapping %s)", adapter.name())
         self._spawn_rate_limiter = spawn_rate_limiter or SpawnRateLimiter()
 
-        # Zero-trust: lazy agent identity store — loaded on first use.
+        # Zero-trust: lazy agent identity store - loaded on first use.
         # Stored as a cached property so the auth directory is not created
         # until the first agent is spawned.
         self._identity_store_instance: Any = None
@@ -973,7 +973,7 @@ class AgentSpawner:
         The token file path is recorded in ``_agent_token_files`` for cleanup
         when the agent is reaped.
 
-        The returned path is resolved to an absolute path (#1261) — agents
+        The returned path is resolved to an absolute path (#1261) - agents
         spawn with cwd set to a git worktree under
         ``.sdd/worktrees/<session>/``, so a relative path here would resolve
         against the worktree at ``cat`` time and miss the real token that
@@ -1065,7 +1065,7 @@ class AgentSpawner:
     def sandbox_session(self) -> SandboxSession | None:
         """Return the optional :class:`SandboxSession` attached to this spawner.
 
-        Phase 1 (oai-002) keeps this purely informational — adapters
+        Phase 1 (oai-002) keeps this purely informational - adapters
         continue to run as local subprocesses against the worktree
         path. The session is exposed so the orchestrator and the
         ``bernstein agents --sandbox-backends`` CLI can report which
@@ -1217,7 +1217,7 @@ class AgentSpawner:
         manifest.
 
         The adapter envelope is recorded for traceability but the
-        evaluation only considers the catalog-declared tool list — the
+        evaluation only considers the catalog-declared tool list - the
         adapter alone is fine-grained-scoped via the worker tool
         allowlist (T578) at runtime.  Once an operator opts into a
         specific tool combination that unions the trifecta, the spawn is
@@ -1234,7 +1234,7 @@ class AgentSpawner:
         On refusal we additionally emit a ``capability_matrix_refusal``
         event into the HMAC-chained audit log so that SOC2/Dream-Security
         auditors can replay every blocked spawn attempt without parsing
-        log lines.  Audit-emission failures degrade gracefully — a missing
+        log lines.  Audit-emission failures degrade gracefully - a missing
         audit log must never silently mask the refusal raise.
         """
         import json
@@ -1258,7 +1258,7 @@ class AgentSpawner:
         chain: list[str] = [adapter_token, *catalog_tools]
 
         # Spawn-time enforcement only refuses chains where the trifecta is
-        # reached via *declared* tool tags — undeclared catalog tools
+        # reached via *declared* tool tags - undeclared catalog tools
         # default to all-three at the registry level (so the audit CLI
         # surfaces them as warnings) but a single undeclared tool should
         # not block a spawn.  Once any operator-declared chain unions all
@@ -1292,7 +1292,7 @@ class AgentSpawner:
         if not decision.allowed:
             err = LethalTrifectaError(decision)
             logger.error(
-                "Refusing spawn %s (role=%s): %s — chain=%s",
+                "Refusing spawn %s (role=%s): %s - chain=%s",
                 session_id,
                 role,
                 decision.reason,
@@ -1321,7 +1321,7 @@ class AgentSpawner:
         Persists the structural decision to ``<workdir>/.sdd/audit/`` so
         auditors can verify that no trifecta-prone agent ever spawned
         without a matching deny event.  Failures (key permission, disk
-        full) are caught and logged — they must never mask the underlying
+        full) are caught and logged - they must never mask the underlying
         refusal raise.
 
         Args:
@@ -1355,7 +1355,7 @@ class AgentSpawner:
                     "mode": decision.mode.value,
                 },
             )
-        except Exception as exc:  # audit must never mask deny — log and move on
+        except Exception as exc:  # audit must never mask deny - log and move on
             logger.warning(
                 "Could not emit capability_matrix_refusal audit event for %s: %s",
                 session_id,
@@ -1418,7 +1418,7 @@ class AgentSpawner:
     ) -> None:
         """Append an ``agent_fresh_restart_on_retry`` event to the audit chain.
 
-        Issue #1109 — every fresh-context retry must leave a trace so
+        Issue #1109 - every fresh-context retry must leave a trace so
         operators can correlate the restart with the prior failure.  Audit
         failures (key permission, disk full) must never mask the spawn:
         they are logged and swallowed.
@@ -1668,7 +1668,7 @@ class AgentSpawner:
     def _spawn_for_tasks_internal(self, tasks: list[Task], model_override: str | None = None) -> AgentSession:
         """Actual spawn implementation."""
         if self._shutdown_event is not None and self._shutdown_event.is_set():
-            raise ShutdownInProgress("Orchestrator shutting down — refusing new spawn")
+            raise ShutdownInProgress("Orchestrator shutting down - refusing new spawn")
 
         # Disk space check: refuse to spawn if less than 1 GB free.
         # Worktree creation + agent output can consume significant disk.
@@ -1688,7 +1688,7 @@ class AgentSpawner:
         last_fail = self._agent_failure_timestamps.get(adapter_name, 0.0)
         if now - last_fail < SPAWN.spawn_failure_cooldown_s:
             logger.info(
-                "Agent %s in cooldown (%.1fs remaining) — skipping spawn",
+                "Agent %s in cooldown (%.1fs remaining) - skipping spawn",
                 adapter_name,
                 SPAWN.spawn_failure_cooldown_s - (now - last_fail),
             )
@@ -1697,7 +1697,7 @@ class AgentSpawner:
             stats = self._adapter_health.get_stats(adapter_name)
             rate = stats.failure_rate if stats is not None else 0.0
             logger.info(
-                "Adapter %s disabled by health monitor (failure_rate=%.0f%%) — skipping spawn",
+                "Adapter %s disabled by health monitor (failure_rate=%.0f%%) - skipping spawn",
                 adapter_name,
                 rate * 100,
             )
@@ -2050,7 +2050,7 @@ class AgentSpawner:
                 workdir=self._workdir,
                 context_files=_task_context_files or None,
             )
-        except Exception as exc:  # pragma: no cover — best-effort, never blocks spawn
+        except Exception as exc:  # pragma: no cover - best-effort, never blocks spawn
             logger.warning("Failed to write task-specific CLAUDE.md for %s: %s", session_id, exc)
 
         # Inject role-specific skills into the worktree before spawn so the
@@ -2110,7 +2110,7 @@ class AgentSpawner:
         result: SpawnResult | None = None
 
         # Touch heartbeat file BEFORE spawn so the watchdog sees the agent as
-        # alive from the moment it starts — avoids a race window where the
+        # alive from the moment it starts - avoids a race window where the
         # process is running but no heartbeat file exists yet.
         with suppress(OSError):
             hb_dir = self._workdir / ".sdd" / "runtime" / "heartbeats"
@@ -2119,7 +2119,7 @@ class AgentSpawner:
             hb_file.write_text(json.dumps({"timestamp": time.time(), "status": "starting"}))
 
         while True:
-            # Remote spawn already succeeded — skip the local adapter loop entirely
+            # Remote spawn already succeeded - skip the local adapter loop entirely
             if remote_spawned:
                 break
             if not remote_spawned:
@@ -2249,7 +2249,7 @@ class AgentSpawner:
                         categorized = classify_spawn_error(exc, provider=provider_name)
                         attempt_errors.append(f"{adapter_name}: {exc}")
 
-                        # Fail-fast for permanent and operator-fix errors — no
+                        # Fail-fast for permanent and operator-fix errors - no
                         # point trying alternate providers when the binary is
                         # missing or credentials are invalid.
                         if categorized.retry_strategy in (
@@ -2333,7 +2333,7 @@ class AgentSpawner:
                     # worktree is not permanently leaked (BUG-19).
                     self._release_warm_pool_slot(session_id)
                     raise RuntimeError(f"All spawn attempts failed for session {session_id}: {error_text}")
-                # Success — exit the retry loop
+                # Success - exit the retry loop
                 break
 
         # Post-spawn session setup
@@ -2571,7 +2571,7 @@ class AgentSpawner:
                 )
                 if not ok:
                     logger.warning(
-                        "Phase 1 setup failed for %s — proceeding to Phase 2 anyway",
+                        "Phase 1 setup failed for %s - proceeding to Phase 2 anyway",
                         session_id,
                     )
             phase2_network_override = two_phase_cfg.phase2_network_mode
@@ -2785,7 +2785,7 @@ class AgentSpawner:
                     code = "error"
                 else:
                     code = str(_h.future.result().exit_code)
-            except Exception:  # pragma: no cover — defensive
+            except Exception:  # pragma: no cover - defensive
                 code = "error"
             sandbox_exec_count_total.labels(backend=_h.backend_name, exit_code=code).inc()
 
@@ -2907,7 +2907,7 @@ class AgentSpawner:
             return False
         try:
             session.exit_code = handle.future.result().exit_code
-        except Exception:  # pragma: no cover — already inspected above
+        except Exception:  # pragma: no cover - already inspected above
             session.exit_code = -1
         return False
 

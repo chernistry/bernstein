@@ -127,7 +127,7 @@ class TestApprovalGateEvaluate:
 
 
 # ---------------------------------------------------------------------------
-# ApprovalGate.route — full confidence-threshold matrix
+# ApprovalGate.route - full confidence-threshold matrix
 # ---------------------------------------------------------------------------
 
 

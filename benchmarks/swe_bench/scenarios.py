@@ -1,10 +1,10 @@
 """Evaluation scenario definitions for the SWE-Bench scaffolding thesis.
 
 Four configurations are compared:
-  solo-sonnet      — single Claude Sonnet agent, cheap baseline
-  solo-opus        — single Claude Opus agent, expensive baseline
-  bernstein-sonnet — Bernstein 3-agent pipeline, all Sonnet
-  bernstein-mixed  — Bernstein 3-agent pipeline, cost-optimised model mix
+  solo-sonnet      - single Claude Sonnet agent, cheap baseline
+  solo-opus        - single Claude Opus agent, expensive baseline
+  bernstein-sonnet - Bernstein 3-agent pipeline, all Sonnet
+  bernstein-mixed  - Bernstein 3-agent pipeline, cost-optimised model mix
 
 The Bernstein scenarios use an analyst → implementer → qa pipeline:
   - analyst   (Haiku/Sonnet): reads the issue, identifies files, writes a plan
@@ -69,7 +69,7 @@ class Scenario:
 
 SOLO_SONNET = Scenario(
     name="solo-sonnet",
-    description="Single Claude Sonnet agent — cheap baseline.",
+    description="Single Claude Sonnet agent - cheap baseline.",
     agents=[
         AgentRole(
             role="implementer",
@@ -83,7 +83,7 @@ SOLO_SONNET = Scenario(
 
 SOLO_OPUS = Scenario(
     name="solo-opus",
-    description="Single Claude Opus agent — expensive baseline.",
+    description="Single Claude Opus agent - expensive baseline.",
     agents=[
         AgentRole(
             role="implementer",
@@ -97,7 +97,7 @@ SOLO_OPUS = Scenario(
 
 BERNSTEIN_SONNET = Scenario(
     name="bernstein-sonnet",
-    description="Bernstein 3-agent pipeline, all Sonnet — core thesis.",
+    description="Bernstein 3-agent pipeline, all Sonnet - core thesis.",
     agents=[
         AgentRole(
             role="analyst",

@@ -1,8 +1,8 @@
 """HTTP routes for custom metric definitions and computed KPI values .
 
 Exposes:
-- GET /metrics/custom — evaluate all configured custom metrics and return results.
-- GET /metrics/custom/schema — list configured metric definitions.
+- GET /metrics/custom - evaluate all configured custom metrics and return results.
+- GET /metrics/custom/schema - list configured metric definitions.
 """
 
 from __future__ import annotations
@@ -144,7 +144,7 @@ def get_custom_metrics(request: Request) -> JSONResponse:
 def get_custom_metrics_schema(request: Request) -> JSONResponse:
     """Return the configured custom metric definitions (formulas and units).
 
-    Returns the schema without evaluating — useful for documentation and
+    Returns the schema without evaluating - useful for documentation and
     formula validation checks.
     """
     config = getattr(request.app.state, "config", None)

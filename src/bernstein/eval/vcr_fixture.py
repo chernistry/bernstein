@@ -1,16 +1,16 @@
-"""VCR fixture pattern — dehydrate/hydrate deterministic test fixtures (T805).
+"""VCR fixture pattern - dehydrate/hydrate deterministic test fixtures (T805).
 
 Dehydration replaces environment-specific values with stable placeholders so
 test recordings can be compared and replayed deterministically. Hydration
 reverses the process, substituting actual values back in for replay.
 
 Placeholders:
-    - ``__CWD__`` — current working directory
-    - ``__TIMESTAMP__`` — ISO-8601 timestamps
-    - ``__UUID__`` — UUID patterns (with sequential numeric suffixes)
-    - ``__HOME__`` — user home directory
-    - ``__PID__`` — process ID
-    - ``__PORT__`` — numeric port patterns in URLs
+    - ``__CWD__`` - current working directory
+    - ``__TIMESTAMP__`` - ISO-8601 timestamps
+    - ``__UUID__`` - UUID patterns (with sequential numeric suffixes)
+    - ``__HOME__`` - user home directory
+    - ``__PID__`` - process ID
+    - ``__PORT__`` - numeric port patterns in URLs
 
 Usage:
     >>> vcr = VcrFixture(cwd="/tmp/proj")
@@ -43,7 +43,7 @@ PID_PLACEHOLDER = "__PID__"
 PORT_PLACEHOLDER = "__PORT__"
 
 # ---------------------------------------------------------------------------
-# Regex patterns — most specific first
+# Regex patterns - most specific first
 # ---------------------------------------------------------------------------
 
 # ISO-8601 timestamps: 2026-04-03T10:00:00Z, 2026-04-03T10:00:00.123+00:00, etc.
@@ -134,7 +134,7 @@ class VcrFixture:
         self._rehydrate_uuid_counter: int = 0
 
     # ------------------------------------------------------------------
-    # Dehydration — real values to placeholders
+    # Dehydration - real values to placeholders
     # ------------------------------------------------------------------
 
     def dehydrate(self, text: str) -> DehydrateResult:
@@ -197,7 +197,7 @@ class VcrFixture:
         return value
 
     # ------------------------------------------------------------------
-    # Hydration — placeholders to reproducible values
+    # Hydration - placeholders to reproducible values
     # ------------------------------------------------------------------
 
     def hydrate(self, text: str) -> HydrateResult:
@@ -275,7 +275,7 @@ class VcrFixture:
         def _port_replacer(match: re.Match[str]) -> str:
             port = match.group(1)
             port_num = int(port)
-            # Skip well-known ports — only mask high ports
+            # Skip well-known ports - only mask high ports
             if port_num < 1024 or port_num == 8080:
                 return match.group(0)
             counter = len(mappings) + 1

@@ -58,7 +58,7 @@ def stop_active_tunnels() -> int:
     for handle in reg.list_active():
         if handle.pid > 0:
             with contextlib.suppress(OSError, ProcessLookupError):
-                # PID comes from our own tunnels.json — target is always
+                # PID comes from our own tunnels.json - target is always
                 # a tunnel process we started (Sonar python:S4828).
                 os.kill(handle.pid, signal.SIGTERM)  # NOSONAR python:S4828
         reg.destroy(handle.name)
@@ -566,7 +566,7 @@ def _collect_repo_processes(killed: set[int]) -> None:
     2. Second pass: kill any zsh/bash/sh subshells whose parent was killed in
        pass 1 OR whose command line references ``.sdd/runtime/``.  This
        cleans up the disowned ``while true; do curl … done &`` heartbeat
-       loops left behind when the agent that spawned them dies — those used
+       loops left behind when the agent that spawned them dies - those used
        to keep POSTing to ``/hooks/<session-id>`` with stale Bearer tokens,
        flooding ``server.log`` with 401s long after ``bernstein stop``.
     """

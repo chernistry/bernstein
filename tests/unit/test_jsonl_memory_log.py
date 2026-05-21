@@ -1,4 +1,4 @@
-"""Unit tests for :class:`JSONLMemoryLog` — append-only memory primitive."""
+"""Unit tests for :class:`JSONLMemoryLog` - append-only memory primitive."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ class TestRoundTrip:
         assert entries == [{"task": "T-1", "lesson": "guard imports"}]
 
     def test_unicode_preserved(self, log: JSONLMemoryLog) -> None:
-        log.write("notes", {"text": "réfactor — Łódź"})
-        assert log.read("notes")[0]["text"] == "réfactor — Łódź"
+        log.write("notes", {"text": "réfactor - Łódź"})
+        assert log.read("notes")[0]["text"] == "réfactor - Łódź"
 
     def test_nested_structures_preserved(self, log: JSONLMemoryLog) -> None:
         payload = {"ints": [1, 2, 3], "obj": {"k": "v"}, "bool": True, "null": None}

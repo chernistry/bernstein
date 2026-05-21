@@ -159,7 +159,7 @@ class ClaudeStreamParser:
 
         Args:
             line: A chunk (bytes or str) from Claude Code's stream-json
-                output.  May be partial — partial data is buffered until
+                output.  May be partial - partial data is buffered until
                 a newline is seen or the buffer becomes parseable.
 
         Returns:
@@ -180,14 +180,14 @@ class ClaudeStreamParser:
             return events
 
         # No newline yet.  If the whole buffer parses as JSON, emit
-        # events and clear the buffer — this preserves back-compat with
+        # events and clear the buffer - this preserves back-compat with
         # callers that feed one full record per call without a newline.
         stripped = self._line_buffer.strip()
         if stripped:
             try:
                 json.loads(stripped)
             except json.JSONDecodeError:
-                # Partial JSON — keep buffering.
+                # Partial JSON - keep buffering.
                 return []
             self._line_buffer = ""
             events.extend(self._process_line(stripped))

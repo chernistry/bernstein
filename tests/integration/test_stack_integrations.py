@@ -4,7 +4,7 @@ Each test scaffolds a minimal project in a temp directory, runs Bernstein
 orchestration via bootstrap_from_goal, polls the task server until the work
 is complete, and asserts that the expected output files / content exist.
 
-Requires the ``BERNSTEIN_TEST_API_KEY`` environment variable to be set —
+Requires the ``BERNSTEIN_TEST_API_KEY`` environment variable to be set -
 all tests are skipped otherwise.  In CI the key is injected as a GitHub
 Actions secret.
 """
@@ -31,7 +31,7 @@ _API_KEY: str | None = os.getenv("BERNSTEIN_TEST_API_KEY")
 
 pytestmark = pytest.mark.skipif(
     not _API_KEY,
-    reason="BERNSTEIN_TEST_API_KEY not set — skipping stack integration tests",
+    reason="BERNSTEIN_TEST_API_KEY not set - skipping stack integration tests",
 )
 
 # One unique port per stack test to avoid conflicts when tests run sequentially.
@@ -167,7 +167,7 @@ def _run_stack_test(
 
 
 # ---------------------------------------------------------------------------
-# FastAPI — add /health endpoint
+# FastAPI - add /health endpoint
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +175,7 @@ def test_fastapi_health_endpoint(tmp_path: Path) -> None:
     """FastAPI stack: agent adds a GET /health endpoint to main.py."""
     _setup_workspace(tmp_path, _PORT_FASTAPI)
 
-    # Minimal FastAPI project — no health endpoint yet.
+    # Minimal FastAPI project - no health endpoint yet.
     (tmp_path / "main.py").write_text(
         "from fastapi import FastAPI\n\n"
         "app = FastAPI()\n\n\n"
@@ -214,7 +214,7 @@ def test_fastapi_health_endpoint(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Next.js — add /about page
+# Next.js - add /about page
 # ---------------------------------------------------------------------------
 
 
@@ -270,7 +270,7 @@ def test_nextjs_about_page(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Django — add user list view
+# Django - add user list view
 # ---------------------------------------------------------------------------
 
 
@@ -332,7 +332,7 @@ def test_django_user_list_view(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Express — add request logging middleware
+# Express - add request logging middleware
 # ---------------------------------------------------------------------------
 
 
@@ -388,7 +388,7 @@ def test_express_logging_middleware(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Flask — add /status endpoint
+# Flask - add /status endpoint
 # ---------------------------------------------------------------------------
 
 
@@ -396,7 +396,7 @@ def test_flask_status_endpoint(tmp_path: Path) -> None:
     """Flask stack: agent adds a GET /status endpoint to app.py."""
     _setup_workspace(tmp_path, _PORT_FLASK)
 
-    # Minimal Flask app — no /status route yet.
+    # Minimal Flask app - no /status route yet.
     (tmp_path / "app.py").write_text(
         "from flask import Flask, jsonify\n\n"
         "app = Flask(__name__)\n\n\n"

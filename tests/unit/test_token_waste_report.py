@@ -88,7 +88,7 @@ class TestDetectRetries:
 
 class TestDetectLoops:
     def test_no_loop_with_constant_growth(self) -> None:
-        # Constant deltas — not a loop
+        # Constant deltas - not a loop
         records = [TokenRecord(ts=float(i), input_tokens=100, output_tokens=10) for i in range(5)]
         findings = _detect_loops(records, growth_ratio=1.8)
         assert findings == []

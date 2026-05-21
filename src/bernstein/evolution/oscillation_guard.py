@@ -13,12 +13,12 @@ Defense
 Two checks operate on a sliding window of accepted patches keyed by
 content hash:
 
-1. **Two-cycle confirmation** — a patch must be *proposed* in two
+1. **Two-cycle confirmation** - a patch must be *proposed* in two
    consecutive cycles (same content hash, same target ``prompt_name``)
    before it is applied. Single-cycle proposals are stored as
    "pending" and not applied yet.
 
-2. **Flip-back veto** — if the proposed content hash equals a content
+2. **Flip-back veto** - if the proposed content hash equals a content
    hash that was *applied* within the last ``window_size`` patches
    *and* a different content hash was applied between, the proposal is
    vetoed as an oscillation (A → B → A).
@@ -33,7 +33,7 @@ State
 -----
 The guard is in-memory by default; callers can persist the history
 themselves by serialising :meth:`OscillationGuard.snapshot` to JSON.
-A dedicated audit file is *not* written by this module — the wiring
+A dedicated audit file is *not* written by this module - the wiring
 into :class:`bernstein.evolution.gate.ApprovalGate` owns audit-row
 emission.
 """
@@ -66,7 +66,7 @@ class OscillationVerdict(Enum):
     """Patch cleared the oscillation guard and may be applied."""
 
     PENDING_CONFIRMATION = "pending_confirmation"
-    """First sighting of this patch — not yet applied."""
+    """First sighting of this patch - not yet applied."""
 
     REJECTED_FLIP_BACK = "flip_back"
     """Patch would revert a recent change (A → B → A)."""
@@ -133,7 +133,7 @@ def resolve_max_patches_per_session(default: int = DEFAULT_MAX_PATCHES_PER_SESSI
         parsed = int(raw)
     except ValueError:
         logger.warning(
-            "Invalid BERNSTEIN_PROMPT_MAX_PATCHES_PER_SESSION=%r — falling back to %s",
+            "Invalid BERNSTEIN_PROMPT_MAX_PATCHES_PER_SESSION=%r - falling back to %s",
             raw,
             default,
         )
@@ -184,7 +184,7 @@ class OscillationGuard:
     def evaluate(self, proposal: PatchProposal) -> OscillationResult:
         """Check whether ``proposal`` may be applied without oscillating.
 
-        The method is *non-mutating with respect to applied state* — it
+        The method is *non-mutating with respect to applied state* - it
         records the sighting for the consecutive-cycle counter but does
         not mark the patch as applied. Callers must invoke
         :meth:`record_applied` once the patch has actually been written.
@@ -252,7 +252,7 @@ class OscillationGuard:
                 reason=(f"pending_confirmation: 1/{self.min_confirmations} consecutive cycles seen"),
             )
 
-        # Re-sighting — bump the consecutive counter.
+        # Re-sighting - bump the consecutive counter.
         existing.consecutive_cycles += 1
         if existing.consecutive_cycles >= self.min_confirmations:
             return OscillationResult(
@@ -280,14 +280,14 @@ class OscillationGuard:
     def record_applied(self, proposal: PatchProposal) -> None:
         """Mark ``proposal`` as applied. Updates the recent-applied window.
 
-        Idempotent against repeated calls for the same proposal id — a
+        Idempotent against repeated calls for the same proposal id - a
         proposal whose content_hash matches the most recent applied
         record for that prompt is treated as a no-op so callers can
         safely call this in a finally clause.
         """
         bucket = self._applied.setdefault(proposal.prompt_name, deque(maxlen=self.window_size))
         if bucket and bucket[-1].content_hash == proposal.content_hash:
-            # Same content as the last applied — nothing to do.
+            # Same content as the last applied - nothing to do.
             return
         bucket.append(
             _AppliedRecord(
@@ -369,7 +369,7 @@ class OscillationGuard:
         A flip-back is when the proposed content_hash equals an
         applied content_hash *and* there is at least one different
         applied content_hash *after* it in the window. The plain "same
-        content as last applied" case is NOT a flip-back — it's a re-
+        content as last applied" case is NOT a flip-back - it's a re-
         application or noop.
         """
         bucket = self._applied.get(proposal.prompt_name)

@@ -4,8 +4,8 @@ Wraps TTE (pure Python, zero deps, 37+ effects at 60fps) for animated
 text reveals and typing effects in the Bernstein splash sequence.
 
 Public API:
-    logo_reveal(text, effect="beams", colors=...)  — BERNSTEIN logo reveal
-    typing_effect(lines, speed=0.03)               — boot message typing
+    logo_reveal(text, effect="beams", colors=...)  - BERNSTEIN logo reveal
+    typing_effect(lines, speed=0.03)               - boot message typing
 
 Both functions degrade gracefully:
 - Non-TTY / CI: plain print, no animation
@@ -151,7 +151,7 @@ def logo_reveal(
 
     Args:
         text: Text to animate/display (e.g. ``"BERNSTEIN"``).
-        effect: Effect name — ``"beams"`` (default), ``"decrypt"``,
+        effect: Effect name - ``"beams"`` (default), ``"decrypt"``,
             ``"laser"`` (LaserEtch), or ``"spray"``.  Unknown names fall
             back to ``"beams"``.
         colors: Hex color strings, e.g. ``["#00ff41", "#00d4ff"]``.
@@ -168,7 +168,7 @@ def logo_reveal(
 
     completed = _run_tte_reveal(text, effect)
     if not completed:
-        # Skipped or errored — print final state
+        # Skipped or errored - print final state
         _drain_stdin()
         print(text)
 

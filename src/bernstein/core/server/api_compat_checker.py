@@ -1,4 +1,4 @@
-"""API backward-compatibility checker — detects breaking changes in Python function signatures.
+"""API backward-compatibility checker - detects breaking changes in Python function signatures.
 
 Compares old and new source using the ``ast`` module to find:
   - Removed public functions / methods / classes

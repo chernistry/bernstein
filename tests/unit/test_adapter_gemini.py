@@ -30,6 +30,13 @@ from bernstein.adapters.gemini import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+# Every spawn() call below arms a watchdog Timer thread by default. Under
+# the isolated test runner's high process concurrency the OS thread ceiling
+# can be hit, surfacing as "RuntimeError: can't start new thread" on an
+# otherwise-trivial test. Disable the watchdog suite-wide, matching the
+# other adapter test modules (rovo, auggie, clm, ralphex).
+pytestmark = pytest.mark.usefixtures("no_watchdog_threads")  # suite-wide guard, see module docstring
+
 # Parametrisation surface: both supported binary names. Every spawn-side
 # test runs against both so a regression in either path is caught.
 ALL_BINARIES = (ANTIGRAVITY_BINARY, LEGACY_GEMINI_BINARY)

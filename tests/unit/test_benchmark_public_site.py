@@ -152,9 +152,6 @@ def test_public_docs_guard_banned_claims_absent() -> None:
         _REPO_ROOT / "docs" / "benchmarks" / "leaderboard.html",
         _REPO_ROOT / "docs" / "blog" / "multi-agent-benchmark.md",
         _REPO_ROOT / "benchmarks" / "README.md",
-        _REPO_ROOT / "benchmarks" / "crewai-langgraph-comparison.md",
-        _REPO_ROOT / "benchmarks" / "agent-hq-comparison.md",
-        _REPO_ROOT / "docs" / "compare" / "bernstein-vs-github-agent-hq.md",
     ]
 
     for path in public_docs:

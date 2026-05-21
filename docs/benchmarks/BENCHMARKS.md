@@ -124,27 +124,6 @@ uv run python benchmarks/bench_startup.py
 
 ---
 
-## Architecture comparison
-
-Bernstein keeps CrewAI and LangGraph here as architecture context only. We do not publish numeric cross-framework benchmark claims.
-
-| Feature | Bernstein | CrewAI | LangGraph |
-|---|---|---|---|
-| Orchestration control plane | Deterministic Python scheduler | Manager LLM + worker agents | Graph runtime with model-driven nodes |
-| Scheduling overhead | None (deterministic code) | Present (LLM-based routing) | Present (LLM-based routing) |
-| CLI agent support | Yes (12 adapters) | No | Not the primary abstraction |
-| State model | File-based (`.sdd/`) | In-memory (process lifetime) | Checkpoint store (LangChain) |
-| Verification | Built-in janitor | Manual | Manual |
-| Audit trail | HMAC-chained, Merkle seal | No | No |
-| CI autofix | Yes (`bernstein ci fix`) | No | No |
-| Self-evolution | Yes (risk-gated) | No | No |
-
-CrewAI and LangGraph work with any model via API wrappers but require you to write Python code to orchestrate. Bernstein works with installed CLI agents — no API key plumbing, no SDK.
-
-See [benchmarks/crewai-langgraph-comparison.md](../benchmarks/crewai-langgraph-comparison.md) and [benchmarks/agent-hq-comparison.md](../benchmarks/agent-hq-comparison.md) for detailed comparisons.
-
----
-
 ## What these numbers don't tell you
 
 Benchmarks measure scheduling efficiency, not code quality. A fast wrong answer is still wrong. Bernstein's janitor and quality gates ensure the output is correct before it lands — which adds overhead but saves you from debugging agent mistakes.

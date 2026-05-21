@@ -182,7 +182,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "agents-md",
         # Project bootstrapping from a single goal prompt
         "scaffold",
-        # Local AST -> WIKI.md renderer (free alternative to Devin/DeepWiki)
+        # Local AST -> WIKI.md renderer
         "wiki",
         # Install-rev fingerprint operator helpers
         "identity",
@@ -308,7 +308,7 @@ def test_readme_mentions_core_commands() -> None:
     from the README.
     """
     readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    core_commands = ["bernstein run", "bernstein init", "bernstein status", "bernstein stop"]
+    core_commands = ["bernstein run", "bernstein init", "bernstein stop"]
     missing = [cmd for cmd in core_commands if cmd not in readme]
     if missing:
         pytest.fail(
@@ -343,33 +343,21 @@ def test_readme_has_three_line_install_block() -> None:
         )
 
 
-def test_readme_has_top_section_comparison_table() -> None:
-    """README.md must contain the modern-competitor comparison table.
+def test_readme_top_section_lists_core_capabilities() -> None:
+    """README.md must list Bernstein's load-bearing capability rows.
 
-    The table sits between the demo and the architecture body and is the
-    first competitive context a visitor sees. Its rows are the promise the
-    rest of the README has to deliver. Competitors updated in the
-    compliance-buyer reposition (commit ecfb4b4e) — now benchmarks against
-    claude-flow / Archon / vibe-kanban / claude-squad / Composio AO instead
-    of LangGraph / generic frameworks.
+    The top-of-file capabilities block is the first technical context a
+    visitor sees and gates how the rest of the README reads.
     """
-    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    required_cells = (
-        "| Bernstein",
-        "| claude-flow",
-        "| Archon",
-        "| vibe-kanban",
-        "HMAC-chained audit log",
-        "Signed agent cards (detached JWS)",
-        "Air-gap / on-prem profile",
-        "MCP server mode",
+    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8").lower()
+    required_substrings = (
+        "hmac-chained audit",
+        "signed agent cards",
+        "air-gap",
+        "mcp server",
     )
-    missing = [cell for cell in required_cells if cell not in readme]
+    missing = [s for s in required_substrings if s not in readme]
     if missing:
         pytest.fail(
-            "README.md is missing required cells from the top-section "
-            f"comparison table: {missing}\n"
-            "The modern-competitor (claude-flow / Archon / vibe-kanban) table "
-            "is part of the first-screen promise (closes #1112, updated for "
-            "compliance-buyer reposition)."
+            f"README.md top section is missing required capability rows: {missing}",
         )

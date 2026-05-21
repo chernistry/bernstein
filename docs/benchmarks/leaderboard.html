@@ -159,28 +159,6 @@
     </div>
   </section>
 
-  <section id="architecture-context" style="padding: 0; margin-bottom: var(--space-16);">
-    <h2>Framework Context</h2>
-    <p>CrewAI and LangGraph remain in the docs as architecture context, not as public numeric benchmark rows, until Bernstein can reproduce them under a Bernstein-owned live harness.</p>
-    <div class="comparison-wrap">
-      <table class="comparison-table">
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>Bernstein</th>
-            <th>CrewAI</th>
-            <th>LangGraph</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Routing control plane</td><td>Deterministic Python scheduler</td><td>Manager LLM plus worker agents</td><td>Graph runtime with model-driven nodes</td></tr>
-<tr><td>CLI agent compatibility</td><td>Works with CLI coding agents</td><td>SDK-centric framework</td><td>Application framework, not CLI-agent orchestration</td></tr>
-<tr><td>State model</td><td>File-based `.sdd/` state</td><td>Process/in-memory workflows</td><td>Checkpoint store via LangChain runtime</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
   <section id="reproduce" style="padding: 0;">
     <h2>Reproduce</h2>
     <p>Simulation/modeling harnesses remain useful for workflow exploration, but only the SWE-Bench eval path is eligible for public benchmark numbers.</p>

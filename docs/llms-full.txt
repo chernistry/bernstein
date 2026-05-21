@@ -123,11 +123,6 @@ bernstein stop                          # graceful shutdown
   pluggy-based plugin system, multi-repo workspaces, cluster mode for
   distributed execution.
 
-## Comparisons
-
-- [vs CrewAI / AutoGen / LangGraph](https://bernstein.readthedocs.io/en/latest/compare/) — Feature matrices vs LLM-orchestration frameworks
-- [vs other CLI-agent orchestrators](https://bernstein.readthedocs.io/en/latest/compare/) — `awslabs/cli-agent-orchestrator`, Composio's `@aoagents/ao`, emdash, ralphex
-
 ## Resources
 
 - [GitHub Repository](https://github.com/sipyourdrink-ltd/bernstein) — Source code, issues, discussions

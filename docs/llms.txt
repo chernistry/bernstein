@@ -20,8 +20,7 @@ running on whichever CLI agents the client already trusts.
 - [API Reference](https://sipyourdrink-ltd.github.io/bernstein/api-reference.html): 120+ REST endpoints for tasks, agents, cost tracking, quality gates
 
 ## Guides
-- [Benchmarks](https://sipyourdrink-ltd.github.io/bernstein/leaderboard.html): SWE-Bench Lite results — solo agents vs orchestrated multi-agent
-- [Comparisons](https://sipyourdrink-ltd.github.io/bernstein/compare/index.html): Bernstein vs CrewAI, AutoGen, LangGraph, and 8 other frameworks
+- [Benchmarks](https://sipyourdrink-ltd.github.io/bernstein/leaderboard.html): SWE-Bench Lite results for solo agents and orchestrated multi-agent runs
 - [Known Limitations](https://sipyourdrink-ltd.github.io/bernstein/limitations.html): Honest constraints and workarounds
 
 ## Resources

@@ -39,7 +39,7 @@ Bernstein is starting with one defensible publication track:
 
 All on SWE-Bench Lite, all under one Bernstein-owned harness.
 
-CrewAI and LangGraph remain in the docs as architecture context, not as public numeric benchmark rows. Until Bernstein can reproduce those systems under a live, documented harness, publishing "we beat X by Y%" is marketing theater.
+Cross-framework numeric benchmark rows are out of scope until Bernstein can reproduce the other frameworks under a documented, owned harness.
 
 ## Reproducing the real path
 

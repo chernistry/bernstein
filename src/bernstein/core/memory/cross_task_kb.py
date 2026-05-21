@@ -280,6 +280,7 @@ class CrossTaskKB:
         value: str,
         *,
         scope: Scope,
+        source_adapter: str | None = None,
     ) -> Fact:
         """Publish a fact under ``tag``/``key`` with the given ``scope``.
 
@@ -293,6 +294,11 @@ class CrossTaskKB:
             key: Stable identifier within the tag. Non-empty.
             value: The payload. Stored verbatim.
             scope: ``"run"`` or ``"project"``.
+            source_adapter: Optional CLI-adapter identifier (claude-code,
+                codex, gemini-cli, ...). Forwarded to the underlying
+                :class:`SQLiteMemoryStore` so subscribers that opt into the
+                adapter read filter (``read_only_from_adapters=``) can
+                isolate payloads by producing adapter.
 
         Returns:
             The :class:`Fact` that was persisted, including its attribution
@@ -320,6 +326,7 @@ class CrossTaskKB:
             tags=memory_tags,
             importance=1.0,
             task_id=self._producer_task_id or None,
+            source_adapter=source_adapter,
         )
 
         existing_warning = ""
@@ -383,6 +390,7 @@ class CrossTaskKB:
         tag: str,
         *,
         scope: Scope,
+        read_only_from_adapters: list[str] | None = None,
     ) -> Iterator[Fact]:
         """Yield the most recent fact per ``key`` published under ``tag``.
 
@@ -390,6 +398,11 @@ class CrossTaskKB:
             tag: Subscription tag. Non-empty, no commas.
             scope: ``"run"`` or ``"project"``. ``run`` returns only facts
                 published with the same ``run_id`` as this facade.
+            read_only_from_adapters: Optional opt-in allow-list. When set,
+                only facts whose underlying memory row has a matching
+                ``source_adapter`` are yielded; rows with NULL provenance
+                are excluded. An empty list yields nothing. Default
+                (``None``) preserves the legacy "every fact" behaviour.
 
         Yields:
             One :class:`Fact` per ``key``, newest first by ``ts_ns``.
@@ -411,12 +424,23 @@ class CrossTaskKB:
             where_run = ""
             params = (scope, tag)
 
+        if read_only_from_adapters is not None:
+            if not read_only_from_adapters:
+                # Empty allow-list = nobody allowed.
+                self._counter.incr_subscribe(0)
+                return
+            adapter_placeholders = ",".join("?" for _ in read_only_from_adapters)
+            where_adapter = f"AND mem.source_adapter IN ({adapter_placeholders})"
+            params = params + tuple(read_only_from_adapters)
+        else:
+            where_adapter = ""
+
         query = f"""
             SELECT meta.tag, meta.key, mem.content, meta.scope,
                    meta.producer_task_id, meta.ts_ns, meta.content_hash
             FROM cross_task_meta meta
             JOIN memory mem ON mem.id = meta.memory_id
-            WHERE meta.scope = ? AND meta.tag = ? {where_run}
+            WHERE meta.scope = ? AND meta.tag = ? {where_run} {where_adapter}
             ORDER BY meta.ts_ns DESC
         """
 

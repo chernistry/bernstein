@@ -195,4 +195,56 @@ def check(
     return GateResult(ok=not failures, failures=failures)
 
 
-__all__ = ["GateResult", "check"]
+# ---------------------------------------------------------------------------
+# Skill lockfile extension (issue #1796)
+# ---------------------------------------------------------------------------
+
+
+def check_skill_lockfile(
+    lockfile_path: Path,
+    known_good_manifest_shas: frozenset[str],
+) -> GateResult:
+    """Reject a PR whose skill lockfile references an un-anchored manifest.
+
+    This is an additive check on top of the existing lineage-v1 gate (it
+    does NOT introduce a new gate). The caller runs :func:`check` for
+    the lineage log and `check_skill_lockfile` for any `skills.lock`
+    file present in the PR; both must pass for CI to be green.
+
+    Every `[[catalog]]` row in the lockfile carries a `manifest_sha256`
+    that must appear in `known_good_manifest_shas`, which is derived
+    from the audit chain's `skill.catalog.install` / `skill.catalog.upgrade`
+    events. A row whose sha is missing indicates either a tampered
+    lockfile or a manifest that was never anchored into the chain;
+    either way the PR is rejected.
+
+    Args:
+        lockfile_path: Path to `skills.lock`. Missing or empty lockfiles
+            return a passing result (no rows to check).
+        known_good_manifest_shas: Set of manifest digests anchored in
+            the audit chain.
+
+    Returns:
+        :class:`GateResult` with `ok=True` iff every row is anchored.
+    """
+    if not lockfile_path.is_file():
+        return GateResult(ok=True, failures=[])
+    try:
+        # Local import keeps the lineage module free of skill-package
+        # imports at top level; the dependency is one-way (catalog->lineage).
+        from bernstein.core.skills.catalog.lockfile import read_state
+    except ImportError:  # pragma: no cover - module always present
+        return GateResult(ok=False, failures=["skill catalog lockfile module is missing"])
+
+    state = read_state(lockfile_path)
+    failures: list[str] = []
+    for row in state.catalog:
+        if row.manifest_sha256 not in known_good_manifest_shas:
+            failures.append(
+                f"{row.id}: lockfile manifest_sha256 {row.manifest_sha256[:12]}... "
+                "is not present in the audit chain's known-good set",
+            )
+    return GateResult(ok=not failures, failures=failures)
+
+
+__all__ = ["GateResult", "check", "check_skill_lockfile"]

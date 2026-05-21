@@ -237,6 +237,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "interop",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "desktop-register",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "supervisor",
     }
 )
 

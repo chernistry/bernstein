@@ -90,8 +90,12 @@ jobs:
 
       - name: Run ruff fix and format
         run: |
+          # Tolerate non-zero from both steps so unrelated lint failures
+          # (e.g. cookiecutter Jinja sources in templates/, intentionally
+          # vulnerable security-pentest fixtures) never abort the inline
+          # auto-amend. The reformatted files still land in the next step.
           uv run ruff check . --fix --unsafe-fixes || true
-          uv run ruff format .
+          uv run ruff format . || true
 
       - name: Detect drift
         id: drift

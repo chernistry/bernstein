@@ -454,7 +454,7 @@ class TestLayout:
         # Single bucket file by default.
         files = list(agent_dir.glob("*.jsonl"))
         assert len(files) == 1
-        # File mode is owner-writeable; on POSIX must not be group/world-writable.
+        # File mode is owner-writable; on POSIX must not be group/world-writable.
         if os.name == "posix":
             mode = files[0].stat().st_mode & 0o777
             assert (mode & 0o022) == 0, f"unsafe mode {oct(mode)}"

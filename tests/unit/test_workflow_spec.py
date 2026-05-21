@@ -210,6 +210,54 @@ nodes:
         load_workflow_spec_from_text(text)
 
 
+def test_rejects_interactive_node_at_load_time() -> None:
+    """``interactive: true`` is stubbed until #1110 ships, so it must fail at load.
+
+    Without this gate, manifests parse cleanly and only crash mid-run after
+    upstream nodes have already produced state. The validator collapses the
+    failure to the load step so authors learn at lint / load time instead of
+    after side-effects have landed.
+    """
+    text = """
+name: needs-approval
+description: "Has an approval gate"
+version: "1.0.0"
+nodes:
+  - id: research
+    agent: manager
+    prompt: "Research {goal}"
+  - id: approve
+    depends_on: [research]
+    agent: manager
+    prompt: "Approve the brief"
+    interactive: true
+"""
+    with pytest.raises(WorkflowSpecError, match="#1110") as exc_info:
+        load_workflow_spec_from_text(text)
+    assert "interactive" in str(exc_info.value)
+    assert "approve" in str(exc_info.value)
+
+
+def test_accepts_interactive_false_default() -> None:
+    """Existing valid workflows (no ``interactive: true``) parse identically."""
+    text = """
+name: no-gate
+description: "No interactive gate"
+version: "1.0.0"
+nodes:
+  - id: research
+    agent: manager
+    prompt: "Research {goal}"
+    interactive: false
+  - id: ship
+    depends_on: [research]
+    command: "echo done"
+"""
+    spec = load_workflow_spec_from_text(text)
+    assert spec.nodes[0].interactive is False
+    assert spec.nodes[1].interactive is False
+
+
 # ---------------------------------------------------------------------------
 # Validation: id and version shapes
 # ---------------------------------------------------------------------------

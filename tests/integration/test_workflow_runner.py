@@ -281,10 +281,13 @@ nodes:
 # ---------------------------------------------------------------------------
 
 
-def test_interactive_node_raises_not_implemented_with_ticket(runner_workdir: Path) -> None:
-    """`interactive: true` is a stub that points at #1110."""
-    spec = _spec_from(
-        """
+def test_interactive_node_rejected_at_load_time(runner_workdir: Path) -> None:
+    """`interactive: true` fails fast at load time with #1110 reference."""
+    from bernstein.core.workflows.workflow_spec import WorkflowSpecError
+
+    with pytest.raises(WorkflowSpecError, match="#1110"):
+        _spec_from(
+            """
 name: needs-approval
 description: "Has a human gate"
 version: "1.0.0"
@@ -293,6 +296,35 @@ nodes:
     command: "true"
     interactive: true
 """
+        )
+
+
+def test_interactive_node_defence_in_depth_in_runner(runner_workdir: Path) -> None:
+    """The runner keeps a defence-in-depth `NotImplementedError` for out-of-band loaders.
+
+    A caller that bypasses :func:`load_workflow_spec_from_text` (e.g. via
+    ``model_construct``) must still trip the runner's stub instead of running
+    an unsupported node.
+    """
+    from bernstein.core.workflows.workflow_spec import WorkflowNode
+
+    # ``model_construct`` skips validators, simulating an out-of-band loader.
+    gate_node = WorkflowNode.model_construct(
+        id="gate",
+        depends_on=[],
+        command="true",
+        agent=None,
+        prompt=None,
+        loop=None,
+        fresh_context=False,
+        interactive=True,
+        timeout_seconds=1800,
+    )
+    spec = WorkflowSpec.model_construct(
+        name="needs-approval",
+        description="Has a human gate",
+        version="1.0.0",
+        nodes=[gate_node],
     )
     runner = _build_runner(workdir=runner_workdir)
     with pytest.raises(NotImplementedError, match="#1110"):

@@ -373,14 +373,26 @@ def output_option(fn: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def print_success(message: str) -> None:
-    """Print a success message in green with a check mark prefix."""
-    console.print(f"[green]✓[/green] {message}")
+def print_success(message: str, *, soft_wrap: bool = False) -> None:
+    """Print a success message in green with a check mark prefix.
+
+    Set ``soft_wrap=True`` for verdict lines that embed an unbounded value
+    (e.g. a filesystem path) so the human-readable verdict phrase is never
+    fragmented by terminal soft-wrapping. Without it a long path can push a
+    trailing phrase past the console width and split it across a newline,
+    breaking copy-paste and substring consumers. ``soft_wrap`` emits the
+    full text without inserting hard line breaks (the terminal still wraps
+    visually), unlike ``no_wrap`` which would crop the line to the width.
+    """
+    console.print(f"[green]✓[/green] {message}", soft_wrap=soft_wrap)
 
 
-def print_error(message: str) -> None:
-    """Print an error message in red with an x prefix."""
-    console.print(f"[red]✗[/red] {message}")
+def print_error(message: str, *, soft_wrap: bool = False) -> None:
+    """Print an error message in red with an x prefix.
+
+    See :func:`print_success` for the ``soft_wrap`` rationale.
+    """
+    console.print(f"[red]✗[/red] {message}", soft_wrap=soft_wrap)
 
 
 def print_warning(message: str) -> None:

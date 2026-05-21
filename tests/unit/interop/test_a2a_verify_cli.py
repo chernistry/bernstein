@@ -6,7 +6,9 @@ import json
 import stat
 from typing import TYPE_CHECKING
 
+import pytest
 from click.testing import CliRunner
+from rich.console import Console
 
 from bernstein.cli.commands.interop_cmd import interop_group
 from bernstein.core.interop.a2a_card import SignedCapabilityCard, card_public_key_fingerprint
@@ -48,6 +50,37 @@ def test_card_command_persists_private_key_0600(tmp_path: Path) -> None:
 def test_verify_command_accepts_valid_card(tmp_path: Path) -> None:
     runner = CliRunner()
     out = _issue(runner, tmp_path)
+    result = runner.invoke(interop_group, ["a2a", "verify", "--card", str(out)])
+    assert result.exit_code == 0, result.output
+    assert "is valid" in result.output
+
+
+def test_verify_verdict_survives_narrow_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``is valid`` / ``is NOT valid`` verdict must never be split by
+    terminal soft-wrapping. Long resolved card paths (e.g. the runner's
+    ``/tmp/pytest-of-runner/...`` tmpdirs) used to push the verdict phrase
+    past the 80-column default of a non-TTY Rich console, wrapping it to
+    ``is \\nvalid`` and breaking machine/test consumers that scan for the
+    literal phrase.
+
+    To make the regression deterministic regardless of the tmp path length,
+    pin the console width to exactly the column where the buggy renderer
+    would break ``is`` from ``valid`` (just past the trailing ``is``). With
+    the fix in place the verdict stays atomic and ``is valid`` is present.
+    """
+    runner = CliRunner()
+    out = _issue(runner, tmp_path)
+
+    # Width chosen so "valid" is forced onto the next visual line in the
+    # buggy renderer: prefix + path + " is" fits, " valid" does not. The
+    # verify command prints the card path verbatim (no resolve_path), so we
+    # measure the exact string the user passed.
+    prefix_cells = len("X Capability card ")  # check-mark renders as 1 cell
+    forced_width = prefix_cells + len(str(out)) + len(" is")
+    narrow = Console(width=forced_width)
+    monkeypatch.setattr("bernstein.cli.helpers.console", narrow)
+    monkeypatch.setattr("bernstein.cli.commands.interop_cmd.console", narrow)
+
     result = runner.invoke(interop_group, ["a2a", "verify", "--card", str(out)])
     assert result.exit_code == 0, result.output
     assert "is valid" in result.output

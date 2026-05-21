@@ -1383,12 +1383,15 @@ def _is_safe_audit_dir(audit_dir: Path) -> tuple[bool, str]:
         resolved = audit_dir.resolve()
     except OSError as exc:
         return False, f"cannot resolve {audit_dir}: {exc}"
-    # Reject tmpfs-style paths the operator almost certainly didn't mean.
-    suspicious_prefixes = ("/dev/", "/proc/", "/sys/")
+    # Reject pseudo-filesystem paths the operator almost certainly didn't
+    # mean. A symlink to /proc resolves to exactly "/proc" (no trailing
+    # slash), so we must refuse both the bare mount root and anything under
+    # it -- while still allowing lookalike siblings such as /procurement.
+    suspicious_roots = ("/dev", "/proc", "/sys")
     s = str(resolved)
-    for pref in suspicious_prefixes:
-        if s.startswith(pref):
-            return False, f"refusing to operate on {pref}* path: {resolved}"
+    for root in suspicious_roots:
+        if s == root or s.startswith(root + "/"):
+            return False, f"refusing to operate on {root}* path: {resolved}"
     return True, ""
 
 

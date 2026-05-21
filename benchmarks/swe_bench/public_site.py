@@ -36,27 +36,6 @@ SCENARIO_PURPOSES: dict[str, str] = {
     "bernstein-mixed": "Cost-optimized Bernstein pipeline",
 }
 
-ARCHITECTURE_CONTEXT_ROWS: tuple[tuple[str, str, str, str], ...] = (
-    (
-        "Routing control plane",
-        "Deterministic Python scheduler",
-        "Manager LLM plus worker agents",
-        "Graph runtime with model-driven nodes",
-    ),
-    (
-        "CLI agent compatibility",
-        "Works with CLI coding agents",
-        "SDK-centric framework",
-        "Application framework, not CLI-agent orchestration",
-    ),
-    (
-        "State model",
-        "File-based `.sdd/` state",
-        "Process/in-memory workflows",
-        "Checkpoint store via LangChain runtime",
-    ),
-)
-
 
 @dataclass(frozen=True)
 class PublicBenchmarkContext:
@@ -341,18 +320,6 @@ def render_public_html(context: PublicBenchmarkContext) -> str:
         _html_verified_results_section(context) if context.ready else _html_preview_results_section(context)
     )
 
-    architecture_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{escape(feature)}</td>"
-            f"<td>{escape(bernstein)}</td>"
-            f"<td>{escape(crewai)}</td>"
-            f"<td>{escape(langgraph)}</td>"
-            "</tr>"
-        )
-        for feature, bernstein, crewai, langgraph in ARCHITECTURE_CONTEXT_ROWS
-    )
-
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -463,26 +430,6 @@ def render_public_html(context: PublicBenchmarkContext) -> str:
         </thead>
         <tbody>
           {"".join(f"<tr><td>{escape(SCENARIO_LABELS[name])}</td><td>{escape(SCENARIO_PURPOSES[name])}</td></tr>" for name in PUBLIC_SCENARIO_ORDER)}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="architecture-context" style="padding: 0; margin-bottom: var(--space-16);">
-    <h2>Framework Context</h2>
-    <p>CrewAI and LangGraph remain in the docs as architecture context, not as public numeric benchmark rows, until Bernstein can reproduce them under a Bernstein-owned live harness.</p>
-    <div class="comparison-wrap">
-      <table class="comparison-table">
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>Bernstein</th>
-            <th>CrewAI</th>
-            <th>LangGraph</th>
-          </tr>
-        </thead>
-        <tbody>
-          {architecture_rows}
         </tbody>
       </table>
     </div>

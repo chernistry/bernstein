@@ -167,6 +167,7 @@ nav:
       - Adaptive parallelism: architecture/adaptive-parallelism.md
       - Tiered context compaction: architecture/memory_tiers.md
       - Artifact storage: architecture/storage.md
+      - Orchestration approaches: architecture/orchestration-approaches.md
       - Skill packs: architecture/skills.md
       - A2A v1.0 signed agent cards: architecture/a2a.md
       - A2A capability cards and lineage interop: interop/a2a.md
@@ -277,27 +278,10 @@ nav:
       - ACP bridge: reference/acp-bridge.md
       - Feature matrix: reference/FEATURE_MATRIX.md
       - Known limitations: reference/KNOWN_LIMITATIONS.md
-      - Competitive matrix: reference/competitive-matrix.md
       - Dependency resolver: architecture/DEPENDENCY_RESOLVER.md
       - Changelog: CHANGELOG.md
-  - Comparisons:
-      - OpenAI Agents vs Codex vs Claude: compare/openai-agents.md
-      - Deterministic vs LLM orchestration: compare/deterministic-vs-llm-orchestration.md
-      - vs Conductor: compare/bernstein-vs-conductor.md
-      - vs Crystal: compare/bernstein-vs-crystal.md
-      - vs Dorothy: compare/bernstein-vs-dorothy.md
-      - vs GitHub Agent HQ: compare/bernstein-vs-github-agent-hq.md
-      - vs Paperclip: compare/bernstein-vs-paperclip.md
-      - vs Parallel Code: compare/bernstein-vs-parallel-code.md
-      - vs Single Agent: compare/bernstein-vs-single-agent.md
-      - vs Stoneforge: compare/bernstein-vs-stoneforge.md
-      - vs AgentsMesh: compare/bernstein-vs-agentsmesh.md
-      - vs claude-flow: compare/bernstein-vs-claude-flow.md
-      - vs Claude Squad: compare/bernstein-vs-claude-squad.md
-  - Migration:
-      - Migration guides: migrations/migration-guides.md
-      - From CrewAI: migrations/migration-from-crewai.md
-      - From LangGraph: migrations/migration-from-langgraph.md
+  - Adapter selection:
+      - OpenAI Agents vs Codex vs Claude: adapters/openai-agents-comparison.md
   - Blog:
       - Ten agents one release: blog/ten-agents-one-release.md
       - v1.9 — Four commands that close the last-mile gap: blog/v1.9-four-commands-last-mile.md

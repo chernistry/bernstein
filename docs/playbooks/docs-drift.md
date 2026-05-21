@@ -57,7 +57,6 @@ Drift remediation paths used by the rows below:
 | `docs/agents-md.md` | `src/bernstein/cli/commands/agents_md_cmd.py`, `src/bernstein/core/knowledge/agents_md_bridge.py`, `src/bernstein/core/knowledge/agents_md_generator.py` | New target format added to the canonical IR, sync command options change | `manual-prose` |
 | `docs/CHANGELOG.md` | Mirror of root `CHANGELOG.md` for mkdocs | Root changelog edited | `manual-prose` |
 | `docs/CODE_REVIEW.md` | `src/bernstein/core/quality/`, `src/bernstein/core/review/`, `src/bernstein/core/review_responder/` | Review pipeline stage added, reviewer-role policy change | `manual-prose` |
-| `docs/competitors.md` | None (memo summarising external projects) | Star-count or feature-table refresh requested | `static` |
 | `docs/ENTERPRISE.md` | `src/bernstein/core/compliance/`, `src/bernstein/core/security/`, audit / lineage / air-gap surface | New regulator mapping, new compliance pack target, audit export schema change | `manual-prose` |
 | `docs/lineage.md` | `src/bernstein/core/lineage/`, `src/bernstein/core/persistence/lineage.py`, `src/bernstein/cli/commands/lineage_cmd.py` | Lineage record schema change, signature algorithm change, new verify CLI subcommand | `manual-prose` |
 | `docs/llm-citation-surface.md` | None (positioning note about how the project surfaces in LLM citations) | External citation pattern audited | `static` |
@@ -109,29 +108,12 @@ Source of truth for this group is `src/bernstein/gui/` (FastAPI + SPA), `web/`
 | `troubleshooting.md` | `src/bernstein/gui/cli.py` (`_check_gui_extras`), static-assets gating | Error-message change in the extras check | `manual-prose` |
 | `mobile.md` | `web/` responsive breakpoints | Layout breakpoint change | `manual-prose` |
 
-### `docs/compare/`
-
-Pre-existing comparison memos. Treated as static for the drift gate; the gate
-only verifies that the linked files exist and that the entry in
-`docs/index.md` (if any) still resolves. Do not rewrite competitor content
-here from a drift-check pass.
+### `docs/architecture/orchestration-approaches.md` and `docs/adapters/openai-agents-comparison.md`
 
 | Doc | Source of truth | Drift signal | Remediation |
 |-----|-----------------|--------------|-------------|
-| `README.md` | None (index of the comparison memos in this folder) | A memo is renamed or removed | `static` |
-| `bernstein-vs-agentsmesh.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-claude-flow.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-claude-squad.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-conductor.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-crystal.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-dorothy.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-github-agent-hq.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-paperclip.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-parallel-code.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-single-agent.md` | None | Manual refresh by operator | `static` |
-| `bernstein-vs-stoneforge.md` | None | Manual refresh by operator | `static` |
-| `deterministic-vs-llm-orchestration.md` | None | Manual refresh by operator | `static` |
-| `openai-agents.md` | None | Manual refresh by operator | `static` |
+| `architecture/orchestration-approaches.md` | None | Manual refresh by operator | `static` |
+| `adapters/openai-agents-comparison.md` | None | Manual refresh by operator | `static` |
 
 ### `docs/sdd/`
 
@@ -165,11 +147,7 @@ The current inventory is:
 |------|-----------------------------|-------------|-----------------|
 | `README.md` (intro line) | `as of YYYY-MM-DD: N stars, N forks, ~N pypi downloads/day (~Nk/month)` | GitHub API, PyPI | `gh api repos/sipyourdrink-ltd/bernstein --jq '{stargazers_count, forks_count}'` and `curl -sS https://pypistats.org/api/packages/bernstein/recent \| jq .data` |
 | `README.md` (regulatory anchors) | `### regulatory anchors (as of YYYY-MM-DD)` | Regulator publications | Manual review of cited regulations |
-| `README.md` (comparison table) | `\| Stars (YYYY-MM-DD) \| ...` | GitHub API per row | `gh api repos/<owner>/<repo> --jq .stargazers_count` for each linked competitor repo |
 | `docs/adapter-deferred.md` | `## <Tool> - <STATUS> (YYYY-MM-DD)` | Vendor announcements | Manual review of each named tool's release notes |
-| `docs/llm-citation-surface.md` | `"as of YYYY-MM-DD: ..."` example string | Self-reference to README line | Refresh together with the README intro line above |
-| `docs/compare/bernstein-vs-github-agent-hq.md` | `as of YYYY-MM-DD` qualifier on absent published numbers | GitHub-published benchmarks | Manual review of GitHub Agent HQ release notes |
-| `docs/compare/index.html` | `(YYYY-MM-DD)` pilot-run date | Internal pilot snapshot | Manual update when a new pilot is run |
 
 ### Refresh commands
 
@@ -178,13 +156,6 @@ For the README intro stats line:
 ```bash
 gh api repos/sipyourdrink-ltd/bernstein --jq '{stargazers_count, forks_count}'
 curl -sS https://pypistats.org/api/packages/bernstein/recent | jq .data
-```
-
-For each competitor row in the comparison table (substitute the repo from the
-link target in the table header):
-
-```bash
-gh api repos/<owner>/<repo> --jq .stargazers_count
 ```
 
 ### Staleness policy

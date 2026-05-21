@@ -1,0 +1,180 @@
+name: Sonar findings sweeper
+
+# Imports open static-analysis findings into the .sdd/backlog/ as
+# Markdown ticket files. The job runs as a PR that an operator reviews
+# and merges; it never pushes straight to main.
+#
+# The cron trigger ships disabled-by-default. Flip ENABLE_CRON to "1"
+# (in the workflow file, not at run time) only after a clean
+# workflow_dispatch smoke run. This keeps the first-day blast radius
+# bounded to a manual invocation while the rule-family blurb table
+# settles.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'  # 06:17 UTC daily; off-peak.
+  workflow_dispatch:
+    inputs:
+      severity_min:
+        description: Minimum severity to include
+        required: false
+        default: BLOCKER
+        type: choice
+        options:
+          - BLOCKER
+          - CRITICAL
+          - MAJOR
+          - MINOR
+          - INFO
+      max_per_day:
+        description: Cap on tickets emitted in this run
+        required: false
+        default: '10'
+      dry_run:
+        description: When true, only print the would-be tickets
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sweep-sonar-findings
+  cancel-in-progress: false
+
+env:
+  # Phase-1 default knobs. The cron trigger is gated by ENABLE_CRON
+  # below so that a scheduled run is a no-op until the operator
+  # explicitly opts in via a follow-up PR that flips this value. Job
+  # 'if:' cannot read env directly, so the gate runs as the first
+  # step of the job (see "Gate cron trigger" below).
+  ENABLE_CRON: '0'
+
+jobs:
+  sweep:
+    name: Sweep Sonar findings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      ${{ vars.SONAR_HOST_URL != '' &&
+          (github.event_name == 'workflow_dispatch' ||
+           github.event_name == 'schedule') }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Gate cron trigger
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${ENABLE_CRON}" != "1" ]; then
+            echo "Cron trigger fired but ENABLE_CRON is '0'; exiting cleanly."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Harden runner
+        if: steps.gate.outputs.skip != 'true'
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Install uv and project deps
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          pip install --quiet uv
+          uv sync --group dev
+
+      - name: Run sweeper
+        if: steps.gate.outputs.skip != 'true'
+        id: sweep
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SEVERITY_MIN: ${{ inputs.severity_min || 'BLOCKER' }}
+          MAX_PER_DAY: ${{ inputs.max_per_day || '10' }}
+          DRY_RUN_INPUT: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          mkdir -p .sdd/backlog/open
+          args=(
+            "--severity-min" "${SEVERITY_MIN}"
+            "--max-per-day" "${MAX_PER_DAY}"
+            "--out-dir" ".sdd/backlog/open"
+          )
+          if [ "${DRY_RUN_INPUT}" = "true" ]; then
+            args+=("--dry-run")
+          fi
+          uv run python scripts/sweep_sonar_findings.py "${args[@]}"
+
+      - name: Detect new ticket files
+        if: steps.gate.outputs.skip != 'true'
+        id: detect
+        run: |
+          set -euo pipefail
+          # `git status --porcelain` lists every change. We only consider
+          # files under .sdd/backlog/open/ to keep the PR scope tight.
+          changed=$(git status --porcelain -- .sdd/backlog/open/ | wc -l | tr -d ' ')
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          if [ "${changed}" = "0" ]; then
+            echo "No new tickets emitted; will skip PR creation."
+          else
+            echo "${changed} new ticket file(s) to commit."
+          fi
+
+      - name: Open PR with new tickets
+        if: >-
+          steps.gate.outputs.skip != 'true' &&
+          steps.detect.outputs.changed != '0' &&
+          inputs.dry_run != 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: sonar-sweep/${{ github.run_id }}
+          delete-branch: true
+          add-paths: |
+            .sdd/backlog/open/
+          commit-message: |
+            chore(backlog): import sonar findings
+          title: 'chore(backlog): import sonar findings'
+          body: |
+            Automated import of open static-analysis findings as backlog
+            ticket files under `.sdd/backlog/open/`. Generated by
+            `.github/workflows/sweep-sonar-findings.yml`.
+
+            Each emitted ticket carries the upstream issue key in its
+            frontmatter (`sonar_issue_key`) so re-runs are idempotent;
+            the same finding will not produce a second ticket.
+
+            Severity filter: `${{ inputs.severity_min || 'BLOCKER' }}`.
+            Per-run cap: `${{ inputs.max_per_day || '10' }}`.
+
+            Review the emitted `## Why` bodies. They are synthesised from
+            a pre-vetted rule-family blurb table inside the sweeper; the
+            raw upstream message is never copied verbatim. If a new rule
+            family appears with the default fallback blurb, add a row to
+            `RULE_FAMILY_BLURBS` in `scripts/sweep_sonar_findings.py`
+            before merging this PR.
+          labels: |
+            backlog
+            static-analysis
+            chore

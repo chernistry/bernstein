@@ -961,6 +961,96 @@ from bernstein.cli.commands.doctor.glitchtip import (  # noqa: E402
 _register_doctor_glitchtip(doctor)
 
 
+@doctor.command("sonar-sweep")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the would-be ticket paths without writing files.",
+)
+@click.option(
+    "--severity-min",
+    "severity_min",
+    default="BLOCKER",
+    show_default=True,
+    type=click.Choice(["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]),
+    help="Minimum severity to include.",
+)
+@click.option(
+    "--max-per-day",
+    "max_per_day",
+    type=int,
+    default=10,
+    show_default=True,
+    help="Cap on the number of tickets emitted in this run.",
+)
+@click.option(
+    "--out-dir",
+    "out_dir",
+    default=".sdd/backlog/open",
+    show_default=True,
+    help="Directory to write emitted ticket files into.",
+)
+@click.option(
+    "--fixture",
+    default=None,
+    help="Use a saved JSON fixture instead of calling Sonar (for local dry-runs).",
+)
+def doctor_sonar_sweep_cmd(
+    dry_run: bool,
+    severity_min: str,
+    max_per_day: int,
+    out_dir: str,
+    fixture: str | None,
+) -> None:
+    """Turn open static-analysis findings into backlog tickets.
+
+    \b
+    Reads ``SONAR_HOST_URL`` and ``SONAR_TOKEN`` from the environment,
+    fetches the open findings, applies de-dup against existing tickets
+    under ``.sdd/backlog/*``, and writes one Markdown ticket per new
+    finding into the configured output directory.
+
+    \b
+    With ``--dry-run`` the command lists the would-be file paths without
+    writing them. With ``--fixture`` it loads findings from a saved JSON
+    blob instead of calling the Sonar API at all -- useful for local
+    smoke tests.
+    """
+    # The sweeper lives under ``scripts/`` so the wheel stays slim. We
+    # import it lazily from the source tree.
+    from pathlib import Path as _Path
+
+    repo_root = _Path(__file__).resolve().parents[4]
+    scripts_dir = repo_root / "scripts"
+    import sys as _sys
+
+    if str(scripts_dir) not in _sys.path:
+        _sys.path.insert(0, str(scripts_dir))
+    try:
+        from sweep_sonar_findings import (
+            main as _sweep_main,  # type: ignore[import-not-found]
+        )
+    except ImportError as exc:
+        click.echo(f"error: cannot import sweeper: {exc}", err=True)
+        raise SystemExit(2) from exc
+
+    argv: list[str] = [
+        "--severity-min",
+        severity_min,
+        "--max-per-day",
+        str(max_per_day),
+        "--out-dir",
+        out_dir,
+    ]
+    if dry_run:
+        argv.append("--dry-run")
+    if fixture:
+        argv.extend(["--fixture", fixture])
+
+    raise SystemExit(int(_sweep_main(argv)))
+
+
 # ---------------------------------------------------------------------------
 # recap
 # ---------------------------------------------------------------------------

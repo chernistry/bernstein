@@ -503,6 +503,7 @@ class CLIAdapter(ABC):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch an agent process with the given prompt.
 
@@ -523,6 +524,14 @@ class CLIAdapter(ABC):
                 Adapters that support a separate system prompt (e.g. Claude
                 Code's ``--append-system-prompt``) should use it; others
                 may append to the user prompt as a fallback.
+            multimodal_context: Optional
+                :class:`bernstein.core.agents.multimodal.MultiModalContext`
+                carrying base64-encoded attachments to be passed to the
+                model API. Multimodal-capable adapters (Claude, Gemini)
+                encode the attached bytes inline in the request body;
+                other adapters MUST raise :class:`CapabilityRefusal`
+                before any process is launched (see
+                :func:`bernstein.core.agents.multimodal_attestation.refuse_when_incapable`).
         """
         ...
 

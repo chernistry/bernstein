@@ -166,6 +166,61 @@ def _load_ed25519_private(data: bytes, source: Path) -> Ed25519PrivateKey:
         raise LineageSignerError(f"cannot load raw Ed25519 key from {source}: {exc}") from exc
 
 
+# ---------------------------------------------------------------------------
+# Attachment-as-parent helper (issue #1797)
+# ---------------------------------------------------------------------------
+# Additive, append-only surface: the lineage receipt for any artefact
+# produced by a worker this turn must carry the input attachment's
+# SHA-256 in its parents list. The helper below builds the canonical
+# parent identifier from an attachment digest so that callers do not
+# have to know the URI format.
+
+_ATTACHMENT_PARENT_SCHEME = "multimodal-attachment://"
+
+
+def build_attachment_parent_uri(sha256: str) -> str:
+    """Return the canonical parent URI for a multimodal attachment.
+
+    Args:
+        sha256: Hex digest of the attachment bytes (lower-case, 64 chars).
+
+    Returns:
+        A scheme-qualified content-addressed URI suitable for inclusion
+        in a lineage record's ``parents`` list.
+    """
+    if not sha256 or len(sha256) != 64:
+        raise LineageSignerError(f"attachment sha256 must be 64 hex chars, got {len(sha256)}")
+    return f"{_ATTACHMENT_PARENT_SCHEME}{sha256}"
+
+
+def register_attachment_parents(
+    parents: list[str],
+    attachment_sha256s: list[str],
+) -> list[str]:
+    """Append attachment parent URIs to an existing lineage parents list.
+
+    The function never mutates *parents*; it returns a new list with
+    the existing parents followed by the attachment-derived URIs.
+    Duplicate entries are filtered out so a multiply-attached image
+    appears exactly once in the receipt.
+
+    Args:
+        parents: The existing lineage parents list.
+        attachment_sha256s: Hex digests of attachments to register.
+
+    Returns:
+        A new list with attachment parents appended.
+    """
+    seen: set[str] = set(parents)
+    out: list[str] = list(parents)
+    for digest in attachment_sha256s:
+        uri = build_attachment_parent_uri(digest)
+        if uri not in seen:
+            out.append(uri)
+            seen.add(uri)
+    return out
+
+
 def signer_from_config(
     *,
     enabled: bool,

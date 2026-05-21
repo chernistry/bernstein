@@ -63,6 +63,55 @@ def _task_budgets_opt_in() -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+# ---------------------------------------------------------------------------
+# Multimodal attachment encoding (issue #1797)
+# ---------------------------------------------------------------------------
+
+
+def _inject_multimodal_attachments(prompt: str, multimodal_context: Any) -> str:
+    """Inline encoded attachments at the head of *prompt*.
+
+    The Claude Code CLI does not accept image attachments as separate
+    arguments; we wrap each base64-encoded blob in a structured
+    ``<attachment mime="..." sha256="...">`` block before the user
+    prompt so the model API receives the bytes inline. Tests assert the
+    exact format so downstream replay can reconstruct what was sent.
+
+    Args:
+        prompt: The agent prompt that will be passed to the CLI.
+        multimodal_context: A
+            :class:`bernstein.core.agents.multimodal.MultiModalContext`.
+
+    Returns:
+        Prompt with the encoded blocks prepended, or *prompt* unchanged
+        when the context contains no inputs.
+    """
+    inputs = getattr(multimodal_context, "inputs", ())
+    if not inputs:
+        return prompt
+
+    import hashlib as _hashlib
+
+    blocks: list[str] = []
+    for inp in inputs:
+        b64 = getattr(inp, "content_base64", None) or ""
+        mime = getattr(inp, "mime_type", "application/octet-stream")
+        path = getattr(inp, "content_path", None)
+        if path is not None:
+            try:
+                raw = Path(path).read_bytes()
+                digest = _hashlib.sha256(raw).hexdigest()
+            except OSError:
+                digest = ""
+        else:
+            digest = ""
+        # Format documented in docs/operations/run.md so adapters and
+        # tests share the same wire format.
+        blocks.append(f'<attachment mime="{mime}" sha256="{digest}">\n{b64}\n</attachment>')
+    header = "\n".join(blocks)
+    return f"{header}\n\n{prompt}"
+
+
 # Map short model names to Claude Code CLI model IDs.
 # Last verified against upstream @anthropic-ai/claude-code 2.1.x on 2026-05-05.
 # Opus 4.7 is GA at the same price as 4.6 (Anthropic news, 2026-04-16); Sonnet
@@ -509,8 +558,16 @@ class ClaudeCodeAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         self.enforce_network_policy()
+        # Issue #1797: encode any attached images into the prompt body
+        # as base64 with the correct MIME type so the upstream model API
+        # sees them. The Claude Code CLI does not accept attachments
+        # directly; we inline them in a structured ``<attachment>`` block
+        # at the head of the prompt so the model picks them up.
+        if multimodal_context is not None:
+            prompt = _inject_multimodal_attachments(prompt, multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

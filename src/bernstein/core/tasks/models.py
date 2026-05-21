@@ -404,6 +404,12 @@ class Task:
     # All tasks sharing a ``story_id`` form a rollback grouping ("deliver the
     # whole MVP slice or none of it"). Parsed from the ``[USn]`` marker.
     story_id: str | None = None
+    # Issue #1797: operator-supplied attachments (image / diagram paths)
+    # that the orchestrator encodes into a MultiModalContext at spawn time
+    # and passes to the adapter. Empty list = no attachments. Adapters
+    # that report ``is_multimodal_capable() == False`` MUST refuse spawns
+    # carrying a non-empty list before any process is launched.
+    attachments: list[str] = field(default_factory=list[str])
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Task:
@@ -503,6 +509,7 @@ class Task:
             agent_restart_between_retries=bool(raw.get("agent_restart_between_retries", False)),
             parallel_safe=bool(raw.get("parallel_safe", False)),
             story_id=(str(raw["story_id"]) if raw.get("story_id") else None),
+            attachments=[str(a) for a in raw.get("attachments", [])],
         )
 
 

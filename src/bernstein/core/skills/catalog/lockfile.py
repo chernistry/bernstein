@@ -515,5 +515,3 @@ __all__ = [
     "worktree_id_for",
     "write_state",
 ]
-
-

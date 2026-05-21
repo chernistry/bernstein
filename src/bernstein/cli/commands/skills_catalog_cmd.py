@@ -252,8 +252,7 @@ def install_cmd(entry_id: str, allow_unverified: bool, refresh: bool, scope: str
         )
     except ManifestSignatureError as exc:
         raise click.ClickException(
-            f"Refusing to install {entry_id!r}: {exc}. "
-            "Re-run with --allow-unverified to override.",
+            f"Refusing to install {entry_id!r}: {exc}. Re-run with --allow-unverified to override.",
         ) from exc
     except SkillCatalogError as exc:
         raise click.ClickException(str(exc)) from exc

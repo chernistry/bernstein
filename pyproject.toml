@@ -669,6 +669,7 @@ markers = [
     "slow: long-running tests (> ~5s); skipped by default in fast feedback runs",
     "integration: end-to-end / subprocess-driven integration tests; selectable via -m integration in CI",
     "stress: resource-leak / memory-growth / deadlock stress tests (TC-C); gated off by default CI, run nightly via `-m stress`",
+    "allow_network: opt out of the autouse unit no-network guard (rare; a genuine integration test belongs in tests/integration/ instead)",
 ]
 # Visible warnings without converting to errors; individual tests or runs
 # can tighten via `pytest -W error::DeprecationWarning`.

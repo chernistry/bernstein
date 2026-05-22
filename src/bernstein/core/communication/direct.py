@@ -38,7 +38,7 @@ MessageId = str
 
 # ``@`` followed by a session-id-like token (alnum, ``-``, ``_``).
 # Anchored on an ASCII word boundary so emails (``user@host``) do not match.
-_MENTION_RE = re.compile(r"(?<!\w)@([A-Za-z0-9][\w-]*)", re.ASCII)
+_MENTION_RE = re.compile(r"(?<!\w)@([^\W_][\w-]*)", re.ASCII)
 
 
 @dataclass(frozen=True)

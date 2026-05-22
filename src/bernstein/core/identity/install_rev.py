@@ -165,10 +165,10 @@ def _version_byte() -> int:
     """
     try:
         from importlib.metadata import PackageNotFoundError, version
-
-        raw = version("bernstein")
-    except (ImportError, ModuleNotFoundError):
+    except ImportError:
         return _DEFAULT_VERSION_MAJOR
+    try:
+        raw = version("bernstein")
     except PackageNotFoundError:
         return _DEFAULT_VERSION_MAJOR
     head = raw.split(".", 1)[0]

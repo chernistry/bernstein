@@ -26,6 +26,7 @@ from bernstein.core.lineage.gate import check as gate_check
 from bernstein.core.lineage.identity import (
     AgentCard,
     generate_keypair,
+    jws_header_kid,
     sign_detached,
     verify_detached,
 )
@@ -91,6 +92,7 @@ __all__ = [
     "gate_check",
     "generate_keypair",
     "is_v2_enabled",
+    "jws_header_kid",
     "resolve_policy",
     "sign_detached",
     "verify_detached",

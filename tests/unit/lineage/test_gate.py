@@ -559,3 +559,138 @@ def test_detect_forks_requires_at_least_two_children(tmp_path: Path) -> None:
     g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
     only_child = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
     assert detect_forks([g, only_child]) == []
+
+
+# ── Kid binding (issue #1837) ───────────────────────────────────────────────
+#
+# The gate must bind the entry's *signed* ``agent_card_kid`` to the card
+# actually used to verify it. Selecting the card by ``agent_id`` alone (a) lets
+# a kid-substitution slip through and (b) breaks every historical entry the
+# moment an agent rotates its key. These tests pin the binding.
+
+
+def _write_card_for_kid(cards_dir: Path, agent: _TestAgent) -> None:
+    """Write a card under the per-kid layout ``<agent-id>/<kid>/card.json``.
+
+    This is the layout that disambiguates multiple historical keys for one
+    agent (post key-rotation). The legacy ``<agent-id>/card.json`` layout is
+    written by :func:`_write_card`.
+    """
+    d = cards_dir / agent.agent_id / agent.kid
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "card.json").write_text(
+        json.dumps(
+            {
+                "protocolVersion": "a2a/1.0",
+                "agent_id": agent.agent_id,
+                "kid": agent.kid,
+                "public_key_pem": agent.pub,
+            }
+        )
+    )
+
+
+def _sign_entry_into(log_path: Path, entry: LineageEntry, *, priv_pem: str, header_kid: str) -> None:
+    """Append ``entry`` to the log and write a detached JWS signed with an
+    explicit ``priv_pem`` and JWS-header ``kid`` (which may deliberately
+    diverge from the entry's signed ``agent_card_kid``)."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    sig_root = log_path.parent / "signatures"
+    sig_root.mkdir(exist_ok=True)
+    with log_path.open("a") as f:
+        f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+    canonical = canonicalise(entry)
+    jws = sign_detached(canonical, priv_pem, kid=header_kid)
+    eh = entry_hash(entry)
+    path_hash = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
+    dest_dir = sig_root / path_hash[:2] / path_hash
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    (dest_dir / (eh.replace("sha256:", "") + ".jws")).write_text(jws)
+
+
+def test_gate_passes_with_single_per_kid_card(tmp_path: Path) -> None:
+    """An entry signed under kid ``k1`` verifies against a per-kid card for
+    ``k1``. This is the rotation-aware happy path for the new layout."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card_for_kid(cards, a)  # <agent-id>/k1/card.json
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, g, priv_pem=a.priv, header_kid=a.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True, result.failures
+
+
+def test_gate_fails_when_card_kid_does_not_match_entry_kid(tmp_path: Path) -> None:
+    """An entry signed under ``k1`` must FAIL with a clear kid-binding error
+    when the only card present for that agent is under a *different* kid
+    (``k2``) - even though the card directory has *a* card for the agent.
+
+    This is the substitution gap: previously the gate verified against
+    whatever single card sat at ``agent_id`` and ignored ``agent_card_kid``.
+    """
+    a_k1 = _TestAgent("agent:a", "k1")
+    a_k2 = _TestAgent("agent:a", "k2")  # same agent_id, different kid + key
+    cards = tmp_path / "agents"
+    # Only the k2 card is on disk; the entry is signed under k1.
+    _write_card_for_kid(cards, a_k2)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a_k1, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, g, priv_pem=a_k1.priv, header_kid=a_k1.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    # Must be a precise kid-binding failure, NOT a generic signature error.
+    assert any("kid" in f.lower() and "k1" in f for f in result.failures), result.failures
+
+
+def test_gate_passes_for_both_kids_after_rotation(tmp_path: Path) -> None:
+    """After an agent rotates its key (old + new card both present, one per
+    kid), historical entries under the old kid and new entries under the new
+    kid must BOTH pass ``check``."""
+    a_old = _TestAgent("agent:a", "k-old")
+    a_new = _TestAgent("agent:a", "k-new")
+    cards = tmp_path / "agents"
+    _write_card_for_kid(cards, a_old)
+    _write_card_for_kid(cards, a_new)
+    log = tmp_path / "lineage" / "log.jsonl"
+    old_entry = _entry_for(a_old, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, old_entry, priv_pem=a_old.priv, header_kid=a_old.kid)
+    new_entry = _entry_for(a_new, "src/x.py", _h("2"), [entry_hash(old_entry)], ts_ns=2)
+    _sign_entry_into(log, new_entry, priv_pem=a_new.priv, header_kid=a_new.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True, result.failures
+
+
+def test_gate_fails_when_header_kid_diverges_from_body_kid(tmp_path: Path) -> None:
+    """An entry whose signed body names ``agent_card_kid = "k-old"`` but whose
+    JWS header carries ``kid = "k-new"`` must FAIL with a kid-binding error,
+    even when a valid card for ``k-new`` exists and the signature would verify
+    against it."""
+    a_old = _TestAgent("agent:a", "k-old")
+    a_new = _TestAgent("agent:a", "k-new")
+    cards = tmp_path / "agents"
+    # Both cards present so neither side is "missing"; the divergence itself
+    # is the failure.
+    _write_card_for_kid(cards, a_old)
+    _write_card_for_kid(cards, a_new)
+    log = tmp_path / "lineage" / "log.jsonl"
+    # Body says k-old; sign with k-new's key AND k-new header kid.
+    entry = _entry_for(a_old, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, entry, priv_pem=a_new.priv, header_kid=a_new.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    assert any("kid" in f.lower() for f in result.failures), result.failures
+
+
+def test_gate_legacy_single_card_layout_still_passes(tmp_path: Path) -> None:
+    """No-rotation regression: a single legacy ``<agent-id>/card.json`` (the
+    layout production writes today) must still verify exactly as before."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)  # legacy <agent-id>/card.json
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    c1 = _entry_for(a, "src/x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    _write_log_and_sigs(log, [(g, None), (c1, None)], {a.agent_id: a})
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True, result.failures

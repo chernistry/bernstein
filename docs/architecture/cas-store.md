@@ -29,9 +29,11 @@ new. Properties that follow:
 
 - **Automatic dedup.** Two agents emitting the same artifact share one
   blob.
-- **Tamper evidence.** A digest mismatch on read = corruption, full
-  stop. Pair with a Merkle tree to prove the whole store hasn't been
-  tampered with.
+- **Tamper evidence.** Every `get()` re-hashes the bytes it read and
+  compares them to the requested digest; a mismatch raises
+  `CASIntegrityError` (corruption, full stop) rather than handing back
+  the wrong bytes. Pair with a Merkle tree to prove the whole store
+  hasn't been tampered with.
 - **Cheap snapshots.** A "manifest" (list of digests) is a tiny pointer
   into the blob store; you can move snapshots around without copying
   blob content.
@@ -128,8 +130,13 @@ Public methods:
 
 - `put(content, content_type, metadata)` → digest. No-op if digest
   already exists (`_dedup_saves` counter increments).
-- `get(digest)` → bytes or `None`. Validates the digest format first to
-  prevent path traversal (`_validate_digest`).
+- `get(digest, *, verify=True)` → bytes or `None`. Validates the digest
+  format first to prevent path traversal (`_validate_digest`), then
+  re-hashes the stored bytes and raises `CASIntegrityError` if they do
+  not match the requested digest. A missing blob still returns `None`.
+  Pass `verify=False` only on hot paths that have already verified the
+  content upstream - the opt-out re-opens the integrity hole for that
+  call and must be used deliberately.
 - `has(digest)` → bool.
 - `delete(digest)` → bool. Removes blob + sidecar; cleans up empty
   shard directories.

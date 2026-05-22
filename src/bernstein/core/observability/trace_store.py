@@ -49,6 +49,8 @@ import logging
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any, Final
 
+from bernstein.core.persistence.cas_store import CASIntegrityError
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
@@ -397,12 +399,36 @@ class ContentAddressedTraceStore:
 
     # -- Reads --------------------------------------------------------------
 
-    def get(self, trace_id: str) -> bytes | None:
+    def get(self, trace_id: str, *, verify: bool = True) -> bytes | None:
         """Return uncompressed trace bytes for ``trace_id``.
 
         ``trace_id`` can be either the logical trace identifier or the
         sha256 digest of the blob. Returns ``None`` if no matching entry
         exists in the index or the blob is missing on disk.
+
+        By default the decompressed bytes are re-hashed and checked against
+        the indexed ``sha256`` - the same property :meth:`verify` provides -
+        so the documented "index does not have to be trusted" guarantee
+        holds on the hot read path, not only when an operator calls
+        :meth:`verify` explicitly. On a mismatch a
+        :class:`~bernstein.core.persistence.cas_store.CASIntegrityError` is
+        raised rather than decompressed-but-wrong bytes being returned.
+
+        Args:
+            trace_id: Logical trace id or sha256 digest of the blob.
+            verify: When ``True`` (default), re-hash the decompressed bytes
+                and raise on a mismatch with the indexed digest. Set
+                ``False`` only for callers that have already verified the
+                content upstream; the opt-out re-opens the integrity hole
+                for that call.
+
+        Returns:
+            The uncompressed trace bytes, or ``None`` when the trace is
+            unknown or its blob is missing.
+
+        Raises:
+            CASIntegrityError: If *verify* is ``True`` and the decompressed
+                bytes do not hash to the indexed digest.
         """
         entry = self._lookup_entry(trace_id)
         if entry is None:
@@ -411,7 +437,17 @@ class ContentAddressedTraceStore:
         if path is None:
             return None
         codec = _codec_for_ext(path.suffix.lstrip("."))
-        return _decompress(path.read_bytes(), codec)
+        raw = _decompress(path.read_bytes(), codec)
+        if verify:
+            actual = hashlib.sha256(raw).hexdigest()
+            if actual != entry.sha256:
+                logger.error(
+                    "trace_store integrity check failed: indexed %s, on-disk bytes hash to %s",
+                    entry.sha256,
+                    actual,
+                )
+                raise CASIntegrityError(expected=entry.sha256, actual=actual)
+        return raw
 
     def index(self) -> list[TraceIndexEntry]:
         """Return all index entries, most recent ``started_at`` first."""

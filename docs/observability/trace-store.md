@@ -31,8 +31,12 @@ JSON) without paying for one.
 - `index.jsonl` carries the searchable metadata: `trace_id`, `task_id`,
   `sha256`, `byte_size`, `started_at`, `ended_at`, `model`, `cost_usd`,
   `codec`. The viewer reads this file; nothing else.
-- The sha256 is the source of truth. `bernstein trace verify <id>`
-  rereads the blob bytes and rehashes them.
+- The sha256 is the source of truth. `store.get()` rereads the blob,
+  decompresses it, rehashes, and raises `CASIntegrityError` if the bytes
+  no longer match the indexed digest - so the "index does not have to be
+  trusted" property holds on the hot read path, not only when an operator
+  runs `bernstein trace verify <id>` explicitly. The explicit verify
+  command remains for an on-demand check that returns a boolean.
 
 ## CLI
 
@@ -79,8 +83,9 @@ store = ContentAddressedTraceStore(Path(".sdd/traces"))
 # Store finalised trace bytes (idempotent).
 entry = store.put(trace_bytes, hints=TraceMetadataHints(task_id="T-12"))
 
-# Read back, verify, search.
-raw = store.get(entry.trace_id)
+# Read back (verifies the bytes against the indexed digest by default),
+# verify on demand, search.
+raw = store.get(entry.trace_id)  # raises CASIntegrityError on a mismatch
 assert store.verify(entry.trace_id)
 results = store.search(task_id="T-12", model="sonnet")
 

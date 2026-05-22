@@ -35,6 +35,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+
+
+class CASIntegrityError(Exception):
+    """Raised when stored bytes no longer hash to the requested digest.
+
+    The store's contract is content-addressing: the key is
+    ``sha256(content)``. When a verified read finds that the bytes on disk
+    hash to something other than the requested key, the blob has been
+    corrupted (bit rot, a torn write) or tampered with, and is no longer the
+    content the key promises. This is surfaced rather than masked as a cache
+    miss so the caller can treat it as corruption and re-fetch or re-derive.
+
+    Attributes:
+        expected: The digest the caller requested (the content-address key).
+        actual: The SHA-256 hex digest recomputed from the on-disk bytes.
+    """
+
+    def __init__(self, expected: str, actual: str) -> None:
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            f"CAS integrity check failed for {expected}: on-disk bytes hash to {actual}",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
@@ -182,23 +210,47 @@ class CASStore:
         logger.debug("CAS stored %d bytes as %s", len(content), digest[:12])
         return digest
 
-    def get(self, digest: str) -> bytes | None:
+    def get(self, digest: str, *, verify: bool = True) -> bytes | None:
         """Retrieve stored content by *digest*, or ``None`` if absent.
+
+        By default the bytes read from disk are re-hashed and checked against
+        *digest*: a content-addressed store whose read path does not verify
+        the address is not content-addressed. On a mismatch a
+        :class:`CASIntegrityError` is raised rather than the corrupted bytes
+        being returned (and rather than masking the corruption as a cache
+        miss). A missing blob is still reported as ``None``.
 
         Args:
             digest: SHA-256 hex digest returned by :meth:`put`.
+            verify: When ``True`` (default), re-hash the stored bytes and
+                raise :class:`CASIntegrityError` if they do not match
+                *digest*. Set ``False`` only for hot paths that have already
+                verified the content upstream; the opt-out re-opens the
+                integrity hole for that call and must be used deliberately.
 
         Returns:
             The stored bytes, or ``None`` when the digest is unknown.
 
         Raises:
             ValueError: If *digest* is not a valid 64-char hex string.
+            CASIntegrityError: If *verify* is ``True`` and the stored bytes
+                do not hash to *digest*.
         """
         self._validate_digest(digest)
         blob = self._blob_path(digest)
         if not blob.exists():
             return None
-        return blob.read_bytes()
+        content = blob.read_bytes()
+        if verify:
+            actual = self._digest(content)
+            if actual != digest:
+                logger.error(
+                    "CAS integrity check failed: requested %s, on-disk bytes hash to %s",
+                    digest,
+                    actual,
+                )
+                raise CASIntegrityError(expected=digest, actual=actual)
+        return content
 
     def has(self, digest: str) -> bool:
         """Check whether *digest* exists in the store.

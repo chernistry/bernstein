@@ -28,6 +28,7 @@ from bernstein.core.observability.trace_store import (
     TraceMetadataHints,
     build_viewer_app,
 )
+from bernstein.core.persistence.cas_store import CASIntegrityError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -156,6 +157,58 @@ def test_verify_handles_missing_blob(tmp_path: Path) -> None:
     (tmp_path / "blobs" / entry.sha256[:2] / f"{entry.sha256}.jsonl.gz").unlink()
     assert store.verify("trace-001") is False
     assert store.get("trace-001") is None
+
+
+def test_get_raises_on_corrupted_blob(tmp_path: Path) -> None:
+    # The default read path must fail the same way verify() reports, rather
+    # than returning decompressed-but-wrong bytes.
+    store = ContentAddressedTraceStore(tmp_path, prefer_zstd=False)
+    raw = _agent_trace_json()
+    entry = store.put(raw)
+
+    blob = tmp_path / "blobs" / entry.sha256[:2] / f"{entry.sha256}.jsonl.gz"
+    blob.write_bytes(gzip.compress(b"tampered"))
+
+    assert store.verify("trace-001") is False
+    with pytest.raises(CASIntegrityError) as exc_info:
+        store.get("trace-001")
+    # The error names the digest the bytes were supposed to match.
+    assert entry.sha256 in str(exc_info.value)
+    assert exc_info.value.expected == entry.sha256
+
+
+def test_get_corrupted_blob_resolves_by_sha256_too(tmp_path: Path) -> None:
+    store = ContentAddressedTraceStore(tmp_path, prefer_zstd=False)
+    raw = _agent_trace_json()
+    entry = store.put(raw)
+
+    blob = tmp_path / "blobs" / entry.sha256[:2] / f"{entry.sha256}.jsonl.gz"
+    blob.write_bytes(gzip.compress(b"tampered"))
+
+    with pytest.raises(CASIntegrityError):
+        store.get(entry.sha256)
+
+
+def test_get_verify_off_returns_corrupted_bytes(tmp_path: Path) -> None:
+    # Explicit opt-out skips the rehash for callers that verified upstream.
+    store = ContentAddressedTraceStore(tmp_path, prefer_zstd=False)
+    raw = _agent_trace_json()
+    entry = store.put(raw)
+
+    blob = tmp_path / "blobs" / entry.sha256[:2] / f"{entry.sha256}.jsonl.gz"
+    blob.write_bytes(gzip.compress(b"tampered"))
+
+    assert store.get("trace-001", verify=False) == b"tampered"
+
+
+def test_get_intact_blob_passes_verification(tmp_path: Path) -> None:
+    store = ContentAddressedTraceStore(tmp_path, prefer_zstd=False)
+    raw = _agent_trace_json()
+    store.put(raw)
+
+    # Clean round-trip still returns the original bytes with verify on.
+    assert store.get("trace-001") == raw
+    assert store.get("trace-001", verify=True) == raw
 
 
 def test_reindex_rebuilds_index_from_blobs(tmp_path: Path) -> None:

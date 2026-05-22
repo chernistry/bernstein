@@ -26,6 +26,11 @@ hash collisions on benign inputs (correctness bug). Properties:
 * **Repeated puts dedup correctly** - the second put of an
   identical payload increments the dedup counter and does not touch
   the blob on disk.
+
+* **A single-byte mutation of any stored blob fails the verifying
+  read** - the read path re-hashes against the requested digest, so
+  tampering or bit rot surfaces as ``CASIntegrityError`` rather than
+  being served as authentic.
 """
 
 from __future__ import annotations
@@ -37,7 +42,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from bernstein.core.persistence.cas_store import CASStore
+from bernstein.core.persistence.cas_store import CASIntegrityError, CASStore
 
 _HEX_64 = re.compile(r"\A[0-9a-f]{64}\Z")
 
@@ -169,3 +174,35 @@ def test_get_returns_none_for_unknown_digest(tmp_path_factory: pytest.TempPathFa
     # Don't put - the digest is unknown to the store.
     assert store.get(digest) is None
     assert not store.has(digest)
+
+
+@given(
+    content=st.binary(min_size=1, max_size=512),
+    flip_index=st.integers(min_value=0),
+)
+def test_single_byte_mutation_fails_verifying_read(
+    tmp_path_factory: pytest.TempPathFactory,
+    content: bytes,
+    flip_index: int,
+) -> None:
+    """Mutating any single byte of a stored blob makes the verifying read fail.
+
+    This is the core content-addressing guarantee: the bytes ``get``
+    returns hash to the key requested. A flipped byte changes the
+    digest, so the verifying read must raise ``CASIntegrityError`` (and
+    name the requested key) rather than serving the tampered bytes.
+    """
+    store = CASStore(tmp_path_factory.mktemp("cas"))
+    digest = store.put(content)
+
+    blob = store.root / digest[:2] / digest
+    data = bytearray(blob.read_bytes())
+    pos = flip_index % len(data)
+    data[pos] ^= 0xFF
+    blob.write_bytes(bytes(data))
+
+    with pytest.raises(CASIntegrityError) as exc_info:
+        store.get(digest)
+    assert exc_info.value.expected == digest
+    # The opt-out still returns the (now corrupted) bytes verbatim.
+    assert store.get(digest, verify=False) == bytes(data)

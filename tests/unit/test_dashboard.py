@@ -21,6 +21,7 @@ from bernstein.cli.dashboard import (
     _summarize_agent_errors,
     _task_retry_count,
 )
+from bernstein.core.routes import status_dashboard
 from bernstein.core.server import create_app
 
 if TYPE_CHECKING:
@@ -91,6 +92,7 @@ async def test_dashboard_static_asset_is_served_from_package(client: AsyncClient
     assert resp.status_code == 200
     assert "application/javascript" in resp.headers["content-type"]
     assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert "Alpine" in resp.text
 
 
@@ -98,6 +100,20 @@ async def test_dashboard_static_asset_is_served_from_package(client: AsyncClient
 async def test_unknown_dashboard_static_asset_returns_404(client: AsyncClient) -> None:
     """Unknown dashboard static assets are not resolved from arbitrary paths."""
     resp = await client.get("/dashboard/static/missing.js")
+    assert resp.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_missing_packaged_dashboard_static_asset_returns_404(
+    client: AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Known dashboard assets return 404 when the packaged file is absent."""
+    monkeypatch.setattr(status_dashboard, "STATIC_DIR", tmp_path)
+
+    resp = await client.get("/dashboard/static/alpinejs-3.14.8.min.js")
+
     assert resp.status_code == 404
 
 

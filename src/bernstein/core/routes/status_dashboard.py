@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
+from bernstein.core.defaults import DASHBOARD_STATIC_ASSETS
 from bernstein.core.home import BernsteinHome, resolve_config_bundle
 from bernstein.core.prometheus import get_transition_reason_histogram
 from bernstein.core.runtime_state import (
@@ -52,10 +53,6 @@ __all__ = [
 
 # Shared cast-type constants to avoid string duplication (Sonar S1192).
 _CAST_DICT_STR_ANY = "dict[str, Any]"
-_DASHBOARD_STATIC_ASSETS: dict[str, tuple[Path, str]] = {
-    "tailwind-3.4.17.min.js": (STATIC_DIR / "tailwind-3.4.17.min.js", "application/javascript"),
-    "alpinejs-3.14.8.min.js": (STATIC_DIR / "alpinejs-3.14.8.min.js", "application/javascript"),
-}
 
 
 def _get_store(request: Request) -> TaskStore:
@@ -989,14 +986,19 @@ def dashboard_page() -> HTMLResponse:
 @router.get("/dashboard/static/{asset_name}")
 def dashboard_static_asset(asset_name: str) -> Response:
     """Serve allow-listed static assets used by the web dashboard."""
-    asset = _DASHBOARD_STATIC_ASSETS.get(asset_name)
+    asset = DASHBOARD_STATIC_ASSETS.get(asset_name)
     if asset is None:
         raise HTTPException(status_code=404, detail="Dashboard asset not found")
 
-    asset_path, media_type = asset
+    asset_path = STATIC_DIR / asset["file_name"]
+    try:
+        content = asset_path.read_bytes()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Dashboard asset not found") from exc
+
     return Response(
-        content=asset_path.read_bytes(),
-        media_type=media_type,
+        content=content,
+        media_type=asset["media_type"],
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
             "X-Content-Type-Options": "nosniff",

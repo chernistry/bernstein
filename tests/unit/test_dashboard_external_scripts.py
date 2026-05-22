@@ -6,10 +6,17 @@ import base64
 import hashlib
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import TypedDict
 
 _TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "src" / "bernstein" / "dashboard" / "templates" / "index.html"
 _STATIC_DIR = Path(__file__).resolve().parents[2] / "src" / "bernstein" / "dashboard" / "static"
-_EXPECTED_REMOTE_SCRIPTS = {
+
+
+class ExpectedScriptMeta(TypedDict):
+    integrity: str
+
+
+_EXPECTED_REMOTE_SCRIPTS: dict[str, ExpectedScriptMeta] = {
     "/dashboard/static/tailwind-3.4.17.min.js": {
         "integrity": "sha384-igm5BeiBt36UU4gqwWS7imYmelpTsZlQ45FZf+XBn9MuJbn4nQr7yx1yFydocC/K",
     },
@@ -35,8 +42,12 @@ def _script_tags() -> list[dict[str, str]]:
     return parser.scripts
 
 
+def _is_remote_script_src(src: str) -> bool:
+    return src.strip().lower().startswith(("http://", "https://", "//"))
+
+
 def test_remote_dashboard_scripts_are_pinned_and_integrity_checked() -> None:
-    remote_scripts = [script for script in _script_tags() if script.get("src", "").startswith("http")]
+    remote_scripts = [script for script in _script_tags() if _is_remote_script_src(script.get("src", ""))]
     dashboard_scripts = [script for script in _script_tags() if script.get("src", "").startswith("/dashboard/static/")]
 
     assert not remote_scripts
@@ -46,6 +57,10 @@ def test_remote_dashboard_scripts_are_pinned_and_integrity_checked() -> None:
         expected = _EXPECTED_REMOTE_SCRIPTS[script["src"]]
         assert script["integrity"] == expected["integrity"]
         assert script.get("crossorigin", "") == expected.get("crossorigin", "")
+
+
+def test_protocol_relative_script_urls_are_classified_as_remote() -> None:
+    assert _is_remote_script_src("//cdn.example.test/app.js")
 
 
 def test_dashboard_script_integrity_hashes_match_vendored_assets() -> None:

@@ -52,12 +52,16 @@ def test_workflow_has_concurrency_group() -> None:
 
 def test_workflow_pins_action_shas() -> None:
     text = _WORKFLOW.read_text(encoding="utf-8")
-    # Every `uses:` line must use a 40-char SHA pin, never a floating tag.
+    # Every external `uses:` line must use a 40-char SHA pin, never a
+    # floating tag. Repo-local composite actions are versioned with this
+    # workflow and therefore do not have an `@<ref>` suffix.
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped.startswith("uses:"):
             continue
         ref = stripped.removeprefix("uses:").strip()
+        if ref.startswith("./"):
+            continue
         # actions/checkout@<sha> # vN.N.N -- split off the SHA.
         if "@" not in ref:
             raise AssertionError(f"uses line missing '@<sha>': {line!r}")

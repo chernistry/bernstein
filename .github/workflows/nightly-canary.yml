@@ -55,14 +55,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      - name: Set up uv
+        uses: ./.github/actions/bootstrap
         with:
           python-version: '3.13'
 
-      - name: Install uv and project deps
+      - name: Install project deps
         run: |
-          pip install --quiet uv
           uv sync --group dev
 
       - name: Configure git identity for worktree flow

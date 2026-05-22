@@ -54,6 +54,8 @@ def _write_recording(
     consumes one recorded response per hit (per-key FIFO, issue #1846), a key
     that must serve N hits needs N recorded lines.
     """
+    if count < 1:
+        raise ValueError(f"count must be >= 1 to record at least one call, got {count}")
     run_dir.mkdir(parents=True, exist_ok=True)
     calls_path = run_dir / "llm_calls.jsonl"
     key = _prompt_key(prompt, model, provider=provider, temperature=temperature, max_tokens=max_tokens)

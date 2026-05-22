@@ -328,16 +328,13 @@ class JiraCloudTracker(AbstractTrackerAdapter):
         does not natively honour an idempotency key on this endpoint.
         """
         mapped = self._config.status_map.get(status_id, status_id)
-        try:
-            self._request(
-                "POST",
-                f"/rest/api/3/issue/{ticket_id}/transitions",
-                json={"transition": {"id": mapped}},
-                etag=etag,
-                idempotency_key=idempotency_key,
-            )
-        except OptimisticConcurrencyError:
-            raise
+        self._request(
+            "POST",
+            f"/rest/api/3/issue/{ticket_id}/transitions",
+            json={"transition": {"id": mapped}},
+            etag=etag,
+            idempotency_key=idempotency_key,
+        )
         return TransitionResult(
             ticket_id=ticket_id,
             new_status=status_id,

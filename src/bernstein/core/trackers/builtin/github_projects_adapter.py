@@ -466,10 +466,7 @@ class GitHubProjectsV2Adapter(AbstractTrackerAdapter):
             "optionId": option_id,
             "clientMutationId": idempotency_key,
         }
-        try:
-            self._graphql(_MUTATION_UPDATE_STATUS, variables, etag=etag)
-        except OptimisticConcurrencyError:
-            raise
+        self._graphql(_MUTATION_UPDATE_STATUS, variables, etag=etag)
         return TransitionResult(
             ticket_id=ticket_id,
             new_status=status_id,

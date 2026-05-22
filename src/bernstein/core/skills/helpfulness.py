@@ -220,7 +220,7 @@ def _load_task_outcomes(metrics_dir: Path) -> dict[str, _TaskOutcome]:
 
 
 def _iter_activation_rows(path: Path) -> list[dict[str, object]]:
-    return list(_iter_jsonl_objects(path))
+    return _iter_jsonl_objects(path)
 
 
 def _iter_jsonl_objects(path: Path) -> list[dict[str, object]]:

@@ -29,6 +29,7 @@ from bernstein.core.skills.lifecycle import (
     InstallScope,
     SkillLifecycleError,
     SkillsTomlError,
+    init_skill,
     install_local,
     remove_skill,
     sync_skills,
@@ -242,6 +243,37 @@ def _parse_scope(scope_str: str) -> InstallScope:
         return InstallScope(scope_str)
     except ValueError as exc:
         raise click.BadParameter(f"unknown scope {scope_str!r}; expected project or user") from exc
+
+
+@skills_group.command("init")
+@click.argument("name")
+@click.option(
+    "--scope",
+    "scope",
+    type=click.Choice(["project", "user"]),
+    default="project",
+    help="Scaffold under the project or user skill directory.",
+)
+@click.option(
+    "--description",
+    "description",
+    default=None,
+    help="Description to write into SKILL.md.",
+)
+def skills_init(name: str, scope: str, description: str | None) -> None:
+    """Create a deterministic local skill scaffold."""
+    install_scope = _parse_scope(scope)
+    try:
+        result = init_skill(
+            name,
+            scope=install_scope,
+            workdir=Path.cwd(),
+            description=description,
+        )
+    except SkillLifecycleError as exc:
+        console.print(f"[red]init failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+    console.print(f"[green]initialized[/green] {result.name} -> {result.install_dir}")
 
 
 @skills_group.command("install")

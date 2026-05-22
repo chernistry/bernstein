@@ -10,10 +10,12 @@ import pytest
 from bernstein.core.skills.lifecycle import (
     InstallScope,
     SkillLifecycleError,
+    init_skill,
     install_local,
     remove_skill,
     scope_root,
 )
+from bernstein.core.skills.manifest import parse_skill_md
 
 
 @pytest.fixture
@@ -149,6 +151,99 @@ def test_install_local_directory_without_skill_md(tmp_path: Path) -> None:
     src.mkdir()
     with pytest.raises(SkillLifecycleError, match="does not contain SKILL.md"):
         install_local(src, scope=InstallScope.PROJECT, workdir=workdir)
+
+
+def test_init_skill_creates_deterministic_project_scaffold(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    result = init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir)
+
+    install_dir = scope_root(InstallScope.PROJECT, workdir=workdir) / "sample-skill"
+    assert result.install_dir == install_dir
+    assert (install_dir / "references").is_dir()
+    assert (install_dir / "scripts").is_dir()
+    assert (install_dir / "assets").is_dir()
+    assert (install_dir / "SKILL.md").read_text(encoding="utf-8") == textwrap.dedent(
+        """\
+        ---
+        manifest_schema: 1
+        name: sample-skill
+        description: Skill sample-skill scaffolded for deterministic authoring.
+        trigger_keywords: []
+        references: []
+        scripts: []
+        assets: []
+        ---
+
+        # Sample skill
+
+        Describe when to use this skill and the exact workflow it should follow.
+        """
+    )
+
+
+def test_init_skill_rejects_invalid_name(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    with pytest.raises(SkillLifecycleError, match="must match regex"):
+        init_skill("Bad Name", scope=InstallScope.PROJECT, workdir=workdir)
+
+
+def test_init_skill_rejects_invalid_description(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    with pytest.raises(SkillLifecycleError, match="invalid scaffold manifest"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir, description="short")
+
+
+def test_init_skill_rejects_empty_description(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    with pytest.raises(SkillLifecycleError, match="invalid scaffold manifest"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir, description="")
+
+
+def test_init_skill_wraps_scaffold_write_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    def fail_write_text(
+        self: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+    with pytest.raises(SkillLifecycleError, match="failed to initialize scaffold"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir)
+
+
+def test_init_skill_quotes_yaml_sensitive_description(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    description = "Use when: local deterministic authoring is needed."
+
+    result = init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir, description=description)
+
+    manifest, _body = parse_skill_md(result.install_dir / "SKILL.md")
+    assert manifest.description == description
+
+
+def test_init_skill_does_not_overwrite_existing_skill(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir)
+
+    with pytest.raises(SkillLifecycleError, match="already exists"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir)
 
 
 def test_install_local_strict_lint_blocks_error_findings_but_default_installs(tmp_path: Path) -> None:

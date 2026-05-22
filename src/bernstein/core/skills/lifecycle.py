@@ -42,11 +42,13 @@ import tomllib
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import yaml
+from pydantic import ValidationError
 
 from bernstein.core.skills.lint import LintSeverity, lint_skill
+from bernstein.core.skills.manifest import SkillManifest
 
 # ---------------------------------------------------------------------------
 # Public constants
@@ -398,6 +400,26 @@ class InstallResult:
     changed: bool
 
 
+@dataclass(frozen=True)
+class InitSkillResult:
+    """Outcome of scaffolding a new local skill."""
+
+    name: str
+    install_dir: Path
+
+
+class _ScaffoldManifestData(TypedDict):
+    """Validated frontmatter fields for a deterministic skill scaffold."""
+
+    manifest_schema: int
+    name: str
+    description: str
+    trigger_keywords: list[str]
+    references: list[str]
+    scripts: list[str]
+    assets: list[str]
+
+
 def _detect_skill_name(source: Path) -> str:
     """Derive the canonical name for a local source.
 
@@ -407,6 +429,102 @@ def _detect_skill_name(source: Path) -> str:
     if source.is_dir():
         return source.name
     return source.stem
+
+
+def _skill_title(name: str) -> str:
+    """Return a deterministic human-readable heading for a skill slug."""
+    return name.replace("-", " ").capitalize()
+
+
+def _scaffold_manifest_data(name: str, description: str) -> _ScaffoldManifestData:
+    """Return validated starter frontmatter for a scaffolded skill."""
+    return {
+        "manifest_schema": 1,
+        "name": name,
+        "description": description,
+        "trigger_keywords": [],
+        "references": [],
+        "scripts": [],
+        "assets": [],
+    }
+
+
+def _scaffold_skill_md(name: str, description: str) -> str:
+    """Render the deterministic starter ``SKILL.md`` body."""
+    frontmatter = yaml.safe_dump(
+        _scaffold_manifest_data(name, description),
+        sort_keys=False,
+        allow_unicode=False,
+    )
+    return (
+        "---\n"
+        f"{frontmatter}"
+        "---\n"
+        "\n"
+        f"# {_skill_title(name)}\n"
+        "\n"
+        "Describe when to use this skill and the exact workflow it should follow.\n"
+    )
+
+
+def init_skill(
+    name: str,
+    *,
+    scope: InstallScope,
+    workdir: Path,
+    home: Path | None = None,
+    description: str | None = None,
+) -> InitSkillResult:
+    """Create a deterministic local skill scaffold in the selected scope.
+
+    Args:
+        name: Lowercase skill slug.
+        scope: Project or user scope.
+        workdir: Current project root.
+        home: Override for the user's home (tests).
+        description: Optional description for the scaffold. Defaults to a
+            deterministic valid description derived from ``name``.
+
+    Returns:
+        :class:`InitSkillResult` with the target directory.
+
+    Raises:
+        SkillLifecycleError: When the name is invalid or the target exists.
+    """
+    try:
+        SkillManifest.validate_name(name)
+    except ValueError as exc:
+        raise SkillLifecycleError(str(exc)) from exc
+
+    skill_description = (
+        description if description is not None else f"Skill {name} scaffolded for deterministic authoring."
+    )
+    try:
+        SkillManifest.model_validate(_scaffold_manifest_data(name, skill_description))
+    except ValidationError as exc:
+        raise SkillLifecycleError(f"{name}: invalid scaffold manifest: {exc.errors()}") from exc
+
+    dest_root = scope_root(scope, workdir=workdir, home=home)
+    install_dir = dest_root / name
+    if install_dir.exists():
+        raise SkillLifecycleError(f"{name}: skill already exists at {install_dir}")
+
+    staging_dir = dest_root / f".{name}.init-tmp"
+
+    try:
+        dest_root.mkdir(parents=True, exist_ok=True)
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        staging_dir.mkdir(parents=True)
+        (staging_dir / "SKILL.md").write_text(_scaffold_skill_md(name, skill_description), encoding="utf-8")
+        for bucket in ("references", "scripts", "assets"):
+            (staging_dir / bucket).mkdir()
+        staging_dir.replace(install_dir)
+    except OSError as exc:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise SkillLifecycleError(f"{name}: failed to initialize scaffold: {exc}") from exc
+
+    return InitSkillResult(name=name, install_dir=install_dir)
 
 
 def _raise_for_strict_lint_errors(skill_dir: Path, *, skill_name: str) -> None:
@@ -787,6 +905,7 @@ def read_lock_entries(toml_dir: Path) -> list[LockEntry]:
 __all__ = [
     "SKILLS_LOCK_FILENAME",
     "SKILLS_TOML_FILENAME",
+    "InitSkillResult",
     "InstallResult",
     "InstallScope",
     "LockEntry",
@@ -797,6 +916,7 @@ __all__ = [
     "SkillsTomlError",
     "SyncOutcome",
     "compute_skill_digest",
+    "init_skill",
     "install_local",
     "load_skills_toml",
     "read_lock_entries",

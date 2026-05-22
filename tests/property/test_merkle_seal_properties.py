@@ -180,7 +180,8 @@ def test_single_byte_flip_in_sealed_file_detected(
     if any(_last_line_is_hmac_json(payload) for _, payload in files):
         pytest.skip("file would short-circuit to embedded hmac field")
 
-    _, seal = compute_seal(audit)
+    # Synthetic content isolates the Merkle file-level layer.
+    _, seal = compute_seal(audit, verify_chain=False)
     merkle.mkdir(parents=True, exist_ok=True)
     (merkle / "seal-20260101T000000Z.json").write_text(json.dumps(seal))
 
@@ -231,7 +232,8 @@ def test_file_deletion_detected(
     merkle = tmp / "merkle"
     _write_audit_files(audit, files)
 
-    _, seal = compute_seal(audit)
+    # Synthetic content isolates the Merkle file-level layer.
+    _, seal = compute_seal(audit, verify_chain=False)
     merkle.mkdir(parents=True, exist_ok=True)
     (merkle / "seal-20260101T000000Z.json").write_text(json.dumps(seal))
 
@@ -274,7 +276,8 @@ def test_file_insertion_detected(
     merkle = tmp / "merkle"
     _write_audit_files(audit, files)
 
-    _, seal = compute_seal(audit)
+    # Synthetic content isolates the Merkle file-level layer.
+    _, seal = compute_seal(audit, verify_chain=False)
     merkle.mkdir(parents=True, exist_ok=True)
     (merkle / "seal-20260101T000000Z.json").write_text(json.dumps(seal))
 
@@ -333,7 +336,8 @@ def test_duplicate_leaf_does_not_collapse_tree(leaves: list[str]) -> None:
 
 
 def _build_canonical_seal(audit: Path) -> dict[str, Any]:
-    _, seal = compute_seal(audit)
+    # Synthetic content isolates the Merkle file-level layer.
+    _, seal = compute_seal(audit, verify_chain=False)
     return seal
 
 

@@ -105,9 +105,21 @@ def show_cmd(limit: int) -> None:
 
 @audit_group.command("seal")
 @click.option("--anchor-git", is_flag=True, default=False, help="Anchor root hash as a git tag.")
-def seal_cmd(anchor_git: bool) -> None:
-    """Compute a Merkle root across all audit log files and store the seal."""
-    from bernstein.core.merkle import anchor_to_git, compute_seal, save_seal
+@click.option(
+    "--allow-broken-chain",
+    is_flag=True,
+    default=False,
+    help="Seal even if the HMAC chain is broken (forensic capture of a corrupted log).",
+)
+def seal_cmd(anchor_git: bool, allow_broken_chain: bool) -> None:
+    """Compute a Merkle root across all audit log files and store the seal.
+
+    By default the HMAC chain is verified first and a broken chain aborts
+    the seal, so re-sealing cannot launder a pre-existing tamper into a
+    fresh root. Pass --allow-broken-chain to seal a known-corrupted log on
+    purpose (forensic evidence capture during the recovery procedure).
+    """
+    from bernstein.core.merkle import ChainBrokenError, anchor_to_git, compute_seal, save_seal
 
     if not AUDIT_DIR.is_dir():
         console.print(f"[red]Audit directory not found:[/red] {AUDIT_DIR}")
@@ -115,9 +127,16 @@ def seal_cmd(anchor_git: bool) -> None:
         raise SystemExit(1)
 
     try:
-        _tree, seal = compute_seal(AUDIT_DIR)
+        _tree, seal = compute_seal(AUDIT_DIR, verify_chain=not allow_broken_chain)
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+    except ChainBrokenError as exc:
+        console.print(f"[red]Refusing to seal: the HMAC chain is broken.[/red]\n  {exc}")
+        console.print(
+            "[dim]Run 'bernstein audit verify --hmac-only' to locate the break. "
+            "To seal a known-corrupted log for forensics, re-run with --allow-broken-chain.[/dim]"
+        )
         raise SystemExit(1) from None
 
     seal_path = save_seal(seal, MERKLE_DIR)
@@ -138,8 +157,11 @@ def seal_cmd(anchor_git: bool) -> None:
     table.add_row("Root hash", str(seal["root_hash"]))
     table.add_row("Leaves", str(seal["leaf_count"]))
     table.add_row("Algorithm", str(seal["algorithm"]))
+    table.add_row("Scheme", str(seal.get("scheme", 1)))
     table.add_row("Sealed at", str(seal["sealed_at_iso"]))
     table.add_row("Seal file", str(seal_path))
+    if allow_broken_chain:
+        console.print("[yellow]Sealed WITHOUT chain verification (--allow-broken-chain).[/yellow]")
     console.print(table)
 
     if anchor_git:

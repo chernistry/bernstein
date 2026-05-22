@@ -111,6 +111,29 @@ class EvidenceSummary:
 
 _MAX_SAMPLE_EVENTS = 5
 
+#: Compliance Merkle-root scheme version. v2 hardens the root against the
+#: textbook second-preimage / duplication weakness: leaves are
+#: domain-separated from internal nodes (RFC-6962 style) and a lone odd node
+#: is promoted unchanged instead of being self-paired. Recorded alongside the
+#: root by :func:`build_compliance_package` so an external verifier knows
+#: which rule the root was computed under.
+MERKLE_ROOT_SCHEME_VERSION = 2
+
+#: Domain-separation tags. Disjoint one-byte prefixes keep leaf and
+#: internal-node digests in non-overlapping domains.
+_LEAF_TAG = b"\x00"
+_INTERNAL_TAG = b"\x01"
+
+
+def _leaf_digest(data: bytes) -> str:
+    """Hash *data* as a Merkle leaf (``H(0x00 || data)``)."""
+    return hashlib.sha256(_LEAF_TAG + data).hexdigest()
+
+
+def _internal_digest(left: str, right: str) -> str:
+    """Combine two child hex digests into a parent (``H(0x01 || l || r)``)."""
+    return hashlib.sha256(_INTERNAL_TAG + left.encode() + right.encode()).hexdigest()
+
 
 @dataclass(frozen=True)
 class CompliancePackage:
@@ -123,6 +146,9 @@ class CompliancePackage:
         controls: Control mappings included in this package.
         evidence: Per-control evidence summaries.
         total_events: Total number of events in the input set.
+        merkle_scheme: Version of the Merkle-root construction the
+            ``merkle_root`` was computed under, so an external verifier can
+            recompute it under the correct (domain-separated) rule.
     """
 
     period: str
@@ -131,6 +157,7 @@ class CompliancePackage:
     controls: list[ControlMapping]
     evidence: list[EvidenceSummary]
     total_events: int
+    merkle_scheme: int = MERKLE_ROOT_SCHEME_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -139,14 +166,23 @@ class CompliancePackage:
 
 
 def compute_merkle_root(events: list[dict[str, Any]]) -> str:
-    """Compute a SHA-256 binary Merkle tree root over sorted event HMACs.
+    """Compute a domain-separated SHA-256 Merkle root over sorted event HMACs.
 
-    Each event dict is expected to carry an ``hmac`` key.  The HMACs are
+    Each event dict is expected to carry an ``hmac`` key. The HMACs are
     sorted lexicographically before tree construction so that the root is
     deterministic regardless of input order.
 
-    For zero events the root is the SHA-256 of the empty byte string.
-    For a single event the root is SHA-256 of its HMAC.
+    Hardening (scheme v2):
+
+    * Leaves are hashed as ``H(0x00 || hmac)`` and internal nodes as
+      ``H(0x01 || left || right)``, so an internal-node digest can never be
+      reinterpreted as a leaf (general Merkle second-preimage attack).
+    * A lone node at an odd level is promoted unchanged instead of being
+      paired with itself, so an event set with its last HMAC duplicated does
+      not collide with the un-duplicated set.
+
+    For zero events the root is the SHA-256 of the empty byte string. For a
+    single event the root is the leaf digest of its HMAC.
 
     Args:
         events: List of audit event dicts, each containing an ``hmac`` key.
@@ -158,17 +194,17 @@ def compute_merkle_root(events: list[dict[str, Any]]) -> str:
         return hashlib.sha256(b"").hexdigest()
 
     hmacs = sorted(str(e.get("hmac", "")) for e in events)
-    leaves: list[str] = [hashlib.sha256(h.encode()).hexdigest() for h in hmacs]
+    layer: list[str] = [_leaf_digest(h.encode()) for h in hmacs]
 
-    # Build binary Merkle tree bottom-up.
-    layer = leaves
+    # Build the binary Merkle tree bottom-up with domain-separated internal
+    # nodes and odd-node promotion (no self-pairing).
     while len(layer) > 1:
         next_layer: list[str] = []
         for i in range(0, len(layer), 2):
-            left = layer[i]
-            right = layer[i + 1] if i + 1 < len(layer) else left
-            combined = hashlib.sha256((left + right).encode()).hexdigest()
-            next_layer.append(combined)
+            if i + 1 < len(layer):
+                next_layer.append(_internal_digest(layer[i], layer[i + 1]))
+            else:
+                next_layer.append(layer[i])
         layer = next_layer
 
     return layer[0]

@@ -210,6 +210,36 @@ result = verify_audit_integrity(Path(".sdd/audit"), count=10_000)
 print(result.valid, result.entries_checked, result.errors)
 ```
 
+### Merkle seal (second integrity layer)
+
+`bernstein audit seal` writes a Merkle root over the daily `*.jsonl`
+files into `.sdd/audit/merkle/seal-<ISO>.json`. it is a file-level
+integrity layer on top of the per-line HMAC chain: it detects a
+deleted, inserted, reordered, or content-tampered daily file.
+
+what the seal binds:
+
+- **leaf per file** - each file's leaf is the hash of its *whole*
+  canonical byte content, so flipping any byte of any line (not just
+  the last) changes the leaf and trips `TAMPERED` on verify.
+- **domain-separated tree** - leaves are hashed `H(0x00 || bytes)` and
+  internal nodes `H(0x01 || left || right)` (RFC-6962 style). a lone
+  node at an odd level is promoted unchanged rather than paired with
+  itself, so a leaf set with its last entry duplicated cannot collide
+  with the un-duplicated set.
+- **chain precheck** - `audit seal` verifies the HMAC chain before
+  writing the root. a broken chain raises and **no seal is written**,
+  so re-sealing can never launder a pre-existing tamper into a fresh
+  root. seal a known-broken chain on purpose only via the recovery
+  procedure below.
+
+scheme versioning: seals carry a `"scheme"` field. verification
+dispatches on it, so seals written before this hardening (`scheme` 1,
+or absent) still verify under their original rule. roots produced
+before and after the upgrade are **not comparable** - re-seal once
+after upgrading, and keep any pinned pre-upgrade root labelled as the
+old scheme. this is a scheme upgrade, not a tamper alert.
+
 ## Replaying a log
 
 the `query` verb walks all JSONL files under `.sdd/audit/` and
@@ -369,10 +399,12 @@ rare benign causes:
    webhook / splunk export was healthy, the SIEM has the original
    payload and you can identify exactly which fields were edited.
 4. seal the broken chain so the corruption is itself tamper-evident
-   forensically:
+   forensically. a plain `audit seal` refuses a broken chain (so
+   re-sealing can't hide a tamper) - pass `--allow-broken-chain` to
+   capture the corrupted state on purpose:
 
    ```bash
-   bernstein audit seal
+   bernstein audit seal --allow-broken-chain
    ```
 
 5. file an incident, preserve the snapshot, and start a fresh chain

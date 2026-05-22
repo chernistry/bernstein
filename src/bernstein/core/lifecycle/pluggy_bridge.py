@@ -37,6 +37,14 @@ __all__ = [
 ]
 
 
+def _make_standard_hookspec(doc: str) -> Callable[[LifecycleContext], None]:
+    def hook(ctx: LifecycleContext) -> None:
+        del ctx
+
+    hook.__doc__ = doc
+    return hookspec(hook)
+
+
 class LifecycleHookSpec:
     """Pluggy hookspecs for the lifecycle events.
 
@@ -75,33 +83,21 @@ class LifecycleHookSpec:
     # pluggy dispatch (``getattr(pm.hook, event.value)``).
     # ------------------------------------------------------------------
 
-    @hookspec
-    def sessionStart(self, ctx: LifecycleContext) -> None:
-        """Fires when an agent session begins (cross-CLI event)."""
+    sessionStart = _make_standard_hookspec("Fires when an agent session begins (cross-CLI event).")
 
-    @hookspec
-    def userPromptSubmitted(self, ctx: LifecycleContext) -> None:
-        """Fires when a human submits a prompt to a session."""
+    userPromptSubmitted = _make_standard_hookspec("Fires when a human submits a prompt to a session.")
 
-    @hookspec
-    def preToolUse(self, ctx: LifecycleContext) -> None:
-        """Fires before a tool runs; ``deny`` blocks the tool call."""
+    preToolUse = _make_standard_hookspec("Fires before a tool runs; ``deny`` blocks the tool call.")
 
-    @hookspec
-    def postToolUse(self, ctx: LifecycleContext) -> None:
-        """Fires after a tool finishes, regardless of outcome."""
+    postToolUse = _make_standard_hookspec("Fires after a tool finishes, regardless of outcome.")
 
-    @hookspec
-    def errorOccurred(self, ctx: LifecycleContext) -> None:
-        """Fires whenever a structured error surfaces in a session."""
+    errorOccurred = _make_standard_hookspec("Fires whenever a structured error surfaces in a session.")
 
     @hookspec
     def idle(self, ctx: LifecycleContext) -> None:
         """Fires when a session has been idle longer than the threshold."""
 
-    @hookspec
-    def sessionEnd(self, ctx: LifecycleContext) -> None:
-        """Fires when an agent session terminates (any reason)."""
+    sessionEnd = _make_standard_hookspec("Fires when an agent session terminates (any reason).")
 
 
 def make_plugin_manager() -> pluggy.PluginManager:

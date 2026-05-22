@@ -188,7 +188,7 @@ def test_ci_dispatch_failure_is_blocking(workflow: dict[str, object]) -> None:
     assert dispatch.get("id") == "ci_dispatch"
 
     run = _step_run(workflow, "Trigger CI on heal PR branch")
-    assert "|| echo \"::warning::ci.yml dispatch failed" not in run
+    assert '|| echo "::warning::ci.yml dispatch failed' not in run
     assert "validation_failed=true" in run
     assert "validation_failed=false" in run
 

@@ -412,9 +412,7 @@ def _detect_skill_name(source: Path) -> str:
 def _raise_for_strict_lint_errors(skill_dir: Path, *, skill_name: str) -> None:
     """Raise when strict lint finds blocking errors for an installed skill."""
     errors = [
-        finding
-        for finding in lint_skill(skill_dir, skill_name=skill_name)
-        if finding.severity is LintSeverity.ERROR
+        finding for finding in lint_skill(skill_dir, skill_name=skill_name) if finding.severity is LintSeverity.ERROR
     ]
     if not errors:
         return

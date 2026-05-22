@@ -21,11 +21,19 @@ def _nested_ifexp_lines(path: Path) -> list[int]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.IfExp):
             continue
-        if any(isinstance(child, ast.IfExp) for child in ast.walk(node.body)) or any(
-            isinstance(child, ast.IfExp) for child in ast.walk(node.orelse)
+        if (
+            any(isinstance(child, ast.IfExp) for child in ast.walk(node.test))
+            or any(isinstance(child, ast.IfExp) for child in ast.walk(node.body))
+            or any(isinstance(child, ast.IfExp) for child in ast.walk(node.orelse))
         ):
             lines.append(node.lineno)
     return lines
+
+
+def test_nested_ternary_detector_checks_conditions(tmp_path: Path) -> None:
+    source = tmp_path / "sample.py"
+    source.write_text("x = 1 if (2 if cond else 3) else 4\n", encoding="utf-8")
+    assert _nested_ifexp_lines(source) == [1]
 
 
 def test_sonar_s3358_targets_do_not_use_nested_ternaries() -> None:

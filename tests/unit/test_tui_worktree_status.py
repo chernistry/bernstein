@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 from bernstein.core.worktrees.classifier import ClassifiedWorktree, WorktreeState
@@ -105,11 +106,38 @@ def test_worktree_list_panel_set_rows() -> None:
 
 
 def test_worktree_list_panel_refresh_from_repo(tmp_path: Path) -> None:
-    """``refresh_from_repo`` loads classifier output for the configured root."""
+    """``refresh_from_repo`` loads classifier output for the configured root.
+
+    The orphan must be a *real* clean git worktree: the classifier probes
+    git state to refuse reaping unsaved work, so an unprobeable fake ``.git``
+    stub would be preserved (count 0) rather than counted as reapable.
+    """
+    git_id = ["-c", "user.email=test@bernstein", "-c", "user.name=test", "-c", "commit.gpgsign=false"]
+    subprocess.run(["git", "init", "-q", "-b", "main", str(tmp_path)], check=True)
+    (tmp_path / "seed.txt").write_text("seed")
+    subprocess.run(["git", "-C", str(tmp_path), *git_id, "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), *git_id, "commit", "-q", "-m", "seed"], check=True, capture_output=True)
+
     base = tmp_path / ".sdd" / "runtime" / "worktrees"
     base.mkdir(parents=True)
-    (base / "stranded").mkdir()
-    (base / "stranded" / ".git").write_text("gitdir: /fake")
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            *git_id,
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "agent/stranded",
+            str(base / "stranded"),
+            "main",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     panel = WorktreeListPanel(repo_root=tmp_path)
     panel.refresh_from_repo()

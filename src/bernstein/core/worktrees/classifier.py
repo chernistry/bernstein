@@ -66,6 +66,12 @@ STALE_TRACE_AGE_S: int = 24 * 60 * 60
 #: notify bridge, so the classifier uses a free-form event id instead.
 WORKTREE_GC_LIFECYCLE_EVENT = "worktree.gc"
 
+#: Branch a worktree's commits are checked against before the worktree is
+#: considered free of unmerged work. When every commit on the worktree's
+#: HEAD is reachable from this branch the work is already integrated and the
+#: worktree is safe to reap. Mirrors ``git_hygiene.DEFAULT_TARGET_BRANCH``.
+DEFAULT_INTEGRATION_BRANCH = "main"
+
 #: Issue #1833 - audit event-type appended to the HMAC-chained audit log
 #: (``.sdd/audit/``) for every reaped worktree. Distinct from the
 #: best-effort lifecycle event above: the audit entry is tamper-evident,
@@ -119,6 +125,14 @@ class ClassifiedWorktree:
             ``pid`` is ``None``.
         last_trace_mtime: Unix timestamp of the most recent trace
             event, or ``None`` if no trace file exists.
+        has_unsaved_work: ``True`` when the worktree still holds work that
+            a reap would destroy - a dirty working tree
+            (``git status --porcelain`` non-empty), commits on the
+            worktree branch that are not reachable from the integration
+            branch, or - for a ``CORRUPT`` directory git cannot probe -
+            tracked-looking content on disk. The probe runs *inside* each
+            candidate worktree, so the guarantee holds independently per
+            per-task git worktree.
     """
 
     path: Path
@@ -130,10 +144,22 @@ class ClassifiedWorktree:
     pid: int | None
     pid_alive: bool
     last_trace_mtime: float | None
+    has_unsaved_work: bool = False
 
     @property
     def is_reapable(self) -> bool:
-        """Return ``True`` when the worktree is safe to delete."""
+        """Return ``True`` when the worktree is safe to delete.
+
+        A worktree is reapable only when it is in a terminal state
+        (``ORPHAN``/``STALE``/``CORRUPT``) *and* the classifier proved it
+        carries no unsaved work. ``has_unsaved_work`` vetoes the reap
+        regardless of state, so a directory holding the only copy of
+        unmerged commits or uncommitted edits is never silently deleted.
+        The ``bernstein worktrees gc --force-unsaved`` path overrides this
+        veto explicitly; the classifier itself never does.
+        """
+        if self.has_unsaved_work:
+            return False
         return self.state in (WorktreeState.ORPHAN, WorktreeState.STALE, WorktreeState.CORRUPT)
 
 
@@ -258,6 +284,10 @@ def _classify_one(
     age_seconds = _dir_age(path, now=now)
 
     # 1. Corrupt - directory exists but git can't see a .git anchor.
+    # Without a ``.git`` anchor we cannot run any git probe, so we fall back
+    # to a filesystem check: an empty directory is safe to reap, while one
+    # holding files may carry the only copy of an agent's output and is
+    # surfaced for manual handling instead of being deleted blindly.
     git_anchor = path / ".git"
     if not git_anchor.exists():
         return ClassifiedWorktree(
@@ -270,6 +300,7 @@ def _classify_one(
             pid=None,
             pid_alive=False,
             last_trace_mtime=None,
+            has_unsaved_work=_corrupt_dir_has_content(path),
         )
 
     # Load the task record, if any.
@@ -279,7 +310,9 @@ def _classify_one(
     alive = pid is not None and _process_alive(pid)
     last_trace_mtime = _last_trace_mtime(repo_root, session_id)
 
-    # 2. Orphan - directory has no task record at all.
+    # 2. Orphan - directory has no task record at all. A missing PID record
+    # is exactly the crash-recovery case where committed-but-unmerged work
+    # is most likely stranded, so probe the worktree before allowing a reap.
     if pid_record is None:
         return ClassifiedWorktree(
             path=path,
@@ -291,6 +324,7 @@ def _classify_one(
             pid=pid,
             pid_alive=alive,
             last_trace_mtime=last_trace_mtime,
+            has_unsaved_work=_probe_unsaved_work(path, repo_root),
         )
 
     # 3. Active - task record exists and PID is alive.
@@ -323,6 +357,7 @@ def _classify_one(
             pid=pid,
             pid_alive=False,
             last_trace_mtime=last_trace_mtime,
+            has_unsaved_work=_probe_unsaved_work(path, repo_root),
         )
 
     return ClassifiedWorktree(
@@ -447,6 +482,141 @@ def _git_is_dirty(path: Path) -> bool | None:
     if proc.returncode != 0:
         return None
     return bool(proc.stdout.strip())
+
+
+def _git_has_unmerged_commits(path: Path, integration_branch: str) -> bool | None:
+    """Return whether the worktree branch carries commits not yet integrated.
+
+    A worktree HEAD is "merged" when every one of its commits is reachable
+    from ``integration_branch`` - i.e. ``git merge-base --is-ancestor HEAD
+    <integration_branch>`` succeeds. That mirrors
+    :func:`git_hygiene._is_branch_merged` and never reports false "ahead"
+    commits for a branch that was merged but not fast-forwarded locally.
+
+    When the integration branch is missing (a throw-away clone, a repo that
+    renamed ``main``) the ancestor check cannot decide, so we fall back to
+    "is HEAD ahead of its configured upstream" via
+    ``git rev-list --count @{upstream}..HEAD``. If neither ref resolves we
+    return ``None`` (undecided) and the caller preserves the worktree.
+
+    Returns:
+        ``True`` when the branch has unmerged/unpushed commits, ``False``
+        when it is fully integrated, ``None`` when git could not decide.
+    """
+    head = _git_head_sha(path)
+    if head is None:
+        # No resolvable HEAD (unborn branch, detached empty tree). There is
+        # no commit that a reap would strand, so report "merged".
+        return False
+
+    ancestor = _run_probe_git(path, ["merge-base", "--is-ancestor", "HEAD", integration_branch])
+    if ancestor is not None and ancestor.returncode == 0:
+        # Every HEAD commit is reachable from the integration branch.
+        return False
+    if ancestor is not None and ancestor.returncode == 1 and not ancestor.stderr.strip():
+        # Definitive "not an ancestor" (exit 1, no error text) - unmerged.
+        return True
+
+    # The integration branch is unknown or git errored. Fall back to the
+    # upstream-ahead heuristic so a missing ``main`` does not defeat the GC.
+    ahead = _run_probe_git(path, ["rev-list", "--count", "@{upstream}..HEAD"])
+    if ahead is not None and ahead.returncode == 0:
+        count = ahead.stdout.strip()
+        return count.isdigit() and int(count) > 0
+
+    # Could not decide either way - preserve the worktree on uncertainty.
+    return None
+
+
+def _run_probe_git(path: Path, args: list[str]) -> subprocess.CompletedProcess[str] | None:
+    """Run a read-only git probe inside ``path`` with the fingerprint timeout.
+
+    Returns ``None`` (rather than raising) on any spawn/timeout failure so a
+    hung or corrupt worktree degrades to "undecided" instead of stalling
+    ``gc``.
+    """
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_FINGERPRINT_GIT_TIMEOUT_S,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.debug("probe: git %s failed for %s: %s", " ".join(args), path, exc)
+        return None
+
+
+def _corrupt_dir_has_content(path: Path) -> bool:
+    """Return ``True`` when a ``.git``-less directory still holds any file.
+
+    A ``CORRUPT`` worktree cannot be probed with git, so we cannot prove it
+    is empty of unmerged work. We treat a directory that contains any file
+    (recursively, at any depth) as carrying possible unsaved work and leave
+    it for manual handling; a genuinely empty directory is safe to reap.
+    Errors walking the tree degrade to ``True`` (preserve) - never ``False``.
+    """
+    try:
+        for _root, _dirs, files in os.walk(path, onerror=_raise_walk_error):
+            if files:
+                return True
+    except OSError as exc:
+        logger.debug("corrupt-probe: walk failed for %s: %s", path, exc)
+        return True
+    return False
+
+
+def _raise_walk_error(exc: OSError) -> None:
+    """``os.walk`` error callback that re-raises so the caller can preserve."""
+    raise exc
+
+
+def _probe_unsaved_work(path: Path, repo_root: Path, *, integration_branch: str = DEFAULT_INTEGRATION_BRANCH) -> bool:
+    """Return ``True`` when reaping ``path`` would destroy unsaved work.
+
+    The probe runs git *inside the worktree itself* so the guarantee is
+    evaluated per-task git worktree, independently of every other worktree.
+    Two cheap, local, read-only git calls are made:
+
+    1. ``git status --porcelain`` - any tracked or untracked change.
+    2. ``git merge-base --is-ancestor HEAD <integration_branch>`` (with an
+       upstream-ahead fallback) - commits that exist only on this branch.
+
+    A worktree whose directory is not its own git top level (git's upward
+    discovery would otherwise resolve the enclosing orchestrator repo) is
+    conservatively treated as carrying unsaved work, because we cannot probe
+    it safely. Any git failure on a probe degrades to "preserve" - the GC
+    only ever blocks deletion on uncertainty, it never deletes more.
+
+    Args:
+        path: Absolute path to the candidate worktree directory.
+        repo_root: Repository root (unused by the probe today; kept so the
+            signature can grow a per-repo integration-branch lookup without
+            churning every call site).
+        integration_branch: Branch HEAD must be contained in to count as
+            merged. Defaults to :data:`DEFAULT_INTEGRATION_BRANCH`.
+
+    Returns:
+        ``True`` when the worktree holds uncommitted changes or unmerged
+        commits (or could not be probed safely); ``False`` only when both
+        probes proved the worktree clean and fully integrated.
+    """
+    del repo_root  # reserved for a future per-repo integration-branch lookup
+    if not _is_own_worktree_root(path):
+        # Cannot trust git output here without leaking the enclosing repo's
+        # state; preserve rather than risk a wrong reap.
+        return True
+
+    dirty = _git_is_dirty(path)
+    if dirty is None or dirty:
+        # ``None`` (undecidable) is treated as dirty: preserve on doubt.
+        return True
+
+    unmerged = _git_has_unmerged_commits(path, integration_branch)
+    # ``None`` (undecidable) is treated as unmerged: preserve on doubt.
+    return unmerged is None or unmerged
 
 
 def reap_worktree(

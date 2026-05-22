@@ -164,11 +164,15 @@ def lock_gc(repo_root: Path):  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 
 
-def _emit_worktree_gc(repo_root: Path, row: ClassifiedWorktree, dry_run: bool) -> None:
-    """Notify plugins that ``row`` was reaped.
+def _emit_worktree_gc(repo_root: Path, row: ClassifiedWorktree, dry_run: bool, *, reaped: bool = True) -> None:
+    """Notify plugins that ``row`` was reaped (or preserved for safety).
 
     We import lazily so importing this CLI module never drags in pluggy
     when the operator only ran ``--help``.
+
+    Args:
+        reaped: ``True`` for an actual reap, ``False`` for a safety-skip so
+            subscribers can distinguish a deletion from a preserved worktree.
     """
     try:
         from bernstein.core.lifecycle.hooks import HookRegistry, LifecycleContext, LifecycleEvent
@@ -193,6 +197,8 @@ def _emit_worktree_gc(repo_root: Path, row: ClassifiedWorktree, dry_run: bool) -
             "BERNSTEIN_WORKTREE_GC_STATE": row.state.value,
             "BERNSTEIN_WORKTREE_GC_PATH": str(row.path),
             "BERNSTEIN_WORKTREE_GC_DRY_RUN": "1" if dry_run else "0",
+            "BERNSTEIN_WORKTREE_GC_REAPED": "1" if reaped else "0",
+            "BERNSTEIN_WORKTREE_GC_UNSAVED": "1" if row.has_unsaved_work else "0",
         },
     )
     try:
@@ -276,32 +282,95 @@ def list_cmd(workdir: Path, as_json: bool) -> None:
     default=False,
     help="Print what would be deleted without touching disk.",
 )
-def gc_cmd(workdir: Path, yes: bool, dry_run: bool) -> None:
-    """Delete orphan, stale, and corrupt worktrees."""
+@click.option(
+    "--force-unsaved",
+    is_flag=True,
+    default=False,
+    help=(
+        "Also reap worktrees that hold UNSAVED work (a dirty working tree or "
+        "commits not merged into the integration branch). Dangerous: this "
+        "destroys the only copy of that work. Requires an extra confirmation."
+    ),
+)
+def gc_cmd(workdir: Path, yes: bool, dry_run: bool, force_unsaved: bool) -> None:
+    """Delete orphan, stale, and corrupt worktrees.
+
+    Worktrees that still hold unsaved work (uncommitted changes or unmerged
+    commits) are preserved and reported as safety-skips unless
+    ``--force-unsaved`` is passed. The safety decision - reap or skip - is
+    recorded in the HMAC-chained audit log either way, so a skip is never
+    silent.
+    """
     repo_root = workdir.resolve()
     rows = classify_worktrees(repo_root)
     reapable = [r for r in rows if r.is_reapable]
+    # Terminal-state worktrees the classifier vetoed because they hold
+    # unsaved work. These never enter ``reapable`` (``is_reapable`` is False).
+    unsaved = [r for r in rows if r.has_unsaved_work and r.state is not WorktreeState.ACTIVE]
 
     console = Console()
-    if not reapable:
+    if not reapable and not unsaved:
         console.print("[green]No reapable worktrees - nothing to do.[/green]")
         return
 
-    console.print(render_worktrees_table(reapable))
-    if not yes and not dry_run and not click.confirm(f"Reap {len(reapable)} worktree(s)?", default=False):
-        click.echo("Aborted.")
-        raise SystemExit(1)
+    targets = list(reapable)
+    if force_unsaved:
+        targets.extend(unsaved)
+
+    if reapable:
+        console.print(render_worktrees_table(reapable))
+    if unsaved and not force_unsaved:
+        _report_safety_skips(console, unsaved)
+    if unsaved and force_unsaved:
+        console.print(render_worktrees_table(unsaved))
+
+    if not targets:
+        # Everything reapable was actually an unsaved worktree we are
+        # preserving; record the skips for audit and stop.
+        try:
+            run_gc(repo_root, [], dry_run=dry_run, skipped=unsaved)
+        except GcLockError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise SystemExit(2) from exc
+        return
+
+    if not yes and not dry_run:
+        if not click.confirm(f"Reap {len(targets)} worktree(s)?", default=False):
+            click.echo("Aborted.")
+            raise SystemExit(1)
+        if (
+            force_unsaved
+            and unsaved
+            and not click.confirm(
+                f"--force-unsaved will DESTROY unsaved work in {len(unsaved)} worktree(s). Continue?",
+                default=False,
+            )
+        ):
+            click.echo("Aborted.")
+            raise SystemExit(1)
 
     try:
         run_gc(
             repo_root,
-            reapable,
+            targets,
             dry_run=dry_run,
+            force_unsaved=force_unsaved,
+            skipped=[] if force_unsaved else unsaved,
             on_progress=lambda row, removed: _print_reap_progress(console, row, removed, dry_run=dry_run),
         )
     except GcLockError as exc:
         console.print(f"[red]{exc}[/red]")
         raise SystemExit(2) from exc
+
+
+def _report_safety_skips(console: Console, skipped: list[ClassifiedWorktree]) -> None:
+    """Print an operator-visible line per worktree preserved for safety."""
+    console.print(
+        f"[yellow]Preserving {len(skipped)} worktree(s) with unsaved work "
+        f"(pass [bold]--force-unsaved[/bold] to override):[/yellow]"
+    )
+    for row in skipped:
+        console.print(f"[yellow]  skipped[/yellow] {row.path} ({row.state.value}) - holds unsaved work")
 
 
 def _print_reap_progress(
@@ -320,6 +389,8 @@ def run_gc(
     rows: list[ClassifiedWorktree],
     *,
     dry_run: bool,
+    force_unsaved: bool = False,
+    skipped: list[ClassifiedWorktree] | None = None,
     on_progress: Callable[[ClassifiedWorktree, bool], None] | None = None,
     audit_log: AuditLog | None = None,
 ) -> int:
@@ -339,11 +410,22 @@ def run_gc(
     3. Reap the directory (skipped in ``--dry`` mode).
     4. Fire the best-effort lifecycle event for plugins.
 
+    Worktrees in ``skipped`` are NOT deleted; instead each gets one
+    ``worktree.reap`` event flagged ``reaped=false`` with the unsaved-work
+    reason, so a safety-skip is recorded in the same forensic chain as a
+    real reap rather than being silent (issue #1847).
+
     Args:
         repo_root: Absolute repository root.
-        rows: Reapable classifier rows to process.
+        rows: Reapable classifier rows to process. When ``force_unsaved`` is
+            set this may include rows whose ``has_unsaved_work`` is ``True``.
         dry_run: When ``True``, record the event flagged ``dry_run=true``
             and perform no filesystem mutation.
+        force_unsaved: When ``True``, the operator explicitly opted in to
+            destroying unsaved work; recorded as ``forced=true`` on any
+            reaped row that held unsaved work.
+        skipped: Worktrees preserved for safety (unsaved work, no force).
+            Recorded as ``reaped=false`` and never deleted.
         on_progress: Optional per-row progress callback ``(row, removed)``.
         audit_log: Optional pre-opened :class:`AuditLog` (used by tests to
             inject a fixed key). When ``None`` a project log rooted at
@@ -356,10 +438,15 @@ def run_gc(
     removed_count = 0
     with lock_gc(repo_root):
         log = audit_log if audit_log is not None else _open_audit_log(repo_root)
+        # Record safety-skips first so the audit chain shows what was
+        # deliberately preserved before any destruction in this sweep.
+        for row in skipped or []:
+            _append_reap_event(log, row, dry_run=dry_run, reaped=False, forced=False)
+            _emit_worktree_gc(repo_root, row, dry_run, reaped=False)
         for row in rows:
             # 1-2: fingerprint then record BEFORE any destruction. A raised
             # exception here aborts the sweep with the worktree intact.
-            _append_reap_event(log, row, dry_run=dry_run)
+            _append_reap_event(log, row, dry_run=dry_run, reaped=True, forced=force_unsaved)
             # 3: only now is it safe to destroy.
             removed = reap_worktree(repo_root, row, dry_run=dry_run)
             if on_progress is not None:
@@ -367,7 +454,7 @@ def run_gc(
             if removed and not dry_run:
                 removed_count += 1
             # 4: best-effort plugin notification (independent of the audit).
-            _emit_worktree_gc(repo_root, row, dry_run)
+            _emit_worktree_gc(repo_root, row, dry_run, reaped=True)
     return removed_count
 
 
@@ -387,12 +474,23 @@ def _append_reap_event(
     row: ClassifiedWorktree,
     *,
     dry_run: bool,
+    reaped: bool,
+    forced: bool,
 ) -> None:
     """Append one ``worktree.reap`` event capturing the pre-deletion state.
 
     The fingerprint (git HEAD sha + dirty flag) is captured here, before
     the caller reaps the directory. The ``details`` payload is restricted
     to the fields the issue enumerates so the daily JSONL does not bloat.
+
+    Args:
+        log: Open HMAC-chained audit log.
+        row: Classifier row being reaped or preserved.
+        dry_run: Whether this is a ``--dry`` sweep (no filesystem mutation).
+        reaped: ``True`` when the directory is being deleted; ``False`` for
+            a safety-skip (unsaved work preserved without ``--force-unsaved``).
+        forced: ``True`` when ``--force-unsaved`` overrode the unsaved-work
+            veto for this reap.
 
     Fail-closed: any exception raised by :meth:`AuditLog.log` propagates to
     the caller, which then skips the reap.
@@ -412,6 +510,9 @@ def _append_reap_event(
             "last_trace_mtime": row.last_trace_mtime,
             "head_sha": fingerprint.head_sha,
             "dirty": fingerprint.dirty,
+            "has_unsaved_work": row.has_unsaved_work,
+            "reaped": reaped,
+            "forced": forced,
             "dry_run": dry_run,
         },
     )

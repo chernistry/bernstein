@@ -72,18 +72,50 @@ def _init_repo(repo_root: Path) -> None:
 
 
 def _make_worktree_dir(repo_root: Path, session_id: str, *, with_git: bool = True) -> Path:
-    """Create a fake worktree directory under ``.sdd/runtime/worktrees``.
+    """Create a worktree directory under ``.sdd/runtime/worktrees``.
 
-    We do not actually call ``git worktree add`` - the classifier only
-    needs the directory layout (`.git` anchor + size on disk).
+    With ``with_git=True`` (the default) this creates a *real* git worktree
+    via ``git worktree add`` on a fresh ``agent/<session>`` branch off
+    ``main``. A real worktree is required because the classifier now probes
+    git state (``git status --porcelain`` and merge-ancestry) to refuse
+    reaping worktrees that hold unsaved work; a fake ``.git`` stub cannot be
+    probed and is conservatively preserved. The fresh worktree is clean and
+    fully merged, so it classifies as reapable - matching the common case
+    the GC was built for.
+
+    With ``with_git=False`` it creates a plain directory (no ``.git``
+    anchor) holding one file, which the classifier marks ``CORRUPT``.
     """
     base = repo_root / ".sdd" / "runtime" / "worktrees"
     base.mkdir(parents=True, exist_ok=True)
     wt = base / session_id
+    if with_git:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "-c",
+                "user.email=test@bernstein",
+                "-c",
+                "user.name=test",
+                "-c",
+                "commit.gpgsign=false",
+                "worktree",
+                "add",
+                "-q",
+                "-b",
+                f"agent/{session_id}",
+                str(wt),
+                "main",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return wt
     wt.mkdir()
     (wt / "file.txt").write_text("hello")
-    if with_git:
-        (wt / ".git").write_text("gitdir: /fake")
     return wt
 
 
@@ -158,12 +190,30 @@ def test_classifier_stale(repo_root: Path) -> None:
 
 
 def test_classifier_corrupt(repo_root: Path) -> None:
-    """Directory has no .git anchor => corrupt."""
+    """Directory has no .git anchor => corrupt.
+
+    A corrupt directory cannot be probed with git. When it still holds
+    files (the helper writes ``file.txt``) we cannot prove it is free of
+    unsaved work, so it is preserved for manual handling rather than reaped.
+    """
     sid = "corrupt"
     _make_worktree_dir(repo_root, sid, with_git=False)
 
     rows = classify_worktrees(repo_root)
     assert rows[0].state is WorktreeState.CORRUPT
+    assert rows[0].has_unsaved_work is True
+    assert rows[0].is_reapable is False
+
+
+def test_classifier_corrupt_empty_is_reapable(repo_root: Path) -> None:
+    """An empty corrupt directory (no tracked content) still reaps."""
+    base = repo_root / ".sdd" / "runtime" / "worktrees"
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "corrupt-empty").mkdir()
+
+    rows = classify_worktrees(repo_root)
+    assert rows[0].state is WorktreeState.CORRUPT
+    assert rows[0].has_unsaved_work is False
     assert rows[0].is_reapable is True
 
 
@@ -269,7 +319,8 @@ def test_reap_worktree_dry_run_does_not_touch_disk(repo_root: Path) -> None:
 
     assert reap_worktree(repo_root, row, dry_run=True) is True
     assert wt.exists()
-    assert (wt / "file.txt").read_text() == "hello"
+    # The real worktree checks out main's seed file; dry-run leaves it intact.
+    assert (wt / "seed.txt").read_text() == "seed"
 
 
 def test_reap_worktree_real_removes_directory(repo_root: Path) -> None:

@@ -629,7 +629,7 @@ class WorktreeRegistry:
         if not record.worktree_path:
             raise ValueError("WorktreeRecord.worktree_path must be non-empty")
         stamped = record
-        if record.created_at == 0.0:
+        if record.created_at <= 0.0:
             stamped = WorktreeRecord(
                 pr_number=record.pr_number,
                 worktree_path=record.worktree_path,

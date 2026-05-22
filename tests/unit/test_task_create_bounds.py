@@ -402,6 +402,22 @@ def test_post_tasks_empty_complexity_returns_422_not_500(_app_with_auth_disabled
     assert asyncio.run(_run()) == 422
 
 
+def test_post_tasks_empty_task_type_returns_422_not_500(_app_with_auth_disabled) -> None:
+    """POST /tasks with task_type="" must 422, never 500 (regression)."""
+    transport = ASGITransport(app=_app_with_auth_disabled)
+    import asyncio
+
+    async def _run() -> int:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/tasks",
+                json={"title": "x", "description": "x", "task_type": ""},
+            )
+            return resp.status_code
+
+    assert asyncio.run(_run()) == 422
+
+
 def test_post_tasks_batch_invalid_scope_returns_422_not_500(_app_with_auth_disabled) -> None:
     """POST /tasks/batch with an invalid scope must 422, never 500 (regression)."""
     transport = ASGITransport(app=_app_with_auth_disabled)

@@ -30,19 +30,32 @@ from pathlib import Path
 
 import pytest
 
-from bernstein.core.security.audit import AuditLog
+from bernstein.core.security.audit import (
+    _GENESIS_HMAC,  # pyright: ignore[reportPrivateUsage]
+    AuditLog,
+)
 
 
-@pytest.fixture(name="audit_log")
-def _audit_log() -> AuditLog:
-    """Return a fresh AuditLog inside an isolated tempdir."""
-    tmpdir = Path(tempfile.mkdtemp(prefix="bernstein-byteflip-"))
+def _create_audit_log(prefix: str = "bernstein-byteflip-") -> AuditLog:
+    """Return a fresh AuditLog over an isolated tempdir with a 0600 key.
+
+    Shared by the ``audit_log`` fixture and the recovery tests that need a
+    fresh log outside fixture scope, so the tempdir/key-permission setup
+    lives in one place.
+    """
+    tmpdir = Path(tempfile.mkdtemp(prefix=prefix))
     audit_dir = tmpdir / "audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
     key_path = tmpdir / "audit.key"
     key_path.write_bytes(b"regression-key-32-bytes-padding-pad")
     key_path.chmod(0o600)
     return AuditLog(audit_dir=audit_dir, key_path=key_path)
+
+
+@pytest.fixture(name="audit_log")
+def _audit_log() -> AuditLog:
+    """Return a fresh AuditLog inside an isolated tempdir."""
+    return _create_audit_log()
 
 
 def _flip_byte(path: Path, offset: int) -> None:
@@ -147,3 +160,134 @@ def test_writer_uses_lf_only_terminator(audit_log: AuditLog) -> None:
     valid, errors = audit_log.verify()
     assert valid is True, f"freshly written log failed verify: {errors}"
     assert errors == [], f"unexpected errors on fresh log: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# Recovery must agree with verify() on record framing.
+#
+# ``verify()`` splits strictly on ``b"\n"`` and rejects an inter-line
+# ``\n`` -> ``\v`` flip (the mutation pinned by
+# test_interline_newline_flip_is_detected). Chain-tail recovery
+# (``AuditLog.__init__`` -> ``_recover_chain_tail``) historically used
+# ``read_text().splitlines()``, which treats ``\v`` as a line separator.
+# Recovery therefore split the tampered file the way the writer's ``\n``
+# would have, recovered the last entry's ``hmac`` as if untouched, and a
+# fresh ``AuditLog`` would keep appending valid-HMAC events on top of a log
+# that ``verify()`` already considers broken - with no signal at recovery
+# time. These tests pin recovery to the same byte-strict framing.
+# ---------------------------------------------------------------------------
+
+
+def _make_audit_log() -> AuditLog:
+    """Return a fresh AuditLog over an isolated tempdir with a 0600 key."""
+    return _create_audit_log(prefix="bernstein-recover-")
+
+
+def test_recovery_does_not_adopt_tail_that_verify_rejects(audit_log: AuditLog) -> None:
+    """An inter-line ``\\n`` -> ``\\v`` flip must not be silently absorbed by recovery.
+
+    Pre-fix path: ``splitlines()`` split the tampered file into two clean
+    records and recovery returned the last record's ``hmac`` - the exact
+    tail ``verify()`` rejects. Post-fix path: byte-strict ``b"\\n"`` framing
+    glues the two records into one malformed line, so recovery cannot adopt
+    the mis-framed tail and instead falls back (here, to genesis, since the
+    only file is the tampered one).
+    """
+    audit_log.log("evt1", "actor", "task", "rid", {"k": 1})
+    last_record_hmac = audit_log.log("evt2", "actor", "task", "rid", {"k": 2}).hmac
+
+    target = sorted(audit_log._audit_dir.glob("*.jsonl"))[0]  # pyright: ignore[reportPrivateUsage]
+    raw = target.read_bytes()
+    # The inter-line newline is the boundary that decides where the LAST
+    # record begins; flipping it is what desyncs recovery from the tail.
+    interline_offsets = [i for i, b in enumerate(raw[:-1]) if b == 0x0A]
+    assert interline_offsets, "test setup: no inter-line newline found"
+
+    mutated = bytearray(raw)
+    mutated[interline_offsets[-1]] ^= 0x01  # \n -> \v, between the two records
+    target.write_bytes(bytes(mutated))
+
+    # verify() still rejects the tampered file (sanity: the tamper is real).
+    valid, errors = audit_log.verify()
+    assert valid is False, "interline flip slipped past verify()"
+    assert errors
+
+    # A fresh AuditLog must NOT recover the tail verify() rejects.
+    reopened = AuditLog(audit_dir=audit_log._audit_dir, key=audit_log._key)  # pyright: ignore[reportPrivateUsage]
+    recovered = reopened._prev_hmac  # pyright: ignore[reportPrivateUsage]
+    assert recovered != last_record_hmac, (
+        "recovery adopted the last record's hmac from a file verify() rejects; "
+        "splitlines() over-split the tampered tail"
+    )
+
+    # A subsequent append must not chain onto the mis-framed record.
+    appended = reopened.log("evt-after", "actor", "task", "rid", {})
+    assert appended.prev_hmac != last_record_hmac, "append chained onto the mis-framed record's hmac"
+
+
+def test_clean_reopen_recovers_same_tail_hmac() -> None:
+    """A clean log recovers the same tail HMAC across a reopen (no regression).
+
+    Mirrors the contract behind test_append_after_reopen_continues_chain:
+    byte-strict recovery must not change the recovered tip for an untampered
+    log, and a subsequent append must chain onto the genuine last ``hmac``.
+    """
+    log = _make_audit_log()
+    log.log("evt1", "actor", "task", "rid", {"k": 1})
+    last = log.log("evt2", "actor", "task", "rid", {"k": 2})
+
+    reopened = AuditLog(audit_dir=log._audit_dir, key=log._key)  # pyright: ignore[reportPrivateUsage]
+    assert reopened._prev_hmac == last.hmac  # pyright: ignore[reportPrivateUsage]
+
+    appended = reopened.log("evt3", "actor", "task", "rid", {})
+    assert appended.prev_hmac == last.hmac
+    valid, errors = reopened.verify()
+    assert valid is True, f"reopened+appended chain failed verify: {errors}"
+
+
+def test_truncated_final_line_still_recovers_last_well_formed_record() -> None:
+    """A genuinely truncated final line (crash mid-write) still recovers.
+
+    A writer crash can leave a partial final record with no trailing ``\\n``.
+    Byte-strict recovery must skip that malformed tail and resume from the
+    last well-formed record, exactly as the legitimate truncation path does
+    today (test_truncated_last_file_does_not_fork_chain).
+    """
+    log = _make_audit_log()
+    last = log.log("evt1", "actor", "task", "rid", {"k": 1})
+
+    target = sorted(log._audit_dir.glob("*.jsonl"))[0]  # pyright: ignore[reportPrivateUsage]
+    # Append a truncated partial record (no trailing newline), as a crash
+    # mid-write would leave behind.
+    with target.open("ab") as fh:
+        fh.write(b'{"timestamp": "2099-01-01T00:00:00.0Z", "event_typ')
+
+    reopened = AuditLog(audit_dir=log._audit_dir, key=log._key)  # pyright: ignore[reportPrivateUsage]
+    assert reopened._prev_hmac == last.hmac, (  # pyright: ignore[reportPrivateUsage]
+        "recovery did not skip the truncated final line back to the last well-formed record"
+    )
+    # Genesis fallback is the wrong answer here - there IS a valid record.
+    assert reopened._prev_hmac != _GENESIS_HMAC  # pyright: ignore[reportPrivateUsage]
+
+
+def test_recovery_tolerates_invalid_utf8_in_tampered_tail() -> None:
+    """A non-UTF-8 byte in the tail must not crash ``AuditLog`` construction.
+
+    Byte-strict recovery decodes each record via ``json.loads`` on raw
+    bytes. A flipped byte can produce invalid UTF-8 (e.g. a lone ``0x80``),
+    which raises ``UnicodeDecodeError`` rather than ``json.JSONDecodeError``.
+    Recovery must treat such a record as corrupt - skip it and resume from
+    the last well-formed record - instead of letting the decode error
+    propagate out of the constructor and wedge startup.
+    """
+    log = _make_audit_log()
+    last = log.log("evt1", "actor", "task", "rid", {"k": 1})
+
+    target = sorted(log._audit_dir.glob("*.jsonl"))[0]  # pyright: ignore[reportPrivateUsage]
+    # Append a final record carrying a lone continuation byte (invalid UTF-8).
+    with target.open("ab") as fh:
+        fh.write(b'{"x": "\x80"}\n')
+
+    # Construction must not raise; recovery skips the undecodable tail.
+    reopened = AuditLog(audit_dir=log._audit_dir, key=log._key)  # pyright: ignore[reportPrivateUsage]
+    assert reopened._prev_hmac == last.hmac  # pyright: ignore[reportPrivateUsage]

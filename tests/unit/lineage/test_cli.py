@@ -6,7 +6,6 @@ import hashlib
 import json
 import subprocess
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -60,9 +59,12 @@ def _write_setup(tmp_path: Path, entries: list[LineageEntry]) -> tuple[Path, Pat
             }
         )
     )
-    with log.open("w") as f:
+    # Write the canonical JCS bytes the real ``LineageStore.append`` emits. The
+    # gate binds verification to the on-disk bytes (issue #1848), so a faithful
+    # fixture must match the canonical form rather than ``json.dumps`` defaults.
+    with log.open("wb") as f:
         for e in entries:
-            f.write(json.dumps(asdict(e), sort_keys=True) + "\n")
+            f.write(canonicalise(e) + b"\n")
     # Sidecar JWS files.
     sig_root = log.parent / "signatures"
     for e in entries:

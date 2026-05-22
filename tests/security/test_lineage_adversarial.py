@@ -82,9 +82,12 @@ def _entry(
 
 def _append(log_path: Path, entry: LineageEntry, agent: _Agent) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a") as f:
-        f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+    # Append the canonical JCS bytes the real ``LineageStore.append`` writes.
+    # The gate binds verification to the on-disk bytes (issue #1848), so the
+    # fixture must match the canonical form, not ``json.dumps`` defaults.
     canonical = canonicalise(entry)
+    with log_path.open("ab") as f:
+        f.write(canonical + b"\n")
     jws = sign_detached(canonical, agent.priv, kid=agent.kid)
     digest = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
     sig_dir = log_path.parent / "signatures" / digest[:2] / digest
@@ -211,10 +214,12 @@ def test_attack_4_forge_synthetic_jws_with_unknown_kid(tmp_path: Path) -> None:
     forged_dict["agent_card_kid"] = "attacker-kid"
     forged_entry = LineageEntry(**forged_dict)
     log.parent.mkdir(parents=True, exist_ok=True)
-    with log.open("a") as f:
-        f.write(json.dumps(forged_dict, sort_keys=True) + "\n")
-    # Attacker signs with their own key + their own kid.
+    # Write the canonical bytes so the forged entry clears the byte-canonical
+    # check (issue #1848) and reaches the kid/signature path under test.
     canonical = canonicalise(forged_entry)
+    with log.open("ab") as f:
+        f.write(canonical + b"\n")
+    # Attacker signs with their own key + their own kid.
     jws = sign_detached(canonical, attacker_priv, kid="attacker-kid")
     digest = hashlib.sha256(b"x.py").hexdigest()
     sig_dir = log.parent / "signatures" / digest[:2] / digest

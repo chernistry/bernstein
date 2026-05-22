@@ -17,7 +17,6 @@ import hashlib
 import json
 import shutil
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 from bernstein.cli.commands._lineage_v1_helpers import read_entries, reindex
@@ -79,9 +78,11 @@ def _entry(
 
 def _append(log_path: Path, entry: LineageEntry, agent: _Agent) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a") as f:
-        f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+    # Append the canonical JCS bytes the real ``LineageStore.append`` writes;
+    # the gate binds verification to the on-disk bytes (issue #1848).
     canonical = canonicalise(entry)
+    with log_path.open("ab") as f:
+        f.write(canonical + b"\n")
     jws = sign_detached(canonical, agent.priv, kid=agent.kid)
     digest = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
     sig_dir = log_path.parent / "signatures" / digest[:2] / digest
@@ -93,8 +94,9 @@ def _append(log_path: Path, entry: LineageEntry, agent: _Agent) -> None:
 def _append_signed(log_path: Path, entry: LineageEntry, jws: str) -> None:
     """Append a pre-signed entry (used when steward.build_merge_entry already signed)."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a") as f:
-        f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+    # Canonical bytes on disk so the gate's byte-canonical check passes.
+    with log_path.open("ab") as f:
+        f.write(canonicalise(entry) + b"\n")
     digest = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
     sig_dir = log_path.parent / "signatures" / digest[:2] / digest
     sig_dir.mkdir(parents=True, exist_ok=True)

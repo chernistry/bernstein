@@ -36,16 +36,26 @@ from bernstein.core.security.audit import (
 )
 
 
-@pytest.fixture(name="audit_log")
-def _audit_log() -> AuditLog:
-    """Return a fresh AuditLog inside an isolated tempdir."""
-    tmpdir = Path(tempfile.mkdtemp(prefix="bernstein-byteflip-"))
+def _create_audit_log(prefix: str = "bernstein-byteflip-") -> AuditLog:
+    """Return a fresh AuditLog over an isolated tempdir with a 0600 key.
+
+    Shared by the ``audit_log`` fixture and the recovery tests that need a
+    fresh log outside fixture scope, so the tempdir/key-permission setup
+    lives in one place.
+    """
+    tmpdir = Path(tempfile.mkdtemp(prefix=prefix))
     audit_dir = tmpdir / "audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
     key_path = tmpdir / "audit.key"
     key_path.write_bytes(b"regression-key-32-bytes-padding-pad")
     key_path.chmod(0o600)
     return AuditLog(audit_dir=audit_dir, key_path=key_path)
+
+
+@pytest.fixture(name="audit_log")
+def _audit_log() -> AuditLog:
+    """Return a fresh AuditLog inside an isolated tempdir."""
+    return _create_audit_log()
 
 
 def _flip_byte(path: Path, offset: int) -> None:
@@ -170,13 +180,7 @@ def test_writer_uses_lf_only_terminator(audit_log: AuditLog) -> None:
 
 def _make_audit_log() -> AuditLog:
     """Return a fresh AuditLog over an isolated tempdir with a 0600 key."""
-    tmpdir = Path(tempfile.mkdtemp(prefix="bernstein-recover-"))
-    audit_dir = tmpdir / "audit"
-    audit_dir.mkdir(parents=True, exist_ok=True)
-    key_path = tmpdir / "audit.key"
-    key_path.write_bytes(b"regression-key-32-bytes-padding-pad")
-    key_path.chmod(0o600)
-    return AuditLog(audit_dir=audit_dir, key_path=key_path)
+    return _create_audit_log(prefix="bernstein-recover-")
 
 
 def test_recovery_does_not_adopt_tail_that_verify_rejects(audit_log: AuditLog) -> None:

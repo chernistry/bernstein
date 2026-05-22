@@ -355,23 +355,53 @@ def _read_archived_segment(gz_path: Path, errors: list[str]) -> bytes | None:
         return None
 
 
-def _chain_tail_from_lines(lines: list[str]) -> str | None:
-    """Return the last ``hmac`` in ``lines`` (scanning in reverse), or None.
+def _chain_tail_from_bytes(raw_bytes: bytes) -> str | None:
+    """Return the last ``hmac`` in ``raw_bytes`` (scanning in reverse), or None.
 
     Shared by live-file and archived-segment chain recovery so both resolve
-    the tip with byte-identical line semantics.  A line that is blank or not
-    a JSON object carrying ``hmac`` is skipped, mirroring the tolerance the
-    recovery path needs for a freshly-rotated empty file or a crash mid-line.
+    the tip with the *same byte-strict framing the verifier uses*.  The bytes
+    are split on ``b"\\n"`` only (via :func:`_split_jsonl_bytes`), never with
+    ``str.splitlines()``; the latter treats ``\\v``, ``\\f``, ``\\r``, NEL,
+    and the unicode line/paragraph separators as record boundaries, so an
+    inter-line ``\\n`` -> ``\\v`` flip (the mutation pinned by
+    ``test_interline_newline_flip_is_detected``) would be split into two
+    clean records by recovery while the verifier glues them into one
+    malformed line and rejects the chain.  Recovery must agree with the
+    verifier on where records begin and end, otherwise a fresh ``AuditLog``
+    could resume from a tail ``verify()`` already considers tampered and keep
+    appending valid-HMAC events onto a broken chain (issue #1853).
+
+    A candidate record qualifies as the tip only if it parses cleanly *and*
+    its bytes equal the canonical re-serialisation
+    (``json.dumps(entry, sort_keys=True)``) - the identical check
+    :func:`_verify_log_bytes` applies - *and* it is a JSON object carrying an
+    ``hmac`` field.  Records that are blank, malformed, non-canonical, or not
+    an ``hmac``-bearing object are skipped, so recovery falls back to the last
+    byte-strict-valid record.  This tolerance keeps the genuine crash-recovery
+    case working: a truncated final line (writer crash mid-write, no trailing
+    ``\\n``) is skipped and recovery resumes from the last well-formed record,
+    exactly as the legitimate truncation path does today.
     """
-    for line in reversed(lines):
-        line = line.strip()
-        if not line:
+    for raw_line in reversed(_split_jsonl_bytes(raw_bytes)):
+        if raw_line == b"":
             continue
         try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
+            entry = json.loads(raw_line)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # ``json.loads`` on raw bytes raises ``UnicodeDecodeError`` (not
+            # ``JSONDecodeError``) when a flipped byte yields invalid UTF-8;
+            # both mean the record is unusable, so skip it and keep scanning
+            # rather than letting the decode error wedge ``AuditLog`` startup.
             continue
-        if isinstance(entry, dict) and "hmac" in entry:
+        if not isinstance(entry, dict):
+            continue
+        # Mirror the verifier's byte-for-byte canonical check so recovery and
+        # verification agree on record framing: a single-byte tamper that
+        # survives ``json.loads`` (e.g. injected whitespace) is non-canonical
+        # and is skipped rather than adopted as the tail.
+        if json.dumps(entry, sort_keys=True).encode() != raw_line:
+            continue
+        if "hmac" in entry:
             return str(entry["hmac"])
     return None
 
@@ -465,12 +495,16 @@ class AuditLog:
 
         Walks every live ``*.jsonl`` file from newest to oldest, then falls
         back to archived ``*.jsonl.gz`` segments (also newest-date first),
-        scanning each segment's lines in reverse, and returns the first line
-        that parses to a dict carrying an ``hmac`` field.  Earlier-only
-        inspection of the lex-last file would silently fork the chain when
-        that file is empty/truncated (e.g. a freshly-rotated day with no
-        events yet, or a writer crash mid-line) - see
-        test_truncated_last_file_does_not_fork_chain in
+        scanning each segment under the *same byte-strict ``b"\\n"`` framing
+        the verifier uses* (see :func:`_chain_tail_from_bytes`), and returns
+        the first record that parses to a canonical JSON object carrying an
+        ``hmac`` field.  Using the verifier's framing means recovery cannot
+        adopt a tail ``verify()`` would reject - e.g. an inter-line ``\\n``
+        flipped to ``\\v`` - and silently keep appending onto a broken chain
+        (issue #1853).  Earlier-only inspection of the lex-last file would
+        silently fork the chain when that file is empty/truncated (e.g. a
+        freshly-rotated day with no events yet, or a writer crash mid-line) -
+        see test_truncated_last_file_does_not_fork_chain in
         tests/property/test_audit_chain_bughunt.py.  Including archived
         segments means a writer reopening a log whose only events have aged
         into the archive resumes from the true tip instead of forking back
@@ -478,19 +512,19 @@ class AuditLog:
         """
         live_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
         for log_path in reversed(live_files):
-            tip = _chain_tail_from_lines(log_path.read_text().splitlines())
+            tip = _chain_tail_from_bytes(log_path.read_bytes())
             if tip is not None:
                 return tip
 
         for gz_path in reversed(_archived_segment_paths(self._audit_dir)):
             try:
                 with gzip.open(gz_path, "rb") as fh:
-                    text = fh.read().decode()
+                    raw = fh.read()
             except (OSError, EOFError):
                 # A corrupt archived segment cannot yield a trustworthy tip;
                 # skip it and keep looking at older segments.
                 continue
-            tip = _chain_tail_from_lines(text.splitlines())
+            tip = _chain_tail_from_bytes(raw)
             if tip is not None:
                 return tip
         return _GENESIS_HMAC

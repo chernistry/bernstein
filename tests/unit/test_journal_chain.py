@@ -26,6 +26,7 @@ import json
 import os
 import threading
 from pathlib import Path
+from typing import Any, TypedDict
 
 import pytest
 
@@ -37,6 +38,26 @@ from bernstein.core.persistence.journal import (
     canonical_step_payload,
     compute_step_hash,
 )
+
+
+class JournalRow(TypedDict, total=False):
+    """On-disk shape of one journal row, mirroring :class:`JournalEntry`.
+
+    ``total=False`` because recovery tests deliberately omit or mangle fields
+    to exercise the fail-closed paths.
+    """
+
+    seq: int
+    prev_hash: str
+    input_hash: str
+    model: str | None
+    prompt: str | None
+    tool_call: Any
+    tool_result: Any
+    step_hash: str
+    ts: float
+    blob_refs: list[str]
+
 
 # ---------------------------------------------------------------------------
 # Step-hash determinism + canonical encoding contract
@@ -261,12 +282,13 @@ class TestRecoveryRevalidation:
     recovery)."""
 
     @staticmethod
-    def _rows(agent_dir: Path) -> list[dict]:
+    def _rows(agent_dir: Path) -> list[JournalRow]:
         log_file = next(agent_dir.glob("*.jsonl"))
-        return [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines()]
+        rows: list[JournalRow] = [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines()]
+        return rows
 
     @staticmethod
-    def _write_rows(agent_dir: Path, rows: list[dict]) -> None:
+    def _write_rows(agent_dir: Path, rows: list[JournalRow]) -> None:
         log_file = next(agent_dir.glob("*.jsonl"))
         lines = [json.dumps(r, sort_keys=True, separators=(",", ":")) for r in rows]
         log_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -284,6 +306,7 @@ class TestRecoveryRevalidation:
         reopened = Journal.open(agent_dir)
         assert reopened.head_hash == head == entries[-1].step_hash
         assert reopened.next_seq == next_seq == 4
+        reopened.close()
 
     def test_reopen_rejects_tampered_final_step_hash(self, tmp_path: Path) -> None:
         """A final row whose stored ``step_hash`` does not match its recomputed
@@ -362,6 +385,25 @@ class TestRecoveryRevalidation:
         with pytest.raises(JournalError):
             Journal.open(agent_dir)
 
+    def test_reopen_non_integer_seq_raises_journal_error(self, tmp_path: Path) -> None:
+        """A tampered non-integer ``seq`` must surface as the operator-actionable
+        :class:`JournalError` (with line + remedy), never a raw ``ValueError``
+        that escapes the fail-closed contract."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        journal.close()
+
+        rows = self._rows(agent_dir)
+        # Deliberately violate the JournalRow contract: a non-integer seq is
+        # exactly the tampered shape recovery must reject.
+        rows[0]["seq"] = "abc"  # type: ignore[typeddict-item]
+        self._write_rows(agent_dir, rows)
+
+        with pytest.raises(JournalError) as exc_info:
+            Journal.open(agent_dir)
+        assert "line 1" in str(exc_info.value)
+
     def test_reopen_torn_final_line_recovers_last_good_entry(self, tmp_path: Path) -> None:
         """Existing crash-recovery behaviour preserved: a torn/unparseable
         trailing line degrades gracefully to the last validated row, and a
@@ -382,6 +424,7 @@ class TestRecoveryRevalidation:
         e1 = reopened.append(input_hash="bb", model="m1", prompt="p2")
         assert e1.prev_hash == e0.step_hash
         assert e1.seq == 1
+        reopened.close()
 
     def test_reopen_empty_journal_recovers_genesis(self, tmp_path: Path) -> None:
         """An empty bucket file (header-less, zero entries) recovers to
@@ -394,6 +437,7 @@ class TestRecoveryRevalidation:
 
         assert reopened.head_hash == GENESIS_HASH
         assert reopened.next_seq == 0
+        reopened.close()
 
     def test_fork_seed_rejects_corrupt_parent_journal(self, tmp_path: Path) -> None:
         """``session fork --from-step`` seeds parent entries into a fork bucket
@@ -402,7 +446,9 @@ class TestRecoveryRevalidation:
         not silently produce a fork whose first step chains onto an
         unvalidated hash (#1836 AC4)."""
         from bernstein.core.persistence.journal import agent_journal_dir
-        from bernstein.core.sessions.fork import _seed_fork_journal
+        from bernstein.core.sessions.fork import (
+            _seed_fork_journal,  # pyright: ignore[reportPrivateUsage]
+        )
 
         # Build a genuine parent chain, then poison the last entry's stored
         # step_hash so the seeded fork chain does not verify.
@@ -443,7 +489,9 @@ class TestRecoveryRevalidation:
         """The intact-parent path still works: seeding a valid chain recovers
         the parent's head so the fork's first append chains onto it."""
         from bernstein.core.persistence.journal import agent_journal_dir
-        from bernstein.core.sessions.fork import _seed_fork_journal
+        from bernstein.core.sessions.fork import (
+            _seed_fork_journal,  # pyright: ignore[reportPrivateUsage]
+        )
 
         parent_dir = tmp_path / "parent" / ".sdd"
         parent_journal_dir = agent_journal_dir(parent_dir, "parent-agent")
@@ -464,6 +512,7 @@ class TestRecoveryRevalidation:
         reopened = Journal.open(fork_journal_dir)
         assert reopened.head_hash == e1.step_hash
         assert reopened.next_seq == 2
+        reopened.close()
 
 
 # ---------------------------------------------------------------------------

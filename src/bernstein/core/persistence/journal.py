@@ -330,7 +330,16 @@ def _validate_chain_for_recovery(bucket_path: Path) -> tuple[str, int]:
                 )
                 raise JournalError(msg)
 
-            seq = int(row.get("seq", -1))
+            raw_seq = row.get("seq", -1)
+            try:
+                seq = int(raw_seq)
+            except (TypeError, ValueError) as exc:
+                msg = (
+                    f"journal {bucket_path}: line {line_no} has a non-integer seq "
+                    f"(got {raw_seq!r}); the row is tampered or inconsistent. "
+                    f"Move the journal aside to recover."
+                )
+                raise JournalError(msg) from exc
             if seq != expected_seq:
                 msg = (
                     f"journal {bucket_path}: line {line_no} seq mismatch "

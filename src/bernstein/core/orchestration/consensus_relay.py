@@ -207,7 +207,7 @@ class RelayDocument:
     open_questions: tuple[str, ...]
     blockers: tuple[str, ...]
     next_action: str
-    calibration: Mapping[str, str] = field(default_factory=dict)
+    calibration: Mapping[str, str] = field(default_factory=dict[str, str])
     lineage_child: str | None = None
     acknowledged: bool = False
     operator_hmac: str = ""
@@ -302,7 +302,8 @@ class RelayDocument:
     # ------------------------------------------------------------------
     def acknowledge(self) -> RelayDocument:
         """Return a copy with ``acknowledged=True``."""
-        return replace(self, acknowledged=True)
+        updated: RelayDocument = replace(self, acknowledged=True)
+        return updated
 
     def with_next(self, next_action: str) -> RelayDocument:
         """Return a copy with a new ``next_action``.
@@ -310,7 +311,8 @@ class RelayDocument:
         The HMAC is cleared because the body changes; callers should
         re-sign before persisting.
         """
-        return replace(self, next_action=next_action, operator_hmac="")
+        updated: RelayDocument = replace(self, next_action=next_action, operator_hmac="")
+        return updated
 
 
 # ---------------------------------------------------------------------------

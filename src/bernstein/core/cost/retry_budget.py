@@ -184,11 +184,13 @@ class Criterion:
         """
         if self.is_at_floor:
             raise CriterionExhaustedError(self)
-        return replace(self, level=self.level - 1)
+        updated: Criterion = replace(self, level=self.level - 1)
+        return updated
 
     def reset(self) -> Criterion:
         """Return a new criterion restored to ``max_level``."""
-        return replace(self, level=self.max_level)
+        updated: Criterion = replace(self, level=self.max_level)
+        return updated
 
 
 # ---------------------------------------------------------------------------
@@ -277,9 +279,9 @@ class RetryBudget:
     """
 
     retries: int
-    criterion_degradation: Sequence[Criterion] = field(default_factory=list)
+    criterion_degradation: Sequence[Criterion] = field(default_factory=list[Criterion])
     _attempts_used: int = field(default=0, init=False)
-    _criteria: dict[str, Criterion] = field(default_factory=dict, init=False)
+    _criteria: dict[str, Criterion] = field(default_factory=dict[str, Criterion], init=False)
 
     def __post_init__(self) -> None:
         if self.retries < 0:

@@ -251,7 +251,7 @@ def _check_no_placeholders(spec_text: str, workspace_root: Path | None) -> RuleR
     matches = _RE_PLACEHOLDER.findall(spec_text)
     if not matches:
         return RuleResult(rule_id="no_placeholder_tokens", passed=True)
-    sample = ", ".join(sorted({m for m in matches})[:3])
+    sample = ", ".join(sorted(set(matches))[:3])
     return RuleResult(
         rule_id="no_placeholder_tokens",
         passed=False,

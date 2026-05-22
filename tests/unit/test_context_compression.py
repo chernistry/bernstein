@@ -119,7 +119,9 @@ class TestDependencyGraph:
         assert len(dependents) >= 1
 
     def test_src_subdirectory_resolution_has_no_redundant_terminal_continue(self) -> None:
-        module = ast.parse(Path("src/bernstein/core/tokens/context_compression.py").read_text(encoding="utf-8"))
+        repo_root = Path(__file__).resolve().parents[2]
+        source_path = repo_root / "src" / "bernstein" / "core" / "tokens" / "context_compression.py"
+        module = ast.parse(source_path.read_text(encoding="utf-8"))
         dependency_graph = next(
             node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "DependencyGraph"
         )

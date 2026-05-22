@@ -110,20 +110,18 @@ on:
       - "scripts/gen_roadmap_*.py"
       - "scripts/generate_benchmark_docs.py"
 
-# Concurrency policy (split PR vs main pushes - see #1273):
+# Concurrency policy for heavy CI (see #1273):
 #
 #   - Pull requests: per-PR group (keyed off pull_request.number, stable
 #     across pushes to the same PR), cancel-in-progress=true. New commits
 #     on the same PR cancel older CI runs so reviewers only ever wait on
 #     the latest push and we don't burn minutes on stale SHAs.
 #
-#   - Pushes to main (incl. squash-merges from auto/bump-* PRs): per-SHA
-#     group, cancel-in-progress=false. Each merged commit gets its own
-#     un-cancellable CI run so the `workflow_run` listener in
-#     auto-release.yml always observes a real success/failure conclusion
-#     for that SHA - never `cancelled`-by-newer-push. This is the v2-merge
-#     unblocker: a tag/publish race that previously dropped the release
-#     when two merges landed in quick succession.
+#   - Pushes to main: branch-scoped group, cancel-in-progress=true.
+#     A rapid wave of merges can cancel older heavy CI runs on main so
+#     the latest push supersedes stale ones. Per-SHA main observability is
+#     provided separately by main-sha-marker.yml, which is keyed by
+#     github.sha and is not cancellable by newer main pushes.
 #
 # The conditional in `group:` selects the right key per event type, and
 # `cancel-in-progress` fires for both pull_request and push: a rapid

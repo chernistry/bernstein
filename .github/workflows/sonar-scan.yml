@@ -154,6 +154,10 @@ jobs:
             echo "missing=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Set up uv for fallback
+        if: steps.coverage_check.outputs.missing == 'true'
+        uses: ./.github/actions/bootstrap
+
       # Thin coverage fallback: run a fast unit-test subset with coverage
       # so Sonar receives a non-zero coverage signal even when no upstream
       # artifact was usable. This is intentionally NOT the full suite
@@ -166,10 +170,6 @@ jobs:
         continue-on-error: true  # coverage is advisory; never block the scan
         run: |
           set +e
-          if ! command -v uv >/dev/null 2>&1; then
-            curl -LsSf https://astral.sh/uv/install.sh | sh
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
           uv sync --group dev --no-progress 2>&1 | tail -20 || true
           uv run --no-progress python -m coverage run -m pytest \
             tests/unit/observability \

@@ -96,16 +96,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
+      - name: Set up uv
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: ./.github/actions/bootstrap
         with:
           python-version: '3.13'
 
-      - name: Install uv and project deps
+      - name: Install project deps
         if: steps.gate.outputs.skip != 'true'
         run: |
-          pip install --quiet uv
           uv sync --group dev
 
       - name: Scrape GlitchTip events

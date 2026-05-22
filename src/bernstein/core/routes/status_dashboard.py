@@ -990,7 +990,7 @@ def dashboard_static_asset(asset_name: str) -> Response:
     if asset is None:
         raise HTTPException(status_code=404, detail="Dashboard asset not found")
 
-    asset_path = STATIC_DIR / asset["file_name"]
+    asset_path = STATIC_DIR / asset.file_name
     try:
         content = asset_path.read_bytes()
     except FileNotFoundError as exc:
@@ -998,7 +998,7 @@ def dashboard_static_asset(asset_name: str) -> Response:
 
     return Response(
         content=content,
-        media_type=asset["media_type"],
+        media_type=asset.media_type,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
             "X-Content-Type-Options": "nosniff",

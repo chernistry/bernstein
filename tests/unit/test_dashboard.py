@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import FrozenInstanceError
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,6 +22,7 @@ from bernstein.cli.dashboard import (
     _summarize_agent_errors,
     _task_retry_count,
 )
+from bernstein.core.defaults import DASHBOARD_STATIC_ASSETS
 from bernstein.core.routes import status_dashboard
 from bernstein.core.server import create_app
 
@@ -94,6 +96,14 @@ async def test_dashboard_static_asset_is_served_from_package(client: AsyncClient
     assert resp.headers["x-content-type-options"] == "nosniff"
     assert resp.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert "Alpine" in resp.text
+
+
+def test_dashboard_static_asset_metadata_is_immutable() -> None:
+    """Dashboard static asset metadata cannot be mutated in process."""
+    asset = DASHBOARD_STATIC_ASSETS["alpinejs-3.14.8.min.js"]
+
+    with pytest.raises(FrozenInstanceError):
+        asset.file_name = "mutated.js"
 
 
 @pytest.mark.anyio

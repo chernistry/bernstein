@@ -243,6 +243,18 @@ def test_retention_policy_defaults() -> None:
 # -- archive-boundary chain verification (issue #1835) -----------------
 
 
+def _single_live_log(audit_dir: Path) -> Path:
+    """Return the sole live ``*.jsonl`` file in ``audit_dir``.
+
+    The chain-builder helpers append all events in one shot, so exactly one
+    daily file exists; resolving it (instead of recomputing today's date)
+    keeps date derivation immune to a UTC midnight roll-over mid-helper.
+    """
+    live = sorted(audit_dir.glob("*.jsonl"))
+    assert len(live) == 1, f"expected exactly one live log, found {[p.name for p in live]}"
+    return live[0]
+
+
 def _build_two_day_chain(audit_dir: Path, key: bytes = b"test-key") -> tuple[str, str]:
     """Build a genuine HMAC chain split across two dated JSONL files.
 
@@ -262,12 +274,16 @@ def _build_two_day_chain(audit_dir: Path, key: bytes = b"test-key") -> tuple[str
     log.log("e2", "a2", "r2", "i2")
     log.log("e3", "a3", "r3", "i3")
 
-    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-    today_path = audit_dir / f"{today}.jsonl"
+    # Anchor every derived date on the file ``log`` actually wrote rather than
+    # a fresh ``datetime.now`` call: a UTC midnight roll-over between the log
+    # calls and date derivation would otherwise drift the filenames and flake
+    # the test. There is exactly one live file at this point.
+    today_path = _single_live_log(audit_dir)
+    today_date = datetime.strptime(today_path.stem, "%Y-%m-%d").replace(tzinfo=UTC)
     lines = today_path.read_text().splitlines()
     assert len(lines) == 3
 
-    yesterday = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    yesterday = (today_date - timedelta(days=1)).strftime("%Y-%m-%d")
     old_path = audit_dir / f"{yesterday}.jsonl"
     # First two events live in the older (archivable) file; the third
     # event - whose prev_hmac links back into the older file - stays live.
@@ -293,13 +309,15 @@ def _build_three_day_chain(audit_dir: Path, key: bytes = b"test-key") -> tuple[s
     for i in range(1, 6):
         log.log(f"e{i}", f"a{i}", f"r{i}", f"i{i}")
 
-    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
-    today_path = audit_dir / f"{today}.jsonl"
+    # Anchor on the file ``log`` wrote (see ``_build_two_day_chain``) so a
+    # midnight roll-over cannot drift the derived dates.
+    today_path = _single_live_log(audit_dir)
+    today_date = datetime.strptime(today_path.stem, "%Y-%m-%d").replace(tzinfo=UTC)
     lines = today_path.read_text().splitlines()
     assert len(lines) == 5
 
-    day1 = (datetime.now(tz=UTC) - timedelta(days=2)).strftime("%Y-%m-%d")
-    day2 = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    day1 = (today_date - timedelta(days=2)).strftime("%Y-%m-%d")
+    day2 = (today_date - timedelta(days=1)).strftime("%Y-%m-%d")
     day1_path = audit_dir / f"{day1}.jsonl"
     day2_path = audit_dir / f"{day2}.jsonl"
     day1_path.write_text("\n".join(lines[:2]) + "\n")

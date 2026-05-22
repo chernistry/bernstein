@@ -1,6 +1,6 @@
 name: Auto-release
 
-# Triggers after CI passes on main - bumps patch version and publishes
+# Triggers after CI passes on main - pushes an operator-approved version tag
 # Only releases when meaningful source/test/template files changed.
 #
 # This workflow is invoked by `post-ci-dispatcher.yml` via workflow_call.
@@ -107,6 +107,7 @@ jobs:
         run: |
           SHORT_SHA="${SHA:0:7}"
           TITLE="auto-release skipped on \`${SHORT_SHA}\` (conclusion: ${STATUS})"
+          # shellcheck disable=SC2016
           BODY=$(printf 'CI conclusion: **%s**\n\nCommit: %s\nRun: %s\n\nThis issue was opened automatically by `auto-release.yml :: alert-on-stale-release-trigger`. See #1273 for the root cause.\n' \
             "${STATUS}" "${SHA}" "${HTML_URL}")
 
@@ -332,12 +333,12 @@ jobs:
           fi
 
   release:
-    name: Tag and create GitHub Release
+    name: Tag release
     needs: gate
     if: needs.gate.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Distribution is split across two workflows that both fire from this job:
+    # Distribution is owned by workflows triggered by this job:
     #   - `publish.yml`        - runs on tag push; owns PyPI, npm, GitHub Release
     #   - `publish-docker.yml` - runs on `release: published`; owns GHCR image
     # The tag push emitted by the `Tag` step below triggers `publish.yml`,
@@ -345,9 +346,8 @@ jobs:
     # This job's responsibility is now narrowed to:
     #   1. Decide whether to tag (gate already passed),
     #   2. Push the tag,
-    #   3. Author rich, conventional-commit-grouped release notes for the
-    #      tag. `publish.yml::github-release` is idempotent and tolerates
-    #      a pre-existing release, so the notes authored here win.
+    #   3. Leave GitHub Release creation to `publish.yml`, so releases are
+    #      created only after dist artefacts exist.
     permissions:
       contents: write
     steps:
@@ -441,48 +441,3 @@ jobs:
         run: |
           git tag "v${FINAL_VERSION}"
           git push origin "v${FINAL_VERSION}"
-
-      - name: GitHub Release
-        if: steps.final.outputs.deferred != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.final.outputs.version }}
-          REPO: ${{ github.repository }}
-        run: |
-          # Delete any pre-existing *draft* release with the same tag
-          # (release-drafter often has one queued). Skip if it's a real
-          # published release - never touch cleanup-tag on a real tag.
-          IS_DRAFT=$(gh release view "v${VERSION}" --json isDraft --jq '.isDraft' 2>/dev/null || echo "none")
-          if [ "$IS_DRAFT" = "true" ]; then
-            gh release delete "v${VERSION}" --yes
-          fi
-
-          # Build human-readable notes from conventional-commit messages
-          # since the previous release tag. Commits are grouped by prefix
-          # (feat/fix/refactor/perf/docs/ci/chore/test); their subject
-          # lines - not raw hashes - become bullet points.
-          PREV_TAG=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            git log --no-merges --pretty='%s' -20 > /tmp/commits.txt
-          else
-            git log --no-merges --pretty='%s' "${PREV_TAG}..HEAD" > /tmp/commits.txt
-          fi
-
-          python3 scripts/format_release_notes.py \
-            --version "$VERSION" \
-            --prev-tag "$PREV_TAG" \
-            --repo "$REPO" \
-            --commits /tmp/commits.txt \
-            > RELEASE_NOTES.md
-
-          # Create the release without uploading dist artefacts - those are
-          # uploaded by `publish.yml::github-release` once the tag-push
-          # workflow finishes its build step. If publish.yml ran first
-          # (race), this `gh release create` will exit non-zero and we
-          # fall back to editing the existing release's notes.
-          if ! gh release create "v${VERSION}" \
-              --title "v${VERSION}" \
-              --notes-file RELEASE_NOTES.md; then
-            echo "::notice::Release v${VERSION} already exists (publish.yml beat us). Updating notes only."
-            gh release edit "v${VERSION}" --notes-file RELEASE_NOTES.md
-          fi

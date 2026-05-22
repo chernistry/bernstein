@@ -30,9 +30,8 @@ Out of scope for this module (deferred to follow-up tracks):
 
 - Source types beyond ``local`` (Git, OCI, index).
 - Signature verification and trust roots.
-- Sensitive-pattern-scan-on-install (the existing sanitiser already
-  scrubs invisible Unicode codepoints at load time; refusing installs on
-  sensitive patterns is track 4).
+- Sensitive-pattern-scan-on-install. Strict lint can block ERROR findings;
+  the default path remains advisory for backwards compatibility.
 """
 
 from __future__ import annotations
@@ -46,6 +45,8 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
+
+from bernstein.core.skills.lint import LintSeverity, lint_skill
 
 # ---------------------------------------------------------------------------
 # Public constants
@@ -408,6 +409,17 @@ def _detect_skill_name(source: Path) -> str:
     return source.stem
 
 
+def _raise_for_strict_lint_errors(skill_dir: Path, *, skill_name: str) -> None:
+    """Raise when strict lint finds blocking errors for an installed skill."""
+    errors = [
+        finding for finding in lint_skill(skill_dir, skill_name=skill_name) if finding.severity is LintSeverity.ERROR
+    ]
+    if not errors:
+        return
+    details = "; ".join(f"{finding.code}: {finding.message}" for finding in errors)
+    raise SkillLifecycleError(f"{skill_name}: strict lint failed: {details}")
+
+
 def install_local(
     source: Path,
     *,
@@ -415,6 +427,7 @@ def install_local(
     workdir: Path,
     home: Path | None = None,
     override_name: str | None = None,
+    strict_lint: bool = False,
 ) -> InstallResult:
     """Install a skill from a local path into the chosen scope.
 
@@ -432,6 +445,8 @@ def install_local(
         home: Override for the user's home (tests).
         override_name: Override the auto-detected skill name. The TOML
             ``name`` field wins over filesystem layout when supplied.
+        strict_lint: When ``True``, ERROR lint findings abort the install.
+            WARNING findings remain advisory.
 
     Returns:
         :class:`InstallResult` with the target directory and digest.
@@ -472,6 +487,8 @@ def install_local(
             (staging_dir / "SKILL.md").write_text(content, encoding="utf-8")
 
         digest = compute_skill_digest(staging_dir)
+        if strict_lint:
+            _raise_for_strict_lint_errors(staging_dir, skill_name=name)
     except Exception:
         shutil.rmtree(staging_dir, ignore_errors=True)
         raise
@@ -637,6 +654,7 @@ def sync_skills(
     scope: InstallScope = InstallScope.PROJECT,
     workdir: Path | None = None,
     home: Path | None = None,
+    strict_lint: bool = False,
 ) -> list[SyncOutcome]:
     """Reconcile ``bernstein-skills.toml`` with the chosen scope.
 
@@ -650,6 +668,8 @@ def sync_skills(
         scope: Where to install. Defaults to PROJECT.
         workdir: Project root. Defaults to ``toml_path.parent``.
         home: Override for the user's home (tests).
+        strict_lint: When ``True``, ERROR lint findings abort changed and
+            unchanged installs. WARNING findings remain advisory.
 
     Returns:
         One :class:`SyncOutcome` per skill, in declaration order.
@@ -708,6 +728,8 @@ def sync_skills(
             source_digest = hasher.hexdigest()
 
         if prior_digest == source_digest and existing_install.is_dir():
+            if strict_lint:
+                _raise_for_strict_lint_errors(existing_install, skill_name=entry.name)
             outcomes.append(
                 SyncOutcome(
                     name=entry.name,
@@ -732,6 +754,7 @@ def sync_skills(
             workdir=workdir,
             home=home,
             override_name=entry.name,
+            strict_lint=strict_lint,
         )
         action = "updated" if entry.name in previous_lock else "installed"
         outcomes.append(

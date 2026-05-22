@@ -259,7 +259,14 @@ def _parse_scope(scope_str: str) -> InstallScope:
     default=None,
     help="Override the auto-detected skill name (uses source filename otherwise).",
 )
-def skills_install(source: Path, scope: str, override_name: str | None) -> None:
+@click.option(
+    "--strict",
+    "strict",
+    is_flag=True,
+    default=False,
+    help="Fail install when skill lint reports ERROR findings.",
+)
+def skills_install(source: Path, scope: str, override_name: str | None, strict: bool) -> None:
     """Install a skill from a local path.
 
     \b
@@ -273,6 +280,7 @@ def skills_install(source: Path, scope: str, override_name: str | None) -> None:
             scope=install_scope,
             workdir=Path.cwd(),
             override_name=override_name,
+            strict_lint=strict,
         )
     except SkillLifecycleError as exc:
         console.print(f"[red]install failed:[/red] {exc}")
@@ -317,7 +325,14 @@ def skills_remove(name: str, scope: str) -> None:
     default="project",
     help="Where to install declared skills.",
 )
-def skills_sync(manifest: Path | None, scope: str) -> None:
+@click.option(
+    "--strict",
+    "strict",
+    is_flag=True,
+    default=False,
+    help="Fail sync when skill lint reports ERROR findings.",
+)
+def skills_sync(manifest: Path | None, scope: str, strict: bool) -> None:
     """Install every skill declared in ``bernstein-skills.toml``.
 
     Re-runs are idempotent: skills whose digest already matches are
@@ -331,6 +346,7 @@ def skills_sync(manifest: Path | None, scope: str) -> None:
             toml_path.resolve(),
             scope=install_scope,
             workdir=Path.cwd(),
+            strict_lint=strict,
         )
     except (SkillsTomlError, SkillLifecycleError) as exc:
         console.print(f"[red]sync failed:[/red] {exc}")
@@ -413,8 +429,9 @@ def skills_watch(path: Path | None) -> None:
 
     reload_count = 0
 
-    def on_reload(_loader: SkillLoader) -> None:
+    def on_reload(loader: SkillLoader) -> None:
         nonlocal reload_count
+        del loader
         reload_count += 1
         console.print(f"[green]reloaded[/green] index (event #{reload_count})")
 

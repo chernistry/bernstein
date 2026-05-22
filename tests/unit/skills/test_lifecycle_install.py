@@ -151,6 +151,59 @@ def test_install_local_directory_without_skill_md(tmp_path: Path) -> None:
         install_local(src, scope=InstallScope.PROJECT, workdir=workdir)
 
 
+def test_install_local_strict_lint_blocks_error_findings_but_default_installs(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    source = tmp_path / "broken-skill.md"
+    source.write_text(
+        textwrap.dedent(
+            """
+            ---
+            description: Missing the required skill name so lint reports an error.
+            ---
+
+            # Broken skill
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    install_local(source, scope=InstallScope.PROJECT, workdir=workdir)
+    installed = scope_root(InstallScope.PROJECT, workdir=workdir) / "broken-skill"
+    assert installed.is_dir()
+    remove_skill("broken-skill", scope=InstallScope.PROJECT, workdir=workdir)
+
+    with pytest.raises(SkillLifecycleError, match="strict lint failed.*invalid-manifest"):
+        install_local(source, scope=InstallScope.PROJECT, workdir=workdir, strict_lint=True)
+    assert not installed.exists()
+
+
+def test_install_local_strict_lint_allows_warning_findings(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    source = tmp_path / "warning-skill.md"
+    source.write_text(
+        textwrap.dedent(
+            """
+            ---
+            name: warning-skill
+            description: Valid skill with an extra frontmatter key that lint reports as a warning.
+            whenToUse: When the agent needs this skill.
+            ---
+
+            # Warning skill
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = install_local(source, scope=InstallScope.PROJECT, workdir=workdir, strict_lint=True)
+
+    assert result.install_dir.is_dir()
+
+
 def test_install_overwrites_previous(
     tmp_path: Path,
     single_file_skill: Path,

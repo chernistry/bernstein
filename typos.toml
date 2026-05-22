@@ -67,6 +67,9 @@ extend-exclude = [
     # thousands of false-positive typo errors and bury real findings. Human-
     # authored React/TS sources under ``web/src/`` stay in scope.
     "src/bernstein/gui/static/**",
+    # Packaged dashboard browser bundles - minified JS has the same
+    # identifier-mangling profile as the Vite-built SPA bundle above.
+    "src/bernstein/dashboard/static/**",
     # Auto-heal typos helper -- intentionally contains a prose-typo
     # denylist (`recieve`, `occured`, etc.) as data so it can reject
     # those tokens at allowlist-time. The matching unit tests also

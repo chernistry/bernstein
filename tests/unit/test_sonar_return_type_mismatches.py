@@ -22,7 +22,9 @@ def _direct_replace_returns(relative_path: str) -> list[str]:
             if not isinstance(value, ast.Call):
                 continue
             func = value.func
-            if isinstance(func, ast.Name) and func.id == "replace":
+            is_replace_name = isinstance(func, ast.Name) and func.id == "replace"
+            is_replace_attribute = isinstance(func, ast.Attribute) and func.attr == "replace"
+            if is_replace_name or is_replace_attribute:
                 findings.append(f"{relative_path}:{node.name}:{child.lineno}")
 
     return findings
@@ -39,3 +41,31 @@ def test_s5886_cluster_avoids_direct_replace_returns() -> None:
     findings = [finding for path in paths for finding in _direct_replace_returns(path)]
 
     assert findings == []
+
+
+def test_direct_replace_scanner_detects_attribute_calls(tmp_path: Path) -> None:
+    """The scanner should catch module-qualified replace calls too."""
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        "\n".join(
+            [
+                "from __future__ import annotations",
+                "",
+                "import dataclasses",
+                "",
+                "def update(value: object) -> object:",
+                "    return dataclasses.replace(value)",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    global PROJECT_ROOT
+    previous_root = PROJECT_ROOT
+    try:
+        PROJECT_ROOT = tmp_path
+        findings = _direct_replace_returns("sample.py")
+    finally:
+        PROJECT_ROOT = previous_root
+
+    assert findings == ["sample.py:update:6"]

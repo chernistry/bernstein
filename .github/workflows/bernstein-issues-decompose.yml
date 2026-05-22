@@ -240,8 +240,6 @@ jobs:
 
           def in_scope(path: str) -> bool:
               clean = path.rstrip("/")
-              if allowed.endswith("/"):
-                  return clean.startswith(allowed)
               if "." in PurePosixPath(allowed).name:
                   return clean == allowed
               return clean == allowed or clean.startswith(f"{allowed}/")

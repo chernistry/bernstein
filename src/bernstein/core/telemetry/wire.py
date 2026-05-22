@@ -42,7 +42,7 @@ _LOG = logging.getLogger(__name__)
 
 FIRST_RUN_NOTICE: Final[str] = (
     "Bernstein collects no telemetry by default.\n"
-    "Run `bernstein telemetry on` to opt in and help us prioritize.\n"
+    "Run `bernstein telemetry on` to opt in.\n"
     "This message will not appear again."
 )
 

@@ -141,6 +141,9 @@ def telemetry_status(home: Path | None) -> None:
     share = resolve_share(home=home)
     install_id = read_install_id(home=home)
     dsn = os.environ.get(sidechannel.DSN_ENV) or "(unset)"
+    from bernstein.core.telemetry.share import resolve_share_endpoint
+
+    share_endpoint_configured = resolve_share_endpoint(dict(os.environ)) is not None
     lines: list[str] = [
         f"enabled: {str(state.enabled).lower()}",
         f"source: {state.source.value}",
@@ -151,6 +154,7 @@ def telemetry_status(home: Path | None) -> None:
         f"share_with_maintainer: {str(share.enabled).lower()}",
         f"share_source: {share.source.value} ({explain_share_source(share.source)})",
         f"share_config_file: {consent_file_path(home=home)}",
+        f"share_endpoint_configured: {str(share_endpoint_configured).lower()}",
         f"dsn: {dsn}",
     ]
     click.echo("\n".join(lines))

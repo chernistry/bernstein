@@ -89,7 +89,10 @@ contents, args, prompts, paths, or resource names.
 ## Network behaviour
 
 - Endpoint: configurable via `BERNSTEIN_TELEMETRY_ENDPOINT`.  Default is
-  a Bernstein-owned receiver.
+  an illustrative placeholder host, not a real receiver.
+- Maintainer-share endpoint: configurable via
+  `BERNSTEIN_TELEMETRY_SHARE_ENDPOINT`.  No default is shipped, and
+  `bernstein telemetry status` prints only whether it is configured.
 - Single HTTP POST per event, 3-second timeout, no retries.
 - All errors are swallowed.  The command always completes normally
   whether or not the POST succeeded.
@@ -109,7 +112,7 @@ The first time `bernstein` runs, a one-time notice is printed to stderr:
 
 ```
 Bernstein collects no telemetry by default.
-Run `bernstein telemetry on` to opt in and share crash and error reports.
+Run `bernstein telemetry on` to opt in.
 This message will not appear again.
 ```
 

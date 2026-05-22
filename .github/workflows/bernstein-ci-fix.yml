@@ -434,14 +434,30 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Checkout main (trusted ref)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ needs.triage.outputs.head_sha }}
+          ref: main
+          fetch-depth: 0
           persist-credentials: false
+      - name: Verify and pin to failing commit
+        env:
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          if ! echo "$HEAD_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::head_sha '$HEAD_SHA' is not a 40-hex SHA"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+            echo "::error::head_sha '$HEAD_SHA' is not reachable from origin/main"
+            exit 1
+          fi
+          git -c advice.detachedHead=false checkout "$HEAD_SHA"
       - name: Set up Python via uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: latest
+          version: "0.11.3"
       - name: Capture failing log tail
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -485,6 +501,9 @@ jobs:
     needs: [triage, fix]
     if: |
       always() &&
+      needs.triage.result == 'success' &&
+      needs.triage.outputs.head_sha != '' &&
+      needs.triage.outputs.run_id != '' &&
       needs.triage.outputs.existing_pr == '' &&
       (needs.triage.outputs.safe_for_gemini != 'true' ||
        needs.fix.result == 'failure' ||

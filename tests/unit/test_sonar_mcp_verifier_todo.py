@@ -13,3 +13,4 @@ def test_mcp_verifier_deferred_sigstore_note_has_no_todo_marker() -> None:
 
     assert "TODO(sigstore)" not in body
     assert "TODO below" not in body
+    assert "Deferred(sigstore)" not in body

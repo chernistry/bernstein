@@ -45,6 +45,7 @@ def test_role_model_policy_routes_roles_to_mixed_adapters_and_records_replay(tmp
 
     default_adapter = MagicMock()
     default_adapter.name.return_value = "codex"
+    default_adapter.is_rate_limited.return_value = False
     spawner = AgentSpawner(
         default_adapter,
         templates_dir,
@@ -110,7 +111,7 @@ def test_role_model_policy_routes_roles_to_mixed_adapters_and_records_replay(tmp
 
         adapter_map = {"codex": codex_adapter, "gemini": gemini_adapter}
 
-        def _select_adapter(name: str) -> MagicMock:
+        def _select_adapter(name: str, **_: object) -> MagicMock:
             return adapter_map[name]
 
         with (

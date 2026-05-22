@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -15,6 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
+BOOTSTRAP_ACTION = REPO_ROOT / ".github" / "actions" / "bootstrap" / "action.yml"
+PINNED_UV_VERSION = "0.11.3"
 
 OWNED_WORKFLOWS = (
     "sonar-scan.yml",
@@ -30,20 +33,24 @@ UNPINNED_PIP_UV_RE = re.compile(r"\bpip\s+install\b[^\n]*\buv\b")
 
 
 def _load_workflow(path: Path) -> dict[str, object]:
-    parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+    parsed = cast(object, yaml.safe_load(path.read_text(encoding="utf-8")))
     assert isinstance(parsed, dict), f"{path} must parse as a YAML mapping"
-    return parsed
+    return cast(dict[str, object], parsed)
 
 
 def _iter_steps(value: object) -> list[dict[str, object]]:
     steps: list[dict[str, object]] = []
     if isinstance(value, dict):
-        if isinstance(value.get("steps"), list):
-            steps.extend(step for step in value["steps"] if isinstance(step, dict))
-        for child in value.values():
+        node = cast(dict[str, object], value)
+        maybe_steps = node.get("steps")
+        if isinstance(maybe_steps, list):
+            for raw_step in cast(list[object], maybe_steps):
+                if isinstance(raw_step, dict):
+                    steps.append(cast(dict[str, object], raw_step))
+        for child in node.values():
             steps.extend(_iter_steps(child))
     elif isinstance(value, list):
-        for child in value:
+        for child in cast(list[object], value):
             steps.extend(_iter_steps(child))
     return steps
 
@@ -67,6 +74,7 @@ def test_owned_workflows_do_not_install_uv_with_unpinned_pip(workflow_name: str)
 @pytest.mark.parametrize(
     "workflow_name",
     (
+        "sonar-scan.yml",
         "docs-observability-snapshot.yml",
         "pr-observability-summary.yml",
         "glitchtip-ingester.yml",
@@ -80,3 +88,21 @@ def test_project_install_workflows_use_local_bootstrap_action(workflow_name: str
     steps = _iter_steps(_load_workflow(workflow))
     uses_values = [step.get("uses") for step in steps]
     assert "./.github/actions/bootstrap" in uses_values
+
+
+def test_local_bootstrap_action_pins_setup_uv_version() -> None:
+    """The shared bootstrap action must pin both setup-uv and the uv binary."""
+    steps = _iter_steps(_load_workflow(BOOTSTRAP_ACTION))
+    setup_uv_steps = [step for step in steps if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")]
+
+    assert setup_uv_steps, "bootstrap action must use astral-sh/setup-uv"
+    for step in setup_uv_steps:
+        uses = step.get("uses")
+        assert isinstance(uses, str)
+        action_ref = uses.rsplit("@", 1)[1].split("#", 1)[0].strip()
+        assert re.fullmatch(r"[0-9a-f]{40}", action_ref), f"setup-uv action must use a SHA pin: {uses}"
+
+        with_block = step.get("with")
+        assert isinstance(with_block, dict)
+        with_values = cast(dict[str, object], with_block)
+        assert with_values.get("version") == PINNED_UV_VERSION

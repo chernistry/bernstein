@@ -244,6 +244,229 @@ class TestJournalAppend:
 
 
 # ---------------------------------------------------------------------------
+# Recovery revalidates the hash chain on open (#1836)
+# ---------------------------------------------------------------------------
+
+
+class TestRecoveryRevalidation:
+    """``Journal.open`` must revalidate the hash chain when recovering the
+    tip, rather than trusting the last on-disk ``step_hash``/``seq`` verbatim.
+
+    Recovery fails closed: a parseable-but-inconsistent row (recomputed
+    ``step_hash`` mismatch, ``prev_hash`` break, or ``seq`` gap) raises
+    :class:`JournalError` at open time and names the offending line, so a
+    tampered or truncated-then-edited journal cannot grow valid-looking
+    children on a poisoned anchor. A torn/unparseable trailing line still
+    degrades gracefully to the last validated row (legitimate crash
+    recovery)."""
+
+    @staticmethod
+    def _rows(agent_dir: Path) -> list[dict]:
+        log_file = next(agent_dir.glob("*.jsonl"))
+        return [json.loads(line) for line in log_file.read_text(encoding="utf-8").splitlines()]
+
+    @staticmethod
+    def _write_rows(agent_dir: Path, rows: list[dict]) -> None:
+        log_file = next(agent_dir.glob("*.jsonl"))
+        lines = [json.dumps(r, sort_keys=True, separators=(",", ":")) for r in rows]
+        log_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_reopen_intact_chain_recovers_same_head_and_seq(self, tmp_path: Path) -> None:
+        """No regression: an intact multi-entry chain recovers the identical
+        ``head_hash`` and ``next_seq`` it had before close."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        entries = [journal.append(input_hash=f"a{i}", model="m1", prompt=f"p{i}") for i in range(4)]
+        head = journal.head_hash
+        next_seq = journal.next_seq
+        journal.close()
+
+        reopened = Journal.open(agent_dir)
+        assert reopened.head_hash == head == entries[-1].step_hash
+        assert reopened.next_seq == next_seq == 4
+
+    def test_reopen_rejects_tampered_final_step_hash(self, tmp_path: Path) -> None:
+        """A final row whose stored ``step_hash`` does not match its recomputed
+        value must not be adopted as the tip. ``Journal.open`` fails closed."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        journal.append(input_hash="bb", model="m1", prompt="p2")
+        journal.close()
+
+        # Replace the last row's step_hash with a wrong-but-well-formed value.
+        rows = self._rows(agent_dir)
+        rows[-1]["step_hash"] = "1" * 64
+        self._write_rows(agent_dir, rows)
+
+        with pytest.raises(JournalError) as exc_info:
+            Journal.open(agent_dir)
+        # The error names the offending line so an operator can grep the file.
+        assert "line 2" in str(exc_info.value)
+
+    def test_reopen_then_append_then_verify_is_clean(self, tmp_path: Path) -> None:
+        """After recovery rejects a tampered tip, restoring the genuine row
+        lets a reopen + append + verify run fully clean - proving recovery did
+        not leave a poisoned anchor behind."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        e1 = journal.append(input_hash="bb", model="m1", prompt="p2")
+        journal.close()
+
+        reopened = Journal.open(agent_dir)
+        e2 = reopened.append(input_hash="cc", model="m1", prompt="p3")
+        reopened.close()
+        assert e2.prev_hash == e1.step_hash
+        assert e2.seq == 2
+
+        reader = JournalReader(agent_dir)
+        result = reader.verify(expected_head=e2.step_hash)
+        assert result.ok, result.errors
+
+    def test_reopen_surfaces_interior_break_not_deferred(self, tmp_path: Path) -> None:
+        """A tampered *interior* row must surface at open time. The old
+        behaviour adopted the tail verbatim and let a later ``verify`` report
+        a chain that was "valid above a broken row"; recovery must catch the
+        break itself rather than defer it."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        for i in range(4):
+            journal.append(input_hash=f"a{i}", model="m1", prompt=f"p{i}")
+        journal.close()
+
+        # Tamper an interior row (index 1) in the same canonical form so only
+        # the chain check - not a byte check - can catch it.
+        rows = self._rows(agent_dir)
+        rows[1]["model"] = "evil"
+        self._write_rows(agent_dir, rows)
+
+        # Recovery must refuse to silently append onto the chain.
+        with pytest.raises(JournalError) as exc_info:
+            Journal.open(agent_dir)
+        assert "line 2" in str(exc_info.value)
+
+    def test_reopen_rejects_seq_gap(self, tmp_path: Path) -> None:
+        """A ``seq`` discontinuity is a chain break; recovery must not paper
+        over it by trusting the stored ``seq`` of the tail."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        journal.append(input_hash="bb", model="m1", prompt="p2")
+        journal.close()
+
+        rows = self._rows(agent_dir)
+        rows[1]["seq"] = 5  # gap: 0 then 5
+        self._write_rows(agent_dir, rows)
+
+        with pytest.raises(JournalError):
+            Journal.open(agent_dir)
+
+    def test_reopen_torn_final_line_recovers_last_good_entry(self, tmp_path: Path) -> None:
+        """Existing crash-recovery behaviour preserved: a torn/unparseable
+        trailing line degrades gracefully to the last validated row, and a
+        subsequent append chains onto it."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        e0 = journal.append(input_hash="aa", model="m1", prompt="p1")
+        journal.close()
+
+        # Simulate a crash mid-write: a torn (unparseable) trailing line.
+        log_file = next(agent_dir.glob("*.jsonl"))
+        with log_file.open("a", encoding="utf-8") as fh:
+            fh.write('{"seq":1,"prev_hash":"' + e0.step_hash + '","truncated":')
+
+        reopened = Journal.open(agent_dir)
+        assert reopened.head_hash == e0.step_hash
+        assert reopened.next_seq == 1
+        e1 = reopened.append(input_hash="bb", model="m1", prompt="p2")
+        assert e1.prev_hash == e0.step_hash
+        assert e1.seq == 1
+
+    def test_reopen_empty_journal_recovers_genesis(self, tmp_path: Path) -> None:
+        """An empty bucket file (header-less, zero entries) recovers to
+        genesis without raising."""
+        agent_dir = tmp_path / "agent-1"
+        journal = Journal.open(agent_dir)
+        journal.close()  # never appended; bucket may not even exist
+        reopened = Journal.open(agent_dir)
+        from bernstein.core.persistence.journal import GENESIS_HASH
+
+        assert reopened.head_hash == GENESIS_HASH
+        assert reopened.next_seq == 0
+
+    def test_fork_seed_rejects_corrupt_parent_journal(self, tmp_path: Path) -> None:
+        """``session fork --from-step`` seeds parent entries into a fork bucket
+        and round-trips through ``Journal.open`` to recover the head. A fork
+        seeded from a corrupt parent journal must be rejected at seed time,
+        not silently produce a fork whose first step chains onto an
+        unvalidated hash (#1836 AC4)."""
+        from bernstein.core.persistence.journal import agent_journal_dir
+        from bernstein.core.sessions.fork import _seed_fork_journal
+
+        # Build a genuine parent chain, then poison the last entry's stored
+        # step_hash so the seeded fork chain does not verify.
+        parent_dir = tmp_path / "parent" / ".sdd"
+        parent_journal_dir = agent_journal_dir(parent_dir, "parent-agent")
+        journal = Journal.open(parent_journal_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        journal.append(input_hash="bb", model="m1", prompt="p2")
+        journal.close()
+
+        entries = list(JournalReader(parent_journal_dir).entries())
+        # Tamper the tail entry the fork would inherit as its anchor.
+        tail = entries[-1]
+        poisoned = [
+            *entries[:-1],
+            JournalEntry(
+                seq=tail.seq,
+                prev_hash=tail.prev_hash,
+                input_hash=tail.input_hash,
+                model=tail.model,
+                prompt=tail.prompt,
+                tool_call=tail.tool_call,
+                tool_result=tail.tool_result,
+                step_hash="1" * 64,  # wrong-but-well-formed
+                ts=tail.ts,
+            ),
+        ]
+
+        fork_worktree = tmp_path / "fork-worktree"
+        with pytest.raises(JournalError):
+            _seed_fork_journal(
+                fork_worktree=fork_worktree,
+                fork_session_id="fork-agent",
+                entries=poisoned,
+            )
+
+    def test_fork_seed_accepts_intact_parent_journal(self, tmp_path: Path) -> None:
+        """The intact-parent path still works: seeding a valid chain recovers
+        the parent's head so the fork's first append chains onto it."""
+        from bernstein.core.persistence.journal import agent_journal_dir
+        from bernstein.core.sessions.fork import _seed_fork_journal
+
+        parent_dir = tmp_path / "parent" / ".sdd"
+        parent_journal_dir = agent_journal_dir(parent_dir, "parent-agent")
+        journal = Journal.open(parent_journal_dir)
+        journal.append(input_hash="aa", model="m1", prompt="p1")
+        e1 = journal.append(input_hash="bb", model="m1", prompt="p2")
+        journal.close()
+
+        entries = list(JournalReader(parent_journal_dir).entries())
+        fork_worktree = tmp_path / "fork-worktree"
+        _seed_fork_journal(
+            fork_worktree=fork_worktree,
+            fork_session_id="fork-agent",
+            entries=entries,
+        )
+
+        fork_journal_dir = agent_journal_dir(fork_worktree / ".sdd", "fork-agent")
+        reopened = Journal.open(fork_journal_dir)
+        assert reopened.head_hash == e1.step_hash
+        assert reopened.next_seq == 2
+
+
+# ---------------------------------------------------------------------------
 # Chain verification + tamper detection
 # ---------------------------------------------------------------------------
 

@@ -61,6 +61,39 @@ to the tail. Errors surface as:
 Each error carries the offending line number so an operator can grep
 the file.
 
+## Recovery on open (fail-closed)
+
+`Journal.open` recovers the chain head before any new step is appended
+(after a crash, a restart, or when seeding a fork). Recovery **revalidates
+the hash chain** rather than trusting the last on-disk row: it walks the
+bucket from genesis, recomputes every `step_hash` with the same
+`compute_step_hash` primitive `verify` uses, checks `prev_hash` linkage and
+`seq` continuity, and takes the tip from the last *recomputed* hash.
+
+Recovery fails closed. If a parseable row does not verify - a recomputed
+`step_hash` that differs from the stored value, a `prev_hash` that does not
+chain onto the previous row, or a `seq` gap - `Journal.open` raises
+`JournalError` naming the offending line, instead of adopting the row and
+letting subsequent appends grow valid-looking children on a poisoned anchor.
+This closes the gap where a tampered or truncated-then-edited journal could
+be silently extended after a restart or a `session fork --from-step`.
+
+Distinct from tampering: a **torn or unparseable trailing line** (a writer
+killed mid-write) still degrades gracefully. Recovery stops at the last
+validated row and a subsequent append chains onto it, preserving the
+legitimate crash-recovery path. A malformed line that is *followed* by a
+well-formed row is treated as interior corruption and raises.
+
+Operator remedy when recovery refuses to open: the error names the bucket
+file and the offending line. Move the corrupt journal aside (for example,
+rename `000000.jsonl` to `000000.jsonl.corrupt`) so the agent can start a
+fresh chain, and keep the quarantined file for forensic inspection with
+`JournalReader.verify`.
+
+Cost note: recovery now recomputes every step hash on open (O(steps)) rather
+than reading the tail (O(1)). For very long single-agent runs this is a
+measurable - but bounded - startup cost, paid once per open.
+
 ## Fork-from-step
 
 `bernstein session fork <session_id> --from-step <n>` materialises a

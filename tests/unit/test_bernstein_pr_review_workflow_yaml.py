@@ -85,4 +85,3 @@ def test_pr_review_runs_local_action_from_base_checkout(review_steps: list[dict[
     task = inputs.get("task", "")
     assert isinstance(task, str)
     assert ".bernstein-pr.diff" in task, "Review task must point the action at the fetched PR diff"
-

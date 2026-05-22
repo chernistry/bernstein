@@ -59,9 +59,9 @@ _REDACT_PATTERNS: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
     (re.compile(r"sk-[A-Za-z0-9_\-]{20,}"), "[REDACTED_OPENAI_KEY]"),
     (re.compile(r"sk-ant-[A-Za-z0-9_\-]{20,}"), "[REDACTED_ANTHROPIC_KEY]"),
     (re.compile(r"ghp_[A-Za-z0-9]{20,}"), "[REDACTED_GH_TOKEN]"),
-    (re.compile(r"github_pat_[A-Za-z0-9_]{20,}"), "[REDACTED_GH_PAT]"),
+    (re.compile(r"github_pat_\w{20,}", re.ASCII), "[REDACTED_GH_PAT]"),
     (re.compile(r"AKIA[0-9A-Z]{16}"), "[REDACTED_AWS_KEY]"),
-    (re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{16,}"), "Bearer [REDACTED]"),
+    (re.compile(r"bearer\s+[\w.-]{16,}", re.IGNORECASE | re.ASCII), "Bearer [REDACTED]"),
     (
         re.compile(r"(?i)(authorization|x-api-key|api[_-]?key)\s*[:=]\s*[^\s,;]{8,}"),
         r"\1: [REDACTED]",

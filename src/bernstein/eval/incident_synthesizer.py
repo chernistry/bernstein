@@ -844,7 +844,7 @@ def _safe_tag(value: str) -> str:
     Used so an exception class like ``ValueError`` becomes the tag
     ``valueerror`` without colons, dots, or other YAML-hostile bytes.
     """
-    out = re.sub(r"[^A-Za-z0-9_]+", "_", value.strip()).strip("_")
+    out = re.sub(r"[^\w]+", "_", value.strip(), flags=re.ASCII).strip("_")
     return out.lower() or "unknown"
 
 

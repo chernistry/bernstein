@@ -587,6 +587,7 @@ class MCPClientSession:
             MCPCapabilityMissing: If the tool is not in the capability card.
             MCPStreamDropped: If retries are exhausted before completion.
         """
+        _ = arguments
         self._validate_capability(tool_name)
         call = handle if handle is not None else StreamedToolCall(self._config.name, tool_name)
         idempotency_key = str(uuid.uuid4())

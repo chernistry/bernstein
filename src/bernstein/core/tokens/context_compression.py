@@ -96,7 +96,7 @@ class DependencyGraph:
             try:
                 rel_path = fpath.relative_to(self.workdir).as_posix()
                 deps = self._extract_imports_from_file(fpath)
-                file_deps = self._resolve_module_paths(deps, fpath)
+                file_deps = self._resolve_module_paths(deps)
                 self.graph[rel_path] = file_deps
             except Exception as e:
                 logger.debug("Failed to analyze %s: %s", fpath, e)
@@ -136,12 +136,11 @@ class DependencyGraph:
                 imports.add(node.module)
         return imports
 
-    def _resolve_module_paths(self, modules: set[str], source_file: Path) -> list[str]:
+    def _resolve_module_paths(self, modules: set[str]) -> list[str]:
         """Convert module names to relative file paths within workdir.
 
         Args:
             modules: Set of module names from import statements.
-            source_file: The file doing the importing (for context).
 
         Returns:
             List of relative file paths (only those that exist in workdir).

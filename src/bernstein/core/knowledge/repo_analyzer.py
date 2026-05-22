@@ -200,7 +200,7 @@ def analyze_repo(root: Path) -> RepoAnalysis:
 
     # Modules without tests - group source files by top-level package and
     # flag packages with no test files at all.
-    analysis.modules_without_tests = _modules_without_tests(root, analysis)
+    analysis.modules_without_tests = _modules_without_tests(root)
 
     # CI detection.
     analysis.has_ci, analysis.ci_kind = _detect_ci(root)
@@ -267,7 +267,7 @@ def _has_type_hints(path: Path) -> bool:
     return ") -> " in text or (": " in text and "def " in text)
 
 
-def _modules_without_tests(root: Path, analysis: RepoAnalysis) -> list[Path]:
+def _modules_without_tests(root: Path) -> list[Path]:
     """Return top-level Python packages or src/ subdirs with zero test files."""
     candidates: dict[Path, dict[str, bool]] = {}
     for entry in _walk_files(root):

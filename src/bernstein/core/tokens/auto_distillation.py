@@ -384,6 +384,7 @@ class AutoDistiller:
         Returns:
             The collected ``DistillationExample``, or None if skipped.
         """
+        _ = task_metrics
         if not self._config.enabled:
             return None
 

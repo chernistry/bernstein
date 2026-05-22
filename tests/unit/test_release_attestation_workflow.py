@@ -11,57 +11,78 @@ the workflows. The end-to-end ``gh attestation verify`` against the
 public attestations endpoint is the responsibility of the dedicated
 release-attestation smoke job (see ``release-attestation`` workflow).
 
-Scope note: the auto-release workflow tags and creates the GitHub
-Release; the actual artefact build + Sigstore attestation + PyPI
-publish lives in publish.yml (single-publisher consolidation, #1286).
-The attest assertion therefore only applies to publish.yml.
+Scope note: the auto-release workflow only pushes release tags.
+The actual artefact build + Sigstore attestation + PyPI, npm, and
+GitHub Release publish lives in publish.yml.
+The attestation assertion therefore only applies to publish.yml.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLISH_WF = REPO_ROOT / ".github" / "workflows" / "publish.yml"
+AUTO_RELEASE_WF = REPO_ROOT / ".github" / "workflows" / "auto-release.yml"
 
 ATTEST_ACTION_PREFIX = "actions/attest-build-provenance"
 
-
-def _load_yaml(path: Path) -> dict[str, Any]:
-    return cast("dict[str, Any]", yaml.safe_load(path.read_text()))
+type YamlMap = dict[str, object]
 
 
-def _all_steps(jobs: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
-    out: list[tuple[str, dict[str, Any]]] = []
-    for job_name, job in jobs.items():
-        if not isinstance(job, dict):
+def _as_map(value: object, context: str) -> YamlMap:
+    assert isinstance(value, dict), f"{context} must be a mapping"
+    return cast("YamlMap", value)
+
+
+def _load_yaml(path: Path) -> YamlMap:
+    parsed: object = yaml.safe_load(path.read_text())
+    return _as_map(parsed, path.name)
+
+
+def _all_steps(jobs: object) -> list[tuple[str, YamlMap]]:
+    out: list[tuple[str, YamlMap]] = []
+    jobs_map = _as_map(jobs, "jobs")
+    for job_name, job_value in jobs_map.items():
+        if not isinstance(job_value, dict):
             continue
-        steps = job.get("steps") or []
-        for step in steps:
-            if isinstance(step, dict):
-                out.append((job_name, step))
+        job = cast("YamlMap", job_value)
+        steps_value = job.get("steps", [])
+        if not isinstance(steps_value, list):
+            continue
+        steps = cast("list[object]", steps_value)
+        for step_value in steps:
+            if isinstance(step_value, dict):
+                out.append((job_name, cast("YamlMap", step_value)))
     return out
 
 
-def _job(data: dict[str, Any], job_name: str) -> dict[str, Any]:
-    job = data["jobs"][job_name]
-    assert isinstance(job, dict)
-    return cast("dict[str, Any]", job)
+def _job(data: YamlMap, job_name: str) -> YamlMap:
+    jobs = _as_map(data["jobs"], "jobs")
+    return _as_map(jobs[job_name], job_name)
 
 
-def _step_run(data: dict[str, Any], job_name: str, step_name: str) -> str:
+def _step(data: YamlMap, job_name: str, step_name: str) -> YamlMap:
     job = _job(data, job_name)
-    steps = job.get("steps") or []
-    for step in steps:
-        if isinstance(step, dict) and step.get("name") == step_name:
-            run = step.get("run")
-            assert isinstance(run, str)
-            return run
+    steps_value = job.get("steps", [])
+    assert isinstance(steps_value, list)
+    steps = cast("list[object]", steps_value)
+    for step_value in steps:
+        if isinstance(step_value, dict):
+            step = cast("YamlMap", step_value)
+            if step.get("name") == step_name:
+                return step
     pytest.fail(f"{PUBLISH_WF.name}::{job_name} has no step named {step_name!r}")
+
+
+def _step_run(data: YamlMap, job_name: str, step_name: str) -> str:
+    run = _step(data, job_name, step_name).get("run")
+    assert isinstance(run, str)
+    return run
 
 
 @pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
@@ -80,7 +101,7 @@ def test_workflow_calls_attest_build_provenance(workflow_path: Path) -> None:
     matching = [
         (job, step)
         for job, step in steps
-        if isinstance(step.get("uses"), str) and step["uses"].startswith(ATTEST_ACTION_PREFIX)
+        if isinstance(uses := step.get("uses"), str) and uses.startswith(ATTEST_ACTION_PREFIX)
     ]
     assert matching, (
         f"{workflow_path.name} no longer calls actions/attest-build-provenance -- "
@@ -94,8 +115,9 @@ def test_attest_step_has_subject_path(workflow_path: Path) -> None:
     data = _load_yaml(workflow_path)
     steps = _all_steps(data["jobs"])
     for _job, step in steps:
-        if isinstance(step.get("uses"), str) and step["uses"].startswith(ATTEST_ACTION_PREFIX):
-            with_block = step.get("with") or {}
+        uses = step.get("uses")
+        if isinstance(uses, str) and uses.startswith(ATTEST_ACTION_PREFIX):
+            with_block = _as_map(step.get("with", {}), "attest with")
             assert "subject-path" in with_block, (
                 f"{workflow_path.name}: attest step missing subject-path -- nothing would be signed"
             )
@@ -106,24 +128,28 @@ def test_attest_step_has_subject_path(workflow_path: Path) -> None:
 def test_attest_job_has_required_permissions(workflow_path: Path) -> None:
     """The job hosting the attest step must declare id-token: write + attestations: write."""
     data = _load_yaml(workflow_path)
-    jobs = data["jobs"]
-    for job_name, job in jobs.items():
-        if not isinstance(job, dict):
+    jobs = _as_map(data["jobs"], "jobs")
+    for job_name, job_value in jobs.items():
+        if not isinstance(job_value, dict):
             continue
-        steps = job.get("steps") or []
-        has_attest = any(
-            isinstance(s, dict) and isinstance(s.get("uses"), str) and s["uses"].startswith(ATTEST_ACTION_PREFIX)
-            for s in steps
-        )
+        job = cast("YamlMap", job_value)
+        steps_value = job.get("steps", [])
+        assert isinstance(steps_value, list)
+        steps = cast("list[object]", steps_value)
+        has_attest = False
+        for step_value in steps:
+            if not isinstance(step_value, dict):
+                continue
+            step = cast("YamlMap", step_value)
+            uses = step.get("uses")
+            if isinstance(uses, str) and uses.startswith(ATTEST_ACTION_PREFIX):
+                has_attest = True
+                break
         if not has_attest:
             continue
-        perms = job.get("permissions") or {}
+        perms = _as_map(job.get("permissions", {}), "permissions")
         # Permissions block can be an empty dict, a single string, or a mapping.
         # We only need the mapping form here -- attest needs writable scopes.
-        assert isinstance(perms, dict), (
-            f"{workflow_path.name}::{job_name} declares permissions as a string; "
-            "attest needs explicit id-token: write + attestations: write"
-        )
         assert perms.get("id-token") == "write", (
             f"{workflow_path.name}::{job_name} missing id-token: write -- Sigstore keyless OIDC will fail at runtime"
         )
@@ -173,7 +199,15 @@ def test_publish_test_job_runs_release_tests() -> None:
     job = _job(data, "test")
     assert job.get("name") == "Verify tests pass"
 
-    runs = [step["run"] for step in job.get("steps", []) if isinstance(step, dict) and isinstance(step.get("run"), str)]
+    steps_value = job.get("steps", [])
+    assert isinstance(steps_value, list)
+    steps = cast("list[object]", steps_value)
+    runs = [
+        run
+        for step_value in steps
+        if isinstance(step_value, dict)
+        if isinstance(run := cast("YamlMap", step_value).get("run"), str)
+    ]
     assert "uv run python scripts/run_tests.py -k release -x" in "\n".join(runs)
 
 
@@ -186,3 +220,25 @@ def test_github_release_uploads_and_asserts_dist_assets() -> None:
     assert "--clobber" in run
     assert "gh release view" in run
     assert "asset_count" in run
+
+
+def test_auto_release_does_not_create_github_releases() -> None:
+    """auto-release must only tag; publish.yml owns GitHub Release creation."""
+    text = AUTO_RELEASE_WF.read_text(encoding="utf-8")
+    assert "gh release create" not in text
+    assert "gh release upload" not in text
+
+
+def test_npm_publish_failures_block_tag_publish() -> None:
+    """The tag publish workflow must not silently ignore npm publish failures."""
+    data = _load_yaml(PUBLISH_WF)
+    job = _job(data, "publish-npm")
+    assert job.get("name") == "Publish npm wrapper"
+
+    publish_step = _step(data, "publish-npm", "Publish to npm")
+    assert publish_step.get("continue-on-error") is not True
+    run = publish_step.get("run")
+    assert isinstance(run, str)
+    assert "NPM_TOKEN is required for npm publish" in run
+    assert "npm publish --access public" in run
+    assert "continuing release" not in run

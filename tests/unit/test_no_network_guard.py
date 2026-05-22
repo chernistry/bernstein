@@ -19,7 +19,7 @@ import socket
 
 import pytest
 
-from tests.unit._no_network import is_loopback_address
+from tests.unit._no_network import block_network, is_loopback_address
 
 
 def test_guard_blocks_non_loopback_connection() -> None:
@@ -107,6 +107,36 @@ def test_allow_network_marker_disables_guard() -> None:
         assert "must not touch the network" not in str(excinfo.value)
     finally:
         sock.close()
+
+
+def test_nested_block_network_keeps_guard_active_after_inner_exit() -> None:
+    """Exiting a nested ``block_network()`` must not re-enable real egress.
+
+    The autouse fixture already holds the guard for this test. Entering a
+    second ``block_network()`` and leaving it must restore the *guard*, not the
+    genuine socket method - otherwise the remainder of the test (and any later
+    code in the same outer scope) could open a real connection. A naive
+    save/restore of the import-time methods would regress here.
+    """
+    # Sanity: the autouse guard is active right now.
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        with pytest.raises(RuntimeError, match=r"must not touch the network"):
+            sock.connect(("198.51.100.1", 80))
+    finally:
+        sock.close()
+
+    # Nest and exit an inner guard.
+    with block_network():
+        pass
+
+    # The guard must STILL be active after the inner context exits.
+    sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        with pytest.raises(RuntimeError, match=r"must not touch the network"):
+            sock2.connect(("198.51.100.1", 80))
+    finally:
+        sock2.close()
 
 
 @pytest.mark.parametrize(

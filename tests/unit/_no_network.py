@@ -129,13 +129,18 @@ def _guarded_connect_ex(self: socket.socket, address: Any) -> Any:
 def block_network() -> Iterator[None]:
     """Patch ``socket`` connect methods to block non-loopback egress.
 
-    Restores the genuine methods on exit. Intended for use by the autouse
-    fixture, but usable directly in a ``with`` block for targeted tests.
+    Reentrant-safe: on exit it restores whatever was installed on entry, not
+    the import-time methods. Nesting therefore composes - an inner context
+    exiting restores the outer guard rather than re-enabling real egress for
+    the remainder of the outer scope. Intended for use by the autouse fixture,
+    but usable directly in a ``with`` block for targeted tests.
     """
+    previous_connect = socket.socket.connect
+    previous_connect_ex = socket.socket.connect_ex
     socket.socket.connect = _guarded_connect  # type: ignore[method-assign]
     socket.socket.connect_ex = _guarded_connect_ex  # type: ignore[method-assign]
     try:
         yield
     finally:
-        socket.socket.connect = _REAL_CONNECT  # type: ignore[method-assign]
-        socket.socket.connect_ex = _REAL_CONNECT_EX  # type: ignore[method-assign]
+        socket.socket.connect = previous_connect  # type: ignore[method-assign]
+        socket.socket.connect_ex = previous_connect_ex  # type: ignore[method-assign]

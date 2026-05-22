@@ -1,0 +1,38 @@
+name: Main SHA marker
+
+# Cheap exact-SHA marker for every push to main.
+#
+# Heavy CI stays branch-cancellable in ci.yml. This workflow is intentionally
+# small and keyed by github.sha so newer main pushes do not cancel the marker
+# for an earlier landed commit.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: main-sha-marker-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  marker:
+    name: Main SHA marker
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Record exact SHA marker
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "sha=${HEAD_SHA}"
+          {
+            echo "## Main SHA marker"
+            echo ""
+            echo "- event: ${EVENT_NAME}"
+            echo "- ref: ${REF_NAME}"
+            echo "- sha: \`${HEAD_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -10,8 +10,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
-from bernstein.core.bulletin import MessageType  # noqa: TC001 - Pydantic needs at runtime
-from bernstein.core.task_store import ProgressEntry  # noqa: TC001 - Pydantic needs at runtime
+from bernstein.core.communication.bulletin import MessageType  # noqa: TC001 - Pydantic needs at runtime
+from bernstein.core.tasks.task_store import ProgressEntry
 
 # ---------------------------------------------------------------------------
 # Pydantic request / response schemas
@@ -65,17 +65,24 @@ def _enforce_dict_size(value: dict[str, Any] | None, *, field_name: str) -> dict
 
 
 def _ensure_task_enum(value: str, field_name: str) -> str:
-    """Reject scope/complexity values outside their Task enum at the API boundary.
+    """Reject task enum values outside their valid set at the API boundary.
 
     These fields stay typed as ``str`` for backward compatibility, so without
     this check an out-of-range value (e.g. ``""``) passes pydantic and then
-    raises ``ValueError`` deep in the task store when ``Scope(value)`` /
-    ``Complexity(value)`` is constructed, surfacing as an unhandled 500.
+    raises ``ValueError`` deep in the task store when the corresponding enum is
+    constructed, surfacing as an unhandled 500.
     Raising here turns that into a 422.
     """
-    from bernstein.core.tasks.models import Complexity, Scope
+    from bernstein.core.tasks.models import Complexity, Scope, TaskType
 
-    enum_cls = Scope if field_name == "scope" else Complexity
+    if field_name == "complexity":
+        enum_cls = Complexity
+    elif field_name == "scope":
+        enum_cls = Scope
+    elif field_name == "task_type":
+        enum_cls = TaskType
+    else:
+        raise ValueError(f"unsupported enum field: {field_name}")
     try:
         enum_cls(value)
     except ValueError:
@@ -111,7 +118,10 @@ class TaskCreate(BaseModel):
     effort: str | None = Field(default=None, max_length=_MAX_SHORT_STR_LEN)  # "max", "high", "medium", "low"
     cli: str | None = Field(default=None, max_length=_MAX_SHORT_STR_LEN)  # adapter override: "claude", "opencode", …
     batch_eligible: bool = False  # Non-urgent: eligible for provider batch APIs at ~50% cost
-    completion_signals: list[CompletionSignalSchema] = Field(default_factory=list, max_length=_MAX_LIST_LEN)
+    completion_signals: list[CompletionSignalSchema] = Field(
+        default_factory=lambda: list[CompletionSignalSchema](),
+        max_length=_MAX_LIST_LEN,
+    )
     slack_context: dict[str, Any] | None = None  # Slack slash command metadata
     metadata: dict[str, Any] = Field(default_factory=dict)  # Trigger-source metadata (e.g. issue_number)
     deadline: float | None = None  # Epoch timestamp when task must be complete
@@ -126,9 +136,9 @@ class TaskCreate(BaseModel):
     max_output_tokens: int | None = None  # Per-task output-token cap (escalated on retry)
     meta_messages: list[str] | None = Field(default=None, max_length=_MAX_LIST_LEN)
 
-    @field_validator("scope", "complexity")
+    @field_validator("scope", "complexity", "task_type")
     @classmethod
-    def _validate_scope_complexity(cls, value: str, info: ValidationInfo) -> str:
+    def _validate_task_enums(cls, value: str, info: ValidationInfo) -> str:
         return _ensure_task_enum(value, info.field_name or "")
 
     # cap serialized size of dict-of-any fields to block deeply-nested
@@ -214,7 +224,7 @@ class TaskResponse(BaseModel):
     created_at: float
     claimed_at: float | None = None
     deadline: float | None = None
-    progress_log: list[ProgressEntry] = Field(default_factory=list)
+    progress_log: list[ProgressEntry] = Field(default_factory=lambda: list[ProgressEntry]())
     version: int = 1
     parent_session_id: str | None = None  # Coordinator session that owns this task
     # Retry bookkeeping: typed fields are the single source of truth.

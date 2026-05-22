@@ -24,12 +24,10 @@ name: Pre-merge autosync
 #   * A `skip-autosync` PR label disables this workflow per-PR for operator
 #     escape-hatches (e.g. tracking-only WIP PRs that intentionally keep stale
 #     mirrors).
-#   * Push prefers BERNSTEIN_AUTOSYNC_TOKEN (fine-grained PAT or GitHub App
-#     token with contents:write on this repo). Falls back to GITHUB_TOKEN
-#     when the named secret is not configured; in that case GitHub mutes
-#     downstream workflow_run / pull_request triggers so the source PR's CI
-#     does not automatically re-run on the amend. The operator runbook in
-#     docs/operations/merge-gate.md documents the token setup.
+#   * Push requires BERNSTEIN_AUTOSYNC_TOKEN (fine-grained PAT or GitHub App
+#     token with contents:write on this repo). The workflow refuses to push
+#     with GITHUB_TOKEN because those commits do not retrigger the source PR's
+#     downstream checks.
 
 on:
   pull_request:
@@ -67,35 +65,40 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Require named autosync token
+        env:
+          BERNSTEIN_AUTOSYNC_TOKEN: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BERNSTEIN_AUTOSYNC_TOKEN}" ]; then
+            echo "::error::BERNSTEIN_AUTOSYNC_TOKEN is required for autosync pushes; refusing to push with GITHUB_TOKEN."
+            exit 1
+          fi
+
       # Persist credentials so the post-step push lands on the PR head ref.
-      # Use the named PAT/App token when present so the amend commit triggers
-      # downstream workflows on the PR (GITHUB_TOKEN-authored commits are
-      # muted by GitHub's recursion protection).
+      # Use the named PAT/App token so the amend commit triggers downstream
+      # workflows on the PR.
       - name: Checkout PR head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-          token: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN }}
 
       - uses: ./.github/actions/bootstrap
 
       - name: Install project (for the bernstein CLI)
         run: uv sync --no-dev --frozen
-        continue-on-error: true
 
       - name: Regenerate AGENTS.md mirrors
         run: uv run bernstein agents-md sync --workdir .
 
       - name: Run ruff fix and format
         run: |
-          # Tolerate non-zero from both steps so unrelated lint failures
-          # (e.g. cookiecutter Jinja sources in templates/, intentionally
-          # vulnerable security-pentest fixtures) never abort the inline
-          # auto-amend. The reformatted files still land in the next step.
-          uv run ruff check . --fix --unsafe-fixes || true
-          uv run ruff format . || true
+          set -euo pipefail
+          uv run ruff check . --fix --unsafe-fixes
+          uv run ruff format .
 
       - name: Detect drift
         id: drift
@@ -112,7 +115,6 @@ jobs:
         if: steps.drift.outputs.changed == 'true'
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          USING_NAMED_TOKEN: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN != '' }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -125,6 +127,3 @@ jobs:
           # let the push fail and the next pull_request.synchronize event
           # will re-run the job.
           git push origin "HEAD:${PR_HEAD_REF}"
-          if [ "${USING_NAMED_TOKEN}" != "true" ]; then
-            echo "::notice::BERNSTEIN_AUTOSYNC_TOKEN not configured. The amend commit was authored by GITHUB_TOKEN and will NOT trigger downstream workflows on the source PR. See docs/operations/merge-gate.md for the named-secret setup."
-          fi

@@ -77,7 +77,11 @@ def test_pr_review_runs_local_action_from_base_checkout(review_steps: list[dict[
     run = fetch_diff.get("run", "")
     assert isinstance(run, str)
     assert ".bernstein-pr.diff" in run, "PR diff must be fetched as data for review context"
-    assert "github.event.pull_request.diff_url" in run
+    assert "github.event.pull_request.diff_url" not in run, "PR diff URL expression must not be expanded in shell"
+    assert "${PR_DIFF_URL}" in run
+    fetch_env = fetch_diff.get("env", {})
+    assert isinstance(fetch_env, dict)
+    assert fetch_env.get("PR_DIFF_URL") == "${{ github.event.pull_request.diff_url }}"
 
     assert review_step.get("uses") == "./"
     inputs = review_step.get("with", {})

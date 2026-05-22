@@ -54,11 +54,12 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PR_DIFF_URL: ${{ github.event.pull_request.diff_url }}
         run: |
           curl --fail --location --silent --show-error --retry 3 \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github.v3.diff" \
-            "${{ github.event.pull_request.diff_url }}" \
+            "${PR_DIFF_URL}" \
             -o .bernstein-pr.diff
 
       - name: Review PR

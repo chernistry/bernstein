@@ -656,12 +656,7 @@ class SlackBridge(BridgeProtocol):
         key: str,
     ) -> None:
         """Sleep ``delay`` then flush the pending body for ``key``."""
-        try:
-            await asyncio.sleep(delay)
-        except asyncio.CancelledError:
-            # Propagate cancellation after releasing local state; swallowing
-            # CancelledError silently would desync the asyncio task tree.
-            raise
+        await asyncio.sleep(delay)
         async with self._edit_lock:
             state = self._edit_state.get(key)
             if state is None or not state.pending_text:

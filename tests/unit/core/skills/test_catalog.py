@@ -12,6 +12,7 @@ Covers the acceptance criteria:
 
 from __future__ import annotations
 
+import ast
 import textwrap
 from collections.abc import Callable
 from dataclasses import replace
@@ -51,6 +52,9 @@ from bernstein.core.skills.catalog import (
     worktree_id_for,
 )
 from bernstein.core.skills.catalog.signature import attach_signature
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+CATALOG_INSTALLER_PATH = Path("src/bernstein/core/skills/catalog/installer.py")
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -823,3 +827,22 @@ def test_canonical_payload_excludes_signature_and_verified() -> None:
         )
     )
     assert bytes_a == bytes_b
+
+
+def test_catalog_installer_has_no_redundant_catch_and_rethrow() -> None:
+    """The catalog installer should let CatalogInstallError propagate directly."""
+    source = (REPO_ROOT / CATALOG_INSTALLER_PATH).read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(CATALOG_INSTALLER_PATH))
+
+    redundant_handlers = [
+        handler
+        for handler in ast.walk(tree)
+        if isinstance(handler, ast.ExceptHandler)
+        and isinstance(handler.type, ast.Name)
+        and handler.type.id == "CatalogInstallError"
+        and len(handler.body) == 1
+        and isinstance(handler.body[0], ast.Raise)
+        and handler.body[0].exc is None
+    ]
+
+    assert not redundant_handlers

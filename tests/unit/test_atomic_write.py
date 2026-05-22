@@ -14,6 +14,7 @@ These tests cover the crash-safe persistence contract:
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import threading
@@ -27,6 +28,9 @@ from bernstein.core.persistence.atomic_write import (
     write_atomic_json,
     write_atomic_text,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ATOMIC_WRITE_PATH = Path("src/bernstein/core/persistence/atomic_write.py")
 
 
 def test_atomic_write_bytes_creates_file(tmp_path: Path) -> None:
@@ -119,6 +123,25 @@ def test_atomic_write_crash_during_write_cleans_tmp(tmp_path: Path) -> None:
     assert fsync_calls, "fsync should have been attempted"
     # sanity: real os.fsync is unchanged
     assert os.fsync is original_fsync
+
+
+def test_atomic_write_has_no_redundant_catch_and_rethrow() -> None:
+    """Atomic write cleanup handlers should do work before rethrowing."""
+    source = (REPO_ROOT / ATOMIC_WRITE_PATH).read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(ATOMIC_WRITE_PATH))
+
+    redundant_handlers = [
+        handler
+        for handler in ast.walk(tree)
+        if isinstance(handler, ast.ExceptHandler)
+        and isinstance(handler.type, ast.Name)
+        and handler.type.id == "BaseException"
+        and len(handler.body) == 1
+        and isinstance(handler.body[0], ast.Raise)
+        and handler.body[0].exc is None
+    ]
+
+    assert not redundant_handlers
 
 
 def test_atomic_write_tmp_path_unique_per_call(tmp_path: Path) -> None:

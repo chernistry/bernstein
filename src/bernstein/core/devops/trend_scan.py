@@ -63,7 +63,7 @@ Tier = Literal[1, 2, 3]
 GapStatus = Literal["new", "duplicate", "recently-closed"]
 
 
-_WORD_RE = re.compile(r"[A-Za-z][\w+-]{1,}", re.ASCII)
+_WORD_RE = re.compile(r"[A-Za-z][\w+-]+", re.ASCII)
 
 
 def _tokens(text: str) -> list[str]:

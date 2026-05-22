@@ -317,15 +317,16 @@ def _idle_mode(log_path: Path) -> None:
             write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
             return default
 
-    def _float_env(key: str, default: float) -> float:
+    def _float_env(key: str, default: float, *, invalid_default: float | None = None) -> float:
         raw = os.environ.get(key, "").strip()
         if not raw:
             return default
         try:
             return float(raw)
         except ValueError:
-            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
-            return default
+            fallback = default if invalid_default is None else invalid_default
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {fallback}")
+            return fallback
 
     lo = _int_env("BERNSTEIN_MOCK_IDLE_MIN_S", 15)
     hi = _int_env("BERNSTEIN_MOCK_IDLE_MAX_S", 120)
@@ -334,7 +335,7 @@ def _idle_mode(log_path: Path) -> None:
     hi = max(0, hi)
     if hi < lo:
         lo, hi = hi, lo
-    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05)
+    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05, invalid_default=0.0)
     will_fail = random.random() < fail_rate
     sleep_s = random.randint(lo, hi) if hi > 0 else 0
 

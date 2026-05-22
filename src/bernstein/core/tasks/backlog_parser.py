@@ -259,8 +259,8 @@ _CHECKBOX_PREFIX = re.compile(r"^[-*]\s+\[[ xX]\]\s+")
 _MARKER_TOKEN = re.compile(r"^\[([^\[\]]+)\]\s*")
 # Inline dependency arrow: ``-> T002, T003`` at the end of a line.
 _DEPENDS_INLINE = re.compile(r"(?:->|→)\s*([\w,\s-]+?)\s*$", re.ASCII)
-_TASK_ID = re.compile(r"^T[0-9]+[\w-]*$", re.ASCII)
-_STORY_ID = re.compile(r"^US[0-9]+[\w-]*$", re.IGNORECASE | re.ASCII)
+_TASK_ID = re.compile(r"^T\d+[\w-]*$", re.ASCII)
+_STORY_ID = re.compile(r"^US\d+[\w-]*$", re.IGNORECASE | re.ASCII)
 
 
 def parse_task_line(line: str) -> ParsedTaskLine | None:

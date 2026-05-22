@@ -456,7 +456,7 @@ jobs:
               # own glob check so paths outside src/ tests/ scripts/
               # remain blocked.
               case "$f" in
-                src/bernstein/*.py|src/bernstein/**/*.py|tests/*.py|tests/**/*.py|scripts/*.py|scripts/**/*.py)
+                src/bernstein/*.py|tests/*.py|scripts/*.py)
                   WS_FLAG="--whitespace-only"
                   ;;
               esac
@@ -474,29 +474,44 @@ jobs:
           fi
 
       - name: Diff-aware self-test (Capability 11)
+        id: self_test
         if: steps.cordon.outputs.noop != 'true'
         run: |
           # v2 wave one: run only the failing job's local equivalent.
           # For ruff-format that means ruff check; for typos that means
           # typos against the now-augmented allowlist. v2 wave two will
           # wire core/quality/blast_radius to pick a more targeted set.
-          uv run ruff check src/ || true
-          uv run ruff format --check src/ tests/ scripts/ || true
+          set -euo pipefail
+          VALIDATION_FAILED=0
+          if ! uv run ruff check src/; then
+            VALIDATION_FAILED=1
+          fi
+          if ! uv run ruff format --check src/ tests/ scripts/; then
+            VALIDATION_FAILED=1
+          fi
           if command -v typos >/dev/null 2>&1; then
-            typos || true
+            if ! typos; then
+              VALIDATION_FAILED=1
+            fi
+          fi
+          if [ "$VALIDATION_FAILED" -eq 1 ]; then
+            echo "::error::auto-heal validation failed"
+            echo "validation_failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "validation_failed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Blast-radius gate (Capability 15)
-        if: steps.cordon.outputs.noop != 'true'
+        if: steps.cordon.outputs.noop != 'true' && steps.self_test.outputs.validation_failed != 'true'
         run: |
           # The autoheal patch must score below the blast-radius
           # threshold; anything higher requires human review and the
           # workflow escalates instead of merging.
           uv run python scripts/auto_heal_v2_imports.py blast_radius
 
-      - name: Open heal PR
-        id: open_pr
-        if: steps.cordon.outputs.noop != 'true'
+      - name: Push heal branch
+        id: push_branch
+        if: steps.cordon.outputs.noop != 'true' && steps.self_test.outputs.validation_failed != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHORT_SHA: ${{ needs.triage.outputs.short_sha }}
@@ -510,10 +525,50 @@ jobs:
           git add -A
           git commit -m "fix(ci-heal-v2): apply ${STRATEGY} for ${SHORT_SHA}"
 
-          AUTHKEY="x-access-token:${GH_TOKEN}@github.com"
-          # Strip any persisted creds and push via HTTPS with token.
-          REMOTE_URL="https://${AUTHKEY}/${{ github.repository }}.git"
-          git push "$REMOTE_URL" "$BRANCH:$BRANCH"
+          mkdir -p .sdd/autoheal-attestation
+          git show --format=fuller --patch HEAD > .sdd/autoheal-attestation/heal.patch
+
+          # Strip any persisted creds and push via HTTPS with a temporary
+          # auth header, keeping credentials out of the remote URL.
+          git remote set-url origin "https://github.com/${{ github.repository }}.git"
+          AUTH_HEADER=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${AUTH_HEADER}"
+          trap 'git config --local --unset-all http.https://github.com/.extraheader || true' EXIT
+          git push origin "$BRANCH:$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger CI on heal PR branch
+        id: ci_dispatch
+        # PRs opened via secrets.GITHUB_TOKEN do not emit `pull_request`
+        # events for downstream workflows, so CI never auto-starts on the
+        # newly pushed heal branch. Dispatch ci.yml explicitly before the
+        # PR is opened so dispatch failure can block the PR path.
+        if: steps.push_branch.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAL_BRANCH: ${{ steps.push_branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          if gh workflow run ci.yml --ref "${HEAL_BRANCH}"; then
+            echo "validation_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::ci.yml dispatch failed for ${HEAL_BRANCH}"
+            echo "validation_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open heal PR
+        id: open_pr
+        if: >
+          steps.cordon.outputs.noop != 'true' &&
+          steps.self_test.outputs.validation_failed != 'true' &&
+          steps.ci_dispatch.outputs.validation_failed != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHORT_SHA: ${{ needs.triage.outputs.short_sha }}
+          STRATEGY: ${{ needs.triage.outputs.strategy }}
+          HEAL_BRANCH: ${{ steps.push_branch.outputs.branch }}
+        run: |
+          set -euo pipefail
           PR_BODY=$(cat <<EOF
           Auto-heal v2 applied strategy \`${STRATEGY}\` for failing
           commit \`${SHORT_SHA}\`.
@@ -523,7 +578,7 @@ jobs:
           )
           PR_URL=$(gh pr create \
             --base main \
-            --head "$BRANCH" \
+            --head "$HEAL_BRANCH" \
             --title "fix(ci-heal-v2): ${STRATEGY} for ${SHORT_SHA}" \
             --body "$PR_BODY" \
             --label auto-heal \
@@ -532,26 +587,11 @@ jobs:
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger CI on heal PR branch
-        # PRs opened via secrets.GITHUB_TOKEN do not emit `pull_request`
-        # events for downstream workflows, so CI never auto-starts on the
-        # newly pushed heal branch. Dispatch ci.yml explicitly so a heal
-        # PR has green/red signal without requiring a human re-trigger.
-        # Best-effort: a dispatch failure must not block the heal PR.
-        if: steps.cordon.outputs.noop != 'true' && steps.open_pr.outputs.pr_url != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAL_BRANCH: ci-heal/${{ needs.triage.outputs.short_sha }}
-        run: |
-          gh workflow run ci.yml --ref "${HEAL_BRANCH}" \
-            || echo "::warning::ci.yml dispatch failed for ${HEAL_BRANCH} -- PR review will trigger"
-
       - name: Capability 19 - SLSA build provenance attestation
-        if: steps.cordon.outputs.noop != 'true'
+        if: steps.open_pr.outputs.pr_url != ''
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
-          subject-name: "autoheal-${{ needs.triage.outputs.short_sha }}"
-          subject-digest: "sha256:${{ needs.triage.outputs.head_sha }}"
+          subject-path: ".sdd/autoheal-attestation/heal.patch"
         continue-on-error: true
 
       - name: Record outcome (bandit + bayesian)

@@ -37,6 +37,29 @@ def workflow(workflow_text: str) -> dict[str, object]:
     return yaml.safe_load(workflow_text)
 
 
+def _heal_steps(workflow: dict[str, object]) -> list[dict[str, object]]:
+    jobs = workflow.get("jobs", {})
+    assert isinstance(jobs, dict)
+    heal = jobs.get("heal", {})
+    assert isinstance(heal, dict)
+    steps = heal.get("steps", [])
+    assert isinstance(steps, list)
+    return [step for step in steps if isinstance(step, dict)]
+
+
+def _heal_step(workflow: dict[str, object], name: str) -> dict[str, object]:
+    for step in _heal_steps(workflow):
+        if step.get("name") == name:
+            return step
+    raise AssertionError(f"heal step missing: {name}")
+
+
+def _step_run(workflow: dict[str, object], name: str) -> str:
+    run = _heal_step(workflow, name).get("run", "")
+    assert isinstance(run, str)
+    return run
+
+
 def test_workflow_file_exists() -> None:
     assert WORKFLOW.exists(), "v2 auto-heal workflow must live at .github/workflows/auto-heal.yml"
 
@@ -130,6 +153,50 @@ def test_no_attribution_strings_in_workflow(workflow_text: str) -> None:
     banned = ["Co-Authored-By: Claude", "Generated with Claude"]
     for token in banned:
         assert token not in workflow_text, f"banned attribution string: {token}"
+
+
+def test_attestation_does_not_label_git_sha_as_sha256(workflow_text: str) -> None:
+    """A git commit SHA is not a SHA-256 subject digest."""
+    unsafe = re.compile(r"subject-digest:\s*[\"']?sha256:\$\{\{\s*needs\.triage\.outputs\.head_sha\s*}}")
+    assert unsafe.search(workflow_text) is None
+
+
+def test_self_tests_are_blocking_and_export_validation_result(workflow: dict[str, object]) -> None:
+    """Self-test failures must stop the heal PR path."""
+    self_test = _heal_step(workflow, "Diff-aware self-test (Capability 11)")
+    assert self_test.get("id") == "self_test"
+
+    run = _step_run(workflow, "Diff-aware self-test (Capability 11)")
+    assert "|| true" not in run
+    assert "validation_failed=true" in run
+    assert "validation_failed=false" in run
+
+
+def test_open_pr_requires_successful_validation(workflow: dict[str, object]) -> None:
+    """The PR-opening step must be gated by every blocking validation result."""
+    open_pr = _heal_step(workflow, "Open heal PR")
+    if_clause = open_pr.get("if", "")
+    assert isinstance(if_clause, str)
+
+    assert "steps.self_test.outputs.validation_failed != 'true'" in if_clause
+    assert "steps.ci_dispatch.outputs.validation_failed != 'true'" in if_clause
+
+
+def test_ci_dispatch_failure_is_blocking(workflow: dict[str, object]) -> None:
+    """CI dispatch failure must mark validation failed, not only warn."""
+    dispatch = _heal_step(workflow, "Trigger CI on heal PR branch")
+    assert dispatch.get("id") == "ci_dispatch"
+
+    run = _step_run(workflow, "Trigger CI on heal PR branch")
+    assert "|| echo \"::warning::ci.yml dispatch failed" not in run
+    assert "validation_failed=true" in run
+    assert "validation_failed=false" in run
+
+
+def test_push_does_not_embed_token_in_remote_url(workflow_text: str) -> None:
+    """Do not construct a remote URL containing x-access-token credentials."""
+    assert "x-access-token:${GH_TOKEN}@github.com" not in workflow_text
+    assert "https://${AUTHKEY}" not in workflow_text
 
 
 # ---------- Capability matrix coverage ----------------------------------------

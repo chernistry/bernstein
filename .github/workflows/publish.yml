@@ -34,22 +34,25 @@ jobs:
         env:
           RELEASE_REF: ${{ github.ref_name }}
         run: |
+          set -euo pipefail
+
           # Install test dependencies
-          uv pip install mcp a2a || true
+          uv pip install mcp a2a
 
           # Run protocol tests
-          uv run pytest tests/protocol/ -v 2>&1 | tee test-output.log || true
+          set +e
+          uv run pytest tests/protocol/ -v 2>&1 | tee test-output.log
+          pytest_exit_code=${PIPESTATUS[0]}
+          set -e
 
           # Generate results
-          python << 'EOF'
+          PYTEST_EXIT_CODE="$pytest_exit_code" python << 'EOF'
           import json
           import os
 
           results = []
-          test_output = open('test-output.log').read()
-
-          # Simplified: mark as pass/fail based on pytest output
-          status = "pass" if "FAILED" not in test_output else "fail"
+          pytest_exit_code = int(os.environ["PYTEST_EXIT_CODE"])
+          status = "pass" if pytest_exit_code == 0 else "fail"
 
           result = {
             "python": "3.12",
@@ -68,6 +71,8 @@ jobs:
           with open('release-compat-results.json', 'w') as f:
               json.dump(compat_data, f, indent=2)
           EOF
+
+          exit "$pytest_exit_code"
 
       - name: Check against baseline
         run: |
@@ -113,6 +118,8 @@ jobs:
           enable-uv-cache: "false"
       - name: Quick lint check (full tests already passed in CI)
         run: uv run ruff check src/
+      - name: Release test guard
+        run: uv run python scripts/run_tests.py -k release -x
 
   version-check:
     name: Verify tag matches pyproject.toml
@@ -224,11 +231,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release create "$TAG" dist/* \
-            --title "$TAG" \
-            --generate-notes \
-            || echo "Release already exists"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --title "$TAG" \
+              --generate-notes
+          fi
+
+          asset_count=$(gh release view "$TAG" --json assets --jq '.assets | length')
+          if [ "$asset_count" -eq 0 ]; then
+            echo "::error::Release $TAG has no assets"
+            exit 1
+          fi
 
   publish-npm:
     name: Publish npm wrapper
@@ -275,4 +293,3 @@ jobs:
           if ! npm publish --access public; then
             echo "::warning::npm publish failed - continuing release. Likely cause: NPM_TOKEN needs to be re-issued with publish rights for bernstein-orchestrator."
           fi
-

@@ -326,6 +326,21 @@ def test_install_local_rejects_invisible_unicode_by_default(tmp_path: Path) -> N
     assert not install_dir.exists()
 
 
+def test_install_local_wraps_invalid_utf8_for_sanitizer_gate(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    source = tmp_path / "bad-skill"
+    source.mkdir()
+    (source / "SKILL.md").write_bytes(
+        b"---\nname: bad-skill\ndescription: Invalid bytes.\n---\n\n# Bad skill\n\xff\n",
+    )
+
+    install_dir = scope_root(InstallScope.PROJECT, workdir=workdir) / "bad-skill"
+    with pytest.raises(SkillLifecycleError, match="cannot read SKILL.md for sanitizer gate"):
+        install_local(source, scope=InstallScope.PROJECT, workdir=workdir)
+    assert not install_dir.exists()
+
+
 def test_install_local_accepts_invisible_unicode_when_explicitly_allowed(tmp_path: Path) -> None:
     workdir = tmp_path / "project"
     workdir.mkdir()

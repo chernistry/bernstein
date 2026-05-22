@@ -552,7 +552,7 @@ def _raise_for_invisible_unicode(
     skill_md = skill_dir / "SKILL.md"
     try:
         content = skill_md.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise SkillLifecycleError(f"{skill_name}: cannot read SKILL.md for sanitizer gate: {exc}") from exc
 
     _cleaned, count = strip_invisible_tags(content)

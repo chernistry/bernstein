@@ -72,6 +72,24 @@ def test_parse_skill_md_accepts_optional_fields(tmp_path: Path) -> None:
     assert manifest.author == "Team QA"
 
 
+def test_parse_skill_md_accepts_sandbox_profile(tmp_path: Path) -> None:
+    skill_md = _write(
+        tmp_path / "SKILL.md",
+        """
+        ---
+        name: sandboxed
+        description: Skill declaring a sandbox profile for future injector support.
+        sandbox_profile: read-only
+        ---
+        body
+        """,
+    )
+
+    manifest, _ = parse_skill_md(skill_md)
+
+    assert manifest.sandbox_profile == "read-only"
+
+
 def test_parse_skill_md_accepts_future_manifest_schema_additive_fields(tmp_path: Path) -> None:
     skill_md = _write(
         tmp_path / "SKILL.md",

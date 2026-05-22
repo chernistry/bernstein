@@ -47,8 +47,19 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
+
+      - name: Fetch PR diff
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --location --silent --show-error --retry 3 \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.diff_url }}" \
+            -o .bernstein-pr.diff
 
       - name: Review PR
         if: steps.check.outputs.skip != 'true'
@@ -58,7 +69,8 @@ jobs:
           task: >
             Review pull request #${{ github.event.pull_request.number }}
             titled "${{ github.event.pull_request.title }}".
-            Check code quality, run the test suite, verify type correctness, and
+            Use .bernstein-pr.diff as the PR diff data. Check code quality,
+            run the test suite, verify type correctness, and
             identify any security or correctness issues. Summarise your findings
             and post them as a PR comment. Do not push any changes.
           budget: "3.00"

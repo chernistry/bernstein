@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac, entry_hash
-from bernstein.core.lineage.identity import AgentCard, verify_detached
+from bernstein.core.lineage.identity import AgentCard, jws_header_kid, verify_detached
 from bernstein.core.lineage.tips import compute_tips, detect_forks
 
 if TYPE_CHECKING:
@@ -40,12 +40,39 @@ class GateResult:
     failures: list[str] = field(default_factory=list)
 
 
-def _load_cards(cards_dir: Path) -> dict[str, AgentCard]:
-    """Load all Agent Cards under cards_dir/<agent-id>/card.json."""
-    out: dict[str, AgentCard] = {}
+def _load_cards(cards_dir: Path) -> tuple[dict[tuple[str, str], AgentCard], list[str]]:
+    """Load all Agent Cards, keyed by ``(agent_id, kid)``.
+
+    Two on-disk layouts are accepted so the gate stays verifiable across a key
+    rotation (issue #1837):
+
+      * Legacy single-card: ``<agent-id>/card.json`` - one key per agent, the
+        layout production writes today.
+      * Per-kid: ``<agent-id>/<kid>/card.json`` - lets an agent keep multiple
+        historical keys side by side after rotating its ``kid``.
+
+    The card's own ``agent_id`` and ``kid`` body fields are authoritative for
+    the map key (not the directory names), so a misfiled card cannot
+    masquerade under a different identity.
+
+    When two distinct card payloads map to the same ``(agent_id, kid)`` the
+    loader does *not* pick a winner: "last one read wins" would make the
+    verification outcome depend on filesystem read order, which a kid-binding
+    security gate must never do (issue #1837). The conflicting key is reported
+    as an explicit failure naming the ``agent_id``/``kid``. Byte-identical
+    duplicates - the normal case when the legacy and per-kid layouts carry the
+    same key - are accepted without error.
+
+    Returns:
+        ``(cards, failures)`` where ``cards`` maps ``(agent_id, kid)`` to the
+        loaded :class:`AgentCard` and ``failures`` lists any conflict messages.
+    """
+    out: dict[tuple[str, str], AgentCard] = {}
+    failures: list[str] = []
     if not cards_dir.exists():
-        return out
-    for card_file in cards_dir.glob("*/card.json"):
+        return out, failures
+    # Legacy ``<agent-id>/card.json`` then per-kid ``<agent-id>/<kid>/card.json``.
+    for card_file in (*cards_dir.glob("*/card.json"), *cards_dir.glob("*/*/card.json")):
         try:
             data = json.loads(card_file.read_text())
         except (OSError, json.JSONDecodeError):
@@ -55,13 +82,24 @@ def _load_cards(cards_dir: Path) -> dict[str, AgentCard]:
         pub = data.get("public_key_pem")
         if not (isinstance(agent_id, str) and isinstance(kid, str) and isinstance(pub, str)):
             continue
-        out[agent_id] = AgentCard(
+        card = AgentCard(
             agent_id=agent_id,
             kid=kid,
             public_key_pem=pub,
             protocol_version=data.get("protocolVersion", "a2a/1.0"),
         )
-    return out
+        key = (agent_id, kid)
+        prev = out.get(key)
+        if prev is not None and prev != card:
+            # Two on-disk cards claim the same identity with different key
+            # material or protocol version. Refuse to choose; surface it.
+            failures.append(
+                f"conflicting agent cards for (agent_id={agent_id!r}, kid={kid!r}): "
+                "two on-disk cards map to the same identity with different contents"
+            )
+            continue
+        out[key] = card
+    return out, failures
 
 
 def _shard_path(artefact_path: str) -> tuple[str, str]:
@@ -128,7 +166,8 @@ def check(
     if not entries:
         return GateResult(ok=not failures, failures=failures)
 
-    cards = _load_cards(agent_cards_dir)
+    cards, card_failures = _load_cards(agent_cards_dir)
+    failures.extend(card_failures)
     log_dir = log_path.parent
 
     # Per-entry signature + HMAC + card lookups.
@@ -136,9 +175,19 @@ def check(
     for entry in entries:
         eh = entry_hash(entry)
         known_hashes.add(eh)
-        card = cards.get(entry.agent_id)
+        # Bind verification to the kid the entry *signed*: resolve the card by
+        # the ``(agent_id, agent_card_kid)`` pair, not by ``agent_id`` alone.
+        # Selecting the card by agent_id only let a kid-substitution slip
+        # through and broke every historical entry on key rotation - see
+        # issue #1837. A missing card for that exact kid is a kid-binding
+        # failure, distinct from a generic bad signature.
+        card = cards.get((entry.agent_id, entry.agent_card_kid))
         if card is None:
-            failures.append(f"{entry.artefact_path}: unknown agent card for {entry.agent_id!r} (entry {eh})")
+            failures.append(
+                f"{entry.artefact_path}: no agent card for "
+                f"(agent_id={entry.agent_id!r}, kid={entry.agent_card_kid!r}) - "
+                f"kid binding cannot be established (entry {eh})"
+            )
             continue
         # Signature
         sig_path = _signature_path(log_dir, entry, eh)
@@ -149,6 +198,17 @@ def check(
                 jws = sig_path.read_text().strip()
             except OSError as exc:
                 failures.append(f"{entry.artefact_path}: cannot read signature {sig_path}: {exc}")
+                continue
+            # The JWS header kid must match the kid the entry committed to in
+            # its signed body. A divergence means the signature was made under
+            # a different key id than the entry claims; reject it as a
+            # kid-binding failure even if it would verify against some card.
+            header_kid = jws_header_kid(jws)
+            if header_kid != entry.agent_card_kid:
+                failures.append(
+                    f"{entry.artefact_path}: kid binding mismatch on entry {eh} - "
+                    f"signed body kid {entry.agent_card_kid!r} != JWS header kid {header_kid!r}"
+                )
                 continue
             canonical = canonicalise(entry)
             if not verify_detached(canonical, jws, card):

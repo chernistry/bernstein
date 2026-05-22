@@ -14,6 +14,7 @@ option (RFC 7797). Algorithm is EdDSA per RFC 8037.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from dataclasses import dataclass
 
@@ -81,6 +82,34 @@ def sign_detached(payload: bytes, private_key_pem: str, *, kid: str) -> str:
     return protected + ".." + _b64url(sig)
 
 
+def jws_header_kid(jws: str) -> str | None:
+    """Return the ``kid`` from a detached JWS protected header.
+
+    Returns ``None`` when the JWS is malformed or the header has no string
+    ``kid``. The gate uses this to bind the *signed-body* ``agent_card_kid``
+    to the JWS the entry actually carries (issue #1837); a divergence between
+    the two is a verification failure, not merely a wrong key. Never raises on
+    bad input.
+    """
+    try:
+        protected_b64, empty, sig_b64 = jws.split(".", maxsplit=2)
+    except ValueError:
+        return None
+    if empty != "" or "." in sig_b64:
+        return None
+    try:
+        header = json.loads(_b64url_decode(protected_b64))
+    except (ValueError, json.JSONDecodeError, binascii.Error, TypeError):
+        # ``binascii.Error`` is a ``ValueError`` subclass on CPython, so the
+        # bare ``ValueError`` above already catches malformed base64url; it is
+        # named explicitly to keep the "Never raises" contract robust if that
+        # hierarchy ever changes. ``TypeError`` guards a non-``str`` header
+        # segment reaching the decoder.
+        return None
+    kid = header.get("kid")
+    return kid if isinstance(kid, str) else None
+
+
 def verify_detached(payload: bytes, jws: str, card: AgentCard) -> bool:
     """Verify a detached Ed25519 JWS against the Agent Card's public key.
 
@@ -98,7 +127,7 @@ def verify_detached(payload: bytes, jws: str, card: AgentCard) -> bool:
         return False  # 4+ segments
     try:
         header = json.loads(_b64url_decode(protected_b64))
-    except (ValueError, json.JSONDecodeError):
+    except (ValueError, json.JSONDecodeError, binascii.Error, TypeError):
         return False
     if header.get("alg") != "EdDSA":
         return False
@@ -113,7 +142,7 @@ def verify_detached(payload: bytes, jws: str, card: AgentCard) -> bool:
     signing_input = protected_b64.encode("ascii") + b"." + payload
     try:
         sig_bytes = _b64url_decode(sig_b64)
-    except (ValueError, base64.binascii.Error):
+    except (ValueError, binascii.Error):
         return False
     try:
         pub.verify(sig_bytes, signing_input)

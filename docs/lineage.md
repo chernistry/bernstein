@@ -154,8 +154,32 @@ make -C examples/lineage demo-eu-mfg
 |---|---|---|
 | `bernstein-verify pack` exits 1 with "fork detected" | Two agents wrote the same artefact in parallel without a Steward merge. | Run `bernstein lineage merge <path>` to record a merge entry; re-pack. |
 | `verify` exits 1 with "invalid signature" | The log was edited after the fact, or the Agent Card was swapped. | Treat as a security incident; do not ship the pack. |
+| `verify` exits 1 with "kid binding cannot be established" | No Agent Card on disk matches the `(agent_id, agent_card_kid)` the entry signed - typically a card for the entry's key id is missing after a rotation. | Restore the card for that key id under the per-kid layout (see [Key rotation](#key-rotation)); re-verify. |
+| `verify` exits 1 with "kid binding mismatch" | An entry's signed body names one key id while its JWS header names another - a key-substitution attempt. | Treat as a security incident; do not ship the pack. |
 | `verify` exits 1 with "HMAC mismatch" | Operator HMAC key rotated mid-window. | Re-pack with the correct key context; consult ADR-009 §6. |
 | Genesis entry shows up with `parent_hashes: []` | First-time write of a file that existed before lineage was enabled. | Expected - see ADR-009 §11 on bootstrap. |
+
+## Key rotation
+
+Each lineage entry signs the key id (`agent_card_kid`) it was produced under, and the gate verifies the signature against the Agent Card for that exact `(agent_id, kid)` pair - not against whatever card currently sits at the agent id. This keeps historical entries verifiable after an agent rotates its key.
+
+The gate reads two on-disk Agent Card layouts:
+
+| Layout | Path | Use |
+|---|---|---|
+| Single-card | `<cards-dir>/<agent-id>/card.json` | One key per agent (default). |
+| Per-kid | `<cards-dir>/<agent-id>/<kid>/card.json` | Multiple historical keys for one agent, one card per key id. |
+
+To rotate a key without invalidating prior entries, keep the old card and add the new one under the per-kid layout:
+
+```
+.sdd/agents/
+  agent:claude-worker-3/
+    k-2025-01/card.json   # old key - retained so old entries still verify
+    k-2025-06/card.json   # new key - signs entries from the rotation onward
+```
+
+Entries signed under `k-2025-01` continue to verify against the retained card; new entries under `k-2025-06` verify against the new one. Removing a card for a key id that historical entries still reference makes those entries fail the gate with a kid-binding error.
 
 ## See also
 

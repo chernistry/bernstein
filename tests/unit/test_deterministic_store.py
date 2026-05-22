@@ -42,12 +42,17 @@ def _write_recording(
     provider: str = "openrouter_free",
     temperature: float = 0.7,
     max_tokens: int = 4000,
+    count: int = 1,
 ) -> Path:
-    """Write a one-line ``llm_calls.jsonl`` recording and return its path.
+    """Write a ``count``-line ``llm_calls.jsonl`` recording and return its path.
 
     The recording is produced via :func:`_prompt_key` so the on-disk key
     matches whatever the production keying does, keeping the fixture
     honest if the key recipe changes.
+
+    ``count`` repeats the same entry that many times. Because ``get_replay``
+    consumes one recorded response per hit (per-key FIFO, issue #1846), a key
+    that must serve N hits needs N recorded lines.
     """
     run_dir.mkdir(parents=True, exist_ok=True)
     calls_path = run_dir / "llm_calls.jsonl"
@@ -62,7 +67,7 @@ def _write_recording(
         "prompt_len": len(prompt),
         "response": response,
     }
-    calls_path.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+    calls_path.write_text((json.dumps(entry) + "\n") * count, encoding="utf-8")
     return calls_path
 
 
@@ -220,11 +225,13 @@ class TestCoverageCounters:
     def test_hits_and_misses_counted(self, tmp_path: Path) -> None:
         """Hits and strict violations are tallied for the coverage line."""
         run_dir = tmp_path / "runs" / "cov"
-        _write_recording(run_dir)
+        # Two recorded lines for the key: get_replay consumes one per hit
+        # (per-key FIFO, issue #1846), so two hits need two recordings.
+        _write_recording(run_dir, count=2)
         store = DeterministicStore(run_dir, replay=True, strict=True)
 
-        store.get_replay(_PROMPT, _MODEL)  # hit
-        store.get_replay(_PROMPT, _MODEL)  # hit
+        store.get_replay(_PROMPT, _MODEL)  # hit (consumes recording 1)
+        store.get_replay(_PROMPT, _MODEL)  # hit (consumes recording 2)
         with pytest.raises(ReplayMissError):
             store.get_replay("miss", _MODEL)  # strict violation
 

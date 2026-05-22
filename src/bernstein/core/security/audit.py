@@ -34,6 +34,12 @@ from typing import Any
 
 _JSONL_GLOB = "*.jsonl"
 
+#: Glob for archived (gzip-compressed) daily segments under the archive
+#: subdirectory.  ``archive`` writes ``<YYYY-MM-DD>.jsonl.gz``; the verifier
+#: and chain-recovery paths treat these as first-class chain links rather
+#: than out-of-band cold storage (issue #1835).
+_ARCHIVED_GLOB = "*.jsonl.gz"
+
 logger = logging.getLogger(__name__)
 
 _GENESIS_HMAC = "0" * 64
@@ -256,16 +262,29 @@ def _split_jsonl_bytes(raw_bytes: bytes) -> list[bytes]:
     return parts
 
 
-def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[str]) -> str:
-    """Verify all entries in a single JSONL log file, appending errors."""
-    raw_bytes = log_path.read_bytes()
+def _verify_log_bytes(
+    raw_bytes: bytes,
+    display_name: str,
+    prev_hmac: str,
+    key: bytes,
+    errors: list[str],
+) -> str:
+    """Verify the JSONL entries in ``raw_bytes``, appending errors.
+
+    ``display_name`` is the name used in every error message so callers can
+    point at either a live ``*.jsonl`` file or an archived ``*.jsonl.gz``
+    segment.  Verification is byte-for-byte identical for both: an archived
+    segment is decompressed to its original bytes and run through the same
+    canonicalisation, ``prev_hmac`` linkage, and HMAC checks, so archived
+    history stays exactly as tamper-evident as live history (issue #1835).
+    """
     if raw_bytes and not raw_bytes.endswith(b"\n"):
         # The writer always terminates with ``\n``; absence is itself
         # tamper-evidence (e.g. ``\n`` flipped to ``\v`` at EOF). Continue
         # into the per-line loop so a truncated last record is still
         # surfaced as ``invalid JSON`` for callers that key on that
         # message (test_partial_last_line_flagged_as_invalid_json).
-        errors.append(f"{log_path.name}: missing trailing newline")
+        errors.append(f"{display_name}: missing trailing newline")
 
     for line_no, raw_line in enumerate(_split_jsonl_bytes(raw_bytes), start=1):
         if raw_line == b"":
@@ -273,10 +292,10 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
         try:
             entry = json.loads(raw_line)
         except json.JSONDecodeError as exc:
-            errors.append(f"{log_path.name}:{line_no}: invalid JSON - {exc}")
+            errors.append(f"{display_name}:{line_no}: invalid JSON - {exc}")
             continue
         if not isinstance(entry, dict):
-            errors.append(f"{log_path.name}:{line_no}: entry is not a JSON object")
+            errors.append(f"{display_name}:{line_no}: entry is not a JSON object")
             continue
 
         # Tamper-evidence beyond JSON: ``json.loads`` accepts incidental
@@ -287,7 +306,7 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
         # surfaced as a verification failure.
         canonical = json.dumps(entry, sort_keys=True).encode()
         if canonical != raw_line:
-            errors.append(f"{log_path.name}:{line_no}: non-canonical line bytes")
+            errors.append(f"{display_name}:{line_no}: non-canonical line bytes")
             continue
 
         stored_hmac = entry.pop("hmac", "")
@@ -298,17 +317,94 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
         # network surface.
         if not _hmac.compare_digest(entry_prev, prev_hmac):
             errors.append(
-                f"{log_path.name}:{line_no}: prev_hmac mismatch (expected {prev_hmac[:16]}…, got {entry_prev[:16]}…)"
+                f"{display_name}:{line_no}: prev_hmac mismatch (expected {prev_hmac[:16]}…, got {entry_prev[:16]}…)"
             )
 
         expected_hmac = _compute_hmac(key, prev_hmac, entry)
         if not _hmac.compare_digest(stored_hmac, expected_hmac):
             errors.append(
-                f"{log_path.name}:{line_no}: HMAC mismatch (expected {expected_hmac[:16]}…, got {stored_hmac[:16]}…)"
+                f"{display_name}:{line_no}: HMAC mismatch (expected {expected_hmac[:16]}…, got {stored_hmac[:16]}…)"
             )
 
         prev_hmac = stored_hmac
     return prev_hmac
+
+
+def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[str]) -> str:
+    """Verify all entries in a single live JSONL log file, appending errors."""
+    return _verify_log_bytes(log_path.read_bytes(), log_path.name, prev_hmac, key, errors)
+
+
+def _read_archived_segment(gz_path: Path, errors: list[str]) -> bytes | None:
+    """Decompress an archived ``*.jsonl.gz`` segment to its original bytes.
+
+    A truncated or corrupt archive (e.g. a crash mid-``archive``) degrades to
+    a clear, named error rather than an uncaught ``gzip``/``OSError``
+    traceback, keeping ``verify`` a total function over a possibly-damaged
+    archive directory.
+
+    Returns:
+        The decompressed bytes, or ``None`` if the segment is unreadable
+        (in which case an error has been appended to ``errors``).
+    """
+    try:
+        with gzip.open(gz_path, "rb") as fh:
+            return fh.read()
+    except (OSError, EOFError) as exc:
+        errors.append(f"{gz_path.name}: unreadable archived segment - {exc}")
+        return None
+
+
+def _chain_tail_from_lines(lines: list[str]) -> str | None:
+    """Return the last ``hmac`` in ``lines`` (scanning in reverse), or None.
+
+    Shared by live-file and archived-segment chain recovery so both resolve
+    the tip with byte-identical line semantics.  A line that is blank or not
+    a JSON object carrying ``hmac`` is skipped, mirroring the tolerance the
+    recovery path needs for a freshly-rotated empty file or a crash mid-line.
+    """
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict) and "hmac" in entry:
+            return str(entry["hmac"])
+    return None
+
+
+def _archived_segment_paths(audit_dir: Path, policy: RetentionPolicy | None = None) -> list[Path]:
+    """Return archived ``*.jsonl.gz`` segments ordered by their embedded date.
+
+    Ordering is load-bearing: the verifier must replay archived segments in
+    chronological order *before* the live ``*.jsonl`` files so ``prev_hmac``
+    linkage is continuous from genesis to tail.  The sort key is the
+    ``YYYY-MM-DD`` date parsed from the filename (``<date>.jsonl.gz``); the
+    full name is the tie-breaker so two segments that somehow share a date
+    still order deterministically.  Files whose name does not start with a
+    parseable date sort last (by name) so a hand-renamed archive cannot
+    silently jump ahead of dated segments and forge a false ordering.
+    """
+    policy = policy or RetentionPolicy()
+    archive_dir = audit_dir / policy.archive_subdir
+    if not archive_dir.is_dir():
+        return []
+
+    def _date_key(path: Path) -> tuple[int, str, str]:
+        # ``<date>.jsonl.gz`` -> stem ``<date>.jsonl`` -> ``Path.stem`` again
+        # is brittle, so derive the date token from the leading filename part.
+        date_token = path.name.split(".", 1)[0]
+        try:
+            datetime.strptime(date_token, "%Y-%m-%d")
+        except ValueError:
+            # Undated/renamed segments sort after all dated ones.
+            return (1, "", path.name)
+        return (0, date_token, path.name)
+
+    return sorted(archive_dir.glob(_ARCHIVED_GLOB), key=_date_key)
 
 
 def _matches_query_filters(
@@ -367,26 +463,36 @@ class AuditLog:
     def _recover_chain_tail(self) -> str:
         """Walk existing logs in reverse to find the last valid HMAC.
 
-        Walks every ``*.jsonl`` file from newest to oldest, scanning each
-        file's lines in reverse, and returns the first line that parses
-        to a dict carrying an ``hmac`` field.  Earlier-only inspection of
-        the lex-last file would silently fork the chain when that file is
-        empty/truncated (e.g. a freshly-rotated day with no events yet,
-        or a writer crash mid-line) - see test_truncated_last_file_does_
-        not_fork_chain in tests/property/test_audit_chain_bughunt.py.
+        Walks every live ``*.jsonl`` file from newest to oldest, then falls
+        back to archived ``*.jsonl.gz`` segments (also newest-date first),
+        scanning each segment's lines in reverse, and returns the first line
+        that parses to a dict carrying an ``hmac`` field.  Earlier-only
+        inspection of the lex-last file would silently fork the chain when
+        that file is empty/truncated (e.g. a freshly-rotated day with no
+        events yet, or a writer crash mid-line) - see
+        test_truncated_last_file_does_not_fork_chain in
+        tests/property/test_audit_chain_bughunt.py.  Including archived
+        segments means a writer reopening a log whose only events have aged
+        into the archive resumes from the true tip instead of forking back
+        to genesis (issue #1835).
         """
-        log_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
-        for log_path in reversed(log_files):
-            for line in reversed(log_path.read_text().splitlines()):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(entry, dict) and "hmac" in entry:
-                    return str(entry["hmac"])
+        live_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
+        for log_path in reversed(live_files):
+            tip = _chain_tail_from_lines(log_path.read_text().splitlines())
+            if tip is not None:
+                return tip
+
+        for gz_path in reversed(_archived_segment_paths(self._audit_dir)):
+            try:
+                with gzip.open(gz_path, "rb") as fh:
+                    text = fh.read().decode()
+            except (OSError, EOFError):
+                # A corrupt archived segment cannot yield a trustworthy tip;
+                # skip it and keep looking at older segments.
+                continue
+            tip = _chain_tail_from_lines(text.splitlines())
+            if tip is not None:
+                return tip
         return _GENESIS_HMAC
 
     # -- write --------------------------------------------------------------
@@ -453,19 +559,35 @@ class AuditLog:
     # -- verify -------------------------------------------------------------
 
     def verify(self) -> tuple[bool, list[str]]:
-        """Walk all JSONL files and verify the HMAC chain.
+        """Walk archived then live JSONL segments and verify the HMAC chain.
+
+        Archived ``*.jsonl.gz`` segments are replayed first, in chronological
+        (filename-date) order, then the live ``*.jsonl`` files, so the
+        ``prev_hmac`` linkage is continuous from genesis to tail across the
+        retention/archive boundary (issue #1835).  A flipped byte inside a
+        ``.gz`` segment, or a deleted segment, surfaces as an HMAC/linkage
+        error naming the segment rather than passing silently.
 
         Returns:
             ``(valid, errors)`` where *valid* is True when the entire chain
             is intact and *errors* lists any violations found.
         """
         errors: list[str] = []
-        log_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
-        if not log_files:
+        archived = _archived_segment_paths(self._audit_dir)
+        live_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
+        if not archived and not live_files:
             return True, []
 
         prev_hmac = _GENESIS_HMAC
-        for log_path in log_files:
+        for gz_path in archived:
+            raw = _read_archived_segment(gz_path, errors)
+            if raw is None:
+                # Cannot establish linkage past an unreadable segment; the
+                # error is already recorded, so stop rather than mis-seed the
+                # live files from a wrong (genesis) prev_hmac.
+                return False, errors
+            prev_hmac = _verify_log_bytes(raw, gz_path.name, prev_hmac, self._key, errors)
+        for log_path in live_files:
             prev_hmac = _verify_log_file(log_path, prev_hmac, self._key, errors)
 
         return len(errors) == 0, errors
@@ -512,12 +634,18 @@ class AuditLog:
                 skipped.append(log_path.name)
                 continue
 
-            with log_path.open("rb") as f_in, gzip.open(gz_path, "wb") as f_out:
+            # Crash-safe compress: write to a sibling temp file and atomically
+            # rename into place, so a crash mid-archive never leaves a partial
+            # ``.gz`` that the verifier would later read (the original
+            # ``.jsonl`` is only unlinked once the full ``.gz`` is on disk).
+            tmp_path = gz_path.with_name(f"{gz_path.name}.tmp")
+            with log_path.open("rb") as f_in, gzip.open(tmp_path, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
+            tmp_path.replace(gz_path)
 
             log_path.unlink()
             archived.append(log_path.name)
-            logger.info("Archived audit log %s → %s", log_path.name, gz_path.name)
+            logger.info("Archived audit log %s -> %s", log_path.name, gz_path.name)
 
         return ArchiveResult(
             archived=archived,

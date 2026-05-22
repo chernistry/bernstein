@@ -239,7 +239,15 @@ over the previous event's HMAC and the current event's payload, forming a
 hash chain that breaks if any record is rewritten or deleted.
 
 **Storage.** One JSONL file per UTC day in `.sdd/audit/YYYY-MM-DD.jsonl`.
-Default retention: 90 days (`audit.py:40`).
+Default retention: 90 days (`audit.py:40`). Files older than the retention
+window are gzip-compressed into `.sdd/audit/archive/YYYY-MM-DD.jsonl.gz` by
+`AuditLog.archive`. Archived segments remain first-class chain links:
+`AuditLog.verify` (and `bernstein audit verify` / `verify-hmac`) replay the
+archived `.gz` segments in date order before the live files, so the chain
+verifies end to end across the archive boundary. Do **not** hand-prune or
+rename files under `archive/`: removing a segment breaks the chain linkage
+and a deleted or byte-edited segment is reported as a verification failure
+naming that segment.
 
 **Key handling.** The HMAC key lives **outside** the audit directory so an
 attacker with write access to the JSONL files cannot also read or rotate

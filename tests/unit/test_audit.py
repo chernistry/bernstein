@@ -238,3 +238,177 @@ def test_retention_policy_defaults() -> None:
     p = RetentionPolicy()
     assert p.retention_days == 90
     assert p.archive_subdir == "archive"
+
+
+# -- archive-boundary chain verification (issue #1835) -----------------
+
+
+def _build_two_day_chain(audit_dir: Path, key: bytes = b"test-key") -> tuple[str, str]:
+    """Build a genuine HMAC chain split across two dated JSONL files.
+
+    Events are produced via the real :meth:`AuditLog.log` API so the chain
+    is byte-identical to production output, then the first events are moved
+    into a file dated one day in the past while the remainder stay in
+    today's file. The result is a single continuous chain whose link
+    crosses the ``<yesterday> -> <today>`` file boundary, which is exactly
+    the boundary :meth:`AuditLog.archive` later compresses.
+
+    Returns:
+        ``(old_name, today_name)`` - the two dated filenames written.
+    """
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    log = AuditLog(audit_dir, key=key)
+    log.log("e1", "a1", "r1", "i1")
+    log.log("e2", "a2", "r2", "i2")
+    log.log("e3", "a3", "r3", "i3")
+
+    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    today_path = audit_dir / f"{today}.jsonl"
+    lines = today_path.read_text().splitlines()
+    assert len(lines) == 3
+
+    yesterday = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    old_path = audit_dir / f"{yesterday}.jsonl"
+    # First two events live in the older (archivable) file; the third
+    # event - whose prev_hmac links back into the older file - stays live.
+    old_path.write_text("\n".join(lines[:2]) + "\n")
+    today_path.write_text(lines[2] + "\n")
+    return old_path.name, today_path.name
+
+
+def _build_three_day_chain(audit_dir: Path, key: bytes = b"test-key") -> tuple[str, str, str]:
+    """Build a genuine HMAC chain split across three dated JSONL files.
+
+    Like :func:`_build_two_day_chain` but produces two archivable older days
+    plus today, so a test can archive *both* older days and then damage one
+    archived segment while a *later* archived segment still exists - the
+    linkage break is then only observable by a verifier that actually reads
+    archived segments in order (issue #1835).
+
+    Returns:
+        ``(day1_name, day2_name, today_name)`` oldest-first.
+    """
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    log = AuditLog(audit_dir, key=key)
+    for i in range(1, 6):
+        log.log(f"e{i}", f"a{i}", f"r{i}", f"i{i}")
+
+    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    today_path = audit_dir / f"{today}.jsonl"
+    lines = today_path.read_text().splitlines()
+    assert len(lines) == 5
+
+    day1 = (datetime.now(tz=UTC) - timedelta(days=2)).strftime("%Y-%m-%d")
+    day2 = (datetime.now(tz=UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    day1_path = audit_dir / f"{day1}.jsonl"
+    day2_path = audit_dir / f"{day2}.jsonl"
+    day1_path.write_text("\n".join(lines[:2]) + "\n")
+    day2_path.write_text("\n".join(lines[2:4]) + "\n")
+    today_path.write_text(lines[4] + "\n")
+    return day1_path.name, day2_path.name, today_path.name
+
+
+def test_verify_passes_across_archive_boundary(tmp_path: Path) -> None:
+    """An intact chain still verifies after the older day is archived.
+
+    Reproduces issue #1835: ``archive`` gzips and unlinks the older
+    ``.jsonl`` while ``verify`` only globs live ``*.jsonl`` and re-seeds from
+    genesis, so the first surviving entry's ``prev_hmac`` (which points into
+    the archived file) wrongly reports a mismatch.
+    """
+    audit_dir = tmp_path / "audit"
+    old_name, _today = _build_two_day_chain(audit_dir)
+
+    # Sanity: the un-archived split chain is valid end to end.
+    pre_valid, pre_errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert pre_valid is True, pre_errors
+
+    result = AuditLog(audit_dir, key=b"test-key").archive(RetentionPolicy(retention_days=0))
+    assert old_name in result.archived
+    assert not (audit_dir / old_name).exists()
+    assert (audit_dir / "archive" / f"{old_name}.gz").exists()
+
+    # The reopened log must verify across the archive boundary.
+    valid, errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert valid is True, errors
+    assert errors == []
+
+
+def test_verify_detects_tamper_inside_archived_segment(tmp_path: Path) -> None:
+    """Flipping a byte inside an archived .gz surfaces as an HMAC error."""
+    audit_dir = tmp_path / "audit"
+    old_name, _today = _build_two_day_chain(audit_dir)
+    AuditLog(audit_dir, key=b"test-key").archive(RetentionPolicy(retention_days=0))
+
+    gz_path = audit_dir / "archive" / f"{old_name}.gz"
+    payload = gzip.decompress(gz_path.read_bytes()).decode()
+    tampered = payload.replace('"a1"', '"tampered"')
+    assert tampered != payload
+    gz_path.write_bytes(gzip.compress(tampered.encode()))
+
+    valid, errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert valid is False
+    assert any("HMAC mismatch" in err for err in errors)
+    # The error must name the offending archived segment, not a live file.
+    assert any(gz_path.name in err for err in errors)
+
+
+def test_verify_detects_deleted_archived_segment(tmp_path: Path) -> None:
+    """Deleting an interior archived .gz surfaces as a linkage break.
+
+    Two older days are archived; the *earlier* archived segment is then
+    removed (as an operator pruning ``archive/`` to save space would).  The
+    surviving later archived segment's ``prev_hmac`` points into the deleted
+    one, so the chain must report a linkage break naming that segment - a
+    break only a verifier that reads archived segments can detect.
+    """
+    audit_dir = tmp_path / "audit"
+    day1_name, day2_name, _today = _build_three_day_chain(audit_dir)
+    result = AuditLog(audit_dir, key=b"test-key").archive(RetentionPolicy(retention_days=0))
+    assert day1_name in result.archived
+    assert day2_name in result.archived
+
+    (audit_dir / "archive" / f"{day1_name}.gz").unlink()
+    surviving = f"{day2_name}.gz"
+
+    valid, errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert valid is False
+    assert any("prev_hmac mismatch" in err for err in errors)
+    # The break must be attributed to the now-orphaned surviving segment.
+    assert any(surviving in err and "prev_hmac mismatch" in err for err in errors)
+
+
+def test_verify_no_archive_unchanged(tmp_path: Path) -> None:
+    """A chain with zero archived segments verifies exactly as before."""
+    audit_dir = tmp_path / "audit"
+    log = AuditLog(audit_dir, key=b"test-key")
+    log.log("e1", "a1", "r1", "i1")
+    log.log("e2", "a2", "r2", "i2")
+
+    valid, errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert valid is True
+    assert errors == []
+
+
+def test_recover_chain_tail_stable_across_archive(tmp_path: Path) -> None:
+    """The recovered tip is identical whether or not old days are archived.
+
+    Guards the writer path: a process reopening an archived log must resume
+    from the true chain tip so a freshly appended event does not fork the
+    chain back to genesis.
+    """
+    audit_dir = tmp_path / "audit"
+    _build_two_day_chain(audit_dir)
+
+    tip_before = AuditLog(audit_dir, key=b"test-key")._prev_hmac  # pyright: ignore[reportPrivateUsage]
+
+    AuditLog(audit_dir, key=b"test-key").archive(RetentionPolicy(retention_days=0))
+
+    tip_after = AuditLog(audit_dir, key=b"test-key")._prev_hmac  # pyright: ignore[reportPrivateUsage]
+    assert tip_after == tip_before
+
+    # Appending after reopening an archived log keeps the chain intact.
+    reopened = AuditLog(audit_dir, key=b"test-key")
+    reopened.log("e4", "a4", "r4", "i4")
+    valid, errors = AuditLog(audit_dir, key=b"test-key").verify()
+    assert valid is True, errors

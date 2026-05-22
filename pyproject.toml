@@ -345,6 +345,7 @@ artifacts = [
     # Web GUI built assets - Vite output committed to the package tree so
     # the wheel ships pre-built. Rebuild with: cd web && npm run build.
     "src/bernstein/gui/static/**/*",
+    "src/bernstein/dashboard/static/**/*",
     # SDD ticket schemas. Shipped alongside the validator so downstream
     # projects can lint their .sdd/backlog tickets via importlib.resources
     # without a source checkout. Loader: bernstein.sdd.validator.load_schema.

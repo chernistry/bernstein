@@ -37,6 +37,28 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Literal
 
+
+@dataclass(frozen=True)
+class DashboardStaticAsset:
+    """Packaged dashboard static asset metadata."""
+
+    file_name: str
+    media_type: str
+
+
+DASHBOARD_STATIC_ASSETS: Mapping[str, DashboardStaticAsset] = MappingProxyType(
+    {
+        "tailwind-3.4.17.min.js": DashboardStaticAsset(
+            file_name="tailwind-3.4.17.min.js",
+            media_type="application/javascript",
+        ),
+        "alpinejs-3.14.8.min.js": DashboardStaticAsset(
+            file_name="alpinejs-3.14.8.min.js",
+            media_type="application/javascript",
+        ),
+    }
+)
+
 # ---------------------------------------------------------------------------
 # Orchestrator defaults
 # ---------------------------------------------------------------------------

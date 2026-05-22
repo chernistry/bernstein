@@ -49,14 +49,14 @@ jobs:
 
       - name: Install project (for the bernstein CLI)
         run: uv sync --no-dev --frozen
-        continue-on-error: true
 
       - name: Regenerate AGENTS.md mirrors
         run: uv run bernstein agents-md sync --workdir .
 
       - name: Run ruff fix and format
         run: |
-          uv run ruff check . --fix --unsafe-fixes || true
+          set -euo pipefail
+          uv run ruff check . --fix --unsafe-fixes
           uv run ruff format .
 
       - name: Detect drift

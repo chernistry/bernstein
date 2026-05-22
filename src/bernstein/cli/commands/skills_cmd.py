@@ -441,6 +441,103 @@ def skills_lint(names: tuple[str, ...], scope: str) -> None:
         console.print(f"\n[dim]{all_findings} finding(s) total (advisory only)[/dim]")
 
 
+@skills_group.command("test")
+@click.argument("suite", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--skills-root",
+    "skills_root",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Skill root to test. Defaults to <cwd>/.bernstein/skills.",
+)
+def skills_test(suite: Path, skills_root: Path | None) -> None:
+    """Run a deterministic trigger-set suite without model calls."""
+    from bernstein.core.skills.authoring import SkillAuthoringError, run_trigger_suite
+
+    root = skills_root if skills_root is not None else Path.cwd() / ".bernstein" / "skills"
+    try:
+        result = run_trigger_suite(root.resolve(), suite.resolve())
+    except SkillAuthoringError as exc:
+        console.print(f"[red]test failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    for case_result in result.cases:
+        if case_result.passed:
+            console.print(f"[green]ok[/green] {case_result.case.name}")
+            continue
+        details: list[str] = []
+        if case_result.missing:
+            details.append("missing: " + ", ".join(case_result.missing))
+        if case_result.unexpected:
+            details.append("unexpected: " + ", ".join(case_result.unexpected))
+        console.print(f"[red]fail[/red] {case_result.case.name} ({'; '.join(details)})")
+
+    total = len(result.cases)
+    console.print(f"\n{result.passed_count} passed / {total} case(s)")
+    if not result.passed:
+        raise SystemExit(1)
+
+
+@skills_group.command("diff")
+@click.argument("left", type=click.Path(exists=True, path_type=Path))
+@click.argument("right", type=click.Path(exists=True, path_type=Path))
+def skills_diff(left: Path, right: Path) -> None:
+    """Compare two skill directories using canonical manifest/body digests."""
+    from bernstein.core.skills.authoring import diff_skill_dirs
+    from bernstein.core.skills.lifecycle import SkillLifecycleError
+
+    try:
+        result = diff_skill_dirs(left.resolve(), right.resolve())
+    except SkillLifecycleError as exc:
+        console.print(f"[red]diff failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    if not result.changed:
+        console.print(f"[green]unchanged[/green] digest {result.left_digest.digest}")
+        return
+
+    console.print("[yellow]changed[/yellow] " + ", ".join(result.changed_sections))
+    console.print(f"left:  {result.left_digest.digest}")
+    console.print(f"right: {result.right_digest.digest}")
+    raise SystemExit(1)
+
+
+@skills_group.command("bench")
+@click.argument("suite", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--skills-root",
+    "skills_root",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Skill root to bench. Defaults to <cwd>/.bernstein/skills.",
+)
+@click.option(
+    "--iterations",
+    "iterations",
+    type=click.IntRange(min=1),
+    default=10,
+    show_default=True,
+    help="Number of deterministic trigger-set iterations.",
+)
+def skills_bench(suite: Path, skills_root: Path | None, iterations: int) -> None:
+    """Benchmark a deterministic trigger-set suite without model calls."""
+    from bernstein.core.skills.authoring import SkillAuthoringError, bench_trigger_suite
+
+    root = skills_root if skills_root is not None else Path.cwd() / ".bernstein" / "skills"
+    try:
+        result = bench_trigger_suite(root.resolve(), suite.resolve(), iterations=iterations)
+    except SkillAuthoringError as exc:
+        console.print(f"[red]bench failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    console.print(
+        f"{result.iterations} iteration(s), {result.elapsed_seconds:.6f}s, "
+        f"{result.suite.passed_count}/{len(result.suite.cases)} case(s) passing"
+    )
+    if not result.suite.passed:
+        raise SystemExit(1)
+
+
 @skills_group.command("watch")
 @click.argument(
     "path",

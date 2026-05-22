@@ -478,3 +478,14 @@ def test_cli_dry_run_with_fixture(tracker: ModuleType, tmp_path: Path) -> None:
     assert "open=b1" in text
     # Raw vendor message is never rendered.
     assert "vendor message" not in text
+
+
+def test_forbidden_guard_ignores_token_inside_identifier(tracker: ModuleType) -> None:
+    """Guard must not reject ordinary identifiers that contain a token."""
+    tracker._assert_no_forbidden("rule `python:S1172` in `src/bernstein/adapters/droid.py`")
+
+
+def test_forbidden_guard_blocks_standalone_token(tracker: ModuleType) -> None:
+    """Guard still blocks standalone disallowed terms."""
+    with pytest.raises(AssertionError, match="roi"):
+        tracker._assert_no_forbidden("remove ROI wording from the tracker")

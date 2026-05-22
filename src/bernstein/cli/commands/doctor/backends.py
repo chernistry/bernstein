@@ -151,6 +151,16 @@ def _classify(
     return "ok"
 
 
+def _security_fail_threshold(severity: str) -> int | None:
+    """Return the failure threshold for security severity buckets."""
+
+    if severity == "critical":
+        return 1
+    if severity == "high":
+        return 5
+    return None
+
+
 def probe_sonar(env: dict[str, str] | None = None) -> BackendReport:
     """Probe SonarQube. Soft-fails if not configured.
 
@@ -444,7 +454,7 @@ def probe_dt(env: dict[str, str] | None = None) -> BackendReport:
             threshold_status=_classify(
                 float(value),
                 warn_above=1 if sev in ("critical", "high", "medium") else None,
-                fail_above=1 if sev == "critical" else 5 if sev == "high" else None,
+                fail_above=_security_fail_threshold(sev),
             ),
         )
         for sev, value in counts.items()
@@ -537,7 +547,7 @@ def probe_code_scanning(env: dict[str, str] | None = None) -> BackendReport:
                 threshold_status=_classify(
                     float(count),
                     warn_above=1 if sev in ("critical", "high") else None,
-                    fail_above=1 if sev == "critical" else 5 if sev == "high" else None,
+                    fail_above=_security_fail_threshold(sev),
                 ),
             )
         )

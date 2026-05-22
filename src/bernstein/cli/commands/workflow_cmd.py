@@ -369,11 +369,12 @@ def run_cmd(name_or_path: str, goal: str, dry_run: bool) -> None:
     table.add_column("Wall (s)", justify="right")
     table.add_column("Note")
     for node_exec in execution.nodes:
-        colour = (
-            "green"
-            if node_exec.status == NodeStatus.SUCCESS
-            else ("red" if node_exec.status == NodeStatus.FAILED else "yellow")
-        )
+        if node_exec.status == NodeStatus.SUCCESS:
+            colour = "green"
+        elif node_exec.status == NodeStatus.FAILED:
+            colour = "red"
+        else:
+            colour = "yellow"
         table.add_row(
             node_exec.node_id,
             f"[{colour}]{node_exec.status.value}[/{colour}]",

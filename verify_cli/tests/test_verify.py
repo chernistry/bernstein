@@ -339,6 +339,297 @@ def test_verify_pack_zip_slip_blocked(tmp_path):
     assert not sentinel.exists()
 
 
+# ---------- verify_pack: byte-binding for v2 packs (issue #1871) ----------
+
+
+def _build_pack_bytes(
+    tmp_path: Path,
+    *,
+    log_bytes: bytes,
+    pack_format_version: int | None = 2,
+    name: str = "bundle.zip",
+) -> Path:
+    """Build a compliance pack with caller-supplied raw log bytes.
+
+    The signature is computed over the *canonical* entry (what the real
+    writer signs); ``log_bytes`` is whatever the caller wants on disk, so a
+    test can write a value-preserving byte tamper (reordered keys, spaced
+    separators, flipped or missing terminator) and assert the verifier still
+    rejects it.
+
+    A ``pack-manifest.json`` is written carrying ``pack_format_version`` so
+    the verifier can dispatch its byte-binding rule. ``None`` omits the field
+    entirely (a genuine pre-fix / legacy pack shape).
+    """
+    priv, pub = bernstein_generate_keypair()
+    kid = "k1"
+    agent_id = "agent:t"
+
+    entry = LineageEntry(
+        v=1,
+        artefact_path="src/foo.py",
+        artefact_kind="file",
+        content_hash="sha256:" + "a" * 64,
+        parent_hashes=[],
+        agent_id=agent_id,
+        agent_card_kid=kid,
+        tool_call_id="tc-1",
+        span_id="00f067aa0ba902b7",
+        ts_ns=1_715_600_000_000_000_000,
+        operator_hmac="deadbeef" * 8,
+    )
+    payload = bernstein_canonicalise(entry)
+    jws = bernstein_sign_detached(payload, priv, kid=kid)
+    entry_hash = "sha256:" + hashlib.sha256(payload).hexdigest()
+    card = {
+        "agent_id": agent_id,
+        "kid": kid,
+        "public_key_pem": pub,
+        "protocol_version": "a2a/1.0",
+    }
+    manifest: dict = {"schema": "https://bernstein.run/compliance/pack-manifest/v1"}
+    if pack_format_version is not None:
+        manifest["pack_format_version"] = pack_format_version
+
+    bundle = tmp_path / name
+    with zipfile.ZipFile(bundle, "w") as z:
+        z.writestr("lineage-log.jsonl", log_bytes)
+        z.writestr(f"signatures/{entry_hash}.jws", jws)
+        z.writestr(f"agent-cards/{agent_id}.json", json.dumps(card))
+        z.writestr(
+            "pack-manifest.json", json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+        )
+    return bundle
+
+
+#: Field overrides matching the entry minted by ``_build_pack_bytes``.
+_V2_ENTRY_OVERRIDES = {
+    "artefact_path": "src/foo.py",
+    "agent_id": "agent:t",
+    "agent_card_kid": "k1",
+    "tool_call_id": "tc-1",
+}
+
+
+def _v2_entry() -> LineageEntry:
+    """The entry ``_build_pack_bytes`` signs (the canonical reference)."""
+    return LineageEntry(**_sample_entry_dict(**_V2_ENTRY_OVERRIDES))
+
+
+def _canonical_entry_line() -> bytes:
+    """The exact canonical bytes the real writer emits for the test entry."""
+    return bernstein_canonicalise(_v2_entry())
+
+
+def _legacy_entry_line() -> bytes:
+    """Pre-fix (non-canonical) bytes: ``json.dumps`` default spaced separators."""
+    return json.dumps(asdict(_v2_entry()), sort_keys=True).encode("utf-8")
+
+
+def test_verify_pack_v2_canonical_verifies(tmp_path):
+    """An untampered v2 pack (canonical bytes + trailing newline) verifies."""
+    bundle = _build_pack_bytes(tmp_path, log_bytes=_canonical_entry_line() + b"\n")
+    result = verify_pack(bundle)
+    assert result.ok is True, result.errors
+
+
+def test_verify_pack_v2_reordered_keys_rejected(tmp_path):
+    """Value-preserving tamper: reordered JSON keys must be rejected.
+
+    The fields are unchanged, so re-canonicalising the parsed entry would
+    still verify the JWS. Binding to the on-disk bytes is what catches it.
+    """
+    # Insertion-order dump (NOT sorted) + canonical separators: same values,
+    # different byte order from the canonical (sorted-key) form.
+    reordered = json.dumps(asdict(_v2_entry()), sort_keys=False, separators=(",", ":")).encode(
+        "utf-8"
+    )
+    assert reordered != _canonical_entry_line()  # guard: genuinely different bytes
+    bundle = _build_pack_bytes(tmp_path, log_bytes=reordered + b"\n")
+    result = verify_pack(bundle)
+    assert result.ok is False
+    assert any("canonical" in e.lower() for e in result.errors), result.errors
+
+
+def test_verify_pack_v2_inserted_whitespace_rejected(tmp_path):
+    """Value-preserving tamper: spaced separators (', '/': ') must be rejected."""
+    spaced = _canonical_entry_line().replace(b'","', b'", "').replace(b'":', b'": ')
+    assert spaced != _canonical_entry_line()
+    bundle = _build_pack_bytes(tmp_path, log_bytes=spaced + b"\n")
+    result = verify_pack(bundle)
+    assert result.ok is False
+    assert any("canonical" in e.lower() for e in result.errors), result.errors
+
+
+def test_verify_pack_v2_missing_trailing_newline_rejected(tmp_path):
+    """Value-preserving tamper: stripped trailing newline must be rejected."""
+    bundle = _build_pack_bytes(tmp_path, log_bytes=_canonical_entry_line())  # no \n
+    result = verify_pack(bundle)
+    assert result.ok is False
+    assert any("newline" in e.lower() or "trailing" in e.lower() for e in result.errors), (
+        result.errors
+    )
+
+
+def test_verify_pack_v2_flipped_terminator_rejected(tmp_path):
+    """Value-preserving tamper: flipped \\n -> \\r terminator must be rejected.
+
+    `str.splitlines()` treats `\\r` as a record boundary; splitting strictly
+    on `b"\\n"` keeps the stray `\\r` inside the record where the canonical
+    check surfaces it.
+    """
+    bundle = _build_pack_bytes(tmp_path, log_bytes=_canonical_entry_line() + b"\r")
+    result = verify_pack(bundle)
+    assert result.ok is False
+
+
+def test_verify_pack_legacy_v1_verifies_under_original_rule(tmp_path):
+    """A genuine pre-fix v1 pack (non-canonical bytes, version 1 recorded)
+    still verifies under the original re-canonicalise rule.
+
+    Pre-fix packs were written with `json.dumps(..., sort_keys=True)` default
+    separators (spaced), so they are NOT canonical on disk. The v1 dispatch
+    path must re-canonicalise the parsed entry exactly as before.
+    """
+    legacy_line = _legacy_entry_line()
+    assert legacy_line != _canonical_entry_line()  # genuinely non-canonical
+    bundle = _build_pack_bytes(tmp_path, log_bytes=legacy_line + b"\n", pack_format_version=1)
+    result = verify_pack(bundle)
+    assert result.ok is True, result.errors
+
+
+def test_verify_pack_no_manifest_defaults_to_legacy_rule(tmp_path):
+    """A pack with no manifest (oldest packs) defaults to the v1 rule.
+
+    Mirrors the Merkle seal's legacy-default (#1866): an absent scheme means
+    pre-fix, so the original re-canonicalise rule applies and a genuinely
+    non-canonical pre-fix log still verifies.
+    """
+    bundle = _build_pack_bytes(
+        tmp_path, log_bytes=_legacy_entry_line() + b"\n", pack_format_version=None
+    )
+    result = verify_pack(bundle)
+    assert result.ok is True, result.errors
+
+
+def _build_real_pack(tmp_path: Path) -> tuple[Path, LineageEntry]:
+    """Build a pack via the real ``build_pack`` and return (zip_path, entry).
+
+    The on-disk source log is written deliberately non-canonically so the
+    test proves the writer normalises it to canonical bytes on the way out.
+    """
+    from datetime import UTC, date, datetime
+
+    from bernstein.core.compliance.pack import build_pack
+    from bernstein.core.lineage.identity import AgentCard
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    lineage_dir = tmp_path / "lineage"
+    signatures_dir = lineage_dir / "signatures"
+    agents_dir = tmp_path / "agents"
+    lineage_dir.mkdir()
+    signatures_dir.mkdir()
+    agents_dir.mkdir()
+
+    _priv_pem, pub_pem = bernstein_generate_keypair()
+    agent_id = "agent:worker-1"
+    kid = f"{agent_id}-kid"
+    card = AgentCard(agent_id=agent_id, kid=kid, public_key_pem=pub_pem)
+    (agents_dir / f"{agent_id.replace(':', '_')}.json").write_text(
+        json.dumps(asdict(card), sort_keys=True), encoding="utf-8"
+    )
+
+    ts_ns = int(datetime(2026, 3, 15, tzinfo=UTC).timestamp() * 1_000_000_000)
+    entry = LineageEntry(
+        v=1,
+        artefact_path="src/in_window.py",
+        artefact_kind="file",
+        content_hash="sha256:" + hashlib.sha256(b"hello").hexdigest(),
+        parent_hashes=[],
+        agent_id=agent_id,
+        agent_card_kid=kid,
+        tool_call_id="tc-1",
+        span_id="00f067aa0ba902b7",
+        ts_ns=ts_ns,
+        operator_hmac="deadbeef",
+    )
+    # Deliberately non-canonical input (default ``json.dumps`` spacing) so the
+    # writer must re-emit it canonically.
+    (lineage_dir / "log.jsonl").write_text(
+        json.dumps(asdict(entry), sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    op_priv = Ed25519PrivateKey.generate()
+    op_key_path = tmp_path / "operator.key"
+    op_key_path.write_bytes(
+        op_priv.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+
+    out_path = tmp_path / "pack.zip"
+    build_pack(
+        since=date(2026, 1, 1),
+        until=date(2026, 5, 13),
+        org="Acme",
+        lineage_dir=lineage_dir,
+        agent_cards_dir=agents_dir,
+        output_path=out_path,
+        operator_key_path=op_key_path,
+    )
+    return out_path, entry
+
+
+def test_real_build_pack_log_is_v2_byte_canonical(tmp_path):
+    """A pack from the real ``build_pack`` records v2 and its on-disk log
+    bytes pass the v2 byte-binding parse with zero errors.
+
+    This is the writer/verifier lockstep proof for #1871: the bytes the
+    production writer emits are exactly the canonical form the offline
+    auditor binds to. (The per-entry signature lookup is exercised by the
+    fabricated-pack tests above; this test isolates the byte-binding
+    contract, which is the subject of #1871.)
+    """
+    from bernstein.core.compliance.pack import PACK_FORMAT_VERSION
+
+    from bernstein_verify.verify import _pack_format_version, _parse_log_v2
+
+    out_path, _entry = _build_real_pack(tmp_path)
+
+    with zipfile.ZipFile(out_path) as zf:
+        assert _pack_format_version(zf) == PACK_FORMAT_VERSION
+        log_bytes = zf.read("lineage-log.jsonl")
+
+    entries, errors = _parse_log_v2(log_bytes)
+    assert errors == [], errors
+    assert len(entries) == 1
+    assert entries[0]["artefact_path"] == "src/in_window.py"
+
+
+def test_real_build_pack_log_byte_tamper_rejected(tmp_path):
+    """Value-preserving byte tamper of a real ``build_pack`` log is rejected
+    by the v2 byte-binding parse - the end-to-end #1871 guarantee."""
+    from bernstein_verify.verify import _parse_log_v2
+
+    out_path, entry = _build_real_pack(tmp_path)
+
+    with zipfile.ZipFile(out_path) as zf:
+        canonical_log = zf.read("lineage-log.jsonl")
+
+    # Reorder keys: identical field values, different on-disk bytes.
+    reordered = (
+        json.dumps(asdict(entry), sort_keys=False, separators=(",", ":")).encode("utf-8") + b"\n"
+    )
+    assert reordered != canonical_log  # genuinely different bytes
+
+    entries, errors = _parse_log_v2(reordered)
+    assert entries == []
+    assert any("non-canonical" in e.lower() for e in errors), errors
+
+
 # ---------- combined: bernstein -> bernstein-verify round-trip ----------
 
 

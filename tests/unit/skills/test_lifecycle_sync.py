@@ -205,3 +205,15 @@ def test_sync_strict_lint_blocks_error_findings_but_default_syncs(tmp_path: Path
     with pytest.raises(SkillLifecycleError, match="strict lint failed.*invalid-manifest"):
         sync_skills(toml_path, scope=InstallScope.PROJECT, workdir=workdir, strict_lint=True)
     assert not installed.exists()
+
+
+def test_sync_rejects_invisible_unicode_skill(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    poisoned = workdir / "sources" / "poisoned.md"
+    _write_source_md(poisoned, name="poisoned", body="Body with tag marker \U000e0048.")
+    toml_path = _write_manifest(workdir, [("poisoned", "./sources/poisoned.md")])
+
+    with pytest.raises(SkillLifecycleError, match="invisible Unicode"):
+        sync_skills(toml_path, scope=InstallScope.PROJECT, workdir=workdir)
+    assert not (scope_root(InstallScope.PROJECT, workdir=workdir) / "poisoned").exists()

@@ -14,6 +14,8 @@ path (selected with `BERNSTEIN_REPLAY_RUN_ID`).
 | On a miss (strict) | Raises `ReplayMissError`; the live model is never called. |
 | Escape hatch | `BERNSTEIN_REPLAY_ALLOW_LIVE_MISS=1` -> miss logs a WARNING and falls through to the live model. |
 | Replay key | `(model, prompt, provider, temperature, max_tokens)`. Any drift is a miss, not a hit. |
+| Repeated calls | A key called N times records N responses and replays them **in recorded order**; the Nth call returns the Nth response. |
+| Over-consumption | Requesting a key more times than recorded is a miss (strict: raises; non-strict: returns `None`). |
 | Coverage line | `hits` / `misses` / `strict_violations`; a fully covered replay reports `misses=0`. |
 
 ## How to record and replay
@@ -59,6 +61,23 @@ replay. To re-record, run the original workload again with
 `ReplayMissError` message states this inline so an operator who hits a stale
 recording knows the fix without leaving the log.
 
+## Repeated prompts replay in recorded order
+
+`llm_calls.jsonl` is append-only: each LLM call writes one line, in call
+order. When the same `(model, prompt, provider, temperature, max_tokens)` key
+is called more than once in a run - a retried decomposition, a re-asked
+routing question, an agent that re-issues the same probe - the recording holds
+one response per call. Replay keeps a per-key FIFO and consumes the next
+recorded response on each `get_replay`, so the first call replays the first
+recorded response, the second call the second, and so on. A run that records
+responses `A` then `B` for one key replays `A` then `B`, not `B` twice.
+
+Requesting a key more times than it was recorded is a replay-fidelity failure
+(the replay diverged from the recording). In strict mode it raises
+`ReplayMissError`; in the non-hermetic escape hatch it returns `None` and falls
+through. This makes a divergent replay fail loudly instead of silently
+re-serving a stale response.
+
 ## Escape hatch (opt-in, non-hermetic)
 
 For record-extend workflows you can keep the old fall-through behaviour:
@@ -72,9 +91,34 @@ live provider. It is opt-in precisely so the hermetic guarantee stays closed
 unless deliberately disabled; do not set it globally in CI or air-gapped
 contexts.
 
+## Execution fingerprint (determinism proof across runs)
+
+`bernstein verify --determinism <run-id>` reports an execution fingerprint
+over the run's `replay.jsonl` event stream. The fingerprint hashes a canonical
+projection of each event - `event` plus the decision-relevant payload, with
+keys sorted and fixed separators - and **excludes the wall-clock envelope**
+(`ts` and `elapsed_s`). Those timing fields stay in `replay.jsonl` for the
+operator timeline; they are skipped only in the fingerprint computation.
+
+Because the timing envelope is excluded, two byte-identical executions produce
+the **same** fingerprint even though their timestamps differ, so the value is a
+genuine cross-run identity: a recording and a faithful replay match, and any
+divergence in the decision stream (a different decision output, a reordered
+event, a changed event type) changes the fingerprint. Paired with the
+`verify --determinism --baseline` gate, this lets a replay report PASS for an
+identical re-execution and FAIL for a perturbed one.
+
+Behaviour change: fingerprints computed before this change hashed the whole
+file (timestamps included), so old recorded fingerprint values are not
+comparable to new ones. Re-baseline once after upgrading.
+
 ## Related
 
 - Source: `src/bernstein/core/orchestration/deterministic.py`
 - Call site: `src/bernstein/core/routing/llm.py` (`call_llm`)
+- Execution fingerprint: `src/bernstein/core/persistence/recorder.py`
+  (`RunRecorder.fingerprint`, `compute_replay_fingerprint`)
 - Sibling subsystem with the same miss contract:
-  `src/bernstein/core/replay/gateway.py` (`ReplayMissError`)
+  `src/bernstein/core/replay/gateway.py` (`ReplayMissError`); its replay
+  fixtures consume in recorded `seq` order, so duplicate response values cannot
+  desync the by-kind FIFO fallback.

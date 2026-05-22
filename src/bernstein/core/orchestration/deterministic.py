@@ -38,6 +38,7 @@ import json
 import logging
 import os
 import time
+from collections import deque
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
@@ -149,11 +150,21 @@ class DeterministicStore:
     existing ``llm_calls.jsonl`` and :meth:`get_replay` returns stored
     responses without touching the file.
 
-    Replay is **strict by default** (issue #1832): a cache miss raises
+    Replay preserves call **order and multiplicity** (issue #1846): the
+    recording is append-only, so a ``(prompt, model, ...)`` key called N times
+    records N responses in order. The cache keeps a per-key FIFO and
+    :meth:`get_replay` consumes the next recorded response for a key, so the
+    Nth call replays the Nth recorded response. Requesting a key more times
+    than it was recorded is a replay-fidelity failure (the run diverged from
+    the recording), handled by the strict/non-strict policy below.
+
+    Replay is **strict by default** (issue #1832): a cache miss - including
+    over-consuming a key past its recorded count - raises
     :class:`ReplayMissError` instead of returning ``None``, so a run launched
-    for replay cannot silently call the live model. Pass ``strict=False`` (the
-    orchestrator does this when :func:`allow_live_miss` is set) to restore the
-    old return-``None``-on-miss escape hatch.
+    for replay cannot silently call the live model or replay a stale response.
+    Pass ``strict=False`` (the orchestrator does this when
+    :func:`allow_live_miss` is set) to restore the old return-``None``-on-miss
+    escape hatch.
 
     Args:
         run_dir: Directory for this run (``{sdd_dir}/runs/{run_id}``).
@@ -168,7 +179,14 @@ class DeterministicStore:
         self._replay = replay
         self._strict = strict
         self._calls_path = run_dir / "llm_calls.jsonl"
-        self._cache: dict[str, str] = {}
+        # Per-key FIFO of recorded responses, in recorded order. A repeated
+        # ``(prompt, model, ...)`` key keeps every recorded response so replay
+        # reconstructs the exact recorded sequence instead of last-write-wins
+        # (issue #1846). ``get_replay`` consumes from the left.
+        self._cache: dict[str, deque[str]] = {}
+        # Total recorded responses retained across all keys; backs
+        # :attr:`cached_count` so it still reflects the journal size.
+        self._cached_total = 0
         # Replay-coverage counters backing :meth:`coverage_line`.
         self._hits = 0
         self._misses = 0
@@ -182,7 +200,11 @@ class DeterministicStore:
     # ------------------------------------------------------------------
 
     def _load_cache(self) -> None:
-        """Load all recorded responses into memory for fast replay."""
+        """Load recorded responses into per-key FIFO queues for replay.
+
+        Appends each recorded response to its key's queue in file order, so a
+        key recorded N times replays its N responses in sequence (#1846).
+        """
         try:
             with self._calls_path.open(encoding="utf-8") as f:
                 for line in f:
@@ -194,7 +216,8 @@ class DeterministicStore:
                         key = entry.get("key", "")
                         response = entry.get("response", "")
                         if key and response:
-                            self._cache[key] = response
+                            self._cache.setdefault(key, deque()).append(response)
+                            self._cached_total += 1
         except OSError as exc:
             logger.warning("DeterministicStore: failed to load cache: %s", exc)
 
@@ -264,9 +287,11 @@ class DeterministicStore:
             max_tokens: Max response tokens (folded into the lookup key).
 
         Returns:
-            The cached response string on a hit. Returns ``None`` when the
-            store is not in replay mode, or on a miss in non-strict replay
-            mode.
+            The next recorded response for the key on a hit (consuming it in
+            recorded order). Returns ``None`` when the store is not in replay
+            mode, or on a miss in non-strict replay mode. A miss includes both
+            an unknown key and over-consuming a known key past its recorded
+            count.
 
         Raises:
             ReplayMissError: On a cache miss when the store is in strict
@@ -276,11 +301,12 @@ class DeterministicStore:
         if not self._replay:
             return None
         key = _prompt_key(prompt, model, provider=provider, temperature=temperature, max_tokens=max_tokens)
-        cached = self._cache.get(key)
-        if cached is not None:
+        queue = self._cache.get(key)
+        if queue:
             self._hits += 1
-            return cached
-        # Cache miss.
+            return queue.popleft()
+        # Cache miss: unknown key, or a known key consumed past its recorded
+        # count (the run requested it more times than it was recorded).
         if self._strict:
             self._strict_violations += 1
             # Emit the coverage line at the failure point so the abort log
@@ -317,8 +343,12 @@ class DeterministicStore:
 
     @property
     def cached_count(self) -> int:
-        """Number of cached responses available for replay."""
-        return len(self._cache)
+        """Total recorded responses loaded for replay (across all keys).
+
+        Counts every recorded response, including repeats of the same key, so
+        it reflects the journal size rather than the number of distinct keys.
+        """
+        return self._cached_total
 
     @property
     def calls_path(self) -> Path:
@@ -333,7 +363,7 @@ class DeterministicStore:
         100% recorded responses.
         """
         return (
-            f"replay-coverage run_dir={self._run_dir} cached={len(self._cache)} "
+            f"replay-coverage run_dir={self._run_dir} cached={self._cached_total} "
             f"hits={self._hits} misses={self._misses} "
             f"strict_violations={self._strict_violations} strict={self._strict}"
         )

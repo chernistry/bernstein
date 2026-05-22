@@ -303,3 +303,56 @@ class TestBuildPack:
         with zipfile.ZipFile(out_path) as zf:
             log_lines = zf.read("lineage-log.jsonl").decode().splitlines()
         assert log_lines == []
+
+    def test_log_bytes_are_canonical(self, tmp_path: Path, lineage_layout: dict[str, Path]) -> None:
+        """Each lineage-log.jsonl line equals canonicalise(entry) byte-for-byte.
+
+        The offline auditor binds verification to these exact bytes (issue
+        #1871). A non-canonical write (default ``json.dumps`` spacing, key
+        order other than sorted, missing terminator) would mean the bytes on
+        disk no longer equal the canonical signed form, defeating byte-level
+        tamper detection.
+        """
+        key_path, _ = _operator_key(tmp_path)
+        out_path = tmp_path / "pack.zip"
+        build_pack(
+            since=date(2026, 1, 1),
+            until=date(2026, 5, 13),
+            org="Acme",
+            lineage_dir=lineage_layout["lineage_dir"],
+            agent_cards_dir=lineage_layout["agent_cards_dir"],
+            output_path=out_path,
+            operator_key_path=key_path,
+        )
+
+        with zipfile.ZipFile(out_path) as zf:
+            log_bytes = zf.read("lineage-log.jsonl")
+
+        # File must end with a single trailing newline.
+        assert log_bytes.endswith(b"\n")
+        # Strict split on b"\n"; each non-empty record must be canonical.
+        raw_lines = [ln for ln in log_bytes.split(b"\n") if ln]
+        assert raw_lines, "expected at least one entry in window"
+        for raw in raw_lines:
+            entry = LineageEntry(**json.loads(raw))
+            assert canonicalise(entry) == raw, (
+                f"log line is not byte-canonical: on-disk={raw!r} canonical={canonicalise(entry)!r}"
+            )
+
+    def test_manifest_records_pack_format_version(self, tmp_path: Path, lineage_layout: dict[str, Path]) -> None:
+        """The manifest records pack_format_version=2 so the offline verifier
+        can dispatch the byte-binding rule (issue #1871)."""
+        key_path, _ = _operator_key(tmp_path)
+        out_path = tmp_path / "pack.zip"
+        build_pack(
+            since=date(2026, 1, 1),
+            until=date(2026, 5, 13),
+            org="Acme",
+            lineage_dir=lineage_layout["lineage_dir"],
+            agent_cards_dir=lineage_layout["agent_cards_dir"],
+            output_path=out_path,
+            operator_key_path=key_path,
+        )
+        with zipfile.ZipFile(out_path) as zf:
+            manifest = json.loads(zf.read("pack-manifest.json"))
+        assert manifest["pack_format_version"] == 2

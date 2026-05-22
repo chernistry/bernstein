@@ -180,8 +180,11 @@ When `bernstein conduct` spawns an agent:
 ### 5.3 Verification
 
 External auditor (with `bernstein-verify`):
-1. Reads `log.jsonl`.
-2. For each entry: re-canonicalize, recompute `entry_hash`.
+1. Reads `log.jsonl` as bytes; splits strictly on `\n`.
+2. For each entry: require the on-disk line to equal `canonicalise(entry)`
+   byte-for-byte (reject non-canonical bytes), then recompute `entry_hash`
+   from the canonical bytes. (Compliance-pack logs follow the same rule for
+   format v2; see §8.4 for the v1 fallback.)
 3. Fetches Agent Card from `.sdd/agents/<agent-id>/card.json` or signed registry.
 4. Verifies JWS using card's public key.
 5. Walks `parent_hashes` chain back to genesis.
@@ -290,6 +293,36 @@ A compliance officer at a regulated company can:
 
 This is the **artifact** that closes a procurement loop. Without it, lineage is invisible to the buyer.
 
+### 8.4 Pack format versions and on-disk byte binding (#1871)
+
+`pack-manifest.json` records `pack_format_version`. The offline auditor
+(`bernstein-verify pack`) dispatches its log-parsing rule on it:
+
+| Version | `lineage-log.jsonl` on disk | Verification rule |
+|---|---|---|
+| **v2** (current) | Each entry written in its exact RFC 8785 canonical bytes, one per line, single trailing `\n`. | Bound to the on-disk bytes: split strictly on `\n`, every line must equal `canonicalise(entry)` byte-for-byte, a missing trailing newline is tamper-evidence. |
+| **v1** (pre-fix) / no manifest | Each entry written with `json.dumps(..., sort_keys=True)` default separators (spaced `", "` / `": "`), so the bytes are **not** canonical. | Original rule: re-canonicalise the parsed entry and verify the JWS against that re-derived form. |
+
+**Why the split exists.** v1 packs re-canonicalised the parsed entry before
+checking the signature, so any value-preserving byte rewrite - reordered JSON
+keys, inserted whitespace, a flipped or stripped line terminator - parsed to
+identical fields, re-canonicalised to identical bytes, and verified as
+authentic. v2 binds verification to the exact stored bytes (matching the
+in-tree lineage gate, §4 / #1848), so such a rewrite is rejected.
+
+**Legacy default.** An absent manifest or an absent/unparseable
+`pack_format_version` is treated as v1 (re-canonicalise rule), mirroring the
+Merkle seal's scheme dispatch (#1866) so pre-fix packs still verify. The
+version field rides inside the operator-signed manifest body, so a downgrade
+that rewrites it to escape the v2 rule invalidates `pack-manifest.json.sig` -
+the signature an operator checks on the with-key path.
+
+**Operator action (one-time re-pack).** Packs built before this change are
+v1 and verify under the weaker re-canonicalise rule. To get byte-level tamper
+protection for an existing window, re-run `bernstein compliance pack` for that
+`(since, until, org)` triple; the regenerated pack is v2. Existing archived v1
+packs remain verifiable - no forced break.
+
 ---
 
 ## 9. `bernstein-verify` - auditor CLI
@@ -310,8 +343,8 @@ bernstein-verify forks <path> [--lineage-dir DIR]     # report unresolved forks 
 
 ### 9.3 Output
 
-- Exit 0 = all signatures valid + chains complete + no unresolved forks.
-- Exit 1 = any failure; structured JSON to stderr, human summary to stdout.
+- Exit 0 = on-disk log bytes are canonical (format v2) + all signatures valid + chains complete + no unresolved forks.
+- Exit 1 = any failure; structured JSON to stderr, human summary to stdout. A non-canonical line in a v2 pack is reported as `non-canonical line bytes`; a stripped terminator as `missing trailing newline`.
 
 ---
 

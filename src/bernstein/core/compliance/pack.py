@@ -18,7 +18,6 @@ from __future__ import annotations
 import hashlib
 import json
 import zipfile
-from dataclasses import asdict
 from datetime import UTC, datetime
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
@@ -28,17 +27,33 @@ from bernstein.core.compliance.article12 import (
     render_csv,
     render_pdf,
 )
-from bernstein.core.lineage.entry import LineageEntry, entry_hash
+from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
 from bernstein.core.lineage.identity import sign_detached
 
 if TYPE_CHECKING:
     from datetime import date
     from pathlib import Path
 
-__all__ = ["build_pack"]
+__all__ = ["PACK_FORMAT_VERSION", "build_pack"]
 
 
 _OPERATOR_KID = "operator-pack-signer"
+
+#: Compliance-pack format version recorded in ``pack-manifest.json``.
+#:
+#: v1 (pre-fix) wrote ``lineage-log.jsonl`` with ``json.dumps(..., sort_keys=
+#: True)`` default separators (spaced ``", "`` / ``": "``), so the on-disk
+#: bytes did not equal the JCS-canonical signed form. The offline auditor
+#: therefore re-canonicalised the parsed entry to verify, which accepted any
+#: value-preserving byte rewrite (issue #1871).
+#:
+#: v2 writes each entry as its exact JCS-canonical bytes (``canonicalise``)
+#: terminated by a single ``\n``, so the offline auditor binds verification to
+#: the on-disk bytes (``canonicalise(entry) == raw_line``) and rejects a
+#: value-preserving tamper. ``bernstein_verify.verify.verify_pack`` dispatches
+#: on this recorded version, so pre-fix v1 packs still verify under their
+#: original rule.
+PACK_FORMAT_VERSION = 2
 
 
 def _date_to_ns_inclusive(d: date, *, end_of_day: bool = False) -> int:
@@ -107,13 +122,24 @@ def _verify_instructions() -> str:
         "bernstein-verify pack ./acme-compliance-2026-q2.zip\n"
         "```\n\n"
         "Exit 0 + a one-line PASS summary indicates: every entry in\n"
-        "`lineage-log.jsonl` re-canonicalises to a hash whose detached JWS in\n"
-        "`signatures/` verifies under the Agent Card in `agent-cards/`, and\n"
-        "`pack-manifest.json.sig` verifies against the operator public key.\n\n"
+        "`lineage-log.jsonl` is stored in its exact RFC 8785 canonical bytes,\n"
+        "its detached JWS in `signatures/` verifies under the Agent Card in\n"
+        "`agent-cards/`, and `pack-manifest.json.sig` verifies against the\n"
+        "operator public key.\n\n"
+        "This pack is format v2 (`pack-manifest.json:pack_format_version`):\n"
+        "verification is bound to the on-disk log bytes. Each line must equal\n"
+        "its canonical form byte-for-byte (including a single trailing `\\n`),\n"
+        "so a value-preserving rewrite - reordered JSON keys, inserted\n"
+        "whitespace, a flipped or stripped line terminator - is rejected even\n"
+        "though it parses to the same field values.\n\n"
         "## Manual path (no Bernstein install)\n\n"
         "1. Unzip the bundle.\n"
-        "2. For every line in `lineage-log.jsonl`, RFC 8785 canonicalise the\n"
-        "   JSON, sha256 it -> `entry_hash`.\n"
+        "2. Read `lineage-log.jsonl` as bytes and split strictly on `\\n`\n"
+        "   (not `splitlines()` - that treats `\\r` and other characters as\n"
+        "   record boundaries). For every line, RFC 8785 canonicalise the\n"
+        "   parsed JSON and assert the result equals the original line bytes;\n"
+        "   reject the pack on any mismatch. Then sha256 the canonical bytes\n"
+        "   -> `entry_hash`.\n"
         "3. Open `signatures/<hex(entry_hash)>.jws`; verify the detached\n"
         "   Ed25519 JWS (RFC 7515 + RFC 7797 `b64=false`) against the public\n"
         "   key in the matching `agent-cards/<agent_id>.json`.\n"
@@ -178,8 +204,16 @@ def build_pack(
     filtered = _filter_entries(all_entries, since, until)
 
     # 1. lineage-log.jsonl (filtered)
-    log_lines = [json.dumps(asdict(e), sort_keys=True) for e in filtered]
-    log_bytes = ("\n".join(log_lines) + ("\n" if log_lines else "")).encode("utf-8")
+    #
+    # Emit each entry as its exact JCS-canonical bytes (the same form that was
+    # signed) terminated by a single ``\n``, so the offline auditor can bind
+    # verification to these on-disk bytes (``canonicalise(entry) == raw_line``)
+    # rather than re-canonicalising the parsed entry. Re-using ``canonicalise``
+    # keeps the writer and the signature over one byte-form; a value-preserving
+    # rewrite (reordered keys, spaced separators, a flipped or stripped
+    # terminator) then no longer matches and is rejected at verify time (#1871).
+    log_lines = [canonicalise(e) for e in filtered]
+    log_bytes = b"\n".join(log_lines) + (b"\n" if log_lines else b"")
 
     # 2. article12-evidence.csv
     csv_bytes = render_csv(filtered).encode("utf-8")
@@ -250,6 +284,7 @@ def build_pack(
 
     manifest: dict[str, Any] = {
         "schema": "https://bernstein.run/compliance/pack-manifest/v1",
+        "pack_format_version": PACK_FORMAT_VERSION,
         "builder": _builder_label(),
         "org": org,
         "period": {"since": since.isoformat(), "until": until.isoformat()},

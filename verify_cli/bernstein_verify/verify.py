@@ -35,6 +35,24 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 _LOG_NAME = "lineage-log.jsonl"
 _SIG_DIR = "signatures/"
 _CARD_DIR = "agent-cards/"
+_MANIFEST_NAME = "pack-manifest.json"
+
+#: Compliance-pack format version that binds verification to the on-disk log
+#: bytes. v1 (pre-fix) packs wrote ``lineage-log.jsonl`` non-canonically
+#: (``json.dumps(..., sort_keys=True)`` default separators), so this verifier
+#: had to re-canonicalise the parsed entry to check a signature - which
+#: accepted any value-preserving byte rewrite (reordered keys, spaced
+#: separators, a flipped or stripped line terminator) (issue #1871). v2 packs
+#: write each entry as its exact JCS-canonical bytes terminated by ``\n``, so a
+#: v2 pack is verified by requiring the on-disk line to equal
+#: ``jcs_canonicalise(entry)`` byte-for-byte.
+_PACK_FORMAT_BYTE_BINDING = 2
+
+#: Format assumed when ``pack-manifest.json`` predates the
+#: ``pack_format_version`` field (or is absent). Mirrors the Merkle seal's
+#: legacy-default scheme dispatch (issue #1866): an unmarked pack is pre-fix,
+#: so it is verified under the original re-canonicalise rule.
+_PACK_FORMAT_LEGACY = 1
 
 
 # ---------- RFC 8785 JCS ----------
@@ -198,6 +216,123 @@ def _read_text_member(zf: zipfile.ZipFile, name: str) -> str | None:
         return None
 
 
+def _read_bytes_member(zf: zipfile.ZipFile, name: str) -> bytes | None:
+    try:
+        with zf.open(name) as f:
+            return f.read()
+    except KeyError:
+        return None
+
+
+def _pack_format_version(zf: zipfile.ZipFile) -> int:
+    """Return the pack's ``pack_format_version``, defaulting to legacy.
+
+    The version lives in ``pack-manifest.json``. An absent manifest, an
+    absent/unparseable field, or a stray boolean maps to the legacy format
+    (re-canonicalise rule), mirroring the Merkle seal's ``_seal_scheme``
+    legacy-default (issue #1866). The version field rides inside the
+    operator-signed manifest body, so a tamperer who downgrades it to defeat
+    the v2 byte-binding rule invalidates ``pack-manifest.json.sig`` - the
+    signature an operator verifies on the with-key path.
+    """
+    raw = _read_text_member(zf, _MANIFEST_NAME)
+    if raw is None:
+        return _PACK_FORMAT_LEGACY
+    try:
+        manifest = json.loads(raw)
+    except json.JSONDecodeError:
+        return _PACK_FORMAT_LEGACY
+    if not isinstance(manifest, dict):
+        return _PACK_FORMAT_LEGACY
+    value = manifest.get("pack_format_version", _PACK_FORMAT_LEGACY)
+    if isinstance(value, bool):
+        # ``bool`` is an ``int`` subclass; a stray boolean is not a version.
+        return _PACK_FORMAT_LEGACY
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return _PACK_FORMAT_LEGACY
+    return _PACK_FORMAT_LEGACY
+
+
+def _split_jsonl_bytes(raw_bytes: bytes) -> list[bytes]:
+    """Strictly split the log's raw bytes on ``b"\\n"`` only.
+
+    Text-mode iteration / ``str.splitlines()`` treats ``\\r``, ``\\r\\n`` and
+    every universal newline (and ``\\v``, ``\\f``, ``\\x1c``-``\\x1e``,
+    ``\\x85``, ``\\u2028``, ``\\u2029``) as a record boundary, so flipping a
+    terminator (``0x0A`` -> ``0x0D``) reframes the file without changing any
+    ``json.loads`` result for the survivors - a framing attack that hides or
+    merges records while every surviving signature still verifies. Splitting
+    on ``b"\\n"`` only keeps any other separator *inside* a record, where the
+    byte-canonical check surfaces it as a verification failure. This mirrors
+    ``bernstein.core.lineage.gate._split_jsonl_bytes`` so the offline auditor
+    offers the same tamper-evidence as the in-tree lineage gate (issue #1871).
+    """
+    parts = raw_bytes.split(b"\n")
+    # The v2 writer always ends the file with ``\n`` -> a trailing empty
+    # element which we drop. A genuinely missing terminator is reported
+    # separately by the caller before this is used.
+    if parts and parts[-1] == b"":
+        parts.pop()
+    return parts
+
+
+def _parse_log_v1(log_raw: str) -> tuple[list[dict[str, Any]], list[str]]:
+    """Legacy (v1) parse: text-mode ``splitlines`` + parse each line.
+
+    Verification re-canonicalises the parsed entry, so pre-fix packs (written
+    with non-canonical bytes) still verify under their original rule. Retained
+    only for backward compatibility (issue #1871).
+    """
+    entries: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for lineno, line in enumerate(log_raw.splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            errors.append(f"{_LOG_NAME}:{lineno}: invalid JSON ({exc.msg})")
+    return entries, errors
+
+
+def _parse_log_v2(log_bytes: bytes) -> tuple[list[dict[str, Any]], list[str]]:
+    """Byte-binding (v2) parse: split on ``b"\\n"``, require canonical bytes.
+
+    Every record must equal its JCS-canonical form byte-for-byte
+    (``jcs_canonicalise(entry) == raw_line``). A value-preserving rewrite -
+    reordered keys, inserted whitespace, a flipped terminator - parses to
+    identical fields but differs on disk, so it is rejected here rather than
+    silently re-canonicalised and accepted. A missing trailing newline is
+    surfaced as tamper-evidence (a truncated or terminator-stripped final
+    record). Mirrors the in-tree lineage gate's ``_parse_log`` (issue #1848).
+    """
+    entries: list[dict[str, Any]] = []
+    errors: list[str] = []
+    if log_bytes and not log_bytes.endswith(b"\n"):
+        errors.append(f"{_LOG_NAME}: missing trailing newline")
+    for lineno, raw_line in enumerate(_split_jsonl_bytes(log_bytes), start=1):
+        if raw_line == b"":
+            continue
+        try:
+            obj = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            errors.append(f"{_LOG_NAME}:{lineno}: invalid JSON ({exc.msg})")
+            continue
+        if not isinstance(obj, dict):
+            errors.append(f"{_LOG_NAME}:{lineno}: not a JSON object")
+            continue
+        if jcs_canonicalise(obj) != raw_line:
+            errors.append(f"{_LOG_NAME}:{lineno}: non-canonical line bytes")
+            continue
+        entries.append(obj)
+    return entries, errors
+
+
 def verify_pack(zip_path: Path | str) -> VerifyResult:
     """Verify a compliance-pack ZIP end-to-end.
 
@@ -209,7 +344,12 @@ def verify_pack(zip_path: Path | str) -> VerifyResult:
 
     Steps:
       1. Open the zip (defensive: never extractall - read members in memory).
-      2. Parse log.jsonl into a list of entries.
+      2. Read ``pack-manifest.json:pack_format_version`` and dispatch the log
+         parse: v2 binds verification to the exact on-disk bytes (split on
+         ``b"\\n"``, every record must equal its JCS-canonical form
+         byte-for-byte, a missing trailing newline is tamper-evidence); v1 (or
+         an unmarked legacy pack) keeps the original re-canonicalise rule so
+         pre-fix packs still verify (issues #1871, #1848, #1866).
       3. Walk the parent-hash chain (orphans, dupes).
       4. For every entry: compute entry_hash, find sidecar JWS, find Agent
          Card by agent_id, verify Ed25519 JWS using card's public key + kid.
@@ -228,19 +368,18 @@ def verify_pack(zip_path: Path | str) -> VerifyResult:
         return VerifyResult(ok=False, errors=[f"not a valid zip archive: {path}"])
 
     with zf:
-        log_raw = _read_text_member(zf, _LOG_NAME)
-        if log_raw is None:
-            return VerifyResult(ok=False, errors=[f"missing {_LOG_NAME} in pack"])
+        pack_format = _pack_format_version(zf)
 
-        entries: list[dict[str, Any]] = []
-        parse_errors: list[str] = []
-        for lineno, line in enumerate(log_raw.splitlines(), start=1):
-            if not line.strip():
-                continue
-            try:
-                entries.append(json.loads(line))
-            except json.JSONDecodeError as exc:
-                parse_errors.append(f"{_LOG_NAME}:{lineno}: invalid JSON ({exc.msg})")
+        if pack_format >= _PACK_FORMAT_BYTE_BINDING:
+            log_bytes = _read_bytes_member(zf, _LOG_NAME)
+            if log_bytes is None:
+                return VerifyResult(ok=False, errors=[f"missing {_LOG_NAME} in pack"])
+            entries, parse_errors = _parse_log_v2(log_bytes)
+        else:
+            log_raw = _read_text_member(zf, _LOG_NAME)
+            if log_raw is None:
+                return VerifyResult(ok=False, errors=[f"missing {_LOG_NAME} in pack"])
+            entries, parse_errors = _parse_log_v1(log_raw)
 
         result_errors: list[str] = list(parse_errors)
 
@@ -306,6 +445,7 @@ def verify_pack(zip_path: Path | str) -> VerifyResult:
             "agents": len(cards),
             "chain_ok": chain_ok,
             "signature_failures": sig_failures,
+            "pack_format_version": pack_format,
         }
         ok = not parse_errors and chain_ok and sig_failures == 0
         return VerifyResult(ok=ok, errors=result_errors, stats=stats)

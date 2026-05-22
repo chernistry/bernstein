@@ -27,6 +27,7 @@ locally without waiting for the cloud runner.
 | **Vulture**                 | Dead code (unused functions/classes/vars at confidence ≥80)       | PR                  |
 | **diff-cover**              | <80% coverage on lines this PR changed                            | PR (advisory)       |
 | **import-linter**           | Architecture-contract violations (cross-package imports)          | PR                  |
+| **No-network guard**        | Unit tests that open a real outbound connection (flaky by design) | PR (every unit run) |
 | **ruff** + **typos**        | Lint, format drift, common typos                                  | PR                  |
 
 ## Run any of the above locally
@@ -142,6 +143,92 @@ Adding a module to the gate: extend `MODULES` in
 `scripts/mutmut_critical.py`, mirror the matrix in
 `.github/workflows/mutation-fixed.yml`, and add the source/test
 paths to the `paths:` filter on the same workflow.
+
+## Hermetic unit tests (no network)
+
+Unit tests are hermetic: a test under `tests/unit/` must not open a real
+outbound network connection. A test that talks to a remote host passes only
+while that host answers and fails intermittently otherwise (a transient 404, a
+DNS hiccup, a rate limit), turning a green suite red for reasons unrelated to
+the change under test. One such test (a signed-catalog install whose fixture
+pointed at a `github://` URL) once reached a live host, 404'd intermittently in
+CI, and wedged the merge queue.
+
+### The guard
+
+`tests/unit/conftest.py` installs an **autouse** fixture that wraps
+`socket.socket.connect` / `socket.socket.connect_ex` for every unit test (logic
+in `tests/unit/_no_network.py`). Any attempt to connect to a non-loopback
+address raises immediately:
+
+```
+RuntimeError: unit tests must not touch the network: blocked connection to
+api.example.com:443. Mock it (see docs/contributing/testing.md), or move a
+genuine integration test to tests/integration/.
+```
+
+Because the patch sits at the socket layer, it covers every higher-level client
+(`http.client`, `urllib`, `requests`, `httpx`, raw sockets) without per-library
+patching. It is hand-rolled rather than a third-party plugin so it adds no
+dependency to vet, lock, and audit, and so it integrates with the suite's
+existing strict-marker opt-out convention.
+
+**Loopback stays allowed.** Connections to `127.0.0.0/8`, `::1`, and the
+literal hostname `localhost`, plus Unix-domain sockets, pass through untouched,
+so the many unit tests that spin a local mock server keep working. The guard
+inspects the literal target before any name resolution, so a loopback hostname
+is allowed without an egress; a non-loopback hostname is blocked at the
+resolution boundary.
+
+The scope is `tests/unit/` only. Integration tests (`tests/integration/`)
+run real servers and are not guarded, because their conftest does not install
+the fixture.
+
+### When the guard fires on you
+
+The test under `tests/unit/` opened a real connection. Two correct fixes, in
+order of preference:
+
+1. **Make it hermetic (almost always the right answer).** Mock the network at
+   the seam: inject a fake client, patch the transport, or use the
+   `respx`/`TestClient` patterns already in the suite. Do **not** "fix" it by
+   pointing the call at a loopback URL unless the test genuinely runs a local
+   server.
+2. **Move a genuine integration test to `tests/integration/`.** If the test
+   truly must reach the network, it is not a unit test; relocate it. The guard
+   does not apply there.
+
+### Opting a single test out (rare)
+
+For the rare case where a test must stay under `tests/unit/` and reach the
+network, mark it and document why:
+
+```python
+import pytest
+
+
+@pytest.mark.allow_network  # justification: probes the real X endpoint; see #NNNN
+def test_live_thing() -> None:
+    ...
+```
+
+The marker is registered in `pyproject.toml` (`--strict-markers` is on, so an
+unregistered marker is itself an error). Prefer relocation to
+`tests/integration/` over the marker: a network-touching test in the unit suite
+is a flake waiting to happen.
+
+### Reproduce locally
+
+```bash
+# Full unit suite with the guard active (per-file isolated runner):
+uv run python scripts/run_tests.py --parallel 4
+
+# Or straight pytest:
+uv run pytest tests/unit/ -q --no-cov
+
+# The guard's own meta-tests:
+uv run pytest tests/unit/test_no_network_guard.py -q --no-cov
+```
 
 ## Multi-adapter pentest fan-out
 

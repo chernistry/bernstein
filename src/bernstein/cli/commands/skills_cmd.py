@@ -538,6 +538,27 @@ def skills_bench(suite: Path, skills_root: Path | None, iterations: int) -> None
         raise SystemExit(1)
 
 
+@skills_group.command("helpfulness")
+def skills_helpfulness() -> None:
+    """Rebuild the local skill helpfulness report."""
+    from bernstein.core.skills.helpfulness import build_helpfulness_report, write_helpfulness_report
+
+    report = build_helpfulness_report(Path.cwd())
+    path = write_helpfulness_report(Path.cwd(), report=report)
+    console.print(f"[green]wrote[/green] {path}")
+    if not report.skills:
+        console.print("[dim]no matched skill activations[/dim]")
+        return
+    ranked = sorted(report.skills.values(), key=lambda item: (-item.posterior_mean, item.skill))
+    for item in ranked[:10]:
+        console.print(
+            f"{item.skill}: {item.posterior_mean:.2f} "
+            f"({item.successes}/{item.observations} successful, {item.failures} failed)"
+        )
+    if report.unmatched_activations:
+        console.print(f"[dim]{report.unmatched_activations} activation(s) had no task outcome yet[/dim]")
+
+
 @skills_group.command("watch")
 @click.argument(
     "path",

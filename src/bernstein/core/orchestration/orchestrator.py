@@ -4460,15 +4460,26 @@ if __name__ == "__main__":
     _replay_run_id = os.environ.get("BERNSTEIN_REPLAY_RUN_ID", "").strip()
     _sdd_dir = workdir / ".sdd"
     if _replay_run_id:
-        from bernstein.core.orchestration.deterministic import DeterministicStore, set_active_store
+        from bernstein.core.orchestration.deterministic import (
+            DeterministicStore,
+            allow_live_miss,
+            set_active_store,
+        )
 
+        # Hermetic by default (issue #1832): a cache miss aborts the run via
+        # ReplayMissError rather than silently calling the live model. The
+        # opt-in BERNSTEIN_REPLAY_ALLOW_LIVE_MISS flag restores live
+        # fall-through (logged per miss) for record-extend workflows.
+        _strict_replay = not allow_live_miss()
         _det_store = DeterministicStore(
             _sdd_dir / "runs" / _replay_run_id,
             replay=True,
+            strict=_strict_replay,
         )
         set_active_store(_det_store)
         logger.info(
-            "Deterministic replay mode: loaded %d cached LLM responses from run %s",
+            "Deterministic replay mode (%s): loaded %d cached LLM responses from run %s",
+            "strict/hermetic" if _strict_replay else "non-strict/live-miss-allowed",
             _det_store.cached_count,
             _replay_run_id,
         )

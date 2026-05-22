@@ -338,6 +338,124 @@ class TestCallLLM:
 
 
 # ---------------------------------------------------------------------------
+# call_llm - deterministic replay (issue #1832)
+# ---------------------------------------------------------------------------
+
+
+class _ProviderDouble:
+    """Records every live provider invocation so tests can assert zero."""
+
+    def __init__(self, response: str = "live response") -> None:
+        self.calls = 0
+        self._response = response
+
+    async def __call__(self, *_args: object, **_kwargs: object) -> str:
+        self.calls += 1
+        return self._response
+
+
+class TestCallLLMReplay:
+    """``call_llm`` must be hermetic under a strict replay store."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_active_store(self):
+        """Ensure no store leaks across tests."""
+        from bernstein.core.orchestration.deterministic import set_active_store
+
+        set_active_store(None)
+        yield
+        set_active_store(None)
+
+    def _replay_store(self, tmp_path, *, strict: bool, recorded: dict[str, str] | None = None):
+        """Build a replay-mode DeterministicStore over a written recording."""
+        import json
+
+        from bernstein.core.orchestration.deterministic import DeterministicStore, _prompt_key
+
+        run_dir = tmp_path / "runs" / "rep"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        lines: list[str] = []
+        for prompt, response in (recorded or {}).items():
+            key = _prompt_key(prompt, "gpt-4", provider="openrouter_free", temperature=0.7, max_tokens=4000)
+            lines.append(json.dumps({"key": key, "model": "gpt-4", "response": response}))
+        (run_dir / "llm_calls.jsonl").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        return DeterministicStore(run_dir, replay=True, strict=strict)
+
+    @pytest.mark.asyncio
+    async def test_replay_hit_returns_recorded_without_calling_provider(self, tmp_path) -> None:
+        """A recorded prompt replays its response; no live provider call."""
+        from bernstein.core.orchestration.deterministic import set_active_store
+
+        store = self._replay_store(tmp_path, strict=True, recorded={"recorded prompt": "cached answer"})
+        set_active_store(store)
+        double = _ProviderDouble()
+
+        with patch("bernstein.core.llm._call_api_provider", new=double):
+            result = await call_llm("recorded prompt", "gpt-4", provider="openrouter_free")
+
+        assert result == "cached answer"
+        assert double.calls == 0
+
+    @pytest.mark.asyncio
+    async def test_strict_replay_miss_raises_and_makes_no_live_call(self, tmp_path) -> None:
+        """An unknown prompt under strict replay raises and never calls live."""
+        from bernstein.core.orchestration.deterministic import ReplayMissError, set_active_store
+
+        store = self._replay_store(tmp_path, strict=True, recorded={"recorded prompt": "cached answer"})
+        set_active_store(store)
+        double = _ProviderDouble()
+        cli_double = _ProviderDouble()
+
+        with (
+            patch("bernstein.core.llm._call_api_provider", new=double),
+            patch("bernstein.core.llm._call_cli_provider", new=cli_double),
+            pytest.raises(ReplayMissError),
+        ):
+            await call_llm("an unseen prompt", "gpt-4", provider="openrouter_free")
+
+        assert double.calls == 0
+        assert cli_double.calls == 0
+        assert store.strict_violations == 1
+
+    @pytest.mark.asyncio
+    async def test_non_strict_miss_warns_and_falls_through(self, tmp_path, caplog) -> None:
+        """Non-strict replay logs a WARNING per miss and calls the provider."""
+        import logging
+
+        from bernstein.core.orchestration.deterministic import set_active_store
+
+        store = self._replay_store(tmp_path, strict=False, recorded={"recorded prompt": "cached answer"})
+        set_active_store(store)
+        double = _ProviderDouble(response="fresh live answer")
+
+        with patch("bernstein.core.llm._call_api_provider", new=double), caplog.at_level(logging.WARNING):
+            result = await call_llm("an unseen prompt", "gpt-4", provider="openrouter_free")
+
+        assert result == "fresh live answer"
+        assert double.calls == 1
+        assert store.misses == 1
+        assert any("miss" in rec.message.lower() for rec in caplog.records if rec.levelno >= logging.WARNING)
+
+    @pytest.mark.asyncio
+    async def test_replay_key_includes_temperature(self, tmp_path) -> None:
+        """A recording made at temp 0.7 misses when called at temp 0.0."""
+        from bernstein.core.orchestration.deterministic import ReplayMissError, set_active_store
+
+        store = self._replay_store(tmp_path, strict=True, recorded={"recorded prompt": "cached answer"})
+        set_active_store(store)
+        double = _ProviderDouble()
+
+        # temp 0.7 matches the recording.
+        with patch("bernstein.core.llm._call_api_provider", new=double):
+            assert await call_llm("recorded prompt", "gpt-4", temperature=0.7) == "cached answer"
+
+        # temp 0.0 is a different request -> strict miss, no live call.
+        with patch("bernstein.core.llm._call_api_provider", new=double), pytest.raises(ReplayMissError):
+            await call_llm("recorded prompt", "gpt-4", temperature=0.0)
+        assert double.calls == 0
+
+
+# ---------------------------------------------------------------------------
 # tavily_search - web search via Tavily API
 # ---------------------------------------------------------------------------
 

@@ -47,6 +47,45 @@ entry uses the last `hmac` from yesterday.
 
 source: `src/bernstein/core/security/audit.py`.
 
+### auto-approve decisions
+
+the tool-call approval gate runs a deterministic command/tool
+classifier (`src/bernstein/core/security/auto_approve.py`) before a tool
+call reaches the operator queue. each decision the gate acts on is
+recorded as an `auto_approve_decision` event so an auditor can prove,
+after the fact, which calls were rejected or auto-approved and which
+pattern drove the verdict:
+
+```json
+{
+  "event_type": "auto_approve_decision",
+  "actor": "backend",
+  "resource_type": "tool_call",
+  "resource_id": "Bash",
+  "details": {
+    "decision": "deny",
+    "tool": "Bash",
+    "reason": "Dangerous command detected: 'rm -rf /tmp/x'",
+    "matched_pattern": "\\brm\\s+-rf\\b",
+    "command": "rm -rf /tmp/x"
+  }
+}
+```
+
+precedence is deny-wins and the posture is fail-closed:
+
+- a deny-listed command (e.g. `rm -rf`, `git push --force`, `DROP
+  TABLE`, `curl ... | bash`) is rejected by the production path
+  regardless of interactive mode, and the rejection is written to the
+  chain with its matched pattern.
+- a safe command is only auto-approved when the operator opts in via
+  `approvals.smart_auto_approve: true` in `bernstein.yaml`. with the
+  default (`false`) a safe verdict still goes to the queue.
+- an ambiguous (`ask`) verdict, or any classifier error, never
+  auto-approves - it falls through to human review.
+
+source: `src/bernstein/core/approval/gate.py`.
+
 ## Key management
 
 the HMAC key is loaded from, in order:

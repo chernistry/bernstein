@@ -517,6 +517,13 @@ _compiled_allow: list[re.Pattern[str]] = [re.compile(p) for p in _ALLOW_PATTERNS
 _compiled_deny: list[re.Pattern[str]] = [re.compile(p) for p in _DENY_PATTERNS]
 
 # Non-bash tool allow-list: tools that are always safe to approve.
+#
+# Only read-only / no-side-effect tools belong here.  Write-capable tools
+# (``Edit``, ``Write``, ``NotebookEdit``) are intentionally excluded so they
+# fall through to ASK - ``NotebookEdit`` rewrites ``.ipynb`` files (which may
+# embed shell-executing cells) and is classified as an edit tool elsewhere in
+# the codebase (``observability/traces.py`` ``_EDIT_TOOLS``), so auto-approving
+# it would contradict the write-tool policy below.
 _SAFE_TOOLS: Final[frozenset[str]] = frozenset(
     {
         "Read",
@@ -527,7 +534,6 @@ _SAFE_TOOLS: Final[frozenset[str]] = frozenset(
         "WebFetch",
         "WebSearch",
         "NotebookRead",
-        "NotebookEdit",
     }
 )
 

@@ -25,6 +25,16 @@ All commands honour `--scope project` (writes into
 `<cwd>/.bernstein/skills/`) or `--scope user`
 (`~/.bernstein/skills/`). The default is `project`.
 
+## Catalog sources
+
+No catalog network request is made until a `bernstein skills catalog`
+command runs. The built-in primary source is
+`https://bernstein.run/skills-catalog.json`; on primary 5xx responses the
+fetcher tries the public mirror at
+`https://raw.githubusercontent.com/chernistry/bernstein-skills-catalog/main/skills-catalog.json`.
+Both URLs are validated as HTTPS before fetch, and fetched payloads must
+match the signed catalog schema before they are cached or used.
+
 ## Manifest schema
 
 A catalog entry is a strict JSON object. Unknown fields reject the

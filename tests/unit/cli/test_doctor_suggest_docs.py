@@ -8,6 +8,7 @@ crashes the diagnostic surface.
 
 from __future__ import annotations
 
+import ast
 import json
 from io import StringIO
 from pathlib import Path
@@ -194,6 +195,22 @@ def test_top_n_with_zero_returns_empty() -> None:
 def test_top_n_with_negative_n_returns_empty() -> None:
     """Defensive: negative limits must not Python-slice into a tail."""
     assert top_n_topics([_make_topic(1)], n=-3) == []
+
+
+def test_top_n_topics_sorts_iterable_without_intermediate_list_copy() -> None:
+    """The sorter can consume the iterable directly."""
+    module = ast.parse(Path("src/bernstein/cli/doctor/suggest_docs.py").read_text(encoding="utf-8"))
+    top_n = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "top_n_topics")
+    list_copy_assignments = [
+        node
+        for node in ast.walk(top_n)
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "list"
+    ]
+
+    assert list_copy_assignments == []
 
 
 # ---------------------------------------------------------------------------

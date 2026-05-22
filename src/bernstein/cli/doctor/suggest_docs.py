@@ -134,8 +134,7 @@ def top_n_topics(
     """
     if n <= 0:
         return []
-    materialised = list(topics)
-    sorted_topics = sorted(materialised, key=lambda t: t.count, reverse=True)
+    sorted_topics = sorted(topics, key=lambda t: t.count, reverse=True)
     return sorted_topics[:n]
 
 

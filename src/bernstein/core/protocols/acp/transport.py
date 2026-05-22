@@ -188,8 +188,6 @@ class StdioAcpTransport:
                 if exc.partial:
                     await self._handle_line(exc.partial)
                 return
-            except asyncio.CancelledError:  # pragma: no cover
-                raise
             if not line:
                 return
             await self._handle_line(line)

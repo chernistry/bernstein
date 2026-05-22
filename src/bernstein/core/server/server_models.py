@@ -75,12 +75,14 @@ def _ensure_task_enum(value: str, field_name: str) -> str:
     """
     from bernstein.core.tasks.models import Complexity, Scope, TaskType
 
-    enum_classes = {
-        "complexity": Complexity,
-        "scope": Scope,
-        "task_type": TaskType,
-    }
-    enum_cls = enum_classes[field_name]
+    if field_name == "complexity":
+        enum_cls = Complexity
+    elif field_name == "scope":
+        enum_cls = Scope
+    elif field_name == "task_type":
+        enum_cls = TaskType
+    else:
+        raise ValueError(f"unsupported enum field: {field_name}")
     try:
         enum_cls(value)
     except ValueError:

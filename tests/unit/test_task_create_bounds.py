@@ -12,7 +12,7 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import pytest
 from fastapi import FastAPI
@@ -26,6 +26,25 @@ from bernstein.core.server.server_app import (
     create_app,
 )
 from bernstein.core.server.server_models import TaskCreate
+
+
+class TaskPostPayload(TypedDict, total=False):
+    title: str
+    description: str
+    role: str
+    complexity: str
+    task_type: str
+
+
+class TaskBatchItemPayload(TypedDict, total=False):
+    title: str
+    description: str
+    scope: str
+
+
+class TaskBatchPayload(TypedDict):
+    tasks: list[TaskBatchItemPayload]
+
 
 # ---------------------------------------------------------------------------
 # TaskCreate pydantic caps
@@ -333,9 +352,14 @@ def test_post_tasks_200kb_description_returns_422(_app_with_auth_disabled) -> No
 
     async def _run() -> int:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload: TaskPostPayload = {
+                "title": "big",
+                "description": "z" * 200_000,
+                "role": "backend",
+            }
             resp = await client.post(
                 "/tasks",
-                json={"title": "big", "description": "z" * 200_000, "role": "backend"},
+                json=payload,
             )
             return resp.status_code
 
@@ -371,9 +395,14 @@ def test_post_tasks_small_payload_still_works(_app_with_auth_disabled) -> None:
 
     async def _run() -> tuple[int, dict[str, Any]]:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload: TaskPostPayload = {
+                "title": "ok",
+                "description": "normal task",
+                "role": "backend",
+            }
             resp = await client.post(
                 "/tasks",
-                json={"title": "ok", "description": "normal task", "role": "backend"},
+                json=payload,
             )
             return resp.status_code, resp.json()
 
@@ -393,9 +422,14 @@ def test_post_tasks_empty_complexity_returns_422_not_500(_app_with_auth_disabled
 
     async def _run() -> int:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload: TaskPostPayload = {
+                "title": "x",
+                "description": "x",
+                "complexity": "",
+            }
             resp = await client.post(
                 "/tasks",
-                json={"title": "x", "description": "x", "complexity": ""},
+                json=payload,
             )
             return resp.status_code
 
@@ -409,9 +443,14 @@ def test_post_tasks_empty_task_type_returns_422_not_500(_app_with_auth_disabled)
 
     async def _run() -> int:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload: TaskPostPayload = {
+                "title": "x",
+                "description": "x",
+                "task_type": "",
+            }
             resp = await client.post(
                 "/tasks",
-                json={"title": "x", "description": "x", "task_type": ""},
+                json=payload,
             )
             return resp.status_code
 
@@ -425,9 +464,12 @@ def test_post_tasks_batch_invalid_scope_returns_422_not_500(_app_with_auth_disab
 
     async def _run() -> int:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload: TaskBatchPayload = {
+                "tasks": [{"title": "x", "description": "x", "scope": "nope"}],
+            }
             resp = await client.post(
                 "/tasks/batch",
-                json={"tasks": [{"title": "x", "description": "x", "scope": "nope"}]},
+                json=payload,
             )
             return resp.status_code
 

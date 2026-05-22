@@ -18,6 +18,10 @@ All notable project changes are tracked here (code + docs).
 
 - `bernstein audit export --standard` no longer accepts `dora` or `finos-aigf`; the click choice list is `ai-act` only. The previous control maps for those two standards contained only placeholder rows (`status: "todo"`, `selector: "TODO"`) and have been removed from `SUPPORTED_STANDARDS` until their clause mappings are reviewed by subject-matter experts. Operators who pass either value now receive a clean usage error rather than a TODO-only zip (#1316).
 
+### Fixed
+
+- The smart command/tool auto-approve classifier (`src/bernstein/core/security/auto_approve.py`) is now wired into the live tool-call approval path (`bernstein.core.approval.gate.await_tool_call`); previously it was unit-tested but never invoked at runtime, so its deny-list and evasion defenses gated nothing in a live run. Precedence is deny-wins and the posture is fail-closed: a deny-listed command (`rm -rf`, `git push --force`, `DROP TABLE`, `curl ... | bash`, control-plane/credential writes, and the rest of the list) is rejected by the production path regardless of interactive mode, and every decision the gate acts on is appended to the HMAC-chained audit log under `.sdd/audit/` as an `auto_approve_decision` event carrying the matched pattern - so an auditor can replay the chain and prove which calls were rejected or auto-approved and why. A safe verdict only short-circuits the operator queue when `approvals.smart_auto_approve: true` is set in `bernstein.yaml` (default `false`); an ambiguous verdict, or any classifier error, always falls through to human review and never auto-approves. `NotebookEdit` is removed from the classifier's safe-tools allow list so it falls through to ASK like `Edit`/`Write`, matching the edit-tool classification used elsewhere in the codebase (`observability/traces.py`). A regression test asserts the gate actually invokes the classifier, so the wiring cannot silently rot back into dead code (#1850).
+
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
 
 22 commits since v2.4.0. Full notes: [`docs/release-notes/v2.5.0.md`](docs/release-notes/v2.5.0.md).

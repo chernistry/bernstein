@@ -14,7 +14,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -33,6 +33,13 @@ from bernstein.core.approval.queue import (
 from bernstein.core.security.always_allow import (
     AlwaysAllowEngine,
     load_always_allow_rules,
+)
+from bernstein.core.security.auto_approve import (
+    ApprovalResult as ClassifierResult,
+)
+from bernstein.core.security.auto_approve import (
+    Decision,
+    classify_tool_call,
 )
 from bernstein.core.security.guardrails import check_always_allow_tool
 from bernstein.core.security.permission_policy import (
@@ -57,10 +64,19 @@ class ApprovalConfig:
             configured.
         timeout_seconds: How long the gate blocks waiting for a
             decision. Defaults to ten minutes.
+        smart_auto_approve: When ``True`` a classifier APPROVE verdict
+            short-circuits the queue and auto-approves the call. The
+            default is ``False`` (fail-closed): a classifier APPROVE only
+            suppresses an interactive prompt when the operator has opted
+            in. The classifier deny-list and write-tool ASK rules apply
+            regardless of this flag - this flag only controls whether a
+            *safe* verdict skips human review, never whether a *risky*
+            one is blocked.
     """
 
     interactive: bool = False
     timeout_seconds: int = DEFAULT_TTL_SECONDS
+    smart_auto_approve: bool = False
 
 
 def load_approval_config(workdir: Path | None = None) -> ApprovalConfig:
@@ -80,12 +96,19 @@ def load_approval_config(workdir: Path | None = None) -> ApprovalConfig:
         return ApprovalConfig()
     if not isinstance(raw, dict):
         return ApprovalConfig()
-    section = raw.get("approvals") or {}
-    if not isinstance(section, dict):
+    raw_mapping = cast("dict[str, Any]", raw)
+    raw_section: object = raw_mapping.get("approvals")
+    if not isinstance(raw_section, dict):
         return ApprovalConfig()
+    section = cast("dict[str, Any]", raw_section)
     interactive = bool(section.get("interactive", False))
     timeout = int(section.get("timeout_seconds", DEFAULT_TTL_SECONDS))
-    return ApprovalConfig(interactive=interactive, timeout_seconds=max(1, timeout))
+    smart_auto_approve = bool(section.get("smart_auto_approve", False))
+    return ApprovalConfig(
+        interactive=interactive,
+        timeout_seconds=max(1, timeout),
+        smart_auto_approve=smart_auto_approve,
+    )
 
 
 def _always_allow_hit(
@@ -141,6 +164,135 @@ def _policy_reject(
     return None
 
 
+def _classify(tool_name: str, tool_args: dict[str, Any]) -> ClassifierResult:
+    """Run the smart auto-approve classifier, fail-closed on any error.
+
+    Any unexpected exception inside the classifier is mapped to an
+    :class:`Decision.ASK` result so an errored classifier can never
+    silently auto-approve a call. The deny-list and write-tool rules are
+    enforced by :func:`classify_tool_call`; this wrapper only guarantees
+    the gate degrades to "ask the human" rather than to "allow" when the
+    classifier itself misbehaves.
+    """
+    try:
+        return classify_tool_call(tool_name, tool_args)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "Auto-approve classifier raised for tool %s: %s -- failing closed to ASK",
+            tool_name,
+            exc,
+        )
+        return ClassifierResult(Decision.ASK, f"classifier error: {exc}")
+
+
+def _record_classifier_decision(
+    *,
+    classification: ClassifierResult,
+    session_id: str,
+    agent_role: str,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    workdir: Path | None,
+) -> None:
+    """Append the classifier verdict to the HMAC-chained audit log.
+
+    Every APPROVE/DENY/ASK verdict that the gate acts on is recorded as a
+    signed, replayable ``auto_approve_decision`` event so an auditor can
+    prove, after the fact, exactly which calls were auto-approved or
+    rejected and which pattern drove the decision. Audit persistence is
+    best-effort: a write failure is logged but never blocks a deny (the
+    REJECT is returned to the caller regardless).
+    """
+    # Imported lazily so the approval gate does not pull in the audit
+    # subsystem (and its key material) unless a decision is actually
+    # being recorded.
+    from bernstein.core.security.audit import AuditLog
+
+    root = workdir if workdir is not None else Path.cwd()
+    cmd = str(tool_args.get("command") or tool_args.get("shell_cmd") or "")
+    details: dict[str, Any] = {
+        "decision": classification.decision.value,
+        "tool": tool_name,
+        "reason": classification.reason,
+        "matched_pattern": classification.matched_pattern,
+        "session_id": session_id,
+        "agent_role": agent_role,
+    }
+    if cmd:
+        details["command"] = cmd
+    try:
+        log = AuditLog(audit_dir=root / ".sdd" / "audit")
+        log.log(
+            event_type="auto_approve_decision",
+            actor=agent_role or "agent",
+            resource_type="tool_call",
+            resource_id=tool_name,
+            details=details,
+        )
+    except Exception as exc:  # pragma: no cover - filesystem/permission
+        logger.warning(
+            "Could not record auto-approve decision to audit log: %s",
+            exc,
+        )
+
+
+def _smart_classifier_decision(
+    *,
+    session_id: str,
+    agent_role: str,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    workdir: Path | None,
+    smart_auto_approve: bool,
+) -> ResolvedApproval | None:
+    """Apply the smart classifier ahead of the interactive queue.
+
+    Precedence is deny-wins:
+
+    * ``DENY``  -> reject immediately and record the verdict, regardless
+      of ``smart_auto_approve`` or interactive mode.
+    * ``APPROVE`` -> auto-approve (and record) only when the operator has
+      opted in via ``smart_auto_approve``; otherwise fall through so the
+      call is still surfaced for review.
+    * ``ASK`` / anything else -> return ``None`` so the existing approval
+      flow handles it. Uncertainty never auto-approves (fail-closed).
+    """
+    classification = _classify(tool_name, tool_args)
+
+    if classification.decision is Decision.DENY:
+        _record_classifier_decision(
+            classification=classification,
+            session_id=session_id,
+            agent_role=agent_role,
+            tool_name=tool_name,
+            tool_args=tool_args,
+            workdir=workdir,
+        )
+        return ResolvedApproval(
+            approval_id=f"auto-approve-deny:{tool_name}",
+            decision=ApprovalDecision.REJECT,
+            reason=classification.reason,
+        )
+
+    if classification.decision is Decision.APPROVE and smart_auto_approve:
+        _record_classifier_decision(
+            classification=classification,
+            session_id=session_id,
+            agent_role=agent_role,
+            tool_name=tool_name,
+            tool_args=tool_args,
+            workdir=workdir,
+        )
+        return ResolvedApproval(
+            approval_id=f"auto-approve-allow:{tool_name}",
+            decision=ApprovalDecision.ALLOW,
+            reason=classification.reason,
+        )
+
+    # ASK, or APPROVE without opt-in: defer to the existing approval flow.
+    return None
+
+
 async def await_tool_call(
     *,
     session_id: str,
@@ -177,6 +329,23 @@ async def await_tool_call(
         return policy_decision
 
     cfg = config if config is not None else load_approval_config(workdir)
+
+    # Smart auto-approve classifier. The deny-list runs unconditionally
+    # (deny wins, even headless), so a deny-listed command is rejected and
+    # audited regardless of interactive mode or the opt-in flag. A safe
+    # (APPROVE) verdict only short-circuits the queue when the operator
+    # opted in; uncertainty (ASK) always falls through to human review.
+    classifier_decision = _smart_classifier_decision(
+        session_id=session_id,
+        agent_role=agent_role,
+        tool_name=tool_name,
+        tool_args=tool_args,
+        workdir=workdir,
+        smart_auto_approve=cfg.smart_auto_approve,
+    )
+    if classifier_decision is not None:
+        return classifier_decision
+
     if not cfg.interactive:
         return None
 

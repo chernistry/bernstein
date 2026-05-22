@@ -91,13 +91,17 @@ def test_gate_short_circuits_when_allow_list_matches(tmp_path: Path) -> None:
 def test_gate_pushes_when_allow_list_misses(tmp_path: Path) -> None:
     queue = ApprovalQueue(base_dir=tmp_path)
 
+    # Use a command that misses both the always-allow rules and the smart
+    # classifier's allow/deny lists, so it is genuinely ambiguous (ASK) and
+    # reaches the operator queue. A deny-listed command (e.g. ``rm -rf /``)
+    # is now rejected outright by the wired classifier and never queued.
     async def scenario() -> None:
         gate_task = asyncio.create_task(
             await_tool_call(
                 session_id="S-9",
                 agent_role="backend",
                 tool_name="shell",
-                tool_args={"command": "rm -rf /"},
+                tool_args={"command": "make build"},
                 workdir=tmp_path,
                 queue=queue,
                 engine=AlwaysAllowEngine(rules=[]),
@@ -125,13 +129,16 @@ def test_gate_pushes_when_allow_list_misses(tmp_path: Path) -> None:
 def test_gate_raises_timeout_when_unresolved(tmp_path: Path) -> None:
     queue = ApprovalQueue(base_dir=tmp_path)
 
+    # ``make build`` is ambiguous (not allow-listed, not deny-listed) so it
+    # queues and then times out. A deny-listed command would instead be
+    # rejected immediately by the wired classifier and never time out.
     async def scenario() -> None:
         with pytest.raises(ApprovalTimeoutError):
             await await_tool_call(
                 session_id="S",
                 agent_role="backend",
                 tool_name="shell",
-                tool_args={"command": "rm -rf /"},
+                tool_args={"command": "make build"},
                 workdir=tmp_path,
                 queue=queue,
                 engine=AlwaysAllowEngine(rules=[]),

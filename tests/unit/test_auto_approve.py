@@ -259,6 +259,13 @@ class TestClassifyToolCall:
         result = classify_tool_call("Write", {"file_path": "foo.py", "content": "..."})
         assert result.decision == Decision.ASK
 
+    def test_notebook_edit_asks(self) -> None:
+        # NotebookEdit is a write-capable tool (see traces.py _EDIT_TOOLS and
+        # this module's own fall-through policy), so it must ASK like
+        # Edit/Write rather than auto-approve (issue #1850).
+        result = classify_tool_call("NotebookEdit", {"notebook_path": "x.ipynb"})
+        assert result.decision == Decision.ASK
+
     def test_unknown_tool_asks(self) -> None:
         result = classify_tool_call("SomeFancyTool", {})
         assert result.decision == Decision.ASK

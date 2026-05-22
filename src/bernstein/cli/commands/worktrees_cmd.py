@@ -92,7 +92,12 @@ def render_worktrees_table(rows: Iterable[ClassifiedWorktree]) -> Table:
     for row in rows:
         style = _STATE_STYLE.get(row.state, "white")
         task_display = row.task_id[:12] if row.task_id else "-"
-        pid_display = "-" if row.pid is None else (str(row.pid) + ("" if row.pid_alive else "✗"))
+        if row.pid is None:
+            pid_display = "-"
+        elif row.pid_alive:
+            pid_display = str(row.pid)
+        else:
+            pid_display = f"{row.pid}✗"
         table.add_row(
             str(row.path),
             task_display,
@@ -380,7 +385,12 @@ def _print_reap_progress(
     *,
     dry_run: bool,
 ) -> None:
-    verb = "Would remove" if dry_run else ("Removed" if removed else "Skipped")
+    if dry_run:
+        verb = "Would remove"
+    elif removed:
+        verb = "Removed"
+    else:
+        verb = "Skipped"
     console.print(f"[dim]{verb}[/dim] {row.path} ({row.state.value})")
 
 

@@ -163,7 +163,10 @@ class NetworkPolicy:
         host = parsed.hostname or ""
         port = parsed.port
         if port is None and parsed.scheme:
-            port = 443 if parsed.scheme == "https" else 80 if parsed.scheme == "http" else None
+            if parsed.scheme == "https":
+                port = 443
+            elif parsed.scheme == "http":
+                port = 80
         self.check(host, port, source=source or url)
 
     def to_env_value(self) -> str:

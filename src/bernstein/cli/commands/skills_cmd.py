@@ -298,7 +298,14 @@ def skills_init(name: str, scope: str, description: str | None) -> None:
     default=False,
     help="Fail install when skill lint reports ERROR findings.",
 )
-def skills_install(source: Path, scope: str, override_name: str | None, strict: bool) -> None:
+@click.option(
+    "--accept-risk",
+    "accept_risk",
+    is_flag=True,
+    default=False,
+    help="Allow installs that require explicit risk acceptance.",
+)
+def skills_install(source: Path, scope: str, override_name: str | None, strict: bool, accept_risk: bool) -> None:
     """Install a skill from a local path.
 
     \b
@@ -313,6 +320,7 @@ def skills_install(source: Path, scope: str, override_name: str | None, strict: 
             workdir=Path.cwd(),
             override_name=override_name,
             strict_lint=strict,
+            accept_risk=accept_risk,
         )
     except SkillLifecycleError as exc:
         console.print(f"[red]install failed:[/red] {exc}")
@@ -364,7 +372,14 @@ def skills_remove(name: str, scope: str) -> None:
     default=False,
     help="Fail sync when skill lint reports ERROR findings.",
 )
-def skills_sync(manifest: Path | None, scope: str, strict: bool) -> None:
+@click.option(
+    "--accept-risk",
+    "accept_risk",
+    is_flag=True,
+    default=False,
+    help="Allow installs that require explicit risk acceptance.",
+)
+def skills_sync(manifest: Path | None, scope: str, strict: bool, accept_risk: bool) -> None:
     """Install every skill declared in ``bernstein-skills.toml``.
 
     Re-runs are idempotent: skills whose digest already matches are
@@ -379,6 +394,7 @@ def skills_sync(manifest: Path | None, scope: str, strict: bool) -> None:
             scope=install_scope,
             workdir=Path.cwd(),
             strict_lint=strict,
+            accept_risk=accept_risk,
         )
     except (SkillsTomlError, SkillLifecycleError) as exc:
         console.print(f"[red]sync failed:[/red] {exc}")

@@ -30,9 +30,9 @@ Out of scope for this module (deferred to follow-up tracks):
 
 - Source types beyond ``local`` (Git, OCI, index).
 - Signature verification and trust roots.
-- Source-content scans beyond the invisible Unicode install gate. Strict lint
-  can block ERROR findings; the default path remains advisory for backwards
-  compatibility.
+- Source-content scans beyond the invisible Unicode install gate and the
+  reserved sandbox-profile gate. Strict lint can block ERROR findings; the
+  default path remains advisory for backwards compatibility.
 """
 
 from __future__ import annotations
@@ -563,6 +563,30 @@ def _raise_for_invisible_unicode(
         )
 
 
+def _raise_for_unsupported_sandbox_profile(
+    skill_dir: Path,
+    *,
+    skill_name: str,
+    accept_risk: bool,
+) -> None:
+    """Raise when a skill asks for sandbox injection that is not available."""
+    if accept_risk:
+        return
+    skill_md = skill_dir / "SKILL.md"
+    try:
+        content = skill_md.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SkillLifecycleError(f"{skill_name}: cannot read SKILL.md for sandbox profile gate: {exc}") from exc
+
+    front_raw, _body = _split_skill_md(content)
+    frontmatter = _frontmatter_dict(front_raw)
+    if frontmatter.get("sandbox_profile") is None:
+        return
+    raise SkillLifecycleError(
+        f"{skill_name}: sandbox_profile requires sandbox injector support; refusing install unless accept_risk=True",
+    )
+
+
 def install_local(
     source: Path,
     *,
@@ -572,6 +596,7 @@ def install_local(
     override_name: str | None = None,
     strict_lint: bool = False,
     allow_invisible_unicode: bool = False,
+    accept_risk: bool = False,
 ) -> InstallResult:
     """Install a skill from a local path into the chosen scope.
 
@@ -593,6 +618,8 @@ def install_local(
             WARNING findings remain advisory.
         allow_invisible_unicode: When ``True``, bypass the install-time
             invisible Unicode refusal for controlled reproduction.
+        accept_risk: When ``True``, bypass explicit-risk install refusals
+            such as reserved ``sandbox_profile`` injection metadata.
 
     Returns:
         :class:`InstallResult` with the target directory and digest.
@@ -635,7 +662,12 @@ def install_local(
         _raise_for_invisible_unicode(
             staging_dir,
             skill_name=name,
-            allow_invisible_unicode=allow_invisible_unicode,
+            allow_invisible_unicode=allow_invisible_unicode or accept_risk,
+        )
+        _raise_for_unsupported_sandbox_profile(
+            staging_dir,
+            skill_name=name,
+            accept_risk=accept_risk,
         )
         digest = compute_skill_digest(staging_dir)
         if strict_lint:
@@ -807,6 +839,7 @@ def sync_skills(
     home: Path | None = None,
     strict_lint: bool = False,
     allow_invisible_unicode: bool = False,
+    accept_risk: bool = False,
 ) -> list[SyncOutcome]:
     """Reconcile ``bernstein-skills.toml`` with the chosen scope.
 
@@ -824,6 +857,8 @@ def sync_skills(
             unchanged installs. WARNING findings remain advisory.
         allow_invisible_unicode: When ``True``, bypass the install-time
             invisible Unicode refusal for controlled reproduction.
+        accept_risk: When ``True``, bypass explicit-risk install refusals
+            such as reserved ``sandbox_profile`` injection metadata.
 
     Returns:
         One :class:`SyncOutcome` per skill, in declaration order.
@@ -885,7 +920,12 @@ def sync_skills(
             _raise_for_invisible_unicode(
                 existing_install,
                 skill_name=entry.name,
-                allow_invisible_unicode=allow_invisible_unicode,
+                allow_invisible_unicode=allow_invisible_unicode or accept_risk,
+            )
+            _raise_for_unsupported_sandbox_profile(
+                existing_install,
+                skill_name=entry.name,
+                accept_risk=accept_risk,
             )
             if strict_lint:
                 _raise_for_strict_lint_errors(existing_install, skill_name=entry.name)
@@ -915,6 +955,7 @@ def sync_skills(
             override_name=entry.name,
             strict_lint=strict_lint,
             allow_invisible_unicode=allow_invisible_unicode,
+            accept_risk=accept_risk,
         )
         action = "updated" if entry.name in previous_lock else "installed"
         outcomes.append(

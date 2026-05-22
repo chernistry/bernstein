@@ -47,6 +47,23 @@ def _all_steps(jobs: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     return out
 
 
+def _job(data: dict[str, Any], job_name: str) -> dict[str, Any]:
+    job = data["jobs"][job_name]
+    assert isinstance(job, dict)
+    return cast("dict[str, Any]", job)
+
+
+def _step_run(data: dict[str, Any], job_name: str, step_name: str) -> str:
+    job = _job(data, job_name)
+    steps = job.get("steps") or []
+    for step in steps:
+        if isinstance(step, dict) and step.get("name") == step_name:
+            run = step.get("run")
+            assert isinstance(run, str)
+            return run
+    pytest.fail(f"{PUBLISH_WF.name}::{job_name} has no step named {step_name!r}")
+
+
 @pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
 def test_workflow_yaml_parses(workflow_path: Path) -> None:
     """Workflow YAML is syntactically valid -- prevents typos breaking CI silently."""
@@ -129,3 +146,43 @@ def test_attest_action_pinned_to_commit_sha() -> None:
             )
             return
     pytest.fail("publish.yml has no attest-build-provenance step")
+
+
+def test_protocol_gate_does_not_ignore_install_or_pytest_failures() -> None:
+    """The protocol gate must fail when dependency install or pytest exits non-zero."""
+    data = _load_yaml(PUBLISH_WF)
+    run = _step_run(data, "protocol-gate", "Run protocol compatibility check")
+    unsafe_lines = [
+        line.strip() for line in run.splitlines() if line.strip().startswith(("uv pip install", "uv run pytest"))
+    ]
+    assert unsafe_lines
+    assert all("|| true" not in line for line in unsafe_lines), unsafe_lines
+
+
+def test_protocol_gate_status_uses_pytest_exit_code() -> None:
+    """The compat JSON status must use pytest's exit code rather than output substrings."""
+    data = _load_yaml(PUBLISH_WF)
+    run = _step_run(data, "protocol-gate", "Run protocol compatibility check")
+    assert '"FAILED" not in test_output' not in run
+    assert "pytest_exit_code" in run
+
+
+def test_publish_test_job_runs_release_tests() -> None:
+    """The release guard test job must run tests, not only lint."""
+    data = _load_yaml(PUBLISH_WF)
+    job = _job(data, "test")
+    assert job.get("name") == "Verify tests pass"
+
+    runs = [step["run"] for step in job.get("steps", []) if isinstance(step, dict) and isinstance(step.get("run"), str)]
+    assert "uv run python scripts/run_tests.py -k release -x" in "\n".join(runs)
+
+
+def test_github_release_uploads_and_asserts_dist_assets() -> None:
+    """Existing GitHub Releases must receive dist assets and fail if assets are absent."""
+    data = _load_yaml(PUBLISH_WF)
+    run = _step_run(data, "github-release", "Create release")
+    assert "|| echo" not in run
+    assert "gh release upload" in run
+    assert "--clobber" in run
+    assert "gh release view" in run
+    assert "asset_count" in run

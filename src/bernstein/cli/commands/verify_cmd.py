@@ -643,11 +643,11 @@ def _verify_determinism(
 
     fingerprint = fp.compute()
 
-    # Count entries
-    entry_count = sum(1 for _ in WALReader(run_id=run_id, sdd_dir=SDD_DIR).iter_entries())
-
     if expect is None and baseline_run_id is None:
         # Bare mode: observe-only, byte-identical to the original surface.
+        # The entry count is only displayed in this branch, so the second WAL
+        # scan stays scoped here rather than running for every gated call.
+        entry_count = sum(1 for _ in WALReader(run_id=run_id, sdd_dir=SDD_DIR).iter_entries())
         console.print(
             Panel(
                 "[bold]Execution Determinism Fingerprint[/bold]",

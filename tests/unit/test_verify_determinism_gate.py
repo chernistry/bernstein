@@ -22,6 +22,7 @@ from click.testing import CliRunner
 from bernstein.cli.commands.verify_cmd import verify_cmd
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
 Decision = tuple[str, dict[str, Any], dict[str, Any]]
@@ -38,7 +39,7 @@ def _wide_console(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COLUMNS", "200")
 
 
-def _write_wal(sdd_dir: Path, run_id: str, decisions: list[Decision]) -> None:
+def _write_wal(sdd_dir: Path, run_id: str, decisions: Sequence[Decision]) -> None:
     writer = WALWriter(run_id=run_id, sdd_dir=sdd_dir)
     for decision_type, inputs, output in decisions:
         writer.append(decision_type, inputs, output, "actor")
@@ -48,11 +49,13 @@ def _fingerprint(sdd_dir: Path, run_id: str) -> str:
     return ExecutionFingerprint.from_wal(WALReader(run_id=run_id, sdd_dir=sdd_dir)).compute()
 
 
-_DECISIONS: list[Decision] = [
+# Immutable shared fixture: a tuple so a test cannot accidentally mutate the
+# decision trace other tests rely on.
+_DECISIONS: tuple[Decision, ...] = (
     ("tick_start", {"tick": 1}, {}),
     ("task_claimed", {"task_id": "T-1"}, {"batch_size": 1}),
     ("task_completed", {"task_id": "T-1"}, {"janitor_passed": True}),
-]
+)
 
 
 def test_bare_determinism_prints_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,11 +121,11 @@ def test_baseline_diverging_runs_exit_two_and_pinpoint(tmp_path: Path, monkeypat
     sdd.mkdir()
     _write_wal(sdd, "run-a", _DECISIONS)
     # run-b forks at index 1 (different task_id input).
-    diverged: list[Decision] = [
+    diverged: tuple[Decision, ...] = (
         ("tick_start", {"tick": 1}, {}),
         ("task_claimed", {"task_id": "T-999"}, {"batch_size": 1}),
         ("task_completed", {"task_id": "T-999"}, {"janitor_passed": True}),
-    ]
+    )
     _write_wal(sdd, "run-b", diverged)
 
     monkeypatch.chdir(tmp_path)
@@ -173,6 +176,8 @@ def test_expect_and_baseline_together_is_rejected(tmp_path: Path, monkeypatch: p
     )
 
     assert result.exit_code != 0
+    # Pin the contract: the rejection names mutual exclusivity, not just a code.
+    assert "mutually exclusive" in result.output.lower()
 
 
 def test_expect_without_determinism_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -181,6 +186,9 @@ def test_expect_without_determinism_is_rejected(tmp_path: Path, monkeypatch: pyt
     result = CliRunner().invoke(verify_cmd, ["--expect", "a" * 64])
 
     assert result.exit_code != 0
+    # Pin the contract: the rejection explains the --determinism dependency.
+    assert "require" in result.output.lower()
+    assert "--determinism" in result.output
 
 
 def test_mismatch_output_scopes_the_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

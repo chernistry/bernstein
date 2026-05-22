@@ -10,8 +10,8 @@ from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from bernstein.core.home import BernsteinHome, resolve_config_bundle
 from bernstein.core.prometheus import get_transition_reason_histogram
@@ -51,6 +51,10 @@ __all__ = [
 
 # Shared cast-type constants to avoid string duplication (Sonar S1192).
 _CAST_DICT_STR_ANY = "dict[str, Any]"
+_DASHBOARD_STATIC_ASSETS = {
+    "tailwind-3.4.17.min.js": "application/javascript",
+    "alpinejs-3.14.8.min.js": "application/javascript",
+}
 
 
 def _get_store(request: Request) -> TaskStore:
@@ -979,6 +983,26 @@ def dashboard_page() -> HTMLResponse:
     html_path = TEMPLATE_DIR / "index.html"
     html = html_path.read_text(encoding="utf-8")
     return HTMLResponse(content=html)
+
+
+@router.get("/dashboard/static/{asset_name}")
+def dashboard_static_asset(asset_name: str) -> Response:
+    """Serve allow-listed static assets used by the web dashboard."""
+    from bernstein.dashboard import STATIC_DIR
+
+    media_type = _DASHBOARD_STATIC_ASSETS.get(asset_name)
+    if media_type is None:
+        raise HTTPException(status_code=404, detail="Dashboard asset not found")
+
+    asset_path = STATIC_DIR / asset_name
+    return Response(
+        content=asset_path.read_bytes(),
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 def _populate_agents_from_snapshots(agents: dict[str, Any], agent_snapshots: dict[str, dict[str, Any]]) -> None:

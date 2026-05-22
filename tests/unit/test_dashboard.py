@@ -85,6 +85,23 @@ async def test_dashboard_contains_script(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
+async def test_dashboard_static_asset_is_served_from_package(client: AsyncClient) -> None:
+    """Dashboard static assets are served from an explicit allow-list."""
+    resp = await client.get("/dashboard/static/alpinejs-3.14.8.min.js")
+    assert resp.status_code == 200
+    assert "application/javascript" in resp.headers["content-type"]
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert "Alpine" in resp.text
+
+
+@pytest.mark.anyio
+async def test_unknown_dashboard_static_asset_returns_404(client: AsyncClient) -> None:
+    """Unknown dashboard static assets are not resolved from arbitrary paths."""
+    resp = await client.get("/dashboard/static/missing.js")
+    assert resp.status_code == 404
+
+
+@pytest.mark.anyio
 async def test_dashboard_contains_cost_analytics_sections(client: AsyncClient) -> None:
     """Dashboard HTML exposes the cost analytics view required by WEB-016."""
     resp = await client.get("/dashboard")

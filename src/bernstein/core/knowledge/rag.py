@@ -176,11 +176,10 @@ _memoized_chunker: Any = None
 def _chunk_for_memo(*, chunk_sha: str, rel_path: str, source: str, is_python: bool) -> list[dict[str, object]]:
     """Memoization shim around the AST/line chunker.
 
-    Fingerprint key = (chunk_sha, rel_path, embedder_id="bm25_v1",
-    this-function-body-hash).  A change to the chunker invalidates the
-    cached chunks, so a bug fix in chunk shaping correctly re-derives.
+    Fingerprint key = (chunk_sha, rel_path, this-function-body-hash).
+    A change to the chunker invalidates the cached chunks, so a bug fix
+    in chunk shaping correctly re-derives.
     """
-    embedder_id = "bm25_v1"  # noqa: F841 -- folded into the fingerprint via locals
     if is_python:
         return _extract_python_chunks(source, rel_path)
     return _line_chunks(source, rel_path)

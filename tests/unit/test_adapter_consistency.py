@@ -99,6 +99,11 @@ class TestAdapterProtocolCompliance:
     def test_spawn_has_optional_multimodal_context(self, adapter_name: str, adapter: CLIAdapter) -> None:
         sig = inspect.signature(adapter.spawn)
         assert "multimodal_context" in sig.parameters, f"{adapter_name}.spawn() should accept multimodal_context"
+        multimodal_param = sig.parameters["multimodal_context"]
+        assert multimodal_param.default is None, f"{adapter_name}.spawn() multimodal_context should default to None"
+        assert multimodal_param.kind is inspect.Parameter.KEYWORD_ONLY, (
+            f"{adapter_name}.spawn() multimodal_context should be keyword-only"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -170,8 +175,8 @@ class TestAdapterSpawnResult:
 
 
 @pytest.mark.parametrize(
-    "adapter_name,adapter",
-    _TESTABLE_ADAPTERS,
+    "adapter_name",
+    [name for name, _adapter in _TESTABLE_ADAPTERS],
     ids=[t[0] for t in _TESTABLE_ADAPTERS],
 )
 class TestAdapterMultimodalRefusal:
@@ -180,12 +185,12 @@ class TestAdapterMultimodalRefusal:
     def test_non_multimodal_adapter_refuses_multimodal_context(
         self,
         adapter_name: str,
-        adapter: CLIAdapter,
         tmp_path: Path,
     ) -> None:
         if is_multimodal_capable(adapter_name):
             pytest.skip(f"{adapter_name} supports multimodal attachments")
 
+        adapter = _instantiate_adapter(adapter_name)
         attachment = tmp_path / "screenshot.png"
         attachment.write_bytes(b"fake image")
         context = MultiModalContext(

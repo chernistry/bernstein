@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import cast
 
 _TEST_REQUIRED_PREFIXES = (
     ".github/workflows/",
@@ -31,6 +32,8 @@ _TEST_REQUIRED_PREFIXES = (
     "src/",
     "tests/",
 )
+
+TEST_FILE_TIMEOUT_SECONDS = 300
 
 
 def _default_workers() -> int:
@@ -129,7 +132,7 @@ def run_file(path: Path, extra_args: list[str], coverage: bool = False) -> tuple
             *extra_args,
         ]
     start = time.monotonic()
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=TEST_FILE_TIMEOUT_SECONDS)
     duration = time.monotonic() - start
     output = result.stdout + result.stderr
     return path, result.returncode, duration, output
@@ -193,7 +196,7 @@ def run_sequential(files: list[Path], extra_args: list[str], fail_fast: bool, co
         try:
             _fpath, code, duration, output = run_file(path, extra_args, coverage=coverage)
         except subprocess.TimeoutExpired:
-            print(f"  TIMEOUT {label} (>120s)")
+            print(f"  TIMEOUT {label} (>{TEST_FILE_TIMEOUT_SECONDS}s)")
             failed += 1
             if fail_fast:
                 break
@@ -470,10 +473,16 @@ def _finalize_coverage() -> None:
         )
         if Path("coverage.json").exists():
             try:
-                data = json.loads(Path("coverage.json").read_text(encoding="utf-8"))
-                totals = data.get("totals", {}) if isinstance(data, dict) else {}
-                pct = totals.get("percent_covered") if isinstance(totals, dict) else None
-                if pct is not None:
+                data: object = json.loads(Path("coverage.json").read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    return
+                root = cast("dict[str, object]", data)
+                totals_raw = root.get("totals")
+                if not isinstance(totals_raw, dict):
+                    return
+                totals = cast("dict[str, object]", totals_raw)
+                pct = totals.get("percent_covered")
+                if isinstance(pct, int | float | str):
                     print(f"\nCoverage: {float(pct):.2f}%")
             except (json.JSONDecodeError, OSError, ValueError):
                 pass

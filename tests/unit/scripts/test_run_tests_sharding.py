@@ -208,8 +208,14 @@ def test_empty_affected_selection_fails_for_source_changes(
     run_tests_module: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(run_tests_module, "discover_affected_files", lambda _base: [])
-    monkeypatch.setattr(run_tests_module, "discover_changed_files", lambda _base: ["src/bernstein/core/models.py"])
+    def no_affected_files(_base: str) -> list[Path]:
+        return []
+
+    def changed_source_files(_base: str) -> list[str]:
+        return ["src/bernstein/core/models.py"]
+
+    monkeypatch.setattr(run_tests_module, "discover_affected_files", no_affected_files)
+    monkeypatch.setattr(run_tests_module, "discover_changed_files", changed_source_files)
     monkeypatch.setattr(sys, "argv", ["run_tests.py", "--affected", "origin/main"])
 
     with pytest.raises(SystemExit) as exc_info:
@@ -222,13 +228,32 @@ def test_empty_affected_shard_remains_success_when_other_shards_have_tests(
     run_tests_module: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(run_tests_module, "discover_affected_files", lambda _base: [Path("tests/unit/test_models.py")])
+    def one_affected_file(_base: str) -> list[Path]:
+        return [Path("tests/unit/test_models.py")]
+
+    monkeypatch.setattr(run_tests_module, "discover_affected_files", one_affected_file)
     monkeypatch.setattr(sys, "argv", ["run_tests.py", "--affected", "origin/main", "--shard", "2/2"])
 
     with pytest.raises(SystemExit) as exc_info:
         run_tests_module.main()
 
     assert exc_info.value.code == 0
+
+
+def test_sequential_timeout_message_matches_subprocess_timeout(
+    run_tests_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_file(*_: object, **__: object) -> tuple[Path, int, float, str]:
+        raise subprocess.TimeoutExpired(cmd=["pytest"], timeout=300)
+
+    monkeypatch.setattr(run_tests_module, "run_file", fake_run_file)
+
+    result = run_tests_module.run_sequential([Path("tests/unit/test_slow.py")], [], fail_fast=True)
+
+    assert result == 1
+    assert "TIMEOUT [1/1] test_slow.py (>300s)" in capsys.readouterr().out
 
 
 def test_discover_changed_files_falls_back_to_two_dot_diff_without_merge_base(

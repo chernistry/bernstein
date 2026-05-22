@@ -3,16 +3,27 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict, cast
 
 import pytest
-
-try:
-    import yaml
-except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
-    pytest.skip("pyyaml not installed", allow_module_level=True)
-
+import yaml
 
 WORKFLOW = Path(".github/workflows/bernstein-pr-review.yml")
+WorkflowStep = TypedDict(
+    "WorkflowStep",
+    {
+        "env": object,
+        "name": object,
+        "run": object,
+        "uses": object,
+        "with": object,
+    },
+    total=False,
+)
+
+
+class Workflow(TypedDict, total=False):
+    jobs: object
 
 
 @pytest.fixture(scope="module")
@@ -21,22 +32,24 @@ def workflow_text() -> str:
 
 
 @pytest.fixture(scope="module")
-def workflow(workflow_text: str) -> dict[str, object]:
-    return yaml.safe_load(workflow_text)
+def workflow(workflow_text: str) -> Workflow:
+    loaded = yaml.safe_load(workflow_text)
+    assert isinstance(loaded, dict)
+    return cast(Workflow, loaded)
 
 
 @pytest.fixture(scope="module")
-def review_steps(workflow: dict[str, object]) -> list[dict[str, object]]:
+def review_steps(workflow: Workflow) -> list[WorkflowStep]:
     jobs = workflow.get("jobs", {})
     assert isinstance(jobs, dict)
     review = jobs.get("review")
     assert isinstance(review, dict), "expected a 'review' job"
     steps = review.get("steps", [])
     assert isinstance(steps, list)
-    return [step for step in steps if isinstance(step, dict)]
+    return [cast(WorkflowStep, step) for step in steps if isinstance(step, dict)]
 
 
-def _step_named(steps: list[dict[str, object]], name: str) -> dict[str, object]:
+def _step_named(steps: list[WorkflowStep], name: str) -> WorkflowStep:
     step = next((item for item in steps if item.get("name") == name), None)
     assert step is not None, f"missing workflow step: {name}"
     return step
@@ -46,7 +59,7 @@ def test_workflow_file_exists() -> None:
     assert WORKFLOW.exists(), "Bernstein PR review workflow must exist"
 
 
-def test_pr_review_runs_local_action_from_base_checkout(review_steps: list[dict[str, object]]) -> None:
+def test_pr_review_runs_local_action_from_base_checkout(review_steps: list[WorkflowStep]) -> None:
     """The local action must not execute PR head code while the API key is set."""
     review_step = _step_named(review_steps, "Review PR")
     review_index = review_steps.index(review_step)

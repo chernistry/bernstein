@@ -29,7 +29,8 @@ def test_cli_exits_zero_for_valid_minimal_fixture(runner: CliRunner) -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "[OK]" in result.output or _contains_wrapped(result.output, "minimal.md")
+    assert "[OK]" in result.output or "[WARN]" in result.output
+    assert _contains_wrapped(result.output, "minimal.md")
 
 
 def test_cli_exits_one_for_invalid_fixture(runner: CliRunner) -> None:

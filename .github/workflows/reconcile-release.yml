@@ -42,9 +42,10 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Compare versions
+      - name: Compare versions and release assets
         id: cmp
         env:
+          GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           python3 - <<'PY' >> "${GITHUB_OUTPUT}"
@@ -82,6 +83,33 @@ jobs:
           pj_t = parse_version(pj_version)
           pypi_t = parse_version(pypi_version)
 
+          release_tag = f"v{pj_version}"
+          release_assets = subprocess.run(
+              [
+                  "gh",
+                  "release",
+                  "view",
+                  release_tag,
+                  "--repo",
+                  os.environ["REPO"],
+                  "--json",
+                  "assets",
+                  "--jq",
+                  ".assets | length",
+              ],
+              check=False,
+              capture_output=True,
+              text=True,
+          )
+          release_exists = release_assets.returncode == 0
+          asset_count = 0
+          if release_exists:
+              try:
+                  asset_count = int(release_assets.stdout.strip())
+              except ValueError:
+                  print(f"::error::could not parse GitHub Release asset count for {release_tag}")
+                  sys.exit(1)
+
           # Age of the pyproject.toml change (when did the version line last move?).
           # We use git blame on the version line; the diff threshold is >24h.
           blame = subprocess.run(
@@ -96,8 +124,15 @@ jobs:
           print(f"pj_version={pj_version}")
           print(f"pypi_version={pypi_version}")
           print(f"pj_age_hours={pj_age_hours}")
+          print(f"release_exists={'true' if release_exists else 'false'}")
+          print(f"asset_count={asset_count}")
 
-          drift = pj_t > pypi_t and pj_age_hours >= 24
+          version_drift = pj_t > pypi_t and pj_age_hours >= 24
+          missing_assets = release_exists and asset_count == 0
+          print(f"version_drift={'true' if version_drift else 'false'}")
+          print(f"missing_assets={'true' if missing_assets else 'false'}")
+
+          drift = version_drift or missing_assets
           print(f"drift={'true' if drift else 'false'}")
           PY
 
@@ -131,14 +166,23 @@ jobs:
           PJ: ${{ steps.cmp.outputs.pj_version }}
           PYPI: ${{ steps.cmp.outputs.pypi_version }}
           AGE: ${{ steps.cmp.outputs.pj_age_hours }}
+          RELEASE_EXISTS: ${{ steps.cmp.outputs.release_exists }}
+          ASSET_COUNT: ${{ steps.cmp.outputs.asset_count }}
+          MISSING_ASSETS: ${{ steps.cmp.outputs.missing_assets }}
           REPO: ${{ github.repository }}
         run: |
           TITLE="release drift: pyproject=\`${PJ}\` pypi=\`${PYPI}\`"
-          BODY=$(printf 'Detected by `.github/workflows/reconcile-release.yml`.\n\n- pyproject.toml on main: **%s**\n- latest on PyPI: **%s**\n- age of pyproject bump: %sh\n\nLikely cause: a CI run was cancelled/timed_out/action_required so `auto-release.yml` silently skipped the publish (see #1273).\n\nRun `gh workflow run reconcile-release.yml` after fixing to clear.\n' \
-            "${PJ}" "${PYPI}" "${AGE}")
+          if [ "${MISSING_ASSETS}" = "true" ]; then
+            CAUSE="GitHub Release missing dist assets."
+          else
+            CAUSE="Likely cause: a CI run was cancelled/timed_out/action_required so \`auto-release.yml\` silently skipped the publish (see #1273)."
+          fi
+          # shellcheck disable=SC2016
+          BODY=$(printf 'Detected by `.github/workflows/reconcile-release.yml`.\n\n- pyproject.toml on main: **%s**\n- latest on PyPI: **%s**\n- age of pyproject bump: %sh\n- GitHub Release exists: **%s**\n- GitHub Release asset count: **%s**\n\n%s\n\nRun `gh workflow run reconcile-release.yml` after fixing to clear.\n' \
+            "${PJ}" "${PYPI}" "${AGE}" "${RELEASE_EXISTS}" "${ASSET_COUNT}" "${CAUSE}")
 
           # Idempotency: search for an open issue whose title matches the
-          # exact pyproject↔pypi pair. Re-runs the same day just comment.
+          # exact pyproject/pypi pair. Re-runs the same day just comment.
           EXISTING=$(gh issue list --repo "${REPO}" --state open \
             --search "in:title release drift pyproject=${PJ} pypi=${PYPI}" \
             --json number,title \
@@ -193,5 +237,7 @@ jobs:
         env:
           PJ_VERSION: ${{ steps.cmp.outputs.pj_version }}
           PYPI_VERSION: ${{ steps.cmp.outputs.pypi_version }}
+          ASSET_COUNT: ${{ steps.cmp.outputs.asset_count }}
+          MISSING_ASSETS: ${{ steps.cmp.outputs.missing_assets }}
         run: |
-          echo "::notice::No release drift detected (pyproject=${PJ_VERSION}, pypi=${PYPI_VERSION})."
+          echo "::notice::No release drift detected (pyproject=${PJ_VERSION}, pypi=${PYPI_VERSION}, assets=${ASSET_COUNT}, missing_assets=${MISSING_ASSETS})."

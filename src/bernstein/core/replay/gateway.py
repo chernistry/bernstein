@@ -28,8 +28,9 @@ import logging
 import os
 import threading
 import time
+from collections import deque
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
@@ -91,6 +92,21 @@ class _Event:
     seq: int
 
 
+@dataclass
+class _Fixture:
+    """A recorded response plus its consumption state during replay.
+
+    Holds the recorded ``response`` and a ``consumed`` flag. The fixture lives
+    in exactly one per-kind ordered list (recorded order); the by-key index
+    references it by position, so a by-key consume and a by-kind consume mark
+    the same object - the two views can never disagree on which recorded slot
+    was served (#1855).
+    """
+
+    response: Any
+    consumed: bool = field(default=False)
+
+
 class ReplayGateway:
     """Thin wrapper around LLM + tool dispatch with record/replay support.
 
@@ -136,9 +152,15 @@ class ReplayGateway:
             mode = GatewayMode.RECORD if record or is_recording_enabled() else GatewayMode.OFF
         self._mode = mode
 
-        # Replay-mode fixture state.
-        self._fixtures_by_key: dict[tuple[str, str], list[Any]] = {}
-        self._fixtures_by_kind: dict[str, list[Any]] = {}
+        # Replay-mode fixture state. A single ordered list per kind is the
+        # source of truth (recorded order); the by-key index points into it by
+        # position, so consuming a fixture by key and by kind can never desync
+        # even when distinct keys recorded identical response values (#1855).
+        self._ordered_by_kind: dict[str, list[_Fixture]] = {}
+        self._positions_by_key: dict[tuple[str, str], deque[int]] = {}
+        # Per-kind cursor: index of the first not-yet-consumed fixture, so the
+        # by-kind FIFO fallback is amortised O(1) instead of rescanning.
+        self._kind_cursor: dict[str, int] = {}
 
         if self._mode is GatewayMode.RECORD:
             # Only create the directory when we'll actually write something.
@@ -257,7 +279,16 @@ class ReplayGateway:
     # ------------------------------------------------------------------
 
     def _load_fixtures(self) -> None:
-        """Load fixtures from ``events.jsonl`` into in-memory queues."""
+        """Load fixtures from ``events.jsonl`` into ordered per-kind lists.
+
+        Events are ordered by their recorded ``seq`` so the by-kind FIFO
+        fallback replays in recorded order regardless of duplicate response
+        values. Rows missing ``seq`` (legacy logs predating the per-event
+        sequence) fall back to file order, which is the implicit recorded
+        order. The by-key index records each fixture's *position* in its
+        kind's ordered list, so a by-key consume marks the exact recorded
+        slot rather than the first slot with a matching value (#1855).
+        """
         if not self._path.exists():
             raise ReplayMissError(
                 f"No events log at {self._path}; nothing to replay. "
@@ -265,8 +296,9 @@ class ReplayGateway:
             )
         # encoding="utf-8" mirrors the record path; relying on the platform
         # default broke replay on Windows runners where cp1252 was active.
+        rows: list[tuple[int, int, str, str, Any]] = []
         with self._path.open(encoding="utf-8") as f:
-            for raw in f:
+            for file_pos, raw in enumerate(f):
                 row_str = raw.strip()
                 if not row_str:
                     continue
@@ -278,32 +310,74 @@ class ReplayGateway:
                 kind = str(row.get("kind", ""))
                 key = str(row.get("key", ""))
                 response = row.get("response")
-                self._fixtures_by_key.setdefault((kind, key), []).append(response)
-                self._fixtures_by_kind.setdefault(kind, []).append(response)
+                # ``seq`` is the recorded order; legacy logs without it use file
+                # order. ``file_pos`` is the stable tiebreak so two rows sharing
+                # a seq (or both missing it) keep their on-disk order.
+                seq_raw = row.get("seq")
+                seq = int(seq_raw) if isinstance(seq_raw, int) else file_pos
+                rows.append((seq, file_pos, kind, key, response))
+
+        # Sort by (seq, file_pos) so the per-kind lists are in recorded order
+        # even if the log was written or stitched out of strict line order.
+        rows.sort(key=lambda r: (r[0], r[1]))
+        for _seq, _pos, kind, key, response in rows:
+            ordered = self._ordered_by_kind.setdefault(kind, [])
+            fixture = _Fixture(response=response)
+            position = len(ordered)
+            ordered.append(fixture)
+            self._positions_by_key.setdefault((kind, key), deque()).append(position)
+
+    def _next_unconsumed_index(self, kind: str, ordered: list[_Fixture]) -> int | None:
+        """Return the index of the lowest unconsumed fixture for ``kind``.
+
+        Advances and caches a per-kind cursor past already-consumed fixtures
+        so repeated by-kind fallbacks stay amortised O(1). Returns ``None``
+        when every fixture for the kind has been consumed.
+        """
+        cursor = self._kind_cursor.get(kind, 0)
+        while cursor < len(ordered) and ordered[cursor].consumed:
+            cursor += 1
+        self._kind_cursor[kind] = cursor
+        return cursor if cursor < len(ordered) else None
 
     def _replay_lookup(self, *, kind: str, key: str) -> Any:
-        """Pop the next fixture for ``(kind, key)`` (or FIFO by ``kind``).
+        """Consume the next fixture for ``(kind, key)`` (or FIFO by ``kind``).
 
-        Holds ``self._lock`` for the entire pop so concurrent dispatches
-        cannot drain the same bucket twice or skip rows that another
-        thread has already popped under the by-kind fallback.
+        On a by-key hit, consume the lowest unconsumed recorded position for
+        that exact ``(kind, key)``. On a miss, fall back to the lowest
+        unconsumed position for the kind (recorded-order FIFO). Both paths
+        mark the same per-kind ordered list, so duplicate response values can
+        never desync the two views (#1855).
+
+        Holds ``self._lock`` for the entire consume so concurrent dispatches
+        cannot drain the same fixture twice or skip rows another thread has
+        already consumed under the by-kind fallback.
         """
         with self._lock:
-            bucket = self._fixtures_by_key.get((kind, key))
-            if bucket:
-                response = bucket.pop(0)
-                # Also remove the matching entry from the by-kind queue
-                # (FIFO match - first identical response).
-                kind_bucket = self._fixtures_by_kind.get(kind, [])
-                for i, item in enumerate(kind_bucket):
-                    if item == response:
-                        kind_bucket.pop(i)
-                        break
-                return response
+            ordered = self._ordered_by_kind.get(kind)
+            if ordered is None:
+                raise ReplayMissError(
+                    f"No fixture for kind={kind!r} key={key!r} in {self._path}. "
+                    "Either the run diverged or recording was incomplete.",
+                )
 
-            kind_bucket = self._fixtures_by_kind.get(kind)
-            if kind_bucket:
-                return kind_bucket.pop(0)
+            positions = self._positions_by_key.get((kind, key))
+            # Skip positions already consumed via the by-kind fallback so a
+            # by-key hit never returns a slot that was served as FIFO filler.
+            while positions:
+                idx = positions[0]
+                if ordered[idx].consumed:
+                    positions.popleft()
+                    continue
+                positions.popleft()
+                ordered[idx].consumed = True
+                return ordered[idx].response
+
+            # By-kind FIFO fallback: lowest unconsumed recorded position.
+            fallback_idx = self._next_unconsumed_index(kind, ordered)
+            if fallback_idx is not None:
+                ordered[fallback_idx].consumed = True
+                return ordered[fallback_idx].response
 
         raise ReplayMissError(
             f"No fixture for kind={kind!r} key={key!r} in {self._path}. "

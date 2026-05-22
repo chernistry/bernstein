@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from bernstein.core.autoheal.cordon import (
@@ -71,6 +73,12 @@ def test_globs_are_stable() -> None:
     # Sanity: the configured globs cover the expected categories.
     assert any("cursor" in g for g in CORDON_GLOBS)
     assert any("src/bernstein" in g for g in WHITESPACE_OK_GLOBS)
+
+
+def test_glob_translation_uses_single_separator_path() -> None:
+    source = Path("src/bernstein/core/autoheal/cordon.py").read_text(encoding="utf-8")
+
+    assert 'if tokens[i + 1] == "**"' not in source
 
 
 def test_path_normalization_via_purelib() -> None:

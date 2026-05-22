@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -141,7 +142,7 @@ def _coerce_float(raw: object) -> float | None:
         value = float(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
-    if value != value or value < 0.0 or value == float("inf"):
+    if not math.isfinite(value) or value < 0.0:
         return None
     return value
 

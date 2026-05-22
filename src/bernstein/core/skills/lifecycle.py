@@ -42,7 +42,7 @@ import tomllib
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import yaml
 from pydantic import ValidationError
@@ -408,6 +408,18 @@ class InitSkillResult:
     install_dir: Path
 
 
+class _ScaffoldManifestData(TypedDict):
+    """Validated frontmatter fields for a deterministic skill scaffold."""
+
+    manifest_schema: int
+    name: str
+    description: str
+    trigger_keywords: list[str]
+    references: list[str]
+    scripts: list[str]
+    assets: list[str]
+
+
 def _detect_skill_name(source: Path) -> str:
     """Derive the canonical name for a local source.
 
@@ -424,7 +436,7 @@ def _skill_title(name: str) -> str:
     return name.replace("-", " ").capitalize()
 
 
-def _scaffold_manifest_data(name: str, description: str) -> dict[str, object]:
+def _scaffold_manifest_data(name: str, description: str) -> _ScaffoldManifestData:
     """Return validated starter frontmatter for a scaffolded skill."""
     return {
         "manifest_schema": 1,
@@ -484,7 +496,9 @@ def init_skill(
     except ValueError as exc:
         raise SkillLifecycleError(str(exc)) from exc
 
-    skill_description = description or f"Skill {name} scaffolded for deterministic authoring."
+    skill_description = (
+        description if description is not None else f"Skill {name} scaffolded for deterministic authoring."
+    )
     try:
         SkillManifest.model_validate(_scaffold_manifest_data(name, skill_description))
     except ValidationError as exc:
@@ -495,20 +509,20 @@ def init_skill(
     if install_dir.exists():
         raise SkillLifecycleError(f"{name}: skill already exists at {install_dir}")
 
-    dest_root.mkdir(parents=True, exist_ok=True)
     staging_dir = dest_root / f".{name}.init-tmp"
-    if staging_dir.exists():
-        shutil.rmtree(staging_dir)
-    staging_dir.mkdir(parents=True)
 
     try:
+        dest_root.mkdir(parents=True, exist_ok=True)
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        staging_dir.mkdir(parents=True)
         (staging_dir / "SKILL.md").write_text(_scaffold_skill_md(name, skill_description), encoding="utf-8")
         for bucket in ("references", "scripts", "assets"):
             (staging_dir / bucket).mkdir()
         staging_dir.replace(install_dir)
-    except Exception:
+    except OSError as exc:
         shutil.rmtree(staging_dir, ignore_errors=True)
-        raise
+        raise SkillLifecycleError(f"{name}: failed to initialize scaffold: {exc}") from exc
 
     return InitSkillResult(name=name, install_dir=install_dir)
 

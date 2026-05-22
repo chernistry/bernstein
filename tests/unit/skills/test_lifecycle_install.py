@@ -199,6 +199,33 @@ def test_init_skill_rejects_invalid_description(tmp_path: Path) -> None:
         init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir, description="short")
 
 
+def test_init_skill_rejects_empty_description(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    with pytest.raises(SkillLifecycleError, match="invalid scaffold manifest"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir, description="")
+
+
+def test_init_skill_wraps_scaffold_write_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+
+    def fail_write_text(
+        self: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+    with pytest.raises(SkillLifecycleError, match="failed to initialize scaffold"):
+        init_skill("sample-skill", scope=InstallScope.PROJECT, workdir=workdir)
+
+
 def test_init_skill_quotes_yaml_sensitive_description(tmp_path: Path) -> None:
     workdir = tmp_path / "project"
     workdir.mkdir()

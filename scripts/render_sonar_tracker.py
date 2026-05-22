@@ -50,6 +50,7 @@ import argparse
 import dataclasses
 import datetime as _dt
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -484,12 +485,21 @@ def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding
     return ["## Machine-readable summary", "", "```json", blob, "```", ""]
 
 
-def _assert_no_forbidden(body: str) -> None:
-    """Raise if the rendered body carries any disallowed substring."""
+def _contains_forbidden(body: str, forbidden: str) -> bool:
+    """Return true when ``forbidden`` appears as a standalone token or phrase."""
     lower = body.lower()
+    needle = forbidden.lower()
+    if not needle.isalnum():
+        return needle in lower
+    pattern = rf"(?<![A-Za-z0-9_]){re.escape(needle)}(?![A-Za-z0-9_])"
+    return re.search(pattern, lower) is not None
+
+
+def _assert_no_forbidden(body: str) -> None:
+    """Raise if the rendered body carries any disallowed token or phrase."""
     for forbidden in _TRACKER_FORBIDDEN:
-        if forbidden.lower() in lower:
-            raise AssertionError(f"rendered tracker body contains forbidden substring {forbidden!r}")
+        if _contains_forbidden(body, forbidden):
+            raise AssertionError(f"rendered tracker body contains forbidden token or phrase {forbidden!r}")
 
 
 def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> str:

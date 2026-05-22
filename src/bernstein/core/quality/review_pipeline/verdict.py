@@ -11,6 +11,7 @@ reproduces today's single-pass cross-model verifier behaviour.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -212,7 +213,7 @@ def _weighted(
         total_weight += weight
         if v.verdict == "approve":
             approve_weight += weight
-    if total_weight == 0.0:
+    if math.isclose(total_weight, 0.0, abs_tol=1e-12):
         # No weights match → fall back to fraction of approvals.
         approves = sum(1 for v in verdicts if v.verdict == "approve")
         score = approves / len(verdicts)

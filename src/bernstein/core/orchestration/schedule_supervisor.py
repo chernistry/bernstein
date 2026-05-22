@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -304,7 +305,7 @@ class ScheduleSupervisor:
                 upcoming = self.next_fire_for(schedule, anchor_epoch=int(now))
             except Exception:  # pragma: no cover - defensive
                 continue
-            if next_fire == 0.0 or upcoming < next_fire:
+            if math.isclose(next_fire, 0.0, abs_tol=1e-12) or upcoming < next_fire:
                 next_fire = float(upcoming)
                 next_id = schedule.id
         return SupervisorStatus(

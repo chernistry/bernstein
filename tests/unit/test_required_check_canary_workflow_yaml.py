@@ -352,7 +352,7 @@ def _run_rollup(
 # A typical (non-macOS-sensitive) merge_group entry: every required job
 # succeeds except the ones whose `if:` excludes merge_group. Under
 # merge_group: macOS-gated jobs skip (if: only fires on push / sensitive /
-# label), PR-only jobs skip (if: pull_request), and the push-only job skips.
+# label), and PR-only jobs skip (if: pull_request).
 _MERGE_GROUP_NEEDS = {
     "determine-changes": {"result": "success"},
     "repo-hygiene": {"result": "success"},
@@ -377,7 +377,6 @@ _MERGE_GROUP_NEEDS = {
     "adapter-integration-macos": {"result": "skipped"},  # if: push/sensitive/label
     "test": {"result": "success"},
     "test-macos": {"result": "skipped"},  # if: push/sensitive/label
-    "close-ci-issues": {"result": "skipped"},  # if: push to main
 }
 
 

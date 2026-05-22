@@ -1695,9 +1695,10 @@ jobs:
   close-ci-issues:
     name: Close resolved CI issues
     runs-on: ubuntu-latest
-    needs: [repo-hygiene, lint, typecheck, test, spelling, dead-code]
+    needs: [ci-gate]
     if: >
       success() &&
+      needs.ci-gate.result == 'success' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     timeout-minutes: 5
@@ -1716,9 +1717,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          GATE_RESULT="${{ needs.ci-gate.result }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           ISSUES=$(gh issue list --label ci-fix --state open --json number --jq '.[].number' 2>/dev/null || echo "")
           for NUM in $ISSUES; do
-            gh issue close "$NUM" --comment "CI is green again (commit \`${{ github.sha }}\`)." || true
+            gh issue close "$NUM" --comment "CI aggregate gate result: ${GATE_RESULT}. Run: ${RUN_URL}. Commit: \`${{ github.sha }}\`." || true
           done
 
   # Note: the previous `self-heal` issue-creating job was superseded by the
@@ -1836,6 +1839,7 @@ jobs:
   #
   # Excluded from `needs:`:
   #   * `autofix`        - runs only on push to main, mutates the tree
+  #   * `close-ci-issues` - post-gate issue update, must not gate merges
   #   * `pr-summary`     - cosmetic PR comment, must not gate merges
   #   * `typecheck`      - advisory report while repo-wide pyright is being typed
   #   * `mutmut-diff`    - advisory report until mutation score enforcement is enabled
@@ -1872,7 +1876,6 @@ jobs:
       - adapter-integration-macos
       - test
       - test-macos
-      - close-ci-issues
     timeout-minutes: 3
     permissions:
       contents: read
@@ -1916,16 +1919,6 @@ jobs:
               "install-smoke-pipx",
               "install-smoke-uv",
           }
-          # Jobs intentionally gated by `if:` on event / branch - `skipped`
-          # is the expected outcome under these conditions.
-          ALWAYS_SKIPPABLE = {
-              # Only on push to main.
-              "close-ci-issues",
-          }
-          # PR-only jobs: skipped on push events is intentional.
-          PR_ONLY = set()
-          # Push-to-main-only jobs: skipped on PRs is intentional.
-          PUSH_ONLY = {"close-ci-issues"}
           # macOS-gated jobs (see #1468): on PRs these are skipped unless
           # the diff is macos_sensitive or the PR carries the
           # `macos-needed` label. Always run on push events.
@@ -1965,12 +1958,6 @@ jobs:
               if r == "success":
                   continue
               if r == "skipped":
-                  if name in ALWAYS_SKIPPABLE:
-                      continue
-                  if event == "pull_request" and name in PUSH_ONLY:
-                      continue
-                  if event != "pull_request" and name in PR_ONLY:
-                      continue
                   if docs_only and name in DOCS_ONLY_SKIPPABLE:
                       continue
                   # macOS-gated jobs are allowed to skip on:

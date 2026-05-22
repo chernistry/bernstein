@@ -21,6 +21,7 @@ import pytest
 from click.testing import CliRunner
 
 from bernstein.cli.commands.worktrees_cmd import run_gc, worktrees_group
+from bernstein.core.worktrees import classifier
 from bernstein.core.worktrees.classifier import (
     WorktreeState,
     classify_worktrees,
@@ -163,6 +164,26 @@ def test_corrupt_empty_dir_is_reapable(repo_root: Path) -> None:
     row = _row(repo_root, "corrupt-empty")
     assert row.state is WorktreeState.CORRUPT
     assert row.has_unsaved_work is False
+    assert row.is_reapable is True
+
+
+def test_corrupt_empty_dir_does_not_need_git_worktree_paths(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A corrupt directory is classified from local filesystem state only."""
+    base = repo_root / ".sdd" / "runtime" / "worktrees"
+    base.mkdir(parents=True, exist_ok=True)
+    empty = base / "corrupt-empty"
+    empty.mkdir()
+
+    def fail_subprocess_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("git should not be queried for corrupt directory classification")
+
+    monkeypatch.setattr(classifier.subprocess, "run", fail_subprocess_run)
+
+    row = _row(repo_root, "corrupt-empty")
+    assert row.state is WorktreeState.CORRUPT
     assert row.is_reapable is True
 
 

@@ -325,6 +325,7 @@ class NullSideChannel:
         return False
 
     def flush(self, deadline_seconds: float = FLUSH_DEADLINE_SECONDS) -> None:
+        _ = deadline_seconds
         return None
 
     def close(self) -> None:

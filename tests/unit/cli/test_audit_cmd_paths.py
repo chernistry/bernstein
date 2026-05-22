@@ -236,6 +236,29 @@ def test_seal_then_verify_merkle_passes(isolated_audit: Path) -> None:
     assert "Merkle Verification Passed" in verify_result.output
 
 
+def test_seal_refuses_broken_chain(isolated_audit: Path) -> None:
+    """`audit seal` aborts on a broken HMAC chain so a tamper can't be sealed over."""
+    _seed_corrupt(isolated_audit / ".sdd" / "audit", "2026-05-14", count=2)
+    runner = CliRunner()
+    result = runner.invoke(audit_group, ["seal"])
+    assert result.exit_code == 1, result.output
+    assert "chain is broken" in result.output.lower()
+    # No seal must have been written.
+    merkle_dir = isolated_audit / ".sdd" / "audit" / "merkle"
+    assert not merkle_dir.exists() or not any(merkle_dir.glob("seal-*.json"))
+
+
+def test_seal_allow_broken_chain_overrides(isolated_audit: Path) -> None:
+    """--allow-broken-chain seals a known-corrupted log for forensic capture."""
+    _seed_corrupt(isolated_audit / ".sdd" / "audit", "2026-05-14", count=2)
+    runner = CliRunner()
+    result = runner.invoke(audit_group, ["seal", "--allow-broken-chain"])
+    assert result.exit_code == 0, result.output
+    assert "Root hash" in result.output
+    merkle_dir = isolated_audit / ".sdd" / "audit" / "merkle"
+    assert any(merkle_dir.glob("seal-*.json"))
+
+
 # ---------------------------------------------------------------------------
 # audit query
 # ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 import pytest
 from bernstein.core.merkle import (
     _combine_hashes,
+    _combine_internal,
+    _leaf_digest,
     _sha256,
     build_merkle_tree,
     compute_seal,
@@ -53,21 +55,38 @@ class TestFileLeafHash:
         h = file_leaf_hash(f)
         assert isinstance(h, str) and len(h) == 64  # SHA-256 hex
 
-    def test_hmac_chained_file_uses_final_hmac(self, tmp_path: Path) -> None:
+    def test_v2_leaf_binds_whole_file_not_last_hmac(self, tmp_path: Path) -> None:
+        """Under the v2 scheme the leaf binds the whole file, not the last hmac."""
         f = tmp_path / "log.jsonl"
         lines = [
             json.dumps({"event": "a", "hmac": "aaa111"}),
             json.dumps({"event": "b", "hmac": "bbb222"}),
             json.dumps({"event": "c", "hmac": "final_hmac_value"}),
         ]
+        content = ("\n".join(lines) + "\n").encode()
+        f.write_bytes(content)
+        # The leaf is the domain-separated digest of the whole file content -
+        # editing any non-final line changes it (the GH-1844 fix).
+        assert file_leaf_hash(f) == _leaf_digest(content)
+        assert file_leaf_hash(f) != "final_hmac_value"
+
+    def test_legacy_scheme_uses_final_hmac(self, tmp_path: Path) -> None:
+        """The v1 path is retained for verifying pre-hardening seals."""
+        f = tmp_path / "log.jsonl"
+        lines = [
+            json.dumps({"event": "a", "hmac": "aaa111"}),
+            json.dumps({"event": "c", "hmac": "final_hmac_value"}),
+        ]
         f.write_text("\n".join(lines) + "\n")
-        assert file_leaf_hash(f) == "final_hmac_value"
+        assert file_leaf_hash(f, scheme=1) == "final_hmac_value"
 
     def test_empty_file(self, tmp_path: Path) -> None:
         f = tmp_path / "empty.jsonl"
         f.write_text("")
-        h = file_leaf_hash(f)
-        assert h == _sha256(b"empty")
+        # v2: stable, reproducible leaf for empty content.
+        assert file_leaf_hash(f) == _leaf_digest(b"")
+        # v1 legacy path keeps its historical sentinel.
+        assert file_leaf_hash(f, scheme=1) == _sha256(b"empty")
 
     def test_non_json_file(self, tmp_path: Path) -> None:
         f = tmp_path / "raw.jsonl"
@@ -96,10 +115,11 @@ class TestBuildMerkleTree:
     def test_two_leaves(self) -> None:
         tree = build_merkle_tree([("a.jsonl", "aaa"), ("b.jsonl", "bbb")])
         assert tree.leaf_count == 2
-        expected = _combine_hashes("aaa", "bbb")
+        # v2: internal nodes are domain-separated (H(0x01 || l || r)).
+        expected = _combine_internal("aaa", "bbb")
         assert tree.root.hash == expected
 
-    def test_three_leaves_odd_padding(self) -> None:
+    def test_three_leaves_odd_promotion(self) -> None:
         tree = build_merkle_tree(
             [
                 ("a.jsonl", "aaa"),
@@ -108,10 +128,10 @@ class TestBuildMerkleTree:
             ]
         )
         assert tree.leaf_count == 3
-        # Level 1: combine(aaa, bbb), combine(ccc, ccc)  (odd -> duplicate last)
-        left = _combine_hashes("aaa", "bbb")
-        right = _combine_hashes("ccc", "ccc")
-        expected = _combine_hashes(left, right)
+        # v2: Level 1 promotes the lone "ccc" unchanged (no self-pairing),
+        # so the root differs from the [A,B,C,C] tree.
+        left = _combine_internal("aaa", "bbb")
+        expected = _combine_internal(left, "ccc")
         assert tree.root.hash == expected
 
     def test_four_leaves(self) -> None:
@@ -124,9 +144,9 @@ class TestBuildMerkleTree:
             ]
         )
         assert tree.leaf_count == 4
-        left = _combine_hashes("a1", "b2")
-        right = _combine_hashes("c3", "d4")
-        expected = _combine_hashes(left, right)
+        left = _combine_internal("a1", "b2")
+        right = _combine_internal("c3", "d4")
+        expected = _combine_internal(left, right)
         assert tree.root.hash == expected
 
     def test_deterministic(self) -> None:
@@ -159,10 +179,12 @@ class TestComputeSeal:
         (audit / "2026-03-28.jsonl").write_text('{"event":"a","hmac":"h1"}\n')
         (audit / "2026-03-29.jsonl").write_text('{"event":"b","hmac":"h2"}\n')
 
-        tree, seal = compute_seal(audit)
+        # Synthetic (non-chained) content isolates the Merkle layer.
+        tree, seal = compute_seal(audit, verify_chain=False)
         assert seal["root_hash"] == tree.root.hash
         assert seal["leaf_count"] == 2
         assert seal["algorithm"] == "sha256"
+        assert seal["scheme"] == 2
         assert len(seal["leaves"]) == 2  # type: ignore[arg-type]
         assert seal["sealed_at"] is not None
 
@@ -183,7 +205,7 @@ class TestComputeSeal:
         (audit / "z.jsonl").write_text('{"x":1}\n')
         (audit / "a.jsonl").write_text('{"x":2}\n')
 
-        _, seal = compute_seal(audit)
+        _, seal = compute_seal(audit, verify_chain=False)
         leaves = seal["leaves"]
         assert leaves[0]["file"] == "a.jsonl"  # type: ignore[index]
         assert leaves[1]["file"] == "z.jsonl"  # type: ignore[index]
@@ -230,7 +252,12 @@ class TestSealPersistence:
 
 
 def _setup_audit(tmp_path: Path) -> tuple[Path, Path]:
-    """Create an audit dir with two log files and compute a seal."""
+    """Create an audit dir with two log files and compute a seal.
+
+    Uses synthetic (non-chained) content to isolate the Merkle file-level
+    layer, so the chain precheck is disabled. Real-chain coverage lives in
+    tests/unit/test_merkle_second_preimage.py.
+    """
     audit = tmp_path / "audit"
     audit.mkdir()
     merkle = audit / "merkle"
@@ -238,7 +265,7 @@ def _setup_audit(tmp_path: Path) -> tuple[Path, Path]:
     (audit / "2026-03-28.jsonl").write_text('{"event":"a","hmac":"h1"}\n')
     (audit / "2026-03-29.jsonl").write_text('{"event":"b","hmac":"h2"}\n')
 
-    _, seal = compute_seal(audit)
+    _, seal = compute_seal(audit, verify_chain=False)
     save_seal(seal, merkle)
     return audit, merkle
 
@@ -293,8 +320,8 @@ class TestVerifyMerkle:
         result = verify_merkle(audit, merkle)
         assert not result.valid
 
-        # Reseal
-        _, new_seal = compute_seal(audit)
+        # Reseal (synthetic content -> skip the chain precheck)
+        _, new_seal = compute_seal(audit, verify_chain=False)
         save_seal(new_seal, merkle)
 
         # New seal should pass
@@ -314,7 +341,7 @@ class TestSingleFileSeal:
         merkle = audit / "merkle"
         (audit / "only.jsonl").write_text('{"event":"solo"}\n')
 
-        _, seal = compute_seal(audit)
+        _, seal = compute_seal(audit, verify_chain=False)
         save_seal(seal, merkle)
 
         result = verify_merkle(audit, merkle)

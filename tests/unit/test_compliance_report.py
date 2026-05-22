@@ -85,8 +85,8 @@ class TestComputeMerkleRoot:
     def test_single_event(self) -> None:
         event = _make_event(hmac="deadbeef")
         root = compute_merkle_root([event])
-        leaf = hashlib.sha256(b"deadbeef").hexdigest()
-        # Single leaf: only one node in the tree, so root == leaf hash.
+        # v2: a single leaf is the domain-separated leaf digest H(0x00 || hmac).
+        leaf = hashlib.sha256(b"\x00deadbeef").hexdigest()
         assert root == leaf
 
     def test_two_events(self) -> None:
@@ -94,10 +94,11 @@ class TestComputeMerkleRoot:
         e2 = _make_event(hmac="bbb")
         root = compute_merkle_root([e1, e2])
 
-        # HMACs sorted: ["aaa", "bbb"]
-        leaf_a = hashlib.sha256(b"aaa").hexdigest()
-        leaf_b = hashlib.sha256(b"bbb").hexdigest()
-        expected = hashlib.sha256((leaf_a + leaf_b).encode()).hexdigest()
+        # HMACs sorted: ["aaa", "bbb"]. v2: leaves H(0x00 || hmac),
+        # internal node H(0x01 || left || right).
+        leaf_a = hashlib.sha256(b"\x00aaa").hexdigest()
+        leaf_b = hashlib.sha256(b"\x00bbb").hexdigest()
+        expected = hashlib.sha256(b"\x01" + (leaf_a + leaf_b).encode()).hexdigest()
         assert root == expected
 
     def test_three_events(self) -> None:
@@ -108,13 +109,12 @@ class TestComputeMerkleRoot:
         ]
         root = compute_merkle_root(events)
 
-        # Sorted HMACs: aaa, bbb, ccc
-        leaves = [hashlib.sha256(h.encode()).hexdigest() for h in ["aaa", "bbb", "ccc"]]
-        # Layer 1: combine(leaves[0], leaves[1]), combine(leaves[2], leaves[2])
-        n01 = hashlib.sha256((leaves[0] + leaves[1]).encode()).hexdigest()
-        n22 = hashlib.sha256((leaves[2] + leaves[2]).encode()).hexdigest()
-        # Root
-        expected = hashlib.sha256((n01 + n22).encode()).hexdigest()
+        # Sorted HMACs: aaa, bbb, ccc. v2: leaf digests, domain-separated
+        # internal nodes, and the lone "ccc" leaf promoted unchanged (no
+        # self-pairing) so [A,B,C] != [A,B,C,C].
+        leaves = [hashlib.sha256(b"\x00" + h.encode()).hexdigest() for h in ["aaa", "bbb", "ccc"]]
+        n01 = hashlib.sha256(b"\x01" + (leaves[0] + leaves[1]).encode()).hexdigest()
+        expected = hashlib.sha256(b"\x01" + (n01 + leaves[2]).encode()).hexdigest()
         assert root == expected
 
     def test_deterministic_regardless_of_order(self) -> None:

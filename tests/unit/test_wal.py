@@ -10,10 +10,12 @@ from bernstein.core.wal import (
     GENESIS_HASH,
     ExecutionFingerprint,
     WALEntry,
+    WALEntryDigest,
     WALReader,
     WALRecovery,
     WALWriter,
     _compute_entry_hash,
+    first_divergence,
 )
 
 if TYPE_CHECKING:
@@ -872,3 +874,115 @@ class TestWALStreaming:
         # Successfully resumed from the torn-but-valid final line.
         assert entry.seq == 1
         assert entry.prev_hash != GENESIS_HASH
+
+
+# ---------------------------------------------------------------------------
+# TestFingerprintDivergence
+# ---------------------------------------------------------------------------
+
+
+class TestFingerprintDivergence:
+    """Per-entry cumulative digests + first-divergence pinpoint.
+
+    These exercise the substrate that lets ``verify --determinism --expect``
+    report *where* two runs forked, reusing the existing rolling-hash
+    fingerprint rather than a second scheme.
+    """
+
+    def test_entry_digests_one_per_entry(self, tmp_path: Path) -> None:
+        writer = _make_writer(tmp_path)
+        writer.append("d0", {"i": 0}, {}, "a")
+        writer.append("d1", {"i": 1}, {}, "a")
+        writer.append("d2", {"i": 2}, {}, "a")
+
+        digests = ExecutionFingerprint.entry_digests(_make_reader(tmp_path))
+        assert [d.seq for d in digests] == [0, 1, 2]
+        assert [d.decision_type for d in digests] == ["d0", "d1", "d2"]
+        for d in digests:
+            assert len(d.digest) == 64
+            int(d.digest, 16)  # valid hex
+
+    def test_last_entry_digest_equals_run_fingerprint(self, tmp_path: Path) -> None:
+        """The final cumulative digest is exactly the run's fingerprint.
+
+        This keeps the gate honest: the per-entry stream and the headline
+        digest come from the same rolling hash, not a parallel computation.
+        """
+        writer = _make_writer(tmp_path)
+        writer.append("d0", {"a": 1}, {"b": 2}, "a")
+        writer.append("d1", {"c": 3}, {"d": 4}, "a")
+
+        digests = ExecutionFingerprint.entry_digests(_make_reader(tmp_path))
+        headline = ExecutionFingerprint.from_wal(_make_reader(tmp_path)).compute()
+        assert digests[-1].digest == headline
+
+    def test_identical_wals_equal_digests_no_divergence(self, tmp_path: Path) -> None:
+        sdd1 = tmp_path / "a" / ".sdd"
+        sdd1.mkdir(parents=True)
+        w1 = WALWriter(run_id="r", sdd_dir=sdd1)
+        w1.append("tick_start", {"tick": 1}, {}, "orch")
+        w1.append("task_claimed", {"task_id": "T-1"}, {"batch_size": 1}, "lifecycle")
+
+        sdd2 = tmp_path / "b" / ".sdd"
+        sdd2.mkdir(parents=True)
+        w2 = WALWriter(run_id="r", sdd_dir=sdd2)
+        w2.append("tick_start", {"tick": 1}, {}, "orch")
+        w2.append("task_claimed", {"task_id": "T-1"}, {"batch_size": 1}, "lifecycle")
+
+        da = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd1))
+        db = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd2))
+        assert [d.digest for d in da] == [d.digest for d in db]
+        assert first_divergence(da, db) is None
+
+    def test_mutated_entry_divergence_index_points_at_it(self, tmp_path: Path) -> None:
+        """Mutating entry 2 (seq=2) must make first divergence land on index 2."""
+        sdd1 = tmp_path / "a" / ".sdd"
+        sdd1.mkdir(parents=True)
+        w1 = WALWriter(run_id="r", sdd_dir=sdd1)
+        for i in range(5):
+            w1.append(f"d{i}", {"i": i}, {}, "a")
+
+        sdd2 = tmp_path / "b" / ".sdd"
+        sdd2.mkdir(parents=True)
+        w2 = WALWriter(run_id="r", sdd_dir=sdd2)
+        for i in range(5):
+            # Entry index 2 carries a different input -> first fork at index 2.
+            payload = {"i": 999} if i == 2 else {"i": i}
+            w2.append(f"d{i}", payload, {}, "a")
+
+        da = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd1))
+        db = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd2))
+
+        idx = first_divergence(da, db)
+        assert idx == 2
+        # Everything before the fork is identical; the fork entry differs.
+        assert da[1].digest == db[1].digest
+        assert da[2].digest != db[2].digest
+        assert da[idx].seq == 2
+
+    def test_divergence_on_length_mismatch(self, tmp_path: Path) -> None:
+        """A run that stops early diverges at the first missing entry index."""
+        sdd1 = tmp_path / "a" / ".sdd"
+        sdd1.mkdir(parents=True)
+        w1 = WALWriter(run_id="r", sdd_dir=sdd1)
+        for i in range(4):
+            w1.append(f"d{i}", {"i": i}, {}, "a")
+
+        sdd2 = tmp_path / "b" / ".sdd"
+        sdd2.mkdir(parents=True)
+        w2 = WALWriter(run_id="r", sdd_dir=sdd2)
+        for i in range(2):
+            w2.append(f"d{i}", {"i": i}, {}, "a")
+
+        da = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd1))
+        db = ExecutionFingerprint.entry_digests(WALReader(run_id="r", sdd_dir=sdd2))
+        assert first_divergence(da, db) == 2
+        assert first_divergence(db, da) == 2
+
+    def test_empty_wals_have_no_divergence(self, tmp_path: Path) -> None:
+        assert first_divergence([], []) is None
+
+    def test_entry_digest_is_frozen(self) -> None:
+        d = WALEntryDigest(seq=0, decision_type="x", digest="a" * 64)
+        with pytest.raises((AttributeError, TypeError)):
+            d.seq = 1  # type: ignore[misc]

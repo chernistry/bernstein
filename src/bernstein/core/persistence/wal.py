@@ -776,6 +776,44 @@ class WALRecovery:
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class WALEntryDigest:
+    """Cumulative fingerprint state after one WAL entry.
+
+    ``digest`` is the run's :class:`ExecutionFingerprint` *as of* this entry:
+    ``sha256(state_i).hexdigest()``, the same transform :meth:`ExecutionFingerprint.compute`
+    applies to the final state. Because the underlying state is a rolling
+    hash, the first index at which two runs' digests differ is exactly the
+    first decision at which they diverged - no second fingerprinting scheme
+    is introduced, only a snapshot of the existing one after each entry.
+
+    ``seq`` is the WAL entry's sequence number from the hash chain, so the
+    reported divergence points at a concrete entry an operator can locate.
+    """
+
+    seq: int
+    decision_type: str
+    digest: str
+
+
+def first_divergence(a: list[WALEntryDigest], b: list[WALEntryDigest]) -> int | None:
+    """Return the first index at which two digest streams differ.
+
+    Compares the cumulative per-entry digests of two runs in WAL order.
+    Returns the zero-based index of the first diverging entry, or ``None``
+    when the two streams are identical (same length, equal digests at every
+    position). A length mismatch diverges at the first index present in one
+    stream but not the other.
+    """
+    limit = min(len(a), len(b))
+    for i in range(limit):
+        if a[i].digest != b[i].digest:
+            return i
+    if len(a) != len(b):
+        return limit
+    return None
+
+
 class ExecutionFingerprint:
     """Determinism fingerprint over an ordered sequence of orchestrator decisions.
 
@@ -838,3 +876,33 @@ class ExecutionFingerprint:
         for entry in reader.iter_entries():
             fp.record(entry.decision_type, entry.inputs, entry.output)
         return fp
+
+    @classmethod
+    def entry_digests(cls, reader: WALReader) -> list[WALEntryDigest]:
+        """Return the cumulative fingerprint digest after each WAL entry.
+
+        Walks the WAL exactly as :meth:`from_wal` does, but snapshots the
+        rolling hash after every entry. The last element's ``digest`` equals
+        ``ExecutionFingerprint.from_wal(reader).compute()`` for the same WAL,
+        so the per-entry stream and the headline fingerprint are guaranteed
+        consistent. Use with :func:`first_divergence` to locate where two
+        runs' decision traces forked.
+
+        Args:
+            reader: A :class:`WALReader` positioned at the start of a WAL.
+
+        Returns:
+            One :class:`WALEntryDigest` per WAL entry, in write order.
+        """
+        fp = cls()
+        digests: list[WALEntryDigest] = []
+        for entry in reader.iter_entries():
+            fp.record(entry.decision_type, entry.inputs, entry.output)
+            digests.append(
+                WALEntryDigest(
+                    seq=entry.seq,
+                    decision_type=entry.decision_type,
+                    digest=fp.compute(),
+                )
+            )
+        return digests

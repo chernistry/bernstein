@@ -1,25 +1,16 @@
 name: SonarQube scan
 
-# Runs after a push to main or on manual dispatch.
+# Runs after main CI reaches a terminal state or on manual dispatch.
 #
-# Historically a third `workflow_run` arm chained off the main `CI`
-# workflow's `completed` event, but ci.yml's branch-scoped
-# `cancel-in-progress: true` (ci.yml lines 112-135) almost never lets a
-# main CI run reach a `success` conclusion under the normal rapid-merge
-# cadence: each new merge cancels the prior in-flight run, so the
-# job-level `if: workflow_run.conclusion == 'success'` short-circuited
-# to `skipped` on every recent run (0/19 successful in the last 50
-# observed). The `push: branches: [main]` trigger keeps the Sonar
-# surface fresh on its own; the `push` arm runs a thin fallback
-# coverage pass when there is no usable upstream coverage artifact.
+# The workflow consumes the coverage-report artifact from the same CI run
+# that triggered it. It intentionally does not run directly on push:
+# push-time scans can start before CI uploads coverage.xml and then report
+# a partial fallback coverage number for main.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -35,12 +26,13 @@ jobs:
     name: SonarQube scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Run on direct push to main or manual dispatch.
+    # Run after main CI completes or on manual dispatch.
     # SONAR_HOST_URL must be configured as a repo variable.
     if: >-
       ${{ vars.SONAR_HOST_URL != '' &&
           (github.event_name == 'workflow_dispatch' ||
-           github.event_name == 'push') }}
+           (github.event_name == 'workflow_run' &&
+            github.event.workflow_run.head_branch == 'main')) }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
@@ -53,16 +45,11 @@ jobs:
         with:
           # Sonar needs full git history for accurate blame.
           fetch-depth: 0
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
-      # When triggered manually we have no upstream run-id, so resolve the
-      # most recent successful CI run on main and pull its coverage-report
-      # artifact. This lets an operator bootstrap or re-scan the project with
-      # full Python coverage even when the latest main CI runs were cancelled
-      # by ci.yml's cancel-in-progress concurrency (which is the normal state
-      # under a rapid merge cadence and is why workflow_run almost never sees
-      # a 'success' conclusion to fire on).
+      # Manual dispatch has no upstream run id, so resolve the most recent
+      # successful main CI run and pull its coverage-report artifact.
       - name: Resolve latest successful CI run (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
         id: ci_run
@@ -84,62 +71,22 @@ jobs:
             echo "::warning::No successful CI run found on main; scanning without coverage"
           fi
 
+      - name: Download coverage artifact (workflow_run)
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true  # cancelled CI runs may not have reached the upload step
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: coverage-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download coverage artifact (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch' && steps.ci_run.outputs.run_id != ''
-        continue-on-error: true  # coverage is advisory; never block the bootstrap scan
+        continue-on-error: true  # manual bootstrap may not have a usable artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: coverage-report
           run-id: ${{ steps.ci_run.outputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Direct push to main: try to pull the freshest coverage-report
-      # artifact from any recent CI run on main (succeeded or cancelled),
-      # so a partial coverage snapshot still feeds Sonar even when the
-      # upstream CI run never reached `success`. This is the dominant
-      # case under the rapid-merge cadence and is the root cause of the
-      # historical "Coverage 0.0" comment on the project.
-      - name: Resolve latest CI run with coverage (push)
-        if: github.event_name == 'push'
-        id: ci_run_push
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Search the last 20 main CI runs for one that uploaded the
-          # `coverage-report` artifact. Cancelled runs can still have
-          # uploaded the artifact if the coverage step ran before the
-          # cancellation, so we do not filter by status here.
-          for run_id in $(gh run list \
-              --repo "${{ github.repository }}" \
-              --workflow ci.yml \
-              --branch main \
-              --limit 20 \
-              --json databaseId \
-              --jq '.[].databaseId'); do
-            if gh run view "$run_id" \
-                --repo "${{ github.repository }}" \
-                --json jobs \
-                --jq '.jobs[].name' >/dev/null 2>&1; then
-              artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/$run_id/artifacts" \
-                  --jq '.artifacts[].name' 2>/dev/null || true)
-              if printf '%s\n' "$artifacts" | grep -qx coverage-report; then
-                echo "Found coverage-report artifact in CI run: $run_id"
-                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
-                break
-              fi
-            fi
-          done
-          if [ -z "${run_id:-}" ] || ! grep -q '^run_id=' "$GITHUB_OUTPUT"; then
-            echo "::notice::No recent CI run with coverage-report artifact found; will run thin coverage fallback"
-          fi
-
-      - name: Download coverage artifact (push)
-        if: github.event_name == 'push' && steps.ci_run_push.outputs.run_id != ''
-        continue-on-error: true  # coverage is advisory; never block the scan
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
-        with:
-          name: coverage-report
-          run-id: ${{ steps.ci_run_push.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify coverage.xml present
@@ -155,19 +102,16 @@ jobs:
           fi
 
       - name: Set up uv for fallback
-        if: steps.coverage_check.outputs.missing == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.coverage_check.outputs.missing == 'true'
         uses: ./.github/actions/bootstrap
 
-      # Thin coverage fallback: run a fast unit-test subset with coverage
-      # so Sonar receives a non-zero coverage signal even when no upstream
-      # artifact was usable. This is intentionally NOT the full suite
-      # (which is ~25 minutes sharded) - it runs the fastest unit modules
-      # with --no-cov-on-fail and a hard timeout so the Sonar workflow
-      # itself never becomes the slow CI path.
+      # Thin coverage fallback is manual-dispatch only. Automatic main
+      # scans without a CI coverage artifact skip the Sonar upload instead
+      # of sending a partial fallback coverage report.
       - name: Thin coverage fallback
-        if: steps.coverage_check.outputs.missing == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.coverage_check.outputs.missing == 'true'
         timeout-minutes: 10
-        continue-on-error: true  # coverage is advisory; never block the scan
+        continue-on-error: true  # manual bootstrap should not fail before the scan step
         run: |
           set +e
           uv sync --group dev --no-progress 2>&1 | tail -20 || true
@@ -181,10 +125,21 @@ jobs:
           if [ -f coverage.xml ] && [ -s coverage.xml ]; then
             echo "Thin coverage fallback produced coverage.xml ($(wc -c < coverage.xml) bytes)"
           else
-            echo "::warning::Thin coverage fallback did not produce coverage.xml; Sonar will scan without coverage"
+            echo "::warning::Thin coverage fallback did not produce coverage.xml; Sonar scan will be skipped"
+          fi
+
+      - name: Verify scan coverage input
+        id: scan_coverage
+        run: |
+          if [ -f coverage.xml ] && [ -s coverage.xml ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No usable coverage.xml available; skipping Sonar scan"
+            echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: SonarQube scan
+        if: steps.scan_coverage.outputs.available == 'true'
         timeout-minutes: 10
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995  # v8.1.0
         env:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -73,8 +74,25 @@ def test_status_snapshot_default(tmp_home: Path) -> None:
         "share_with_maintainer",
         "share_source",
         "share_config_file",
+        "share_endpoint_configured",
         "dsn",
     ]
+
+
+def test_status_reports_share_endpoint_presence_without_printing_url(
+    tmp_home: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Status exposes maintainer-share endpoint presence without leaking its value."""
+    from bernstein.core.telemetry.share import SHARE_ENDPOINT_ENV
+
+    monkeypatch.setenv(SHARE_ENDPOINT_ENV, "https://maintainer.example.test/v1/events")
+
+    code, output = _invoke(["status", "--home", str(tmp_home)])
+
+    assert code == 0
+    assert "share_endpoint_configured: true" in output
+    assert "maintainer.example.test" not in output
 
 
 def test_status_overridden_by_env_off(
@@ -208,10 +226,18 @@ def test_probe_with_dsn_emits_synthetic_event(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv(sidechannel.DSN_ENV, "https://k@host/1")
 
     real_build = sidechannel.build_sidechannel
+    def build_with_transport(
+        *,
+        env: Mapping[str, str] | None = None,
+        transport: object | None = None,
+    ) -> sidechannel.SideChannelSink:
+        _ = transport
+        return real_build(env=env, transport=_Transport())
+
     monkeypatch.setattr(
         sidechannel,
         "build_sidechannel",
-        lambda **kw: real_build(transport=_Transport(), **kw),
+        build_with_transport,
     )
 
     code, output = _invoke(["probe", "--message", "hello probe"])

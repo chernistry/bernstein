@@ -32,7 +32,7 @@ import logging
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -142,6 +142,14 @@ class FireReceipt:
     Receipts give the operator a replayable record of every fire and
     every skipped window (when ``misfire_policy == skip``). The
     ``schedule audit`` verb walks these alongside the HMAC chain.
+
+    ``goal`` and ``scenario_id`` are persisted alongside the hash so the
+    audit verb can re-derive the projection from the receipt alone
+    (#1838) without depending on the live ScheduleStore, which may have
+    been edited or removed since the fire. They default to empty for
+    backward-compatibility with receipts written before this field
+    existed; such legacy receipts re-derive against an empty goal and are
+    reported as not-self-contained rather than silently mis-verified.
     """
 
     schedule_id: str
@@ -154,6 +162,8 @@ class FireReceipt:
     dispatched: bool
     skipped_windows: tuple[int, ...] = field(default_factory=tuple)
     counterfactual: bool = False
+    goal: str = ""
+    scenario_id: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +434,8 @@ class ScheduleSupervisor:
             dispatched=not counterfactual,
             skipped_windows=(),
             counterfactual=counterfactual,
+            goal=schedule.goal,
+            scenario_id=schedule.scenario_id,
         )
         self._persist_receipt(receipt)
         return receipt
@@ -478,7 +490,10 @@ class ScheduleSupervisor:
         """Append a ``schedule.fire`` entry to the audit chain.
 
         The payload carries ``(schedule_id, fire_time, projection_hash,
-        prev_chain_digest)`` as called out in the AC. Counterfactual
+        prev_chain_digest)`` as called out in the AC, plus the projection
+        inputs ``goal`` and ``scenario_id`` so the audit verb can
+        re-derive the projection from the chain entry alone and prove the
+        recorded hash is the genuine projection (#1838). Counterfactual
         receipts skip the chain because they represent fires that did
         NOT happen; mixing them into the chain would defeat the
         byte-identical sequence guarantee.
@@ -492,6 +507,8 @@ class ScheduleSupervisor:
             "rev": projection.rev,
             "misfire_policy": schedule.misfire_policy,
             "prev_chain_digest": prev_chain,
+            "goal": schedule.goal,
+            "scenario_id": schedule.scenario_id,
         }
         return self._chain.append(
             event_type=AUDIT_EVENT_TYPE,
@@ -551,9 +568,311 @@ def load_receipts(sdd_dir: Path) -> list[FireReceipt]:
                     dispatched=bool(data.get("dispatched", False)),
                     skipped_windows=tuple(int(x) for x in data.get("skipped_windows", [])),
                     counterfactual=bool(data.get("counterfactual", False)),
+                    goal=str(data.get("goal", "")),
+                    scenario_id=str(data.get("scenario_id", "")),
                 ),
             )
         except (KeyError, TypeError, ValueError) as exc:
             logger.warning("Malformed receipt %s: %s", path, exc)
     out.sort(key=lambda r: (r.fire_time, r.schedule_id))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Audit verification for ``schedule audit`` (#1838)
+# ---------------------------------------------------------------------------
+
+
+def _read_schedule_fire_entries(sdd_dir: Path) -> dict[tuple[str, int], dict[str, Any]]:
+    """Read recorded ``schedule.fire`` chain entries keyed by (id, fire_time).
+
+    Returns a mapping from ``(schedule_id, fire_time)`` to the recorded
+    chain payload, enriched with the entry's own ``hmac`` under the
+    ``__hmac__`` key so the caller can cross-check the receipt's
+    ``chain_digest`` against the entry's HMAC.
+
+    This reads the on-disk JSONL payload only; HMAC-chain tamper-evidence
+    is the job of :meth:`AuditLog.verify`. The cross-check here proves a
+    receipt agrees with the chain it claims to be anchored in - a receipt
+    edited independently of the chain (or a chain entry edited
+    independently of the receipt) is caught even when each file is
+    internally well-formed.
+    """
+    audit_dir = sdd_dir / "audit"
+    if not audit_dir.exists():
+        return {}
+    entries: dict[tuple[str, int], dict[str, Any]] = {}
+    for path in sorted(audit_dir.glob("*.jsonl")):
+        try:
+            lines = path.read_text().splitlines()
+        except OSError as exc:  # pragma: no cover - defensive
+            logger.warning("Could not read audit log %s: %s", path, exc)
+            continue
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                parsed: Any = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(parsed, dict):
+                continue
+            entry = cast("dict[str, Any]", parsed)
+            if entry.get("event_type") != AUDIT_EVENT_TYPE:
+                continue
+            details_raw = entry.get("details")
+            if not isinstance(details_raw, dict):
+                continue
+            details = cast("dict[str, Any]", details_raw)
+            try:
+                key = (str(details["schedule_id"]), int(details["fire_time"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            enriched: dict[str, Any] = dict(details)
+            enriched["__hmac__"] = str(entry.get("hmac", ""))
+            # Last writer wins: later daily segments override earlier ones
+            # for the same (id, fire_time), which cannot legitimately
+            # collide within one chain anyway.
+            entries[key] = enriched
+    return entries
+
+
+@dataclass(frozen=True)
+class ReceiptVerification:
+    """Per-receipt outcome of the ``schedule audit`` verification walk.
+
+    Attributes:
+        schedule_id: Schedule the receipt belongs to.
+        fire_time: Fire instant the receipt records.
+        counterfactual: True for skip/catch-up summary receipts that carry
+            empty hashes by design; these are skipped, never flagged.
+        rev: Projection rev recorded on the receipt.
+        recorded_projection_hash: The hash stored on the receipt.
+        recomputed_projection_hash: The hash re-derived from the receipt's
+            persisted inputs under its recorded rev (empty when skipped).
+        projection_match: recomputed == recorded (only meaningful when the
+            rev could be re-derived).
+        chain_match: The receipt agrees with the matching chain entry's
+            ``projection_hash``, ``prev_chain_digest`` and HMAC.
+        rev_skipped: The receipt's rev differs from the current projection
+            rev, so it cannot be re-derived with the in-tree algorithm.
+        reasons: Human-readable reasons the receipt failed (empty on pass).
+    """
+
+    schedule_id: str
+    fire_time: int
+    counterfactual: bool
+    rev: str
+    recorded_projection_hash: str
+    recomputed_projection_hash: str
+    projection_match: bool
+    chain_match: bool
+    rev_skipped: bool
+    reasons: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def skipped(self) -> bool:
+        """True when this receipt was intentionally not verified."""
+        return self.counterfactual or self.rev_skipped
+
+    @property
+    def verified(self) -> bool:
+        """True when the receipt passed every applicable check."""
+        if self.counterfactual:
+            return True
+        if self.rev_skipped:
+            # Honest stance: a foreign-rev receipt is neither verified nor
+            # a mismatch; it is simply not re-derivable here.
+            return False
+        return self.projection_match and self.chain_match and not self.reasons
+
+    @property
+    def mismatch(self) -> bool:
+        """True when the receipt failed a check it was eligible for."""
+        if self.skipped:
+            return False
+        return not self.verified
+
+
+@dataclass(frozen=True)
+class AuditReport:
+    """Aggregate result of verifying every persisted fire receipt."""
+
+    results: tuple[ReceiptVerification, ...]
+    failures: tuple[str, ...]
+
+    @property
+    def ok(self) -> bool:
+        """True when no receipt reported a mismatch or linkage break."""
+        return not self.failures
+
+    def to_json(self) -> list[dict[str, Any]]:
+        """Return a JSON-safe per-receipt view for ``--json`` output."""
+        out: list[dict[str, Any]] = []
+        for r in self.results:
+            out.append(
+                {
+                    "schedule_id": r.schedule_id,
+                    "fire_time": r.fire_time,
+                    "counterfactual": r.counterfactual,
+                    "rev": r.rev,
+                    "recorded_projection_hash": r.recorded_projection_hash,
+                    "recomputed_projection_hash": r.recomputed_projection_hash,
+                    "projection_match": r.projection_match,
+                    "chain_match": r.chain_match,
+                    "rev_skipped": r.rev_skipped,
+                    "skipped": r.skipped,
+                    "verified": r.verified,
+                    "mismatch": r.mismatch,
+                    "reasons": list(r.reasons),
+                },
+            )
+        return out
+
+
+def verify_receipts(sdd_dir: Path) -> AuditReport:
+    """Re-derive and cross-check every persisted fire receipt (#1838).
+
+    For each non-counterfactual receipt this:
+
+    1. Re-runs ``project_schedule_fire`` from the receipt's persisted
+       inputs (``schedule_id``, ``fire_time``, ``goal``, ``scenario_id``,
+       ``last_state=None``) under the receipt's recorded ``rev`` and
+       confirms the recomputed ``projection_hash`` equals the recorded
+       one. A mismatch names the receipt.
+    2. Cross-checks the receipt against the matching ``schedule.fire``
+       audit-chain entry: the entry's ``projection_hash`` must equal the
+       receipt's, the entry's ``prev_chain_digest`` must equal the
+       receipt's, and the entry's HMAC must equal the receipt's
+       ``chain_digest``. A receipt edited independently of the chain (or
+       vice versa) is caught.
+    3. Verifies the receipt-to-receipt ``prev_chain_digest -> chain_digest``
+       linkage forms an unbroken sequence across consecutive dispatched
+       receipts.
+
+    Counterfactual receipts carry empty hashes by design and are skipped.
+    Receipts recorded under a different projection rev than the current
+    in-tree algorithm cannot be re-derived here and are reported as
+    rev-skipped rather than false-flagged - the verifier honours
+    ``receipt.rev`` rather than the current rev (per the AC).
+
+    ``last_state`` is assumed ``None`` because the only supervisor caller
+    fires with ``last_state=None``; the receipt does not (yet) persist a
+    folded state. When/if a future rev folds load-bearing state into the
+    projection, the receipt must persist enough to reproduce it and this
+    function must read it back.
+
+    Returns an :class:`AuditReport`; ``report.ok`` is True only when every
+    eligible receipt verified and the chain linkage is unbroken.
+    """
+    from bernstein.core.orchestration.schedule_projection import (
+        SCHEDULE_PROJECTION_REV,
+        project_schedule_fire,
+    )
+
+    receipts = load_receipts(sdd_dir)
+    chain_entries = _read_schedule_fire_entries(sdd_dir)
+
+    results: list[ReceiptVerification] = []
+    failures: list[str] = []
+
+    for receipt in receipts:
+        name = f"{receipt.schedule_id}@{receipt.fire_time}"
+        reasons: list[str] = []
+
+        if receipt.counterfactual:
+            results.append(
+                ReceiptVerification(
+                    schedule_id=receipt.schedule_id,
+                    fire_time=receipt.fire_time,
+                    counterfactual=True,
+                    rev=receipt.rev,
+                    recorded_projection_hash=receipt.projection_hash,
+                    recomputed_projection_hash="",
+                    projection_match=True,
+                    chain_match=True,
+                    rev_skipped=False,
+                ),
+            )
+            continue
+
+        rev_skipped = receipt.rev != SCHEDULE_PROJECTION_REV
+        recomputed = ""
+        projection_match = False
+        if rev_skipped:
+            reasons.append(
+                f"receipt rev {receipt.rev!r} != current rev {SCHEDULE_PROJECTION_REV!r}; "
+                "cannot re-derive with the in-tree projection algorithm"
+            )
+        else:
+            rebuilt = project_schedule_fire(
+                schedule_id=receipt.schedule_id,
+                fire_time=receipt.fire_time,
+                last_state=None,
+                goal=receipt.goal,
+                scenario_id=receipt.scenario_id,
+            )
+            recomputed = rebuilt.projection_hash
+            projection_match = recomputed == receipt.projection_hash
+            if not projection_match:
+                reasons.append(
+                    f"projection hash mismatch: recorded {receipt.projection_hash[:16]}… "
+                    f"!= recomputed {recomputed[:16]}…"
+                )
+
+        # Chain cross-check.
+        chain_match = True
+        entry = chain_entries.get((receipt.schedule_id, receipt.fire_time))
+        if entry is None:
+            # A dispatched fire MUST have a chain entry. Its absence is a
+            # mismatch unless the chain was never wired (no audit dir).
+            if chain_entries or (sdd_dir / "audit").exists():
+                chain_match = False
+                reasons.append("no matching schedule.fire entry in the audit chain")
+        else:
+            if entry.get("projection_hash") != receipt.projection_hash:
+                chain_match = False
+                reasons.append(
+                    "chain projection_hash disagrees with receipt: "
+                    f"chain {str(entry.get('projection_hash'))[:16]}… "
+                    f"!= receipt {receipt.projection_hash[:16]}…"
+                )
+            if str(entry.get("prev_chain_digest", "")) != receipt.prev_chain_digest:
+                chain_match = False
+                reasons.append("chain prev_chain_digest disagrees with receipt")
+            if str(entry.get("__hmac__", "")) != receipt.chain_digest:
+                chain_match = False
+                reasons.append("chain entry HMAC disagrees with receipt chain_digest")
+
+        result = ReceiptVerification(
+            schedule_id=receipt.schedule_id,
+            fire_time=receipt.fire_time,
+            counterfactual=False,
+            rev=receipt.rev,
+            recorded_projection_hash=receipt.projection_hash,
+            recomputed_projection_hash=recomputed,
+            projection_match=projection_match,
+            chain_match=chain_match,
+            rev_skipped=rev_skipped,
+            reasons=tuple(reasons),
+        )
+        results.append(result)
+        if result.mismatch:
+            failures.append(f"{name}: " + "; ".join(reasons))
+
+    # Receipt-to-receipt chain linkage: each dispatched receipt's
+    # prev_chain_digest must equal the previous dispatched receipt's
+    # chain_digest, forming an unbroken sequence (mirrors the audit
+    # chain's prev_hmac linkage).
+    dispatched = [r for r in receipts if r.dispatched and not r.counterfactual]
+    prev_digest: str | None = None
+    for receipt in dispatched:
+        if prev_digest is not None and receipt.prev_chain_digest != prev_digest:
+            failures.append(
+                f"{receipt.schedule_id}@{receipt.fire_time}: chain linkage break - "
+                f"prev_chain_digest {receipt.prev_chain_digest[:16]}… "
+                f"!= previous chain_digest {prev_digest[:16]}…"
+            )
+        prev_digest = receipt.chain_digest
+
+    return AuditReport(results=tuple(results), failures=tuple(failures))

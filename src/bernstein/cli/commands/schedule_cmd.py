@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json as _json
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +28,7 @@ import click
 from bernstein.core.orchestration.schedule_supervisor import (
     DEFAULT_TICK_INTERVAL_S,
     ScheduleSupervisor,
-    load_receipts,
+    verify_receipts,
 )
 from bernstein.core.planning.schedule_store import (
     CronParseError,
@@ -212,37 +211,55 @@ def schedule_remove(schedule_id: str) -> None:
 @schedule_group.command("audit")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
 def schedule_audit(as_json: bool) -> None:
-    """Walk persisted fire receipts and prove the sequence is reproducible.
+    """Re-derive and chain-check persisted fire receipts (verification).
 
-    The verb iterates ``runtime/schedule_receipts/*.json`` in chronological
-    order and reports the projection_hash + chain digest for each fire.
-    Two operators comparing the same nightly window can diff this output
-    to confirm byte-identical execution.
+    For every non-counterfactual receipt the verb re-runs the
+    deterministic projection from the receipt's persisted inputs and
+    confirms the recomputed ``projection_hash`` equals the recorded one,
+    then cross-checks the receipt against the matching ``schedule.fire``
+    audit-chain entry and verifies the receipt-to-receipt chain linkage.
+    A tampered or chain-inconsistent receipt makes the command exit
+    non-zero and names the offending receipt, so the verb is safe to run
+    as a CI gate rather than only a human-readable table.
     """
     sdd = _sdd_dir()
-    receipts = load_receipts(sdd)
+    report = verify_receipts(sdd)
 
     if as_json:
         click.echo(
             _json.dumps(
-                {"receipts": [asdict(r) for r in receipts]},
+                {"receipts": report.to_json(), "ok": report.ok, "failures": list(report.failures)},
                 sort_keys=True,
                 indent=2,
             ),
         )
-        return
+        raise SystemExit(0 if report.ok else 1)
 
-    if not receipts:
+    if not report.results:
         click.echo("(no schedule fires recorded)")
         return
 
-    click.echo(f"{'FIRE_TIME':<20} {'SCHEDULE':<24} {'PROJECTION':<18} CHAIN")
-    for r in receipts:
-        kind = "skip" if r.counterfactual else "fire"
+    click.echo(f"{'FIRE_TIME':<20} {'SCHEDULE':<24} {'PROJECTION':<18} {'STATUS':<10} CHAIN")
+    for r in report.results:
         ts = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r.fire_time))
-        chain_short = (r.chain_digest or "-")[:16]
-        proj_short = (r.projection_hash or "-")[:16]
-        click.echo(f"{ts:<20} {r.schedule_id:<24} {proj_short:<18} {chain_short}  [{kind}]")
+        proj_short = (r.recorded_projection_hash or "-")[:16]
+        chain_short = ("ok" if r.chain_match else "MISMATCH") if not r.counterfactual else "-"
+        if r.counterfactual:
+            status = "skip"
+        elif r.rev_skipped:
+            status = "rev-skip"
+        elif r.verified:
+            status = "verified"
+        else:
+            status = "MISMATCH"
+        click.echo(f"{ts:<20} {r.schedule_id:<24} {proj_short:<18} {status:<10} {chain_short}")
+
+    if not report.ok:
+        click.echo("", err=True)
+        click.echo("audit FAILED - the following receipts did not verify:", err=True)
+        for failure in report.failures:
+            click.echo(f"  - {failure}", err=True)
+        raise SystemExit(1)
 
 
 @schedule_group.command("run")

@@ -20,7 +20,13 @@ Key properties:
 - **Deterministic projection.** A fire is a pure function of
   `(schedule_id, fire_time, last_state)`; two operators with the same
   inputs land on the byte-identical task graph and the same
-  `projection_hash`.
+  `projection_hash`. `fire_time` is pinned to an integer epoch (a float
+  is rejected because sub-second drift forks two hosts), and `last_state`
+  is canonicalised before hashing: dict key order, set/frozenset member
+  order, and nested-container order do not perturb the digest, and a
+  non-portable scalar (`float`/`NaN`/`Infinity`) in the state mapping is
+  rejected with a `TypeError` rather than producing a host-dependent
+  hash. The genesis sentinel (`last_state=None`) is unchanged.
 - **Audit-chain integration.** Each fire appends a `schedule.fire` entry
   to the existing HMAC-chained audit log carrying
   `(schedule_id, fire_time, projection_hash, prev_chain_digest)`. No
@@ -93,27 +99,51 @@ Every fire appends a chain entry to `.sdd/audit/<date>.jsonl` with:
 - `resource_type = "schedule"`,
 - `resource_id = <schedule_id>`,
 - `details = {schedule_id, fire_time, projection_hash, rev,
-  misfire_policy, prev_chain_digest}`.
+  misfire_policy, prev_chain_digest, goal, scenario_id}`.
+
+`goal` and `scenario_id` are recorded in both the chain entry and the
+per-fire receipt so the audit verb can re-derive the projection from the
+recorded inputs alone, without depending on the live schedule store
+(which may have been edited or removed since the fire).
 
 The chain is the production HMAC chain
 (`bernstein.core.security.audit.AuditLog`). We do not introduce a
 parallel chain.
 
-Walk the chain:
+Verify the recorded fires:
 
 ```bash
-bernstein schedule audit          # human table
-bernstein schedule audit --json   # JSON, for diff-comparing two hosts
+bernstein schedule audit          # human table with per-fire status
+bernstein schedule audit --json   # JSON, for diff-comparing two hosts / CI gates
 ```
 
-`schedule audit` walks the persisted per-fire receipts under
-`.sdd/runtime/schedule_receipts/` and reports the projection hash + the
-chain digest for each fire. Two operators comparing the same nightly
-window diff this output to confirm byte-identical execution; the
-deterministic surface they care about is the
-`(schedule_id, fire_time, projection_hash, rev)` tuple. The per-host
-HMAC differs because it includes the wall-clock timestamp baked into
-the audit entry, which is intentional for tamper-evidence.
+`schedule audit` is a verification verb, not a printout. For every
+non-counterfactual receipt under `.sdd/runtime/schedule_receipts/` it:
+
+1. **Re-derives** the projection by re-running `project_schedule_fire`
+   from the receipt's persisted inputs
+   (`schedule_id, fire_time, goal, scenario_id`, `last_state=None`) under
+   the receipt's recorded `rev`, and confirms the recomputed
+   `projection_hash` equals the stored one. A receipt whose
+   `projection_hash` was edited to a self-consistent but wrong value is
+   caught here.
+2. **Cross-checks** the receipt against the matching `schedule.fire`
+   audit-chain entry: the entry's `projection_hash`, `prev_chain_digest`,
+   and HMAC must agree with the receipt. A receipt edited independently
+   of the chain (or vice versa) is reported as a mismatch.
+3. **Checks linkage**: the receipt-to-receipt
+   `prev_chain_digest -> chain_digest` sequence must be unbroken.
+
+The command exits non-zero and names the offending receipt on any
+mismatch, so it is safe to run as a CI gate. Counterfactual receipts
+carry empty hashes by design and are skipped. A receipt recorded under a
+different projection rev than the current in-tree algorithm cannot be
+re-derived locally and is reported as `rev-skip` rather than a false
+mismatch; the verifier honours `receipt.rev` rather than the current
+rev. Two operators comparing the same nightly window still diff the
+`(schedule_id, fire_time, projection_hash, rev)` tuple; the per-host
+HMAC differs because it includes the wall-clock timestamp baked into the
+audit entry, which is intentional for tamper-evidence.
 
 ## Lifecycle
 

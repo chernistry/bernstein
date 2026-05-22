@@ -20,11 +20,10 @@ from typing_extensions import TypedDict
 logger = logging.getLogger(__name__)
 
 _ANALYZER_CACHE_VERSION = "2"
-_COMPAT_CACHE_VERSION = "1"
+_COMPAT_CACHE_VERSION = "2"
 
 
-# Shared cast-type constants to avoid string duplication (Sonar S1192).
-_CAST_DICT_STR_OBJ = "dict[str, object]"
+type _JsonObject = dict[str, object]
 
 
 class AnalyzerCacheData(TypedDict):
@@ -135,7 +134,7 @@ def build_compat_dep_map(
     for test_dir in test_dirs:
         if not test_dir.exists():
             continue
-        for test_file in sorted(test_dir.glob("test_*.py")):
+        for test_file in sorted(test_dir.rglob("test_*.py")):
             rel = test_file.relative_to(root).as_posix()
             test_deps[rel] = {
                 "hash": _file_hash(test_file),
@@ -169,7 +168,7 @@ def _check_hashes_fresh(
         entry = dep_map.get(key)
         if not isinstance(entry, dict):
             return False
-        entry_dict = cast(_CAST_DICT_STR_OBJ, entry)
+        entry_dict = cast("_JsonObject", entry)
         if entry_dict.get("hash") != _file_hash(file_path):
             return False
     return True
@@ -187,13 +186,13 @@ def compat_cache_is_fresh(
         return False
     test_deps_raw = cached.get("test_deps")
     source_imports_raw = cached.get("source_imports")
-    test_deps = cast(_CAST_DICT_STR_OBJ, test_deps_raw) if isinstance(test_deps_raw, dict) else {}
-    source_imports = cast(_CAST_DICT_STR_OBJ, source_imports_raw) if isinstance(source_imports_raw, dict) else {}
+    test_deps = cast("_JsonObject", test_deps_raw) if isinstance(test_deps_raw, dict) else {}
+    source_imports = cast("_JsonObject", source_imports_raw) if isinstance(source_imports_raw, dict) else {}
 
     test_files: list[tuple[str, Path]] = []
     for test_dir in test_dirs:
         if test_dir.exists():
-            test_files.extend((tf.relative_to(root).as_posix(), tf) for tf in test_dir.glob("test_*.py"))
+            test_files.extend((tf.relative_to(root).as_posix(), tf) for tf in test_dir.rglob("test_*.py"))
     if not _check_hashes_fresh(test_files, test_deps):
         return False
 
@@ -211,7 +210,7 @@ def _build_module_to_tests_map(test_deps: dict[str, object]) -> dict[str, set[st
     for test_rel, entry in test_deps.items():
         if not isinstance(entry, dict):
             continue
-        entry_dict = cast(_CAST_DICT_STR_OBJ, entry)
+        entry_dict = cast("_JsonObject", entry)
         for module in _normalize_string_list(entry_dict.get("imports", [])):
             module_to_tests.setdefault(module, set()).add(test_rel)
     return module_to_tests
@@ -229,7 +228,7 @@ def _expand_transitive_modules(
         for module, info in source_imports.items():
             if not isinstance(info, dict):
                 continue
-            info_dict = cast(_CAST_DICT_STR_OBJ, info)
+            info_dict = cast("_JsonObject", info)
             imports = _normalize_string_list(info_dict.get("imports", []))
             if current in imports and module not in all_affected:
                 all_affected.add(module)
@@ -277,8 +276,8 @@ def compat_get_affected_tests(
     """Return affected test file paths for the legacy script contract."""
     test_deps_raw = dep_map.get("test_deps")
     source_imports_raw = dep_map.get("source_imports")
-    test_deps = cast(_CAST_DICT_STR_OBJ, test_deps_raw) if isinstance(test_deps_raw, dict) else {}
-    source_imports = cast(_CAST_DICT_STR_OBJ, source_imports_raw) if isinstance(source_imports_raw, dict) else {}
+    test_deps = cast("_JsonObject", test_deps_raw) if isinstance(test_deps_raw, dict) else {}
+    source_imports = cast("_JsonObject", source_imports_raw) if isinstance(source_imports_raw, dict) else {}
 
     if any("conftest.py" in changed for changed in changed_files):
         return sorted(root / rel for rel in test_deps)
@@ -340,7 +339,7 @@ class TestImpactAnalyzer:
         self._all_tests: set[str] = set()
         self._built = False
 
-    def _restore_from_cache(self, cached: dict[str, Any]) -> None:
+    def _restore_from_cache(self, cached: AnalyzerCacheData) -> None:
         """Restore index state from a cached dict."""
         self._graph = {key: set(value) for key, value in cached["graph"].items()}
         self._reverse = {key: set(value) for key, value in cached["reverse"].items()}
@@ -543,7 +542,7 @@ class TestImpactAnalyzer:
             return None
         if not isinstance(raw, dict):
             return None
-        data = cast(_CAST_DICT_STR_OBJ, raw)
+        data = cast("_JsonObject", raw)
         if data.get("version") != _ANALYZER_CACHE_VERSION:
             return None
         snapshot = data.get("snapshot")

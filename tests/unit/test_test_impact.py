@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import textwrap
 from pathlib import Path
+
+import pytest
 
 # Make scripts/ importable
 _SCRIPTS = Path(__file__).parent.parent.parent / "scripts"
@@ -16,6 +19,7 @@ from test_impact import (
     _extract_bernstein_imports,
     build_dep_map,
     get_affected_tests,
+    get_changed_files,
 )
 
 # ---------------------------------------------------------------------------
@@ -141,8 +145,27 @@ class TestBuildDepMap:
             ti.SRC_ROOT = orig_src
             ti.ROOT = orig_root
 
-        assert dep_map["version"] == "1"
+        assert dep_map["version"] == "2"
         assert any("test_models.py" in k for k in dep_map["test_deps"])
+
+    def test_nested_tests_are_discovered(self, tmp_path: Path) -> None:
+        import test_impact as ti  # type: ignore[import]
+
+        src, test_dir, _ = self._make_layout(tmp_path)
+        nested = test_dir / "core" / "test_nested_models.py"
+        nested.parent.mkdir(parents=True)
+        nested.write_text("from bernstein.core.models import Task\n")
+
+        orig_src, orig_root = ti.SRC_ROOT, ti.ROOT
+        ti.SRC_ROOT = src
+        ti.ROOT = tmp_path
+        try:
+            dep_map = build_dep_map(test_dirs=[test_dir])
+        finally:
+            ti.SRC_ROOT = orig_src
+            ti.ROOT = orig_root
+
+        assert "tests/unit/core/test_nested_models.py" in dep_map["test_deps"]
 
     def test_imports_captured(self, tmp_path: Path) -> None:
         import test_impact as ti  # type: ignore[import]
@@ -255,6 +278,61 @@ class TestCacheIsFresh:
 
     def test_wrong_version_is_stale(self) -> None:
         assert not _cache_is_fresh({"version": "0", "test_deps": {}, "source_imports": {}})
+
+    def test_nested_test_hash_changes_make_cache_stale(self, tmp_path: Path) -> None:
+        import test_impact as ti  # type: ignore[import]
+
+        src = tmp_path / "src"
+        (src / "bernstein").mkdir(parents=True)
+        (src / "bernstein" / "__init__.py").touch()
+
+        test_dir = tmp_path / "tests" / "unit"
+        nested_dir = test_dir / "core"
+        nested_dir.mkdir(parents=True)
+        nested_test = nested_dir / "test_foo.py"
+        nested_test.write_text("import bernstein\n")
+
+        orig_src, orig_root, orig_dirs = ti.SRC_ROOT, ti.ROOT, ti.TEST_DIRS
+        ti.SRC_ROOT = src
+        ti.ROOT = tmp_path
+        ti.TEST_DIRS = [test_dir]
+        try:
+            dep_map = build_dep_map(test_dirs=[test_dir])
+            nested_test.write_text("import bernstein\nimport os\n")
+            assert not _cache_is_fresh(dep_map)
+        finally:
+            ti.SRC_ROOT = orig_src
+            ti.ROOT = orig_root
+            ti.TEST_DIRS = orig_dirs
+
+
+# ---------------------------------------------------------------------------
+# get_changed_files
+# ---------------------------------------------------------------------------
+
+
+class TestGetChangedFiles:
+    def test_falls_back_to_two_dot_diff_when_merge_base_is_missing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import test_impact as ti  # type: ignore[import]
+
+        calls: list[list[str]] = []
+
+        def fake_run(
+            cmd: list[str],
+            **_: object,
+        ) -> subprocess.CompletedProcess[str]:
+            calls.append(cmd)
+            if cmd[-1] == "origin/main...HEAD":
+                raise subprocess.CalledProcessError(128, cmd, stderr="no merge base")
+            return subprocess.CompletedProcess(cmd, 0, "src/bernstein/core/models.py\n", "")
+
+        monkeypatch.setattr(ti.subprocess, "run", fake_run)
+
+        assert get_changed_files("origin/main") == ["src/bernstein/core/models.py"]
+        assert calls[-1][-1] == "origin/main..HEAD"
 
 
 # ---------------------------------------------------------------------------

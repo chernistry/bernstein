@@ -13,7 +13,7 @@ ROOT = Path(__file__).parent.parent
 CACHE_PATH = ROOT / ".sdd" / "test_deps.json"
 SRC_ROOT = ROOT / "src"
 TEST_DIRS = [ROOT / "tests" / "unit", ROOT / "tests" / "integration"]
-CACHE_VERSION = "1"
+CACHE_VERSION = "2"
 
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
@@ -83,13 +83,24 @@ def get_changed_files(base: str = "HEAD") -> list[str]:
             ).stdout.splitlines()
             files = list(set(unstaged) | set(staged))
         else:
-            files = subprocess.run(
-                ["git", "diff", "--name-only", f"{base}...HEAD"],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.splitlines()
+            try:
+                files = subprocess.run(
+                    ["git", "diff", "--name-only", f"{base}...HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.splitlines()
+            except subprocess.CalledProcessError as exc:
+                if exc.returncode != 128:
+                    raise
+                files = subprocess.run(
+                    ["git", "diff", "--name-only", f"{base}..HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.splitlines()
         return [f for f in files if f]
     except subprocess.CalledProcessError:
         return []

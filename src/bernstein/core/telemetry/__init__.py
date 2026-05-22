@@ -82,12 +82,22 @@ from bernstein.core.telemetry.events import (
 from bernstein.core.telemetry.install_id import ensure as ensure_install_id
 from bernstein.core.telemetry.install_id import read as read_install_id
 from bernstein.core.telemetry.install_id import reset as reset_install_id
+from bernstein.core.telemetry.share import (
+    SHARE_ENDPOINT_ENV,
+    resolve_share_endpoint,
+    share_private_key_path,
+    share_public_key_path,
+)
+from bernstein.core.telemetry.share import (
+    emit_if_enabled as emit_share_if_enabled,
+)
 
 __all__ = [
     "BUILTIN_PRESETS",
     "DEFAULT_ENDPOINT",
     "ENDPOINT_ENV",
     "SCHEMA_VERSION",
+    "SHARE_ENDPOINT_ENV",
     "Client",
     "CommandInvokedPayload",
     "DailyActivePayload",
@@ -103,6 +113,7 @@ __all__ = [
     "TelemetryEvent",
     "build_envelope",
     "config_file_path",
+    "emit_share_if_enabled",
     "ensure_install_id",
     "first_run_marker_path",
     "get_client",
@@ -122,7 +133,10 @@ __all__ = [
     "reset_default_client",
     "reset_install_id",
     "resolve",
+    "resolve_share_endpoint",
     "serialize_event",
+    "share_private_key_path",
+    "share_public_key_path",
     "start_span",
     "write_enabled",
 ]

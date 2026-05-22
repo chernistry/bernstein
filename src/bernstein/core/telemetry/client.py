@@ -39,6 +39,7 @@ from bernstein.core.telemetry.events import (
     build_envelope,
     serialize_event,
 )
+from bernstein.core.telemetry.share import emit_if_enabled as emit_share_if_enabled
 
 _LOG = logging.getLogger(__name__)
 
@@ -191,11 +192,21 @@ class Client:
                 return False
             envelope = build_envelope(name, install_id, payload)
             line = serialize_event(envelope)
+            local_appended = False
             try:
                 _append_local(line, self._home)
+                local_appended = True
             except OSError as exc:
                 _LOG.debug("telemetry: local queue append failed: %s", exc)
             self._post(line)
+            if local_appended:
+                emit_share_if_enabled(
+                    serialized_event=line,
+                    install_id=install_id,
+                    env=self._env,
+                    home=self._home,
+                    http_client=self._get_http(),
+                )
             return True
         except Exception as exc:
             _LOG.debug("telemetry: emit failed (suppressed): %s", exc)

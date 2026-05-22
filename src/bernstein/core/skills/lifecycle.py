@@ -30,8 +30,9 @@ Out of scope for this module (deferred to follow-up tracks):
 
 - Source types beyond ``local`` (Git, OCI, index).
 - Signature verification and trust roots.
-- Sensitive-pattern-scan-on-install. Strict lint can block ERROR findings;
-  the default path remains advisory for backwards compatibility.
+- Source-content scans beyond the invisible Unicode install gate. Strict lint
+  can block ERROR findings; the default path remains advisory for backwards
+  compatibility.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ from pydantic import ValidationError
 
 from bernstein.core.skills.lint import LintSeverity, lint_skill
 from bernstein.core.skills.manifest import SkillManifest
+from bernstein.core.skills.sanitizer import strip_invisible_tags
 
 # ---------------------------------------------------------------------------
 # Public constants
@@ -538,6 +540,29 @@ def _raise_for_strict_lint_errors(skill_dir: Path, *, skill_name: str) -> None:
     raise SkillLifecycleError(f"{skill_name}: strict lint failed: {details}")
 
 
+def _raise_for_invisible_unicode(
+    skill_dir: Path,
+    *,
+    skill_name: str,
+    allow_invisible_unicode: bool,
+) -> None:
+    """Raise when ``SKILL.md`` contains invisible Unicode codepoints."""
+    if allow_invisible_unicode:
+        return
+    skill_md = skill_dir / "SKILL.md"
+    try:
+        content = skill_md.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SkillLifecycleError(f"{skill_name}: cannot read SKILL.md for sanitizer gate: {exc}") from exc
+
+    _cleaned, count = strip_invisible_tags(content)
+    if count > 0:
+        raise SkillLifecycleError(
+            f"{skill_name}: SKILL.md contains {count} invisible Unicode codepoint(s); "
+            "refusing install unless allow_invisible_unicode=True",
+        )
+
+
 def install_local(
     source: Path,
     *,
@@ -546,6 +571,7 @@ def install_local(
     home: Path | None = None,
     override_name: str | None = None,
     strict_lint: bool = False,
+    allow_invisible_unicode: bool = False,
 ) -> InstallResult:
     """Install a skill from a local path into the chosen scope.
 
@@ -565,6 +591,8 @@ def install_local(
             ``name`` field wins over filesystem layout when supplied.
         strict_lint: When ``True``, ERROR lint findings abort the install.
             WARNING findings remain advisory.
+        allow_invisible_unicode: When ``True``, bypass the install-time
+            invisible Unicode refusal for controlled reproduction.
 
     Returns:
         :class:`InstallResult` with the target directory and digest.
@@ -604,6 +632,11 @@ def install_local(
                 raise SkillLifecycleError(f"{source}: cannot read source: {exc}") from exc
             (staging_dir / "SKILL.md").write_text(content, encoding="utf-8")
 
+        _raise_for_invisible_unicode(
+            staging_dir,
+            skill_name=name,
+            allow_invisible_unicode=allow_invisible_unicode,
+        )
         digest = compute_skill_digest(staging_dir)
         if strict_lint:
             _raise_for_strict_lint_errors(staging_dir, skill_name=name)
@@ -773,6 +806,7 @@ def sync_skills(
     workdir: Path | None = None,
     home: Path | None = None,
     strict_lint: bool = False,
+    allow_invisible_unicode: bool = False,
 ) -> list[SyncOutcome]:
     """Reconcile ``bernstein-skills.toml`` with the chosen scope.
 
@@ -788,6 +822,8 @@ def sync_skills(
         home: Override for the user's home (tests).
         strict_lint: When ``True``, ERROR lint findings abort changed and
             unchanged installs. WARNING findings remain advisory.
+        allow_invisible_unicode: When ``True``, bypass the install-time
+            invisible Unicode refusal for controlled reproduction.
 
     Returns:
         One :class:`SyncOutcome` per skill, in declaration order.
@@ -846,6 +882,11 @@ def sync_skills(
             source_digest = hasher.hexdigest()
 
         if prior_digest == source_digest and existing_install.is_dir():
+            _raise_for_invisible_unicode(
+                existing_install,
+                skill_name=entry.name,
+                allow_invisible_unicode=allow_invisible_unicode,
+            )
             if strict_lint:
                 _raise_for_strict_lint_errors(existing_install, skill_name=entry.name)
             outcomes.append(
@@ -873,6 +914,7 @@ def sync_skills(
             home=home,
             override_name=entry.name,
             strict_lint=strict_lint,
+            allow_invisible_unicode=allow_invisible_unicode,
         )
         action = "updated" if entry.name in previous_lock else "installed"
         outcomes.append(

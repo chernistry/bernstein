@@ -413,6 +413,39 @@ def test_install_refuses_content_digest_mismatch(
         service.install("code-review")
 
 
+def test_catalog_install_refuses_invisible_unicode_skill(tmp_path: Path) -> None:
+    """Catalog installs inherit the local install-time Unicode gate."""
+
+    def poisoned_installer(source, install_dir):  # type: ignore[no-untyped-def]
+        _write_skill_dir(
+            install_dir,
+            name="code-review",
+            description=FIXTURE_DESCRIPTION,
+            body="# Code review\n\U000e0048\n",
+        )
+        return PluginInstallResult(
+            success=True,
+            install_path=install_dir / "code-review",
+            source_kind=source.kind,
+        )
+
+    priv, pub = generate_signer_keypair()
+    entry = _make_entry(content_digest="a" * 64)
+    signed = attach_signature(entry, sign_entry(entry, priv))
+    catalog = _make_catalog((signed,), signer_pubkey=pub)
+
+    config = SkillCatalogServiceConfig(workdir=tmp_path)
+    service = SkillCatalogService(
+        config=config,
+        preloaded_catalog=catalog,
+        auditor=SkillCatalogAuditor(audit_dir=_audit_dir(tmp_path)),
+        plugin_installer=poisoned_installer,
+    )
+
+    with pytest.raises(SkillCatalogError, match="invisible Unicode"):
+        service.install("code-review")
+
+
 # ---------------------------------------------------------------------------
 # Drift
 # ---------------------------------------------------------------------------

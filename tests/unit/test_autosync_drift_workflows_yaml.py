@@ -3,14 +3,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import TypedDict, cast
 
-import pytest
+import yaml
 
-try:
-    import yaml
-except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
-    pytest.skip("pyyaml not installed", allow_module_level=True)
+WorkflowStep = TypedDict(
+    "WorkflowStep",
+    {
+        "name": object,
+        "run": object,
+        "continue-on-error": object,
+        "with": object,
+    },
+    total=False,
+)
+
+
+class WorkflowJob(TypedDict, total=False):
+    steps: list[object]
+
+
+class WorkflowFile(TypedDict, total=False):
+    jobs: dict[str, WorkflowJob]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -18,11 +32,11 @@ PRE_MERGE = REPO_ROOT / ".github" / "workflows" / "pre-merge-autosync.yml"
 NIGHTLY = REPO_ROOT / ".github" / "workflows" / "nightly-drift-sweep.yml"
 
 
-def _load(path: Path) -> dict[str, Any]:
-    return cast("dict[str, Any]", yaml.safe_load(path.read_text(encoding="utf-8")))
+def _load(path: Path) -> WorkflowFile:
+    return cast("WorkflowFile", yaml.safe_load(path.read_text(encoding="utf-8")))
 
 
-def _steps(path: Path, job_name: str) -> list[dict[str, Any]]:
+def _steps(path: Path, job_name: str) -> list[WorkflowStep]:
     workflow = _load(path)
     jobs = workflow.get("jobs", {})
     assert isinstance(jobs, dict)
@@ -30,16 +44,16 @@ def _steps(path: Path, job_name: str) -> list[dict[str, Any]]:
     assert isinstance(job, dict), f"expected job {job_name!r}"
     steps = job.get("steps", [])
     assert isinstance(steps, list)
-    return [step for step in steps if isinstance(step, dict)]
+    return [cast("WorkflowStep", step) for step in steps if isinstance(step, dict)]
 
 
-def _step(steps: list[dict[str, Any]], name: str) -> dict[str, Any]:
+def _step(steps: list[WorkflowStep], name: str) -> WorkflowStep:
     match = next((step for step in steps if step.get("name") == name), None)
     assert match is not None, f"expected step {name!r}"
     return match
 
 
-def _run(step: dict[str, Any]) -> str:
+def _run(step: WorkflowStep) -> str:
     run = step.get("run", "")
     assert isinstance(run, str)
     return run
@@ -65,7 +79,8 @@ def test_pre_merge_push_requires_named_autosync_token() -> None:
 
     with_block = checkout.get("with", {})
     assert isinstance(with_block, dict)
-    token = with_block.get("token", "")
+    with_values = cast("dict[str, object]", with_block)
+    token = with_values.get("token", "")
     assert isinstance(token, str)
     assert "BERNSTEIN_AUTOSYNC_TOKEN" in token
     assert "GITHUB_TOKEN" not in token

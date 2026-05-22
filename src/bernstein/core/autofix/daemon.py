@@ -40,6 +40,8 @@ from bernstein.core.autofix.ladder import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from bernstein.core.autofix.config import AutofixConfig, RepoConfig
     from bernstein.core.autofix.dispatcher import Dispatcher
 
@@ -443,8 +445,8 @@ def start(
     failing_source: FailingPRSource,
     workdir: Path,
     extra_repo_filter: set[str] | None = None,
-    sleep_fn: object = time.sleep,
-    now_fn: object = time.time,
+    sleep_fn: Callable[[float], object] = time.sleep,
+    now_fn: Callable[[], float] = time.time,
     iterations: int | None = None,
 ) -> int:
     """Run the daemon's main loop in the *current* process.
@@ -492,12 +494,10 @@ def start(
             ticks += 1
             if iterations is not None and ticks >= iterations:
                 break
-            assert callable(sleep_fn)
             sleep_fn(config.poll_interval_seconds)
     finally:
         _clear_pid(workdir)
-    # Touch ``now_fn`` so type-checkers do not flag it as unused.
-    assert callable(now_fn)
+    _ = now_fn
     return ticks
 
 

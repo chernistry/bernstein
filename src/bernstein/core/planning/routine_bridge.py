@@ -36,6 +36,7 @@ from bernstein.core.planning.scenario_library import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from bernstein.core.planning.scenario_library import ScenarioLibrary
@@ -443,7 +444,7 @@ class RoutineBridge:
 def spawn_scenario_tasks(
     payloads: list[ScenarioTaskPayload],
     *,
-    poster: object,
+    poster: Callable[[str, dict[str, Any]], object],
 ) -> list[str]:
     """POST each payload at the Bernstein task server.
 
@@ -463,7 +464,7 @@ def spawn_scenario_tasks(
     task_ids: list[str] = []
     for payload in payloads:
         try:
-            result = poster("/tasks", payload.as_server_payload())  # type: ignore[misc]
+            result = poster("/tasks", payload.as_server_payload())
         except Exception:
             logger.exception("Failed to POST scenario task %s", payload.title)
             continue

@@ -46,7 +46,7 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
@@ -68,6 +68,11 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+class _Asn1Node(Protocol):
+    def __getitem__(self, key: str) -> Any: ...
+
 
 #: Supported message-imprint hash OIDs → ``hashlib`` constructor name.
 _HASH_OID_TO_NAME: dict[str, str] = {
@@ -166,9 +171,9 @@ def load_trusted_tsa_certs(bundle_path: Path) -> list[x509.Certificate]:
 
 def _try_parse_response_or_token(
     token_bytes: bytes,
-    tsp_module: object,
-    cms_module: object,
-) -> object:
+    tsp_module: Any,
+    cms_module: Any,
+) -> _Asn1Node:
     """Parse *token_bytes* as either ``TimeStampResp`` or bare ``ContentInfo``.
 
     Returns the wrapping ``ContentInfo``. Raises :class:`ValueError` when:
@@ -180,12 +185,12 @@ def _try_parse_response_or_token(
     * Both shapes fail to parse.
     """
     try:
-        resp = tsp_module.TimeStampResp.load(token_bytes)  # type: ignore[attr-defined]
+        resp = tsp_module.TimeStampResp.load(token_bytes)
         status = resp["status"]["status"].native
     except (ValueError, KeyError, TypeError) as exc:
         # Not a TimeStampResp shape - fall through to ContentInfo.
         try:
-            return cms_module.ContentInfo.load(token_bytes)  # type: ignore[attr-defined]
+            return cms_module.ContentInfo.load(token_bytes)
         except (ValueError, KeyError, TypeError) as exc2:
             raise ValueError(
                 f"could not parse RFC 3161 token: {exc2} (and not a TimeStampResp: {exc})",
@@ -195,7 +200,7 @@ def _try_parse_response_or_token(
     return resp["time_stamp_token"]
 
 
-def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certificate], object]:
+def _parse_token(token_bytes: bytes) -> tuple[_Asn1Node, _Asn1Node, list[x509.Certificate], _Asn1Node]:
     """Extract SignedData, TSTInfo, embedded certs, and the SignerInfo.
 
     Accepts either:
@@ -259,7 +264,7 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
 
 
 def _signing_cert(
-    signer_info: object,
+    signer_info: _Asn1Node,
     embedded_certs: list[x509.Certificate],
 ) -> x509.Certificate:
     """Find the cert in ``embedded_certs`` that matches ``signer_info.sid``.
@@ -267,16 +272,16 @@ def _signing_cert(
     SignerInfo.sid is either ``IssuerAndSerialNumber`` or
     ``SubjectKeyIdentifier``; we handle both.
     """
-    sid = signer_info["sid"]  # type: ignore[index]
+    sid = signer_info["sid"]
     sid_kind = sid.name
     if sid_kind == "issuer_and_serial_number":
-        target_issuer_dn = sid.chosen["issuer"].chosen.dump()  # type: ignore[union-attr]
-        target_serial = int(sid.chosen["serial_number"].native)  # type: ignore[union-attr]
+        target_issuer_dn = sid.chosen["issuer"].chosen.dump()
+        target_serial = int(sid.chosen["serial_number"].native)
         for cert in embedded_certs:
             if cert.serial_number == target_serial and cert.issuer.public_bytes() == target_issuer_dn:
                 return cert
     elif sid_kind == "subject_key_identifier":
-        target_ski = bytes(sid.chosen.native)  # type: ignore[union-attr]
+        target_ski = bytes(sid.chosen.native)
         for cert in embedded_certs:
             try:
                 ski_ext = cert.extensions.get_extension_for_class(
@@ -298,7 +303,7 @@ def _signing_cert(
 
 
 def _verify_signed_attrs_signature(
-    signer_info: object,
+    signer_info: _Asn1Node,
     signing_cert: x509.Certificate,
     tst_info_bytes: bytes,
 ) -> None:
@@ -319,10 +324,10 @@ def _verify_signed_attrs_signature(
             mismatches.
         InvalidSignature: When the signature does not validate.
     """
-    digest_alg = signer_info["digest_algorithm"]["algorithm"].native  # type: ignore[index]
-    sig_alg = signer_info["signature_algorithm"]["algorithm"].native  # type: ignore[index]
-    sig_bytes = bytes(signer_info["signature"].native)  # type: ignore[index]
-    signed_attrs = signer_info["signed_attrs"]  # type: ignore[index]
+    digest_alg = signer_info["digest_algorithm"]["algorithm"].native
+    sig_alg = signer_info["signature_algorithm"]["algorithm"].native
+    sig_bytes = bytes(signer_info["signature"].native)
+    signed_attrs = signer_info["signed_attrs"]
 
     hash_obj = _hash_for_oid_or_name(digest_alg)
     if hash_obj is None:
@@ -477,7 +482,7 @@ def verify_rfc3161_token(
 
     # Step 4 (early) - message imprint. Fails fast before chain walk.
     try:
-        mi = tst_info["message_imprint"]  # type: ignore[index]
+        mi = tst_info["message_imprint"]
         hash_oid = mi["hash_algorithm"]["algorithm"].dotted
         embedded_hash = bytes(mi["hashed_message"].native)
         hash_alg_name = _HASH_OID_TO_NAME.get(hash_oid, hash_oid)
@@ -493,7 +498,7 @@ def verify_rfc3161_token(
         errors.append(f"messageImprint: {exc}")
 
     try:
-        gen_time = tst_info["gen_time"].native  # type: ignore[index]
+        gen_time = tst_info["gen_time"].native
     except (KeyError, AttributeError):
         errors.append("TSTInfo missing genTime")
 
@@ -504,7 +509,7 @@ def verify_rfc3161_token(
         eku_timestamping = _has_timestamping_eku(signing_cert)
     except ValueError as exc:
         errors.append(f"trust: {exc}")
-        signing_cert = None  # type: ignore[assignment]
+        signing_cert = None
 
     if signing_cert is not None:
         chain_time = verification_time or gen_time or datetime.now(tz=signing_cert.not_valid_after_utc.tzinfo)
@@ -524,7 +529,7 @@ def verify_rfc3161_token(
     if signing_cert is not None:
         try:
             tst_info_bytes = bytes(
-                signed_data["encap_content_info"]["content"].contents,  # type: ignore[index]
+                signed_data["encap_content_info"]["content"].contents,
             )
             _verify_signed_attrs_signature(signer_info, signing_cert, tst_info_bytes)
         except (InvalidSignature, ValueError) as exc:

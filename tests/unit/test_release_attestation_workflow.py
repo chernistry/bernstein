@@ -153,9 +153,7 @@ def test_protocol_gate_does_not_ignore_install_or_pytest_failures() -> None:
     data = _load_yaml(PUBLISH_WF)
     run = _step_run(data, "protocol-gate", "Run protocol compatibility check")
     unsafe_lines = [
-        line.strip()
-        for line in run.splitlines()
-        if line.strip().startswith(("uv pip install", "uv run pytest"))
+        line.strip() for line in run.splitlines() if line.strip().startswith(("uv pip install", "uv run pytest"))
     ]
     assert unsafe_lines
     assert all("|| true" not in line for line in unsafe_lines), unsafe_lines

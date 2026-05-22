@@ -10,6 +10,7 @@ import pytest
 
 from bernstein.core.persistence.cas_store import (
     CASEntry,
+    CASIntegrityError,
     CASStats,
     CASStore,
     put_file,
@@ -103,6 +104,61 @@ class TestCASStorePutGet:
         data = b"x" * 1_000_000
         digest = cas.put(data)
         assert cas.get(digest) == data
+
+
+# ---------------------------------------------------------------------------
+# CASStore - read-path integrity verification
+# ---------------------------------------------------------------------------
+
+
+class TestCASStoreIntegrity:
+    def _corrupt_blob(self, cas: CASStore, digest: str) -> None:
+        """Flip one byte of the on-disk blob for *digest* in place."""
+        blob = cas.root / digest[:2] / digest
+        data = bytearray(blob.read_bytes())
+        data[0] ^= 0xFF
+        blob.write_bytes(bytes(data))
+
+    def test_get_raises_on_corrupted_blob(self, cas: CASStore) -> None:
+        digest = cas.put(b"authentic content")
+        self._corrupt_blob(cas, digest)
+        with pytest.raises(CASIntegrityError) as exc_info:
+            cas.get(digest)
+        # The error must name the requested key so a caller can act on it.
+        assert digest in str(exc_info.value)
+
+    def test_get_corruption_error_carries_expected_and_actual(self, cas: CASStore) -> None:
+        digest = cas.put(b"authentic content")
+        self._corrupt_blob(cas, digest)
+        corrupted = (cas.root / digest[:2] / digest).read_bytes()
+        actual = hashlib.sha256(corrupted).hexdigest()
+        with pytest.raises(CASIntegrityError) as exc_info:
+            cas.get(digest)
+        assert exc_info.value.expected == digest
+        assert exc_info.value.actual == actual
+
+    def test_get_does_not_mask_corruption_as_miss(self, cas: CASStore) -> None:
+        # A corrupted blob must surface as an integrity error, never as None
+        # (which would let tampering look like a cache miss).
+        digest = cas.put(b"authentic content")
+        self._corrupt_blob(cas, digest)
+        with pytest.raises(CASIntegrityError):
+            cas.get(digest)
+
+    def test_intact_round_trip_passes_verification(self, cas: CASStore) -> None:
+        digest = cas.put(b"authentic content")
+        assert cas.get(digest) == b"authentic content"
+
+    def test_verify_off_returns_corrupted_bytes(self, cas: CASStore) -> None:
+        # The opt-out is explicit and bypasses the rehash for callers that
+        # have already verified upstream or read enormous blobs in tight loops.
+        digest = cas.put(b"authentic content")
+        self._corrupt_blob(cas, digest)
+        corrupted = (cas.root / digest[:2] / digest).read_bytes()
+        assert cas.get(digest, verify=False) == corrupted
+
+    def test_missing_blob_still_returns_none_with_verify_on(self, cas: CASStore) -> None:
+        assert cas.get("0" * 64, verify=True) is None
 
 
 # ---------------------------------------------------------------------------

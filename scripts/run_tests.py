@@ -25,6 +25,13 @@ import sys
 import time
 from pathlib import Path
 
+_TEST_REQUIRED_PREFIXES = (
+    ".github/workflows/",
+    "scripts/",
+    "src/",
+    "tests/",
+)
+
 
 def _default_workers() -> int:
     """Pick a sensible default worker count: min(cpu_count, 8), at least 1."""
@@ -284,8 +291,48 @@ def discover_affected_files(base: str) -> list[Path]:
         capture_output=True,
         text=True,
     )
+    if result.returncode != 0:
+        print(result.stderr.strip() or result.stdout.strip() or "test_impact.py failed")
+        sys.exit(result.returncode)
     paths = [Path(p.strip()) for p in result.stdout.splitlines() if p.strip()]
     return sorted(paths)
+
+
+def discover_changed_files(base: str) -> list[str]:
+    """Return repo-relative changed paths for empty affected-set decisions."""
+    root = Path(__file__).parent.parent
+    try:
+        if base == "HEAD":
+            unstaged = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.splitlines()
+            staged = subprocess.run(
+                ["git", "diff", "--name-only", "--cached"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.splitlines()
+            return sorted({path for path in [*unstaged, *staged] if path})
+        return subprocess.run(
+            ["git", "diff", "--name-only", f"{base}...HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.splitlines()
+    except subprocess.CalledProcessError as exc:
+        print(exc.stderr.strip() or f"Unable to inspect changed files against {base}")
+        sys.exit(exc.returncode)
+
+
+def changed_files_require_tests(changed_files: list[str]) -> bool:
+    """Return True when an empty affected set must fail closed."""
+    return any(Path(path).as_posix().startswith(_TEST_REQUIRED_PREFIXES) for path in changed_files)
 
 
 def main() -> None:
@@ -335,12 +382,20 @@ def main() -> None:
             sys.exit(2)
 
     if args.affected is not None:
-        files = discover_affected_files(args.affected)
+        affected_files = discover_affected_files(args.affected)
+        files = affected_files
         if args.keyword:
             files = [f for f in files if args.keyword in f.stem]
         if shard is not None:
             files = shard_files(files, *shard)
         if not files:
+            if not affected_files:
+                changed_files = discover_changed_files(args.affected)
+                if changed_files_require_tests(changed_files):
+                    print("No affected tests found for code or workflow changes; failing closed.")
+                    for changed_file in changed_files:
+                        print(f"  {changed_file}")
+                    sys.exit(1)
             _report_empty_selection(shard, context="affected ")
             sys.exit(0)
         shard_label = f" [shard {shard[0]}/{shard[1]}]" if shard else ""

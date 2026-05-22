@@ -169,5 +169,5 @@ and review every agent's activity in a single stream.
 The side channel above is operator-controlled. A separate, additive consent
 flag (`share_with_maintainer`) is documented in
 [telemetry-share.md](./telemetry-share.md). That flag gates an opt-in path
-to a community-shared maintainer endpoint and is off by default. The two
-surfaces are independent.
+to a maintainer endpoint supplied via `BERNSTEIN_TELEMETRY_SHARE_ENDPOINT`
+and is off by default. The two surfaces are independent.

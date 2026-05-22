@@ -6,9 +6,8 @@ the operator picks the backend, points the DSN at it, and reviews the stream.
 
 This page documents a separate, additive consent surface: the
 `share_with_maintainer` flag introduced by the RFC #1719 foundation. The flag
-gates an opt-in path that may, after the RFC settles, ship aggregate
-reliability signal to a community-shared maintainer endpoint. No endpoint is
-defined in this PR, and no default URL is baked into the package.
+gates an opt-in path to a maintainer-operated endpoint. No endpoint URL is
+baked into the package.
 
 ## TL;DR
 
@@ -21,6 +20,7 @@ defined in this PR, and no default URL is baked into the package.
   - `bernstein telemetry disable` to revert.
   - `bernstein telemetry tail [-n N]` to audit the stream offline.
 - One env var beats the file: `BERNSTEIN_TELEMETRY_SHARE=0` always disables.
+- The share sink also requires `BERNSTEIN_TELEMETRY_SHARE_ENDPOINT`.
 - `DO_NOT_TRACK=1` always wins, regardless of the file or any env var.
 
 ## How consent flows
@@ -51,6 +51,19 @@ The flag is resolved from the highest available signal:
 `bernstein telemetry status` prints the resolved value and the layer that
 won, so operators can diagnose surprising state in one command.
 
+## Endpoint configuration
+
+The maintainer-share sink is inert unless both values are present:
+
+| Setting | Required value |
+|---|---|
+| `share_with_maintainer` | `true` from the TOML file or `BERNSTEIN_TELEMETRY_SHARE=1` |
+| `BERNSTEIN_TELEMETRY_SHARE_ENDPOINT` | An HTTPS receiver URL supplied by the runtime environment |
+
+`BERNSTEIN_TELEMETRY_SHARE_ENDPOINT` has no default. Setting the endpoint
+without consent sends nothing. Setting consent without the endpoint sends
+nothing.
+
 ## What gets sent
 
 The event schema is the closed taxonomy already defined in
@@ -67,6 +80,22 @@ The event schema is the closed taxonomy already defined in
 Every event is wrapped in an envelope that adds `schema_version`,
 `install_id`, and `timestamp`. The install id is the opaque per-install
 fingerprint documented in `core/telemetry/install_id.py`.
+
+The maintainer-share request body is exactly the same serialized event JSON
+line written to the local audit queue. The detached Ed25519 receipt is carried
+in HTTP headers:
+
+| Header | Value |
+|---|---|
+| `x-bernstein-telemetry-agent-id` | `install:<install_id>` |
+| `x-bernstein-telemetry-kid` | Receipt key id |
+| `x-bernstein-telemetry-jws` | Detached JWS over the request body |
+| `x-bernstein-telemetry-public-key-pem-b64` | Base64url public key PEM |
+| `x-bernstein-telemetry-receipt-version` | Receipt format version |
+
+The receipt key is generated only after both consent and endpoint gates are
+enabled. The private key is stored locally at
+`~/.bernstein/telemetry-share-key.pem`.
 
 ## Redaction list
 
@@ -115,12 +144,8 @@ The operator-controlled side channel (`BERNSTEIN_TELEMETRY_DSN`) is
 unaffected by any of the above. Operators who run their own backend never
 need to touch the share flag.
 
-## What this PR does not do
+## What is not included
 
 - It does not define a maintainer endpoint URL.
-- It does not change the existing telemetry pipeline.
 - It does not flip the flag for any operator. The default stays off.
-
-The foundation lands so the consent surface is reviewable. The
-consent-posture decision (Option A opt-in vs B opt-out vs C nudged opt-in)
-stays in the RFC discussion at issue #1719.
+- It does not send fields outside the closed telemetry schema.

@@ -226,6 +226,7 @@ def test_probe_with_dsn_emits_synthetic_event(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv(sidechannel.DSN_ENV, "https://k@host/1")
 
     real_build = sidechannel.build_sidechannel
+
     def build_with_transport(
         *,
         env: Mapping[str, str] | None = None,

@@ -553,9 +553,9 @@ def _load_arm_matrices(
         if not _is_matrix(raw_matrix, FEATURE_DIM) or not _is_vector(raw_vector, FEATURE_DIM):
             logger.info("BanditPolicy: resetting %s because arm %s has incompatible dimensions", path, arm)
             return None
-        matrix = [[value for value in row] for row in raw_matrix]
+        matrix = [list(row) for row in raw_matrix]
         loaded_inv[arm] = matrix if arm in raw_inv_by_arm else _inv(matrix)
-        loaded_vec[arm] = [value for value in raw_vector]
+        loaded_vec[arm] = list(raw_vector)
 
     return loaded_inv, loaded_vec, legacy_loaded
 

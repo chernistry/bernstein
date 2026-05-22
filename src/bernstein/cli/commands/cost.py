@@ -935,7 +935,7 @@ def _read_envelopes_from_yaml(yaml_path: Path) -> dict[str, dict[str, Any]]:
     for name, payload in envelopes_block.items():
         if isinstance(payload, dict):
             payload_d = cast("dict[str, Any]", payload)
-            out[name] = {k: v for k, v in payload_d.items()}
+            out[name] = dict(payload_d)
     return out
 
 

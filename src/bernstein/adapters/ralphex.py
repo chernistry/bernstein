@@ -49,6 +49,7 @@ class RalphexAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch a ralphex session over a synthesized plan file.
 
@@ -75,6 +76,7 @@ class RalphexAdapter(CLIAdapter):
             RuntimeError: If the ``ralphex`` binary is missing from PATH
                 or cannot be executed.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         runtime_dir = workdir / ".sdd" / "runtime"
         runtime_dir.mkdir(parents=True, exist_ok=True)
         log_path = runtime_dir / f"{session_id}.log"

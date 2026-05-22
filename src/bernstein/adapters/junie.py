@@ -124,6 +124,7 @@ class JunieAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch a one-shot Junie headless session.
 
@@ -155,6 +156,7 @@ class JunieAdapter(CLIAdapter):
             RuntimeError: The ``junie`` binary is missing from PATH or
                 the OS denies execution.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         provider = self._resolve_provider(model_config)
         # Bind external endpoints for the network policy check based on
         # the routed provider; class-level remains empty so this is the

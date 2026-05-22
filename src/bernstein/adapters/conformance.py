@@ -575,6 +575,7 @@ class {class_name}(CLIAdapter):
         mcp_config: dict[str, Any] | None = None,
         timeout_seconds: int = 1800,
         task_scope: str = "medium",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch {cli_name} with the given prompt.
 
@@ -589,6 +590,7 @@ class {class_name}(CLIAdapter):
         Returns:
             SpawnResult with PID and log path.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         log_path = workdir / f"{adapter_id}-{{session_id}}.log"
         cmd = ["{cli_command}", "--prompt", prompt]
         proc = subprocess.Popen(

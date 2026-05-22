@@ -20,6 +20,7 @@ These tests pin those four properties plus the ``i/N`` spec parser.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from collections.abc import Generator
 from pathlib import Path
@@ -228,3 +229,24 @@ def test_empty_affected_shard_remains_success_when_other_shards_have_tests(
         run_tests_module.main()
 
     assert exc_info.value.code == 0
+
+
+def test_discover_changed_files_falls_back_to_two_dot_diff_without_merge_base(
+    run_tests_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(
+        cmd: list[str],
+        **_: object,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        if cmd[-1] == "origin/main...HEAD":
+            raise subprocess.CalledProcessError(128, cmd, stderr="no merge base")
+        return subprocess.CompletedProcess(cmd, 0, "src/bernstein/core/models.py\n", "")
+
+    monkeypatch.setattr(run_tests_module.subprocess, "run", fake_run)
+
+    assert run_tests_module.discover_changed_files("origin/main") == ["src/bernstein/core/models.py"]
+    assert calls[-1][-1] == "origin/main..HEAD"

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import textwrap
 from pathlib import Path
+
+import pytest
 
 # Make scripts/ importable
 _SCRIPTS = Path(__file__).parent.parent.parent / "scripts"
@@ -16,6 +19,7 @@ from test_impact import (
     _extract_bernstein_imports,
     build_dep_map,
     get_affected_tests,
+    get_changed_files,
 )
 
 # ---------------------------------------------------------------------------
@@ -300,6 +304,35 @@ class TestCacheIsFresh:
             ti.SRC_ROOT = orig_src
             ti.ROOT = orig_root
             ti.TEST_DIRS = orig_dirs
+
+
+# ---------------------------------------------------------------------------
+# get_changed_files
+# ---------------------------------------------------------------------------
+
+
+class TestGetChangedFiles:
+    def test_falls_back_to_two_dot_diff_when_merge_base_is_missing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import test_impact as ti  # type: ignore[import]
+
+        calls: list[list[str]] = []
+
+        def fake_run(
+            cmd: list[str],
+            **_: object,
+        ) -> subprocess.CompletedProcess[str]:
+            calls.append(cmd)
+            if cmd[-1] == "origin/main...HEAD":
+                raise subprocess.CalledProcessError(128, cmd, stderr="no merge base")
+            return subprocess.CompletedProcess(cmd, 0, "src/bernstein/core/models.py\n", "")
+
+        monkeypatch.setattr(ti.subprocess, "run", fake_run)
+
+        assert get_changed_files("origin/main") == ["src/bernstein/core/models.py"]
+        assert calls[-1][-1] == "origin/main..HEAD"
 
 
 # ---------------------------------------------------------------------------

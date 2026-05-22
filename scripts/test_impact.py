@@ -83,13 +83,24 @@ def get_changed_files(base: str = "HEAD") -> list[str]:
             ).stdout.splitlines()
             files = list(set(unstaged) | set(staged))
         else:
-            files = subprocess.run(
-                ["git", "diff", "--name-only", f"{base}...HEAD"],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.splitlines()
+            try:
+                files = subprocess.run(
+                    ["git", "diff", "--name-only", f"{base}...HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.splitlines()
+            except subprocess.CalledProcessError as exc:
+                if exc.returncode != 128:
+                    raise
+                files = subprocess.run(
+                    ["git", "diff", "--name-only", f"{base}..HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.splitlines()
         return [f for f in files if f]
     except subprocess.CalledProcessError:
         return []

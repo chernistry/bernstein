@@ -318,13 +318,24 @@ def discover_changed_files(base: str) -> list[str]:
                 check=True,
             ).stdout.splitlines()
             return sorted({path for path in [*unstaged, *staged] if path})
-        return subprocess.run(
-            ["git", "diff", "--name-only", f"{base}...HEAD"],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.splitlines()
+        try:
+            return subprocess.run(
+                ["git", "diff", "--name-only", f"{base}...HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.splitlines()
+        except subprocess.CalledProcessError as exc:
+            if exc.returncode != 128:
+                raise
+            return subprocess.run(
+                ["git", "diff", "--name-only", f"{base}..HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.splitlines()
     except subprocess.CalledProcessError as exc:
         print(exc.stderr.strip() or f"Unable to inspect changed files against {base}")
         sys.exit(exc.returncode)

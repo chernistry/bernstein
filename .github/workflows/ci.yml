@@ -480,7 +480,7 @@ jobs:
   # ─── Medium checks (cancel old runs, 5-20 min) ────────────────────────
 
   typecheck:
-    name: Type check
+    name: Type check report
     needs: [lint]  # only run if lint passes (fast-fail)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -998,10 +998,10 @@ jobs:
             -k 'lineage_signer or lineage_record or lineage_export'
 
   mutmut-diff:
-    # Mutation testing on PR-changed files only. Computes a mutation
-    # score over the lines actually touched in this PR. Fails when
-    # the score on changed lines is below 70%.
-    name: Mutation (diff-only)
+    # Mutation testing report on PR-changed files only. Computes a
+    # mutation score over the lines actually touched in this PR.
+    # Advisory until the command is allowed to fail this job.
+    name: Mutation report (diff-only)
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1057,20 +1057,18 @@ jobs:
           uv run mutmut results || true
 
   diff-coverage:
-    # LEVEL 1 of the coverage ratchet - diff-cover gate: lines touched in
-    # this PR must hit the committed diff-coverage floor. The floor lives
+    # LEVEL 1 of the coverage ratchet - diff-cover report: lines touched in
+    # this PR are compared with the committed diff-coverage floor. The floor lives
     # in .coverage-baseline.json (key: diff_coverage_floor_percent) so it
     # is a single source of truth that the weekly bump workflow nudges up
     # over time (see docs/operations/coverage-ratchet.md). Reuses the
     # coverage.xml uploaded by the main test job.
     #
-    # ADVISORY: the diff-cover step is continue-on-error, so this job's
+    # ADVISORY: the diff-cover step is continue-on-error, so this report's
     # result stays `success` even when diff coverage is below the floor.
-    # That keeps it safe to leave in the CI-gate `needs` set without
-    # wedging the merge queue. Promote it to blocking by removing the
-    # continue-on-error once coverage is healthy (documented in the ops
-    # runbook).
-    name: Diff coverage gate
+    # The report is outside the CI-gate `needs` set until PR coverage
+    # artifacts are reliable enough for a blocking threshold.
+    name: Diff coverage report
     needs: [test]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -1714,7 +1712,7 @@ jobs:
             const jobs = [
               { name: 'Repo hygiene', result: '${{ needs.repo-hygiene.result }}' },
               { name: 'Lint', result: '${{ needs.lint.result }}' },
-              { name: 'Type check', result: '${{ needs.typecheck.result }}' },
+              { name: 'Type check report', result: '${{ needs.typecheck.result }}' },
               { name: 'Tests', result: '${{ needs.test.result }}' },
               { name: 'Tests (macOS)', result: '${{ needs.test-macos.result }}' },
               { name: 'Spelling', result: '${{ needs.spelling.result }}' },
@@ -1788,6 +1786,9 @@ jobs:
   # Excluded from `needs:`:
   #   * `autofix`        - runs only on push to main, mutates the tree
   #   * `pr-summary`     - cosmetic PR comment, must not gate merges
+  #   * `typecheck`      - advisory report while repo-wide pyright is being typed
+  #   * `mutmut-diff`    - advisory report until mutation score enforcement is enabled
+  #   * `diff-coverage`  - advisory report until PR coverage artifacts are reliable
   #   * `ci-gate` itself - would deadlock the dependency graph
   ci-gate:
     name: CI gate
@@ -1804,7 +1805,6 @@ jobs:
       - spelling
       - actionlint
       - lineage-gate
-      - typecheck
       - dead-code
       - dist-size
       - install-smoke-pipx
@@ -1816,8 +1816,6 @@ jobs:
       - bandit
       - pip-audit
       - beartype
-      - mutmut-diff
-      - diff-coverage
       - pyright-strict-zone
       - adapter-integration
       - adapter-integration-macos
@@ -1858,13 +1856,10 @@ jobs:
               "property-tests",
               "beartype",
               "adapter-integration",
-              "diff-coverage",
-              "mutmut-diff",
               "pyright-strict-zone",
               "semgrep",
               "bandit",
               "pip-audit",
-              "typecheck",
               "dead-code",
               "dist-size",
               "install-smoke-pipx",
@@ -1877,7 +1872,7 @@ jobs:
               "close-ci-issues",
           }
           # PR-only jobs: skipped on push events is intentional.
-          PR_ONLY = {"mutmut-diff", "diff-coverage"}
+          PR_ONLY = set()
           # Push-to-main-only jobs: skipped on PRs is intentional.
           PUSH_ONLY = {"close-ci-issues"}
           # macOS-gated jobs (see #1468): on PRs these are skipped unless

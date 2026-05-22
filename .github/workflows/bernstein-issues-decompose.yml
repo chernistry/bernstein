@@ -1,7 +1,9 @@
 name: "Bernstein Issue Decompose"
 
-# Trigger: when an issue is labeled with "bernstein", decompose it into
-# agent tasks and open a pull request with the implementation.
+# Trigger: when a trusted-author issue is labeled with "bernstein",
+# decompose it into agent tasks and open a pull request with the
+# implementation. Issues from external authors are acknowledged by a
+# deterministic job and are not passed to the write-scoped agent job.
 on:
   issues:
     types: [labeled]
@@ -20,7 +22,9 @@ jobs:
     name: Decompose issue with Bernstein
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event.label.name == 'bernstein'
+    if: >-
+      github.event.label.name == 'bernstein' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     permissions:
       contents: write
       issues: write
@@ -65,3 +69,22 @@ jobs:
           gh issue edit ${{ github.event.issue.number }} \
             --remove-label "bernstein" \
             --add-label "bernstein:in-progress" 2>/dev/null || true
+
+  reject-untrusted-issue:
+    name: Reject untrusted issue decomposition
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event.label.name == 'bernstein' &&
+      !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    permissions:
+      issues: write
+    steps:
+      - name: Remove automation label and explain skip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "bernstein" 2>/dev/null || true
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "Bernstein issue decomposition was not started because the issue author is not a repository collaborator. A maintainer can run it from a trusted issue after review."

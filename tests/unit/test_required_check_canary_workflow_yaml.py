@@ -372,8 +372,6 @@ _MERGE_GROUP_NEEDS = {
     "bandit": {"result": "success"},
     "pip-audit": {"result": "success"},
     "beartype": {"result": "success"},
-    "mutmut-diff": {"result": "skipped"},  # if: pull_request
-    "diff-coverage": {"result": "skipped"},  # if: pull_request
     "pyright-strict-zone": {"result": "success"},
     "adapter-integration": {"result": "success"},
     "adapter-integration-macos": {"result": "skipped"},  # if: push/sensitive/label

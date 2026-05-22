@@ -156,6 +156,7 @@ make -C examples/lineage demo-eu-mfg
 | `verify` exits 1 with "invalid signature" | The log was edited after the fact, or the Agent Card was swapped. | Treat as a security incident; do not ship the pack. |
 | `verify` exits 1 with "kid binding cannot be established" | No Agent Card on disk matches the `(agent_id, agent_card_kid)` the entry signed - typically a card for the entry's key id is missing after a rotation. | Restore the card for that key id under the per-kid layout (see [Key rotation](#key-rotation)); re-verify. |
 | `verify` exits 1 with "kid binding mismatch" | An entry's signed body names one key id while its JWS header names another - a key-substitution attempt. | Treat as a security incident; do not ship the pack. |
+| `verify` exits 1 with "conflicting agent cards" | Two on-disk cards claim the same `(agent_id, kid)` with different key material or protocol version. The gate refuses to pick a winner, since a read-order-dependent choice would be a tamper/config hole. | Reconcile the cards so one byte-identical card remains for that key id (byte-identical duplicates across the legacy and per-kid layouts are fine); re-verify. |
 | `verify` exits 1 with "HMAC mismatch" | Operator HMAC key rotated mid-window. | Re-pack with the correct key context; consult ADR-009 §6. |
 | Genesis entry shows up with `parent_hashes: []` | First-time write of a file that existed before lineage was enabled. | Expected - see ADR-009 §11 on bootstrap. |
 

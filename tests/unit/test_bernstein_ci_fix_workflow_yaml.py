@@ -91,10 +91,10 @@ def test_tier3_checkout_uses_trusted_ref_then_reachable_sha_guard(
     run = guard.get("run", "")
     assert isinstance(run, str)
     assert "grep -qE '^[0-9a-f]{40}$'" in run, "Tier-3 guard must reject non-40-hex SHAs"
-    assert "git merge-base --is-ancestor \"$HEAD_SHA\" origin/main" in run, (
+    assert 'git merge-base --is-ancestor "$HEAD_SHA" origin/main' in run, (
         "Tier-3 guard must require the SHA to be reachable from origin/main"
     )
-    assert "git -c advice.detachedHead=false checkout \"$HEAD_SHA\"" in run
+    assert 'git -c advice.detachedHead=false checkout "$HEAD_SHA"' in run
 
 
 def test_workflow_uses_only_sha_pinned_actions(workflow_text: str) -> None:

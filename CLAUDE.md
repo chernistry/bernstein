@@ -9,65 +9,66 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 
 ### `src/bernstein/core/` - orchestration engine
 
-| File                    | Purpose |
-|-------------------------|---------|
-| `credential_scoping.py` | Agent credential scope minimization for least-privilege API keys |
-| `defaults.py`           | Centralized default values for the Bernstein orchestrator |
-| `streaming_merge.py`    | Streaming task results for long-running agents (incremental merge) |
-| `agents/`               | agents sub-package |
-| `approval/`             | Interactive tool-call approval (op-002) |
-| `autofix/`              | Bernstein autofix daemon - auto-repair CI failures on Bernstein PRs |
-| `autoheal/`             | Auto-heal v2 subpackage |
-| `chat/`                 | Chat-control bridges for driving Bernstein agents from messaging apps |
-| `communication/`        | communication sub-package |
-| `compliance/`           | Compliance subpackage |
-| `config/`               | Config: seed parsing, config management, settings, feature gates |
-| `cost/`                 | cost sub-package |
-| `daemon/`               | Daemon installation helpers for Bernstein |
-| `devops/`               | devops sub-package |
-| `distribution/`         | Distribution utilities - air-gap wheelhouse build, verify, signing |
-| `errors/`               | Structured first-run error categorization for Bernstein |
-| `fleet/`                | Fleet dashboard - supervise multiple Bernstein projects in one view |
-| `git/`                  | git sub-package |
-| `grpc_gen/`             | Generated gRPC stubs - run ``scripts/generate_proto.sh`` to populate |
-| `handoff/`              | Session handoff between terminal and chat/dashboard surfaces (op-005) |
-| `identity/`             | Install-rev identity module - passive, operator-decodable install fingerprint |
-| `integrations/`         | Integrations sub-package |
-| `interop/`              | Cross-organisation interoperability surfaces |
-| `knowledge/`            | knowledge sub-package |
-| `lifecycle/`            | Lifecycle-hooks subsystem |
-| `lineage/`              | Lineage v1 - Sigstore-style per-artefact transparency log |
-| `memory/`               | memory sub-package - persistent memory stores |
-| `notifications/`        | Outbound notification subsystem (release 1.9) |
-| `observability/`        | observability sub-package |
-| `orchestration/`        | orchestration sub-package |
-| `persistence/`          | persistence sub-package |
-| `planning/`             | planning sub-package |
-| `plugins_core/`         | plugins_core sub-package |
-| `preview/`              | ``bernstein preview`` - sandboxed dev-server with public tunnel link |
-| `protocols/`            | protocols sub-package |
-| `quality/`              | quality sub-package |
-| `replay/`               | Deterministic replay package for Bernstein agent runs |
-| `review/`               | Per-adapter perspective assignment and chain coordination for reviews |
-| `review_responder/`     | PR review responder - react to inline review comments on Bernstein PRs |
-| `routes/`               | FastAPI router modules for the Bernstein task server |
-| `routing/`              | routing sub-package |
-| `sandbox/`              | Pluggable sandbox backends for agent isolation (oai-002 phase 1) |
-| `security/`             | security sub-package |
-| `server/`               | server sub-package - re-exports for backward compatibility |
-| `sessions/`             | Session-level orchestration primitives that span multiple subsystems |
-| `simulate/`             | Digital-twin orchestration simulator (issue #1374) |
-| `skills/`               | Progressive-disclosure skill packs (oai-004) |
-| `storage/`              | Pluggable artifact storage sinks (oai-003) |
-| `substrate/`            | Substrate: register Bernstein into host applications (MCP servers, etc.) |
-| `tasks/`                | tasks sub-package |
-| `telemetry/`            | Opt-in operator observability for Bernstein |
-| `tokens/`               | tokens sub-package |
-| `trackers/`             | Tracker adapter subsystem |
-| `trigger_sources/`      | Trigger source adapters - normalize raw events into TriggerEvent |
-| `tunnels/`              | Tunnel provider abstraction and registry |
-| `workflows/`            | Archon-inspired YAML workflow manifests |
-| `worktrees/`            | Worktree inventory and garbage-collection helpers |
+| File                        | Purpose |
+|-----------------------------|---------|
+| `compat_redirect_ledger.py` | Compatibility ledger for legacy ``bernstein.core`` redirects |
+| `credential_scoping.py`     | Agent credential scope minimization for least-privilege API keys |
+| `defaults.py`               | Centralized default values for the Bernstein orchestrator |
+| `streaming_merge.py`        | Streaming task results for long-running agents (incremental merge) |
+| `agents/`                   | agents sub-package |
+| `approval/`                 | Interactive tool-call approval (op-002) |
+| `autofix/`                  | Bernstein autofix daemon - auto-repair CI failures on Bernstein PRs |
+| `autoheal/`                 | Auto-heal v2 subpackage |
+| `chat/`                     | Chat-control bridges for driving Bernstein agents from messaging apps |
+| `communication/`            | communication sub-package |
+| `compliance/`               | Compliance subpackage |
+| `config/`                   | Config: seed parsing, config management, settings, feature gates |
+| `cost/`                     | cost sub-package |
+| `daemon/`                   | Daemon installation helpers for Bernstein |
+| `devops/`                   | devops sub-package |
+| `distribution/`             | Distribution utilities - air-gap wheelhouse build, verify, signing |
+| `errors/`                   | Structured first-run error categorization for Bernstein |
+| `fleet/`                    | Fleet dashboard - supervise multiple Bernstein projects in one view |
+| `git/`                      | git sub-package |
+| `grpc_gen/`                 | Generated gRPC stubs - run ``scripts/generate_proto.sh`` to populate |
+| `handoff/`                  | Session handoff between terminal and chat/dashboard surfaces (op-005) |
+| `identity/`                 | Install-rev identity module - passive, operator-decodable install fingerprint |
+| `integrations/`             | Integrations sub-package |
+| `interop/`                  | Cross-organisation interoperability surfaces |
+| `knowledge/`                | knowledge sub-package |
+| `lifecycle/`                | Lifecycle-hooks subsystem |
+| `lineage/`                  | Lineage v1 - Sigstore-style per-artefact transparency log |
+| `memory/`                   | memory sub-package - persistent memory stores |
+| `notifications/`            | Outbound notification subsystem (release 1.9) |
+| `observability/`            | observability sub-package |
+| `orchestration/`            | orchestration sub-package |
+| `persistence/`              | persistence sub-package |
+| `planning/`                 | planning sub-package |
+| `plugins_core/`             | plugins_core sub-package |
+| `preview/`                  | ``bernstein preview`` - sandboxed dev-server with public tunnel link |
+| `protocols/`                | protocols sub-package |
+| `quality/`                  | quality sub-package |
+| `replay/`                   | Deterministic replay package for Bernstein agent runs |
+| `review/`                   | Per-adapter perspective assignment and chain coordination for reviews |
+| `review_responder/`         | PR review responder - react to inline review comments on Bernstein PRs |
+| `routes/`                   | FastAPI router modules for the Bernstein task server |
+| `routing/`                  | routing sub-package |
+| `sandbox/`                  | Pluggable sandbox backends for agent isolation (oai-002 phase 1) |
+| `security/`                 | security sub-package |
+| `server/`                   | server sub-package - re-exports for backward compatibility |
+| `sessions/`                 | Session-level orchestration primitives that span multiple subsystems |
+| `simulate/`                 | Digital-twin orchestration simulator (issue #1374) |
+| `skills/`                   | Progressive-disclosure skill packs (oai-004) |
+| `storage/`                  | Pluggable artifact storage sinks (oai-003) |
+| `substrate/`                | Substrate: register Bernstein into host applications (MCP servers, etc.) |
+| `tasks/`                    | tasks sub-package |
+| `telemetry/`                | Opt-in operator observability for Bernstein |
+| `tokens/`                   | tokens sub-package |
+| `trackers/`                 | Tracker adapter subsystem |
+| `trigger_sources/`          | Trigger source adapters - normalize raw events into TriggerEvent |
+| `tunnels/`                  | Tunnel provider abstraction and registry |
+| `workflows/`                | Archon-inspired YAML workflow manifests |
+| `worktrees/`                | Worktree inventory and garbage-collection helpers |
 
 ### `src/bernstein/adapters/` - CLI agent adapters
 

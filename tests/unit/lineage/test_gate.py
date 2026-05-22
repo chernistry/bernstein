@@ -6,12 +6,33 @@ import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
+from typing import TypedDict
 
 from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac, entry_hash
 from bernstein.core.lineage.gate import GateResult, check
 from bernstein.core.lineage.identity import AgentCard, generate_keypair, sign_detached
 
 # ── Test fixtures and helpers ───────────────────────────────────────────────
+
+
+class _AgentCardPayload(TypedDict):
+    """On-disk ``card.json`` shape. Typed so the payload is explicit under
+    strict type-checking instead of an untyped inline dict."""
+
+    protocolVersion: str
+    agent_id: str
+    kid: str
+    public_key_pem: str
+
+
+def _card_payload(agent_id: str, kid: str, public_key_pem: str) -> _AgentCardPayload:
+    """Build a typed ``card.json`` payload for the given identity."""
+    return {
+        "protocolVersion": "a2a/1.0",
+        "agent_id": agent_id,
+        "kid": kid,
+        "public_key_pem": public_key_pem,
+    }
 
 
 class _TestAgent:
@@ -67,16 +88,8 @@ def _h(seed: str) -> str:
 def _write_card(cards_dir: Path, agent: _TestAgent) -> None:
     d = cards_dir / agent.agent_id
     d.mkdir(parents=True, exist_ok=True)
-    (d / "card.json").write_text(
-        json.dumps(
-            {
-                "protocolVersion": "a2a/1.0",
-                "agent_id": agent.agent_id,
-                "kid": agent.kid,
-                "public_key_pem": agent.pub,
-            }
-        )
-    )
+    payload = _card_payload(agent.agent_id, agent.kid, agent.pub)
+    (d / "card.json").write_text(json.dumps(payload))
 
 
 def _shard(s: str) -> str:
@@ -578,16 +591,8 @@ def _write_card_for_kid(cards_dir: Path, agent: _TestAgent) -> None:
     """
     d = cards_dir / agent.agent_id / agent.kid
     d.mkdir(parents=True, exist_ok=True)
-    (d / "card.json").write_text(
-        json.dumps(
-            {
-                "protocolVersion": "a2a/1.0",
-                "agent_id": agent.agent_id,
-                "kid": agent.kid,
-                "public_key_pem": agent.pub,
-            }
-        )
-    )
+    payload = _card_payload(agent.agent_id, agent.kid, agent.pub)
+    (d / "card.json").write_text(json.dumps(payload))
 
 
 def _sign_entry_into(log_path: Path, entry: LineageEntry, *, priv_pem: str, header_kid: str) -> None:
@@ -694,3 +699,311 @@ def test_gate_legacy_single_card_layout_still_passes(tmp_path: Path) -> None:
     _write_log_and_sigs(log, [(g, None), (c1, None)], {a.agent_id: a})
     result = check(log_path=log, agent_cards_dir=cards)
     assert result.ok is True, result.failures
+
+
+# ── Card-conflict detection (issue #1837, read-order independence) ──────────
+#
+# "Last one read wins" makes the verification outcome depend on filesystem
+# read order when two distinct cards claim the same ``(agent_id, kid)``. For a
+# kid-binding security gate that is a tamper/config-conflict hole, so the
+# loader must fail explicitly. Byte-identical duplicates (the legacy + per-kid
+# layouts carrying the same key) stay fine.
+
+
+def _write_raw_card(cards_dir: Path, agent_id: str, kid: str, *, pub: str, sub: str = "") -> None:
+    """Write a ``card.json`` with explicit field values under
+    ``<agent-id>[/sub]/card.json`` (``sub`` selects the per-kid layout)."""
+    d = cards_dir / agent_id
+    if sub:
+        d = d / sub
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "card.json").write_text(json.dumps(_card_payload(agent_id, kid, pub)))
+
+
+def test_gate_fails_on_conflicting_cards_for_same_agent_id_kid(tmp_path: Path) -> None:
+    """Two cards that claim the same ``(agent_id, kid)`` with *different* public
+    keys must produce an explicit conflict failure that names the agent_id and
+    kid - never a silent read-order-dependent winner."""
+    a1 = _TestAgent("agent:a", "k1")
+    a2 = _TestAgent("agent:a", "k1")  # same identity, different generated key
+    assert a1.pub != a2.pub
+    cards = tmp_path / "agents"
+    # Legacy layout carries a1's key; per-kid layout carries a2's key. Same
+    # (agent_id, kid), divergent public_key_pem -> conflict.
+    _write_raw_card(cards, "agent:a", "k1", pub=a1.pub)
+    _write_raw_card(cards, "agent:a", "k1", pub=a2.pub, sub="k1")
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a1, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, g, priv_pem=a1.priv, header_kid=a1.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    conflict = [f for f in result.failures if "conflicting agent cards" in f]
+    assert conflict, result.failures
+    # The message must name the exact identity in conflict.
+    assert "agent:a" in conflict[0] and "k1" in conflict[0], conflict[0]
+
+
+def test_gate_accepts_byte_identical_duplicate_cards(tmp_path: Path) -> None:
+    """The legacy ``<agent-id>/card.json`` and the per-kid
+    ``<agent-id>/<kid>/card.json`` carrying the *same* key for the same
+    ``(agent_id, kid)`` must NOT be flagged as a conflict - identical
+    duplicates are the normal cross-layout case."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)  # legacy
+    _write_card_for_kid(cards, a)  # per-kid, identical key material
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, g, priv_pem=a.priv, header_kid=a.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True, result.failures
+    assert not any("conflicting" in f for f in result.failures), result.failures
+
+
+def test_load_cards_skips_card_with_non_string_public_key(tmp_path: Path) -> None:
+    """``_load_cards`` must require *all* of agent_id/kid/public_key_pem to be
+    strings (the ``and`` chain). A card with a non-string ``public_key_pem``
+    but valid id/kid must be skipped, leaving the map empty - this kills the
+    ``and -> or`` mutation, which would otherwise admit the malformed card."""
+    from bernstein.core.lineage.gate import _load_cards
+
+    cards = tmp_path / "agents"
+    d = cards / "agent:a"
+    d.mkdir(parents=True, exist_ok=True)
+    # agent_id and kid are valid strings; only public_key_pem is wrong type.
+    (d / "card.json").write_text(
+        json.dumps(
+            {
+                "protocolVersion": "a2a/1.0",
+                "agent_id": "agent:a",
+                "kid": "k1",
+                "public_key_pem": 1234,  # non-string -> whole card must be skipped
+            }
+        )
+    )
+    loaded, failures = _load_cards(cards)
+    assert loaded == {}, loaded
+    assert failures == []
+
+
+def test_gate_reports_kid_binding_cannot_be_established_message(tmp_path: Path) -> None:
+    """When no card exists for the entry's exact ``(agent_id, kid)`` the failure
+    text must state the binding *cannot* be established - kills the mutation
+    that strips ``not`` from ``cannot`` in that message."""
+    a_k1 = _TestAgent("agent:a", "k1")
+    a_k2 = _TestAgent("agent:a", "k2")
+    cards = tmp_path / "agents"
+    _write_card_for_kid(cards, a_k2)  # only k2 on disk; entry signed under k1
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a_k1, "src/x.py", _h("1"), [], ts_ns=1)
+    _sign_entry_into(log, g, priv_pem=a_k1.priv, header_kid=a_k1.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    assert any("kid binding cannot be established" in f for f in result.failures), result.failures
+
+
+def test_gate_header_vs_body_kid_message_states_inequality(tmp_path: Path) -> None:
+    """The header/body kid-divergence message must spell out the inequality
+    (``!=``) between the signed-body kid and the JWS-header kid - kills the
+    ``!= -> ==`` mutation in that f-string."""
+    a_old = _TestAgent("agent:a", "k-old")
+    a_new = _TestAgent("agent:a", "k-new")
+    cards = tmp_path / "agents"
+    _write_card_for_kid(cards, a_old)
+    _write_card_for_kid(cards, a_new)
+    log = tmp_path / "lineage" / "log.jsonl"
+    entry = _entry_for(a_old, "src/x.py", _h("1"), [], ts_ns=1)
+    # Body names k-old; sign with k-new header kid so header != body.
+    _sign_entry_into(log, entry, priv_pem=a_new.priv, header_kid=a_new.kid)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    mismatch = [f for f in result.failures if "kid binding mismatch" in f]
+    assert mismatch, result.failures
+    assert "!=" in mismatch[0], mismatch[0]
+    assert "k-old" in mismatch[0] and "k-new" in mismatch[0], mismatch[0]
+
+
+def test_gate_reports_unreadable_signature_sidecar(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """When the signature sidecar exists but cannot be read, the gate must
+    surface a 'cannot read signature' failure and keep going - kills the
+    mutation stripping ``not`` from ``cannot`` in that branch."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _write_log_and_sigs(log, [(g, None)], {a.agent_id: a})
+
+    real_read_text = Path.read_text
+
+    def _boom(self: Path, *args: object, **kwargs: object) -> str:
+        if self.suffix == ".jws":
+            raise OSError("simulated unreadable signature")
+        return real_read_text(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", _boom)
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    assert any("cannot read signature" in f for f in result.failures), result.failures
+
+
+def test_gate_non_steward_merge_message_says_not_in_allowlist(tmp_path: Path) -> None:
+    """A merge entry written by a non-allow-listed agent must fail with a
+    message that includes 'not in allowlist' - kills the mutation that strips
+    ``not`` from that message."""
+    worker = _TestAgent("agent:worker", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, worker)
+    log = tmp_path / "lineage" / "log.jsonl"
+    p1 = _entry_for(worker, "x.py", _h("1"), [], ts_ns=1)
+    p2 = _entry_for(worker, "x.py", _h("2"), [], ts_ns=2)
+    merge = _entry_for(worker, "x.py", _h("3"), [entry_hash(p1), entry_hash(p2)], ts_ns=3)
+    _write_log_and_sigs(log, [(p1, None), (p2, None), (merge, None)], {worker.agent_id: worker})
+    result = check(
+        log_path=log,
+        agent_cards_dir=cards,
+        steward_allowlist=frozenset({"agent:steward"}),
+    )
+    assert result.ok is False
+    non_steward = [f for f in result.failures if "non-steward" in f]
+    assert non_steward, result.failures
+    assert "not in allowlist" in non_steward[0], non_steward[0]
+
+
+def test_gate_two_open_tips_exact_boundary(tmp_path: Path) -> None:
+    """Exactly two unresolved open tips on one artefact must fail (the guard is
+    ``> 1``). The reported count must equal 2 - this pins the threshold at 1
+    (killing the ``1 -> 2`` mutation, where two tips would no longer trip it)
+    and the count operand (killing ``len( -> 0 * len(``)."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    f1 = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    f2 = _entry_for(a, "x.py", _h("3"), [entry_hash(g)], ts_ns=3)
+    _write_log_and_sigs(log, [(g, None), (f1, None), (f2, None)], {a.agent_id: a})
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    tip_msgs = [f for f in result.failures if "unresolved open tips" in f]
+    assert tip_msgs, result.failures
+    assert "2 unresolved open tips" in tip_msgs[0], tip_msgs[0]
+
+
+def test_gate_unrelated_merge_does_not_resolve_a_different_fork(tmp_path: Path) -> None:
+    """Fork resolution requires an entry whose parent_hashes cover ALL of the
+    fork's children (``len(parents) >= 2 AND children.issubset(parents)``).
+
+    A *different* artefact's legitimate two-parent merge - which satisfies the
+    ``>= 2`` half but whose parents do NOT cover the unresolved fork's children
+    - must NOT clear that fork. This kills the ``and -> or`` mutation: under
+    ``or`` the unrelated merge's parent count alone would wrongly mark the open
+    fork resolved, flipping the gate to pass.
+    """
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    # Artefact A: an UNRESOLVED fork (g_a forks into c1_a and c2_a, never merged).
+    g_a = _entry_for(a, "a.py", _h("1"), [], ts_ns=1)
+    c1_a = _entry_for(a, "a.py", _h("2"), [entry_hash(g_a)], ts_ns=2)
+    c2_a = _entry_for(a, "a.py", _h("3"), [entry_hash(g_a)], ts_ns=3)
+    # Artefact B: a RESOLVED fork - g_b forks, then m_b merges both children.
+    # m_b has two parents (satisfies the >= 2 half) but they are {c1_b, c2_b},
+    # which do not cover artefact A's children {c1_a, c2_a}.
+    g_b = _entry_for(a, "b.py", _h("4"), [], ts_ns=4)
+    c1_b = _entry_for(a, "b.py", _h("5"), [entry_hash(g_b)], ts_ns=5)
+    c2_b = _entry_for(a, "b.py", _h("6"), [entry_hash(g_b)], ts_ns=6)
+    m_b = _entry_for(a, "b.py", _h("7"), [entry_hash(c1_b), entry_hash(c2_b)], ts_ns=7)
+    _write_log_and_sigs(
+        log,
+        [
+            (g_a, None),
+            (c1_a, None),
+            (c2_a, None),
+            (g_b, None),
+            (c1_b, None),
+            (c2_b, None),
+            (m_b, None),
+        ],
+        {a.agent_id: a},
+    )
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    fork_msgs = [f for f in result.failures if "unresolved fork" in f]
+    # Exactly artefact A's fork is unresolved; B's was correctly merged.
+    assert fork_msgs, result.failures
+    assert all("a.py" in f for f in fork_msgs), fork_msgs
+    assert not any("b.py" in f for f in fork_msgs), fork_msgs
+
+
+# ── Skill-lockfile admission check (issue #1796) ────────────────────────────
+#
+# ``check_skill_lockfile`` lives beside ``check`` in gate.py but its existing
+# coverage is under tests/unit/core/skills/. The per-module mutation gate runs
+# only tests/unit/lineage/ against gate.py, so these lineage-local tests pin
+# the lockfile branch logic for that gate too (kills the survivors at the
+# is_file / pass-result / membership / final-ok lines).
+
+
+def _write_catalog_lockfile(path: Path, *, manifest_sha256: str, entry_id: str = "code-review") -> None:
+    """Write a minimal single-row ``[[catalog]]`` lockfile (plain TOML) so the
+    lineage test stays free of the catalog package's writer."""
+    path.write_text(
+        "\n".join(
+            (
+                "[[catalog]]",
+                f'id = "{entry_id}"',
+                f'name = "{entry_id}"',
+                'version = "1.0.0"',
+                'manifest_url = "github://acme/code-review@v1"',
+                f'manifest_sha256 = "{manifest_sha256}"',
+                f'content_digest = "{"2" * 64}"',
+                'install_id = "install-1"',
+                f'chain_head = "{"3" * 64}"',
+                'installed_at = "2026-05-21T00:00:00Z"',
+                "",
+            )
+        )
+    )
+
+
+def test_check_skill_lockfile_passes_when_missing() -> None:
+    """A missing lockfile is a no-op pass (``ok=True``, empty failures). Kills
+    the ``is_file`` ``not`` strip, the ``True -> False`` flip, and the
+    ``[] -> [None]`` mutation on the missing-file return."""
+    from bernstein.core.lineage.gate import check_skill_lockfile
+
+    result = check_skill_lockfile(Path("/no/such/skills.lock"), frozenset())
+    assert result.ok is True
+    assert result.failures == []
+
+
+def test_check_skill_lockfile_accepts_anchored_row(tmp_path: Path) -> None:
+    """A row whose ``manifest_sha256`` is in the known-good set passes with no
+    failures. Together with the rejection test this pins ``ok = not failures``
+    (both the empty and non-empty branches)."""
+    from bernstein.core.lineage.gate import check_skill_lockfile
+
+    sha = "deadbeef" + "0" * 56
+    lockfile = tmp_path / "skills.lock"
+    _write_catalog_lockfile(lockfile, manifest_sha256=sha)
+    result = check_skill_lockfile(lockfile, frozenset({sha}))
+    assert result.ok is True, result.failures
+    assert result.failures == []
+
+
+def test_check_skill_lockfile_rejects_unanchored_row(tmp_path: Path) -> None:
+    """A row whose ``manifest_sha256`` is NOT in the known-good set must fail.
+    Kills the membership ``not`` strip (``not in`` -> ``in``), the final
+    ``ok = not failures`` mutation, and the 'is not present' message strip."""
+    from bernstein.core.lineage.gate import check_skill_lockfile
+
+    rogue = "rogue" + "0" * 59
+    lockfile = tmp_path / "skills.lock"
+    _write_catalog_lockfile(lockfile, manifest_sha256=rogue)
+    # known-good set holds a *different* sha, so the row is un-anchored.
+    result = check_skill_lockfile(lockfile, frozenset({"feed" + "0" * 60}))
+    assert result.ok is False
+    assert any("code-review" in f for f in result.failures), result.failures
+    assert any("is not present" in f for f in result.failures), result.failures

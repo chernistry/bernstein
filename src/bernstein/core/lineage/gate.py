@@ -40,7 +40,7 @@ class GateResult:
     failures: list[str] = field(default_factory=list)
 
 
-def _load_cards(cards_dir: Path) -> dict[tuple[str, str], AgentCard]:
+def _load_cards(cards_dir: Path) -> tuple[dict[tuple[str, str], AgentCard], list[str]]:
     """Load all Agent Cards, keyed by ``(agent_id, kid)``.
 
     Two on-disk layouts are accepted so the gate stays verifiable across a key
@@ -53,13 +53,24 @@ def _load_cards(cards_dir: Path) -> dict[tuple[str, str], AgentCard]:
 
     The card's own ``agent_id`` and ``kid`` body fields are authoritative for
     the map key (not the directory names), so a misfiled card cannot
-    masquerade under a different identity. When both layouts carry a card for
-    the same ``(agent_id, kid)``, the last one read wins; they are expected to
-    be byte-identical for a given key.
+    masquerade under a different identity.
+
+    When two distinct card payloads map to the same ``(agent_id, kid)`` the
+    loader does *not* pick a winner: "last one read wins" would make the
+    verification outcome depend on filesystem read order, which a kid-binding
+    security gate must never do (issue #1837). The conflicting key is reported
+    as an explicit failure naming the ``agent_id``/``kid``. Byte-identical
+    duplicates - the normal case when the legacy and per-kid layouts carry the
+    same key - are accepted without error.
+
+    Returns:
+        ``(cards, failures)`` where ``cards`` maps ``(agent_id, kid)`` to the
+        loaded :class:`AgentCard` and ``failures`` lists any conflict messages.
     """
     out: dict[tuple[str, str], AgentCard] = {}
+    failures: list[str] = []
     if not cards_dir.exists():
-        return out
+        return out, failures
     # Legacy ``<agent-id>/card.json`` then per-kid ``<agent-id>/<kid>/card.json``.
     for card_file in (*cards_dir.glob("*/card.json"), *cards_dir.glob("*/*/card.json")):
         try:
@@ -71,13 +82,24 @@ def _load_cards(cards_dir: Path) -> dict[tuple[str, str], AgentCard]:
         pub = data.get("public_key_pem")
         if not (isinstance(agent_id, str) and isinstance(kid, str) and isinstance(pub, str)):
             continue
-        out[agent_id, kid] = AgentCard(
+        card = AgentCard(
             agent_id=agent_id,
             kid=kid,
             public_key_pem=pub,
             protocol_version=data.get("protocolVersion", "a2a/1.0"),
         )
-    return out
+        key = (agent_id, kid)
+        prev = out.get(key)
+        if prev is not None and prev != card:
+            # Two on-disk cards claim the same identity with different key
+            # material or protocol version. Refuse to choose; surface it.
+            failures.append(
+                f"conflicting agent cards for (agent_id={agent_id!r}, kid={kid!r}): "
+                "two on-disk cards map to the same identity with different contents"
+            )
+            continue
+        out[key] = card
+    return out, failures
 
 
 def _shard_path(artefact_path: str) -> tuple[str, str]:
@@ -144,7 +166,8 @@ def check(
     if not entries:
         return GateResult(ok=not failures, failures=failures)
 
-    cards = _load_cards(agent_cards_dir)
+    cards, card_failures = _load_cards(agent_cards_dir)
+    failures.extend(card_failures)
     log_dir = log_path.parent
 
     # Per-entry signature + HMAC + card lookups.

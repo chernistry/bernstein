@@ -7,6 +7,7 @@ import pytest
 from bernstein.core.lineage.identity import (
     AgentCard,
     generate_keypair,
+    jws_header_kid,
     sign_detached,
     verify_detached,
 )
@@ -113,3 +114,56 @@ def test_sign_with_non_ed25519_key_raises(tmp_path):
     ).decode("ascii")
     with pytest.raises(TypeError, match="Ed25519"):
         sign_detached(b"x", rsa_pem, kid="k1")
+
+
+# ── jws_header_kid: "Never raises on bad input" contract ────────────────────
+
+
+def test_jws_header_kid_returns_signed_kid():
+    priv, _pub = generate_keypair()
+    jws = sign_detached(b"payload", priv, kid="k-7")
+    assert jws_header_kid(jws) == "k-7"
+
+
+def test_jws_header_kid_none_on_wrong_segment_count():
+    # Too few segments and 4+ segments both yield None, never an exception.
+    assert jws_header_kid("only-one-segment") is None
+    assert jws_header_kid("a.b.c.d") is None
+
+
+def test_jws_header_kid_none_on_non_empty_payload_segment():
+    # The middle (payload) segment must be empty in detached form.
+    priv, _pub = generate_keypair()
+    protected = sign_detached(b"x", priv, kid="k1").split(".", 1)[0]
+    assert jws_header_kid(f"{protected}.notempty.AAAA") is None
+
+
+def test_jws_header_kid_never_raises_on_malformed_base64():
+    """``_b64url_decode`` calls ``base64.urlsafe_b64decode``, which raises
+    ``binascii.Error`` on malformed base64url. ``binascii.Error`` is a
+    ``ValueError`` subclass, so the contract holds, but this pins the "Never
+    raises on bad input" guarantee against a hierarchy change or a regression
+    that narrows the except clause."""
+    # '@' / '!' are outside the base64url alphabet -> decode error inside the
+    # protected-header parse. The function must swallow it and return None.
+    assert jws_header_kid("@@@bad-base64@@@..AAAA") is None
+    assert jws_header_kid("!!!..AAAA") is None
+
+
+def test_jws_header_kid_none_when_header_not_json():
+    import base64
+
+    seg = base64.urlsafe_b64encode(b"this is not json{").rstrip(b"=").decode("ascii")
+    assert jws_header_kid(f"{seg}..AAAA") is None
+
+
+def test_jws_header_kid_none_when_kid_not_a_string():
+    import base64
+    import json
+
+    header = (
+        base64.urlsafe_b64encode(json.dumps({"alg": "EdDSA", "kid": 12345}).encode("utf-8"))
+        .rstrip(b"=")
+        .decode("ascii")
+    )
+    assert jws_header_kid(f"{header}..AAAA") is None

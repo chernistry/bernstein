@@ -14,6 +14,7 @@ option (RFC 7797). Algorithm is EdDSA per RFC 8037.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from dataclasses import dataclass
 
@@ -98,7 +99,12 @@ def jws_header_kid(jws: str) -> str | None:
         return None
     try:
         header = json.loads(_b64url_decode(protected_b64))
-    except (ValueError, json.JSONDecodeError):
+    except (ValueError, json.JSONDecodeError, binascii.Error, TypeError):
+        # ``binascii.Error`` is a ``ValueError`` subclass on CPython, so the
+        # bare ``ValueError`` above already catches malformed base64url; it is
+        # named explicitly to keep the "Never raises" contract robust if that
+        # hierarchy ever changes. ``TypeError`` guards a non-``str`` header
+        # segment reaching the decoder.
         return None
     kid = header.get("kid")
     return kid if isinstance(kid, str) else None
@@ -121,7 +127,7 @@ def verify_detached(payload: bytes, jws: str, card: AgentCard) -> bool:
         return False  # 4+ segments
     try:
         header = json.loads(_b64url_decode(protected_b64))
-    except (ValueError, json.JSONDecodeError):
+    except (ValueError, json.JSONDecodeError, binascii.Error, TypeError):
         return False
     if header.get("alg") != "EdDSA":
         return False
@@ -136,7 +142,7 @@ def verify_detached(payload: bytes, jws: str, card: AgentCard) -> bool:
     signing_input = protected_b64.encode("ascii") + b"." + payload
     try:
         sig_bytes = _b64url_decode(sig_b64)
-    except (ValueError, base64.binascii.Error):
+    except (ValueError, binascii.Error):
         return False
     try:
         pub.verify(sig_bytes, signing_input)

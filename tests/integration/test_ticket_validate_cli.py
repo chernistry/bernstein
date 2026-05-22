@@ -40,7 +40,7 @@ def test_cli_exits_one_for_invalid_fixture(runner: CliRunner) -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 1
-    assert "bad_status.md" in result.output
+    assert _contains_wrapped(result.output, "bad_status.md")
 
 
 def test_cli_glob_expands_multiple_files(runner: CliRunner, tmp_path: Path) -> None:

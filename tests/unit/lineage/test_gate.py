@@ -103,13 +103,20 @@ def _write_log_and_sigs(
     entries: list[tuple[LineageEntry, str | None]],  # (entry, agent_priv_or_none)
     agents_by_id: dict[str, _TestAgent],
 ) -> None:
-    """Write the log.jsonl + per-entry detached JWS sidecars."""
+    """Write the log.jsonl + per-entry detached JWS sidecars.
+
+    The log is written with the exact JCS-canonical bytes ``LineageStore.append``
+    emits (minimal separators + trailing ``\\n``). The gate binds verification
+    to the on-disk bytes (issue #1848), so a faithful writer must match the
+    canonical form rather than ``json.dumps`` defaults (which insert ``", "`` /
+    ``": "`` spacing and would be rejected as non-canonical).
+    """
     log_path.parent.mkdir(parents=True, exist_ok=True)
     sig_root = log_path.parent / "signatures"
     sig_root.mkdir(exist_ok=True)
-    with log_path.open("w") as f:
+    with log_path.open("wb") as f:
         for entry, _ in entries:
-            f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+            f.write(canonicalise(entry) + b"\n")
     for entry, _ in entries:
         agent = agents_by_id[entry.agent_id]
         canonical = canonicalise(entry)
@@ -227,14 +234,16 @@ def test_gate_fails_on_tampered_hmac(tmp_path: Path) -> None:
     log = tmp_path / "lineage" / "log.jsonl"
     # Build an entry, then write directly with mangled HMAC.
     g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
-    # Replace with garbage hmac.
+    # Replace with garbage hmac. The entry stays internally canonical (only the
+    # HMAC *value* is wrong), so it passes the byte-canonical check and reaches
+    # the HMAC verification, which is the path under test.
     bad_dict = asdict(g)
     bad_dict["operator_hmac"] = "deadbeef" * 8
     log.parent.mkdir(parents=True, exist_ok=True)
-    log.write_text(json.dumps(bad_dict, sort_keys=True) + "\n")
-    # Write a valid JWS for the bad entry.
     bad_entry = LineageEntry(**bad_dict)
     canonical = canonicalise(bad_entry)
+    log.write_bytes(canonical + b"\n")
+    # Write a valid JWS for the bad entry.
     jws = sign_detached(canonical, a.priv, kid=a.kid)
     eh = entry_hash(bad_entry)
     path_hash = hashlib.sha256(bad_entry.artefact_path.encode()).hexdigest()
@@ -602,9 +611,11 @@ def _sign_entry_into(log_path: Path, entry: LineageEntry, *, priv_pem: str, head
     log_path.parent.mkdir(parents=True, exist_ok=True)
     sig_root = log_path.parent / "signatures"
     sig_root.mkdir(exist_ok=True)
-    with log_path.open("a") as f:
-        f.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
+    # Append the canonical bytes the real writer emits so the gate's
+    # byte-canonical check (issue #1848) sees a faithful on-disk form.
     canonical = canonicalise(entry)
+    with log_path.open("ab") as f:
+        f.write(canonical + b"\n")
     jws = sign_detached(canonical, priv_pem, kid=header_kid)
     eh = entry_hash(entry)
     path_hash = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
@@ -1007,3 +1018,157 @@ def test_check_skill_lockfile_rejects_unanchored_row(tmp_path: Path) -> None:
     assert result.ok is False
     assert any("code-review" in f for f in result.failures), result.failures
     assert any("is not present" in f for f in result.failures), result.failures
+
+
+# ── Byte-level tamper-evidence (issue #1848) ────────────────────────────────
+#
+# The gate must bind verification to the *exact bytes on disk*, the way the
+# sibling HMAC audit log (``bernstein.core.security.audit``) already does. A
+# verifier that re-canonicalises the parsed entry hashes a normalised form, so
+# any non-canonical rewrite that preserves the field values (reordered keys,
+# extra whitespace, a flipped record terminator) slips through even though the
+# raw bytes - the provenance anchor - were tampered with.
+
+
+def _write_log_canonical_and_sigs(
+    log_path: Path,
+    entries: list[LineageEntry],
+    agents_by_id: dict[str, _TestAgent],
+) -> None:
+    """Write the log with the *canonical* JCS bytes ``LineageStore.append``
+    emits (minimal separators + trailing ``\\n``), plus per-entry sidecars.
+
+    This mirrors the real on-disk writer so the byte-canonical gate check has
+    a faithful happy-path baseline to compare against.
+    """
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    sig_root = log_path.parent / "signatures"
+    sig_root.mkdir(exist_ok=True)
+    with log_path.open("wb") as f:
+        for entry in entries:
+            f.write(canonicalise(entry) + b"\n")
+    for entry in entries:
+        agent = agents_by_id[entry.agent_id]
+        canonical = canonicalise(entry)
+        jws = sign_detached(canonical, agent.priv, kid=agent.kid)
+        eh = entry_hash(entry)
+        path_hash = hashlib.sha256(entry.artefact_path.encode()).hexdigest()
+        dest_dir = sig_root / path_hash[:2] / path_hash
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / (eh.replace("sha256:", "") + ".jws")).write_text(jws)
+
+
+def test_gate_passes_on_canonically_written_log(tmp_path: Path) -> None:
+    """Baseline: a log written with the exact canonical bytes the store emits
+    must verify clean. Pins that the byte-canonical check does not regress the
+    real writer's output."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    c1 = _entry_for(a, "src/x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    _write_log_canonical_and_sigs(log, [g, c1], {a.agent_id: a})
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True, result.failures
+
+
+def test_gate_rejects_reordered_keys_with_valid_resignature(tmp_path: Path) -> None:
+    """A log line rewritten with reordered keys (identical field values, and a
+    JWS that re-canonicalises to a valid signature today) must be rejected as
+    non-canonical bytes. This is the core tamper-evidence gap: the on-disk
+    bytes differ from the canonical form yet verification passes."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _write_log_canonical_and_sigs(log, [g], {a.agent_id: a})
+
+    # Rewrite the single line with reversed key order, kept on ONE line (no
+    # embedded newlines) and with minimal separators so it stays valid JSON.
+    # The field values are unchanged, so json.loads -> LineageEntry ->
+    # canonicalise yields the exact bytes the JWS was signed over: the
+    # signature still verifies. Only the byte-canonical check separates this
+    # tampered line from the canonical original.
+    obj = json.loads(log.read_bytes())
+    noncanonical = (json.dumps(dict(reversed(list(obj.items()))), separators=(",", ":")) + "\n").encode()
+    assert noncanonical != canonicalise(g) + b"\n"
+    assert b"\n" not in noncanonical[:-1], "tampered line must stay single-line"
+    log.write_bytes(noncanonical)
+
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False, "non-canonical on-disk bytes must be rejected"
+    assert any("canonical" in f.lower() for f in result.failures), (
+        f"expected a non-canonical-bytes failure, got {result.failures}"
+    )
+
+
+def test_gate_rejects_extra_whitespace_in_line(tmp_path: Path) -> None:
+    """Inserting incidental whitespace inside a record (e.g. a space after the
+    opening brace) changes the on-disk bytes without changing any field value;
+    the gate must surface it as a non-canonical-bytes failure."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _write_log_canonical_and_sigs(log, [g], {a.agent_id: a})
+
+    raw = log.read_bytes()
+    tampered = raw.replace(b"{", b"{ ", 1)  # space after first brace
+    assert tampered != raw
+    log.write_bytes(tampered)
+
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    assert any("canonical" in f.lower() for f in result.failures), result.failures
+
+
+def test_gate_rejects_flipped_record_terminator(tmp_path: Path) -> None:
+    """Flipping an interior line's terminator from ``\\n`` to a lone ``\\r``
+    must be surfaced as a failure. Python text-mode iteration silently
+    translates a lone ``\\r`` into a record boundary (universal newlines), so
+    the two records still frame into two parsable, signature-valid entries -
+    a framing change that goes undetected today. Strict ``b"\\n"`` splitting
+    plus the byte-canonical check must catch it: the ``\\r`` lands inside a
+    record whose bytes no longer equal the canonical form."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    c1 = _entry_for(a, "src/x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    _write_log_canonical_and_sigs(log, [g, c1], {a.agent_id: a})
+
+    raw = log.read_bytes()
+    # Flip the FIRST record terminator 0x0A -> 0x0D (lone CR). Text-mode
+    # iteration treats it as a line break, so both records survive intact and
+    # verify today. Strict b"\n" splitting keeps the \r inside the merged line
+    # whose bytes then differ from the canonical form.
+    first_nl = raw.index(b"\n")
+    tampered = raw[:first_nl] + b"\r" + raw[first_nl + 1 :]
+    assert tampered != raw
+    log.write_bytes(tampered)
+
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False, "flipped record terminator must be rejected"
+
+
+def test_gate_rejects_missing_trailing_newline(tmp_path: Path) -> None:
+    """The writer always terminates the file with ``\\n``; a missing terminator
+    is itself tamper-evidence (a truncated or terminator-stripped final record)
+    and must fail, mirroring the audit log's ``missing trailing newline``."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "src/x.py", _h("1"), [], ts_ns=1)
+    _write_log_canonical_and_sigs(log, [g], {a.agent_id: a})
+
+    raw = log.read_bytes()
+    assert raw.endswith(b"\n")
+    log.write_bytes(raw.rstrip(b"\n"))  # strip the terminator
+
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False, "missing trailing newline must be rejected"

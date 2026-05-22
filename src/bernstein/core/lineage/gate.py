@@ -113,28 +113,73 @@ def _signature_path(log_dir: Path, entry: LineageEntry, eh: str) -> Path:
     return log_dir / "signatures" / shard / full / (eh.replace("sha256:", "") + ".jws")
 
 
+def _split_jsonl_bytes(raw_bytes: bytes) -> list[bytes]:
+    """Strictly split the log's raw bytes on ``b"\\n"`` only.
+
+    Text-mode iteration (``for line in f``) treats ``\\r``, ``\\r\\n`` and
+    every universal newline as a record boundary, so flipping a record
+    terminator (e.g. ``0x0A`` -> ``0x0D``) reframes the file without changing
+    any ``json.loads`` result for the survivors - a framing attack that hides
+    or merges records while every surviving signature still verifies. Splitting
+    on ``b"\\n"`` only keeps any other separator *inside* a record, where the
+    byte-canonical check downstream surfaces it as a verification failure. This
+    mirrors ``bernstein.core.security.audit._split_jsonl_bytes`` so the lineage
+    log offers the same tamper-evidence as the sibling HMAC audit log.
+    """
+    parts = raw_bytes.split(b"\n")
+    # The writer always ends the file with ``\n`` -> ``split`` yields a trailing
+    # empty element which we drop. A genuinely missing terminator is reported
+    # separately by ``_parse_log`` before this is called.
+    if parts and parts[-1] == b"":
+        parts.pop()
+    return parts
+
+
 def _parse_log(log_path: Path) -> tuple[list[LineageEntry], list[str]]:
-    """Parse the JSONL log; return (entries, parse_failures)."""
+    """Parse the JSONL log; return (entries, parse_failures).
+
+    Verification binds to the *exact bytes on disk*: the log is read as bytes
+    and split strictly on ``b"\\n"``, and every record must equal its JCS
+    canonical form byte-for-byte (``canonicalise(entry) == raw_line``). A
+    non-canonical rewrite that preserves the field values - reordered keys,
+    inserted whitespace, a flipped terminator - parses to identical fields but
+    differs on disk, so it is rejected here rather than silently re-canonicalised
+    and accepted. The on-disk ``log.jsonl`` is the provenance anchor (see
+    ``store.py``), so its raw bytes are themselves checked for integrity (issue
+    #1848).
+    """
     entries: list[LineageEntry] = []
     failures: list[str] = []
     if not log_path.exists():
         return entries, failures
-    with log_path.open() as f:
-        for line_no, line in enumerate(f, start=1):
-            stripped = line.strip()
-            if not stripped:
-                continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                failures.append(f"log line {line_no}: parse error: {exc}")
-                continue
-            try:
-                entry = LineageEntry(**obj)
-            except (TypeError, ValueError) as exc:
-                failures.append(f"log line {line_no}: corrupt entry: {exc}")
-                continue
-            entries.append(entry)
+    raw_bytes = log_path.read_bytes()
+    if raw_bytes and not raw_bytes.endswith(b"\n"):
+        # The writer always terminates with ``\n``; absence is itself
+        # tamper-evidence (a truncated final record or a terminator stripped /
+        # flipped at EOF). Surface it, then continue so the per-line loop still
+        # reports any in-record corruption.
+        failures.append("log: missing trailing newline")
+    for line_no, raw_line in enumerate(_split_jsonl_bytes(raw_bytes), start=1):
+        if raw_line == b"":
+            continue
+        try:
+            obj = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            failures.append(f"log line {line_no}: parse error: {exc}")
+            continue
+        try:
+            entry = LineageEntry(**obj)
+        except (TypeError, ValueError) as exc:
+            failures.append(f"log line {line_no}: corrupt entry: {exc}")
+            continue
+        # Byte-canonical tamper-evidence: ``json.loads`` accepts non-canonical
+        # bytes (reordered keys, extra whitespace, a stray ``\r``) that would
+        # otherwise re-canonicalise to a valid signature. Require the on-disk
+        # line to equal the canonical form so any such rewrite is a failure.
+        if canonicalise(entry) != raw_line:
+            failures.append(f"log line {line_no}: non-canonical line bytes")
+            continue
+        entries.append(entry)
     return entries, failures
 
 

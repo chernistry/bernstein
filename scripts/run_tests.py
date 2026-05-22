@@ -317,7 +317,14 @@ def discover_changed_files(base: str) -> list[str]:
                 text=True,
                 check=True,
             ).stdout.splitlines()
-            return sorted({path for path in [*unstaged, *staged] if path})
+            untracked = subprocess.run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.splitlines()
+            return sorted({path for path in [*unstaged, *staged, *untracked] if path})
         try:
             return subprocess.run(
                 ["git", "diff", "--name-only", f"{base}...HEAD"],

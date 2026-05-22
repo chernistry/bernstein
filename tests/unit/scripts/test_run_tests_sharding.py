@@ -250,3 +250,32 @@ def test_discover_changed_files_falls_back_to_two_dot_diff_without_merge_base(
 
     assert run_tests_module.discover_changed_files("origin/main") == ["src/bernstein/core/models.py"]
     assert calls[-1][-1] == "origin/main..HEAD"
+
+
+def test_discover_changed_files_includes_untracked_files_for_head(
+    run_tests_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(
+        cmd: list[str],
+        **_: object,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        if cmd == ["git", "diff", "--name-only", "HEAD"]:
+            return subprocess.CompletedProcess(cmd, 0, "src/bernstein/core/models.py\n", "")
+        if cmd == ["git", "diff", "--name-only", "--cached"]:
+            return subprocess.CompletedProcess(cmd, 0, "tests/unit/test_models.py\n", "")
+        if cmd == ["git", "ls-files", "--others", "--exclude-standard"]:
+            return subprocess.CompletedProcess(cmd, 0, "src/bernstein/core/new_module.py\n", "")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(run_tests_module.subprocess, "run", fake_run)
+
+    assert run_tests_module.discover_changed_files("HEAD") == [
+        "src/bernstein/core/models.py",
+        "src/bernstein/core/new_module.py",
+        "tests/unit/test_models.py",
+    ]
+    assert ["git", "ls-files", "--others", "--exclude-standard"] in calls

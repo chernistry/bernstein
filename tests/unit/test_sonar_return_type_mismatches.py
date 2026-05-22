@@ -35,6 +35,7 @@ def _direct_replace_returns(relative_path: str) -> list[str]:
 def test_s5886_cluster_avoids_direct_replace_returns() -> None:
     """Typed functions should not directly return dataclasses.replace calls."""
     paths = [
+        "src/bernstein/core/agents/harness_policy.py",
         "src/bernstein/core/orchestration/run_actor.py",
         "src/bernstein/core/orchestration/consensus_relay.py",
         "src/bernstein/core/cost/retry_budget.py",

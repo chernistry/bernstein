@@ -74,7 +74,8 @@ class HarnessPolicy:
         Raises:
             TypeError: If a non-existent flag name is supplied.
         """
-        return replace(self, **changes)
+        updated: HarnessPolicy = replace(self, **changes)
+        return updated
 
 
 #: Conservative all-off baseline - current Bernstein behaviour.

@@ -139,7 +139,7 @@ class ValidationReport:
 # ---------------------------------------------------------------------------
 
 _SCHEMA_CACHE: dict[str, dict[str, Any]] = {}
-_VERSION_RE = re.compile(r"^v[0-9]+(?:\.[0-9]+)?$")
+_VERSION_RE = re.compile(r"^v\d+(?:\.\d+)?$", re.ASCII)
 
 
 def _coerce_version(version: str) -> str:

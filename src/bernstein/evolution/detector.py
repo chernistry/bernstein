@@ -506,7 +506,7 @@ class FeatureDiscovery:
     def _load_existing_titles(self) -> set[str]:
         """Return normalized titles from all open and closed backlog tickets."""
         titles: set[str] = set()
-        _heading = re.compile(r"^#\s+\d+\s+[-\-]\s+(.+)$", re.MULTILINE)
+        _heading = re.compile(r"^#\s+\d+\s+-\s+(.+)$", re.MULTILINE)
         for subdir in ("open", "closed"):
             d = self._backlog_dir / subdir
             if not d.is_dir():

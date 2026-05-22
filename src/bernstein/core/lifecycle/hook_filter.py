@@ -55,7 +55,7 @@ class HookFilterError(ValueError):
 _FILTER_RE = re.compile(
     r"""
     ^\s*
-    (?P<tool>[A-Za-z_][A-Za-z0-9_]*)   # tool selector token
+    (?P<tool>[A-Za-z_]\w*)             # tool selector token
     (?:
         \(                              # opening paren
         (?P<arg>[^)]*)                  # argument glob (may be empty)
@@ -63,7 +63,7 @@ _FILTER_RE = re.compile(
     )?
     \s*$
     """,
-    re.VERBOSE,
+    re.VERBOSE | re.ASCII,
 )
 
 # The ``Tool(...)`` form is a tool-name selector with no argument

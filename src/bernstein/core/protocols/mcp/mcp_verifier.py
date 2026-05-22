@@ -18,7 +18,7 @@ This module is the **verification entry point** that Bernstein consults
    (when the caller provides the bundle bytes)
 
 Sigstore (Fulcio + Rekor) verification is the second signature path the
-ticket calls for. It is **deferred** to a follow-up PR (TODO below) because
+ticket calls for. It is **deferred** to a follow-up PR (see note below) because
 the substrate in :mod:`bernstein.core.security.sigstore_attestation` is
 attestation-side only and the verify path needs a Rekor-fetch + bundle
 parse that warrants its own review surface. Ed25519 alone is a complete,
@@ -459,7 +459,7 @@ def _verify_ed25519(
 
 
 # ---------------------------------------------------------------------------
-# TODO(sigstore): Sigstore + Rekor verification path
+# Deferred(sigstore): Sigstore + Rekor verification path
 # ---------------------------------------------------------------------------
 # The ticket calls for both an Ed25519 content-integrity signature *and* a
 # Sigstore identity-attestation signature (Fulcio short-lived cert + Rekor

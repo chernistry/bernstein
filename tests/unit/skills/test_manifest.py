@@ -35,6 +35,7 @@ def test_parse_skill_md_round_trips_minimal_manifest(tmp_path: Path) -> None:
 
     manifest, body = parse_skill_md(skill_md)
 
+    assert manifest.manifest_schema == 1
     assert manifest.name == "backend"
     assert manifest.description.startswith("Backend skill")
     assert manifest.references == []
@@ -69,6 +70,28 @@ def test_parse_skill_md_accepts_optional_fields(tmp_path: Path) -> None:
     assert manifest.scripts == ["run.sh"]
     assert manifest.version == "2.1.0"
     assert manifest.author == "Team QA"
+
+
+def test_parse_skill_md_accepts_future_manifest_schema_additive_fields(tmp_path: Path) -> None:
+    skill_md = _write(
+        tmp_path / "SKILL.md",
+        """
+        ---
+        manifest_schema: 2
+        name: future
+        description: Future schema skill with additive metadata older clients can ignore.
+        activation:
+          model: optional future field
+        ---
+        body
+        """,
+    )
+
+    manifest, body = parse_skill_md(skill_md)
+
+    assert manifest.manifest_schema == 2
+    assert manifest.name == "future"
+    assert body == "body"
 
 
 def test_parse_skill_md_rejects_missing_frontmatter(tmp_path: Path) -> None:

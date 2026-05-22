@@ -6,6 +6,7 @@ the agent can load on demand.
 
 Schema (all fields strict-validated by Pydantic):
 
+- ``manifest_schema`` - integer manifest schema version; defaults to ``1``
 - ``name``        - lowercase slug ``[a-z][a-z0-9-]*``
 - ``description`` - 20-500 chars, shown in the index
 - ``trigger_keywords`` - optional keyword hints
@@ -44,6 +45,10 @@ _FENCE_LINE_RE: re.Pattern[str] = re.compile(r"^---[ \t]*$")
 # stay unbounded.
 _MAX_FRONTMATTER_BYTES = 16 * 1024
 
+# Parser schema understood by this client. Newer schemas are accepted when
+# their currently-known fields validate; additive unknown fields are ignored.
+_SUPPORTED_MANIFEST_SCHEMA = 1
+
 
 class SkillManifestError(ValueError):
     """Raised when a ``SKILL.md`` file is missing, malformed, or invalid.
@@ -61,13 +66,15 @@ class SkillManifestError(ValueError):
 class SkillManifest(BaseModel):
     """Strict-validated ``SKILL.md`` frontmatter.
 
-    Attributes mirror the OpenAI Agents SDK v2 Skills spec. Unknown keys are
-    rejected so typos (``keywords`` vs ``trigger_keywords``) do not silently
-    drop metadata.
+    Unknown keys are rejected for schema ``1`` so typos
+    (``keywords`` vs ``trigger_keywords``) do not silently drop metadata.
+    For newer schema values, additive unknown keys are ignored so older
+    clients can still index the fields they understand.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
+    manifest_schema: int = Field(default=1, ge=1)
     name: str = Field(min_length=1, max_length=64)
     description: str = Field(min_length=20, max_length=500)
     trigger_keywords: list[str] = Field(default_factory=list[str])
@@ -151,12 +158,23 @@ def parse_skill_md(path: Path) -> tuple[SkillManifest, str]:
             raise SkillManifestError(path, str(exc)) from exc
 
     try:
-        manifest = SkillManifest.model_validate(cleaned)
+        manifest = SkillManifest.model_validate(_validation_input_for_schema(cleaned))
     except ValidationError as exc:
         # Pydantic's default message is fine but we prefix it with the path.
         raise SkillManifestError(path, f"invalid manifest: {exc.errors()}") from exc
 
     return manifest, body
+
+
+_KNOWN_MANIFEST_FIELDS: frozenset[str] = frozenset(SkillManifest.model_fields)
+
+
+def _validation_input_for_schema(data: dict[str, Any]) -> dict[str, Any]:
+    """Return the manifest fields this parser should validate."""
+    schema_value = data.get("manifest_schema", _SUPPORTED_MANIFEST_SCHEMA)
+    if type(schema_value) is int and schema_value > _SUPPORTED_MANIFEST_SCHEMA:
+        return {key: value for key, value in data.items() if key in _KNOWN_MANIFEST_FIELDS}
+    return data
 
 
 def _split_frontmatter(raw: str) -> tuple[str, str]:

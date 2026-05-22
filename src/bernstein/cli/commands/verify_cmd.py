@@ -19,12 +19,16 @@ Five verification modes, each with a hard exit-code contract:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.panel import Panel
 from rich.table import Table
 
 from bernstein.cli.helpers import console
+
+if TYPE_CHECKING:
+    from bernstein.core.wal import WALEntryDigest
 
 _GREEN_ZERO = "[green]0[/green]"
 
@@ -51,6 +55,20 @@ SDD_DIR = Path(".sdd")
     default=None,
     metavar="RUN_ID",
     help="Compute and display execution fingerprint for a run.",
+)
+@click.option(
+    "--expect",
+    "expect_fingerprint",
+    default=None,
+    metavar="FINGERPRINT",
+    help="Gate --determinism: exit non-zero unless the run's fingerprint equals this value.",
+)
+@click.option(
+    "--baseline",
+    "baseline_run_id",
+    default=None,
+    metavar="RUN_ID",
+    help="Gate --determinism: exit non-zero unless the run reproduces this baseline run's fingerprint.",
 )
 @click.option(
     "--memory-audit",
@@ -139,6 +157,8 @@ def verify_cmd(
     wheelhouse_path: Path | None,
     wal_run_id: str | None,
     determinism_run_id: str | None,
+    expect_fingerprint: str | None,
+    baseline_run_id: str | None,
     memory_audit: bool,
     formal_task_id: str | None,
     ca_pubkey: Path | None,
@@ -158,9 +178,19 @@ def verify_cmd(
       bernstein verify <wheelhouse-path>          Verify air-gap wheelhouse signatures
       bernstein verify --wal-integrity <run-id>   Validate hash chain
       bernstein verify --determinism  <run-id>    Show execution fingerprint
+      bernstein verify --determinism  <run-id> --expect <fp>     Gate on a recorded fingerprint
+      bernstein verify --determinism  <run-b> --baseline <run-a> Gate that run-b reproduces run-a
       bernstein verify --memory-audit             Audit lesson memory provenance
       bernstein verify --formal <task-id>         Run Z3/Lean4 property checks
     """
+    # --expect / --baseline only have meaning as a gate on --determinism, and
+    # they are mutually exclusive (an explicit digest XOR a baseline run). Reject
+    # ambiguous combinations rather than silently picking one.
+    if expect_fingerprint is not None and baseline_run_id is not None:
+        raise click.UsageError("--expect and --baseline are mutually exclusive; pass only one.")
+    if (expect_fingerprint is not None or baseline_run_id is not None) and determinism_run_id is None:
+        raise click.UsageError("--expect/--baseline require --determinism <run-id>.")
+
     if wheelhouse_path is wal_run_id is determinism_run_id is formal_task_id is None and not memory_audit:
         console.print(
             "[dim]Use <wheelhouse-path>, --wal-integrity <run-id>, --determinism <run-id>, "
@@ -190,7 +220,11 @@ def verify_cmd(
         exit_code |= _verify_wal_integrity(wal_run_id)
 
     if determinism_run_id is not None:
-        exit_code |= _verify_determinism(determinism_run_id)
+        exit_code |= _verify_determinism(
+            determinism_run_id,
+            expect=expect_fingerprint,
+            baseline_run_id=baseline_run_id,
+        )
 
     if memory_audit:
         exit_code |= _verify_memory_provenance()
@@ -571,8 +605,32 @@ def _verify_wal_integrity(run_id: str) -> int:
     return 0 if is_valid else 1
 
 
-def _verify_determinism(run_id: str) -> int:
-    """Compute and display execution fingerprint for *run_id*. Returns 0 always."""
+def _verify_determinism(
+    run_id: str,
+    *,
+    expect: str | None = None,
+    baseline_run_id: str | None = None,
+) -> int:
+    """Compute the execution fingerprint for *run_id*, optionally gating on it.
+
+    Three modes, selected by the optional arguments:
+
+    * Bare (``expect is None and baseline_run_id is None``): print the
+      fingerprint table and return 0. Output and exit code are unchanged
+      from the original observe-only behaviour.
+    * ``expect`` set: compare the run's fingerprint to the expected digest
+      in constant time. Return 0 on match, 2 on mismatch (printing both
+      digests).
+    * ``baseline_run_id`` set: compare the run's fingerprint to a second
+      run's. Return 0 on match, 2 on mismatch -- and on mismatch, name the
+      first diverging WAL entry from the shared hash chain.
+
+    A missing WAL (for either run) returns 1 with the existing
+    "WAL file not found" message.
+
+    Scope: a green gate proves the two WAL *decision traces* matched, not
+    that on-disk artefacts are byte-identical.
+    """
     from bernstein.core.wal import ExecutionFingerprint, WALReader
 
     reader = WALReader(run_id=run_id, sdd_dir=SDD_DIR)
@@ -581,39 +639,185 @@ def _verify_determinism(run_id: str) -> int:
     try:
         fp = ExecutionFingerprint.from_wal(reader)
     except FileNotFoundError:
-        console.print(
-            Panel(
-                f"[bold red]WAL file not found for run:[/bold red] {run_id}",
-                border_style="red",
-                expand=False,
-            )
-        )
-        console.print(f"[dim]Expected: {SDD_DIR}/runtime/wal/{run_id}.wal.jsonl[/dim]")
-        console.print()
-        return 1
+        return _wal_not_found(run_id)
 
     fingerprint = fp.compute()
 
     # Count entries
     entry_count = sum(1 for _ in WALReader(run_id=run_id, sdd_dir=SDD_DIR).iter_entries())
 
+    if expect is None and baseline_run_id is None:
+        # Bare mode: observe-only, byte-identical to the original surface.
+        console.print(
+            Panel(
+                "[bold]Execution Determinism Fingerprint[/bold]",
+                border_style="blue",
+                expand=False,
+            )
+        )
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Key", style="dim", no_wrap=True, min_width=14)
+        table.add_column("Value")
+        table.add_row("Run ID", run_id)
+        table.add_row("Entries", str(entry_count))
+        table.add_row("Fingerprint", fingerprint)
+        console.print(table)
+        console.print("\n  [dim]Two runs with the same fingerprint made identical decisions in identical order.[/dim]")
+        console.print()
+        return 0
+
+    if baseline_run_id is not None:
+        return _gate_against_baseline(run_id, fingerprint, baseline_run_id)
+    if expect is not None:
+        return _gate_against_expected(run_id, fingerprint, expect)
+    # Unreachable: bare mode returned above, and the caller guarantees at most
+    # one of expect/baseline is set. Belt-and-suspenders for the type checker.
+    return 0
+
+
+def _wal_not_found(run_id: str) -> int:
+    """Print the canonical 'WAL file not found' panel and return 1."""
     console.print(
         Panel(
-            "[bold]Execution Determinism Fingerprint[/bold]",
-            border_style="blue",
+            f"[bold red]WAL file not found for run:[/bold red] {run_id}",
+            border_style="red",
             expand=False,
         )
     )
+    console.print(f"[dim]Expected: {SDD_DIR}/runtime/wal/{run_id}.wal.jsonl[/dim]")
+    console.print()
+    return 1
+
+
+# A gate proves the decision trace matched -- not that artefacts on disk are
+# identical. Surfaced verbatim under every gate result so a green check is not
+# mistaken for full on-disk reproducibility.
+_GATE_SCOPE_NOTE = (
+    "  [dim]Scope: this proves the WAL decision trace matched, not that on-disk artefacts are identical.[/dim]"
+)
+
+
+def _digest_lines(label_actual: str, actual: str, label_other: str, other: str) -> None:
+    """Print two digests on their own full-width lines (never truncated)."""
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Key", style="dim", no_wrap=True, min_width=14)
-    table.add_column("Value")
-    table.add_row("Run ID", run_id)
-    table.add_row("Entries", str(entry_count))
-    table.add_row("Fingerprint", fingerprint)
+    table.add_column("Value", no_wrap=True, overflow="fold")
+    table.add_row(label_actual, actual)
+    table.add_row(label_other, other)
     console.print(table)
-    console.print("\n  [dim]Two runs with the same fingerprint made identical decisions in identical order.[/dim]")
+
+
+def _gate_against_expected(run_id: str, fingerprint: str, expect: str) -> int:
+    """Compare *fingerprint* to *expect* in constant time. Return 0 / 2."""
+    import hmac
+
+    matched = hmac.compare_digest(fingerprint, expect)
+
+    if matched:
+        console.print(
+            Panel(
+                "[bold green]Determinism Gate: PASSED[/bold green]",
+                border_style="green",
+                expand=False,
+            )
+        )
+        _digest_lines("Run ID", run_id, "Fingerprint", fingerprint)
+        console.print(f"\n{_GATE_SCOPE_NOTE}")
+        console.print()
+        return 0
+
+    console.print(
+        Panel(
+            "[bold red]Determinism Gate: FAILED[/bold red]",
+            border_style="red",
+            expand=False,
+        )
+    )
+    _digest_lines("Expected", expect, "Actual", fingerprint)
+    console.print(f"\n{_GATE_SCOPE_NOTE}")
     console.print()
-    return 0
+    return 2
+
+
+def _gate_against_baseline(run_id: str, fingerprint: str, baseline_run_id: str) -> int:
+    """Compare *run_id* to *baseline_run_id*. Return 0 / 2 (1 if baseline WAL missing).
+
+    On mismatch, name the first WAL entry at which the two decision traces
+    diverged, derived from the existing hash-chain order via per-entry
+    cumulative digests.
+    """
+    import hmac
+
+    from bernstein.core.wal import ExecutionFingerprint, WALReader, first_divergence
+
+    baseline_reader = WALReader(run_id=baseline_run_id, sdd_dir=SDD_DIR)
+    try:
+        baseline_fp = ExecutionFingerprint.from_wal(baseline_reader).compute()
+    except FileNotFoundError:
+        return _wal_not_found(baseline_run_id)
+
+    if hmac.compare_digest(fingerprint, baseline_fp):
+        console.print(
+            Panel(
+                "[bold green]Determinism Gate: PASSED[/bold green]",
+                border_style="green",
+                expand=False,
+            )
+        )
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Key", style="dim", no_wrap=True, min_width=14)
+        table.add_column("Value", no_wrap=True, overflow="fold")
+        table.add_row("Run", run_id)
+        table.add_row("Baseline", baseline_run_id)
+        table.add_row("Fingerprint", fingerprint)
+        console.print(table)
+        console.print(f"\n{_GATE_SCOPE_NOTE}")
+        console.print()
+        return 0
+
+    # Mismatch: locate the first diverging WAL entry from the chain order.
+    run_digests = ExecutionFingerprint.entry_digests(WALReader(run_id=run_id, sdd_dir=SDD_DIR))
+    baseline_digests = ExecutionFingerprint.entry_digests(WALReader(run_id=baseline_run_id, sdd_dir=SDD_DIR))
+    idx = first_divergence(baseline_digests, run_digests)
+
+    console.print(
+        Panel(
+            "[bold red]Determinism Gate: FAILED[/bold red]",
+            border_style="red",
+            expand=False,
+        )
+    )
+    _digest_lines("Baseline", baseline_fp, "Actual", fingerprint)
+    if idx is not None:
+        console.print()
+        _print_divergence(idx, baseline_run_id, baseline_digests, run_id, run_digests)
+    console.print(f"\n{_GATE_SCOPE_NOTE}")
+    console.print()
+    return 2
+
+
+def _print_divergence(
+    idx: int,
+    baseline_run_id: str,
+    baseline_digests: list[WALEntryDigest],
+    run_id: str,
+    run_digests: list[WALEntryDigest],
+) -> None:
+    """Render the first diverging WAL entry (index + seq + decision type)."""
+
+    def _describe(digests: list[WALEntryDigest]) -> str:
+        if idx < len(digests):
+            d = digests[idx]
+            return f"seq {d.seq} ({d.decision_type})"
+        return "(no entry -- run ended earlier)"
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=20)
+    table.add_column("Value")
+    table.add_row("First divergence at", f"WAL entry index {idx}")
+    table.add_row(f"Baseline {baseline_run_id}", _describe(baseline_digests))
+    table.add_row(f"Run {run_id}", _describe(run_digests))
+    console.print(table)
 
 
 def _verify_memory_provenance() -> int:

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import ast
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 # --- Fixtures ---
 
@@ -119,6 +117,22 @@ class TestDependencyGraph:
         models_path = "src/myapp/models.py"
         dependents = graph.dependents_of(models_path)
         assert len(dependents) >= 1
+
+    def test_src_subdirectory_resolution_has_no_redundant_terminal_continue(self) -> None:
+        module = ast.parse(Path("src/bernstein/core/tokens/context_compression.py").read_text(encoding="utf-8"))
+        dependency_graph = next(
+            node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "DependencyGraph"
+        )
+        resolve_method = next(
+            node
+            for node in dependency_graph.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_resolve_module_paths"
+        )
+        modules_loop = next(node for node in ast.walk(resolve_method) if isinstance(node, ast.For))
+        src_pattern_branch = modules_loop.body[-1]
+
+        assert isinstance(src_pattern_branch, ast.If)
+        assert not any(isinstance(node, ast.Continue) for node in ast.walk(src_pattern_branch))
 
 
 # --- TestBM25Ranker ---

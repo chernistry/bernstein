@@ -382,7 +382,7 @@ def parse_findings_from_agent(agent: AgentVerdict) -> list[PRFinding]:
 
 def _normalise_tokens(text: str) -> frozenset[str]:
     """Lowercase, drop stopwords, return a token set for Jaccard similarity."""
-    tokens = re.findall(r"[A-Za-z_]\w+", text.lower(), flags=re.ASCII)
+    tokens = re.findall(r"[^\W\d]\w+", text.lower(), flags=re.ASCII)
     return frozenset(t for t in tokens if t not in _STOPWORDS and len(t) >= 3)
 
 

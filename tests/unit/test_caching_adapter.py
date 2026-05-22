@@ -13,6 +13,7 @@ from bernstein.core.semantic_cache import ResponseCacheManager
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.caching_adapter import CachingAdapter
+from bernstein.core.agents.multimodal import ModalityType, MultiModalContext, MultiModalInput
 
 
 @pytest.fixture
@@ -80,6 +81,41 @@ def test_cache_hit_returns_pid_0_without_inner_call(adapter: CachingAdapter, moc
     # Inner spawn should NOT have been called (it was only called by Orchestrator usually,
     # but here we are testing the adapter's own bypass).
     assert mock_inner.spawn.call_count == 0
+
+
+def test_multimodal_context_delegates_even_on_cache_hit(adapter: CachingAdapter, mock_inner: MagicMock) -> None:
+    """Multimodal context is part of task input and must reach the inner adapter."""
+    prompt = "Inspect attached screenshot"
+    context = MultiModalContext(
+        inputs=(
+            MultiModalInput(
+                modality=ModalityType.IMAGE,
+                content_base64="ZmFrZQ==",
+                mime_type="image/png",
+                description="screenshot",
+            ),
+        ),
+        primary_modality=ModalityType.IMAGE,
+    )
+    cache = _response_cache(adapter)
+    cache.store(
+        cache.task_key("mock-adapter", prompt[:100], prompt),
+        "Cached text-only result",
+        verified=True,
+    )
+    cache.save()
+
+    res = adapter.spawn(
+        prompt=prompt,
+        workdir=Path("/tmp"),
+        model_config=_model_config("sonnet"),
+        session_id="session-2",
+        multimodal_context=context,
+    )
+
+    assert res.pid == 1234
+    assert mock_inner.spawn.call_count == 1
+    assert mock_inner.spawn.call_args.kwargs["multimodal_context"] is context
 
 
 def test_ttl_expiry_causes_re_delegation(tmp_path: Path, mock_inner: MagicMock) -> None:

@@ -37,6 +37,7 @@ class RovoAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Spawn a Rovo Dev CLI session.
 
@@ -58,6 +59,7 @@ class RovoAdapter(CLIAdapter):
         Raises:
             RuntimeError: If ``acli`` is not installed or is not executable.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

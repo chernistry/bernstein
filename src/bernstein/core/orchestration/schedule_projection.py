@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -81,16 +81,76 @@ class ProjectionResult:
         return json.loads(self.canonical_bytes.decode())
 
 
+def _canonicalize_last_state(value: Any) -> Any:
+    """Recursively normalise *value* into an order-stable, drift-proof form.
+
+    The deterministic contract requires that two operators with logically
+    equal ``last_state`` mappings land on byte-identical bytes. Plain
+    ``json.dumps(..., sort_keys=True)`` does NOT achieve this for the
+    full ``Any`` value space:
+
+    - ``set`` / ``frozenset`` members are not JSON-serialisable at all
+      (``json.dumps`` raises), and even when pre-converted their member
+      order is hash-randomised per ``PYTHONHASHSEED``.
+    - ``float`` members serialise with a platform/version-dependent
+      repr, and ``NaN``/``Infinity`` round-trip through a non-portable
+      ``json`` extension token rather than valid JSON.
+
+    Sets/frozensets are folded into a sorted ``["__set__", [...]]``
+    sentinel (the same canonical shape as
+    :func:`bernstein.core.persistence.fingerprint._canonicalize`, so the
+    two subsystems cannot diverge); dicts and sequences recurse so nested
+    sets are also normalised.
+
+    ``float`` is rejected with a ``TypeError`` mirroring the ``fire_time``
+    float guard rather than silently producing a host-dependent digest.
+    A caller that genuinely needs a real-valued component must quantise
+    or stringify it deterministically before folding it into the state.
+    """
+    if isinstance(value, bool):
+        # ``bool`` is an ``int`` subclass but JSON-stable; keep it as-is
+        # (and intercept before the float/int paths so it is not coerced).
+        return value
+    if isinstance(value, float):
+        raise TypeError(
+            "last_state must not contain a float; floats serialise with a "
+            "host-dependent repr and permit cross-host drift (mirrors the "
+            "fire_time float guard). Quantise or stringify deterministically."
+        )
+    if isinstance(value, dict):
+        mapping = cast("dict[Any, Any]", value)
+        items: list[tuple[Any, Any]] = sorted(mapping.items(), key=lambda kv: repr(kv[0]))
+        return {str(k): _canonicalize_last_state(v) for k, v in items}
+    if isinstance(value, (set, frozenset)):
+        container = cast("set[Any] | frozenset[Any]", value)
+        members: list[Any] = sorted((_canonicalize_last_state(v) for v in container), key=repr)
+        return ["__set__", members]
+    if isinstance(value, (list, tuple)):
+        sequence = cast("list[Any] | tuple[Any, ...]", value)
+        return [_canonicalize_last_state(v) for v in sequence]
+    return value
+
+
 def _digest_last_state(last_state: Mapping[str, Any] | None) -> str:
     """Hash the ``last_state`` mapping into a stable digest.
 
     A None / empty mapping hashes to a fixed sentinel so the very first
     fire of a fresh schedule produces a deterministic projection without
     requiring the caller to invent a synthetic state.
+
+    Non-empty mappings are canonicalised by :func:`_canonicalize_last_state`
+    before hashing so set member order, nested-container order, and dict
+    key order do not perturb the digest, and so non-portable scalar types
+    (``float``/``NaN``/``Infinity``) are rejected rather than silently
+    forking two operators' projections.
     """
     if not last_state:
         return "genesis"
-    canonical = json.dumps(last_state, sort_keys=True, separators=(",", ":")).encode()
+    canonical = json.dumps(
+        _canonicalize_last_state(dict(last_state)),
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
     return hashlib.sha256(canonical).hexdigest()[:16]
 
 

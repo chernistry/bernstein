@@ -9,6 +9,8 @@ task graph and the byte-identical projection_hash.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 import pytest
 
@@ -170,6 +172,198 @@ class TestProjectionInputContract:
         # the encoder sorts metadata tuples → list-of-lists; ensure it's sorted.
         sorted_meta = sorted(meta)
         assert meta == sorted_meta
+
+
+class TestLastStateCanonicalisation:
+    """``last_state`` must be as drift-proof as ``fire_time`` (#1852).
+
+    ``fire_time`` is pinned to ``int`` and floats are rejected because
+    they permit cross-host drift. ``last_state`` feeds the same
+    byte-identical-projection contract but is digested with a plain
+    ``json.dumps(..., sort_keys=True)`` over arbitrary ``Any``, which is
+    not canonical for sets (hash-randomised member order, or a hard
+    ``TypeError``), floats (platform-dependent repr), or non-finite
+    floats (``NaN``/``Infinity`` round-trip non-portably). These tests
+    pin the canonical contract so the latent hazard cannot land once a
+    caller folds real state into the projection.
+    """
+
+    def test_set_member_order_does_not_perturb_hash(self) -> None:
+        """A set member must not fork the projection on iteration order."""
+        a = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"a": 1, "b": {2, 1}},
+            goal="g",
+        )
+        b = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"b": {1, 2}, "a": 1},
+            goal="g",
+        )
+        assert a.projection_hash == b.projection_hash
+        assert a.canonical_bytes == b.canonical_bytes
+
+    def test_nested_container_order_does_not_perturb_hash(self) -> None:
+        """Nested sets inside lists/dicts must also canonicalise."""
+        a = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"outer": [{"tags": {"x", "y"}}, 1]},
+            goal="g",
+        )
+        b = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"outer": [{"tags": {"y", "x"}}, 1]},
+            goal="g",
+        )
+        assert a.projection_hash == b.projection_hash
+
+    def test_frozenset_member_canonicalised(self) -> None:
+        a = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"f": frozenset({3, 1, 2})},
+            goal="g",
+        )
+        b = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={"f": frozenset({2, 3, 1})},
+            goal="g",
+        )
+        assert a.projection_hash == b.projection_hash
+
+    def test_float_member_rejected(self) -> None:
+        """A float in ``last_state`` mirrors the ``fire_time`` float guard.
+
+        Floats serialise with a platform/version-dependent repr, so two
+        operators can disagree on the digest for inputs that compare
+        equal in Python. We reject rather than silently fork.
+        """
+        with pytest.raises(TypeError):
+            project_schedule_fire(
+                schedule_id="sched_alpha",
+                fire_time=1_700_000_000,
+                last_state={"x": 0.1 + 0.2},
+                goal="g",
+            )
+
+    def test_nested_float_member_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            project_schedule_fire(
+                schedule_id="sched_alpha",
+                fire_time=1_700_000_000,
+                last_state={"outer": {"inner": [1, 2.5]}},
+                goal="g",
+            )
+
+    def test_nan_member_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            project_schedule_fire(
+                schedule_id="sched_alpha",
+                fire_time=1_700_000_000,
+                last_state={"x": float("nan")},
+                goal="g",
+            )
+
+    def test_infinity_member_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            project_schedule_fire(
+                schedule_id="sched_alpha",
+                fire_time=1_700_000_000,
+                last_state={"x": float("inf")},
+                goal="g",
+            )
+
+    def test_genesis_path_unchanged(self) -> None:
+        """The ``last_state=None`` sentinel path must not regress."""
+        result = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state=None,
+            goal="g",
+        )
+        assert result.last_state_digest == "genesis"
+
+    def test_none_state_projection_hash_is_stable_across_rev(self) -> None:
+        """The canonicalisation change must not move any recorded hash.
+
+        Every projection_hash recorded today was produced with
+        ``last_state=None`` (the supervisor's only caller). Pinning the
+        exact hash proves the #1852 canonicalisation is a no-op for the
+        ``None`` path, which is why ``SCHEDULE_PROJECTION_REV`` does NOT
+        need to be bumped: no historical receipt's hash changes.
+        """
+        result = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state=None,
+            goal="Send daily digest",
+        )
+        assert result.projection_hash == "b0323f98fd799b2d84441887e8885b2de73df61429d1cded3f245c3153e0ee11"
+
+    def test_canonical_form_matches_fingerprint_helper(self) -> None:
+        """The canonical set/dict shape must equal ``fingerprint._canonicalize``.
+
+        The ticket calls out divergence between two canonicalisers as a
+        bad outcome: if the schedule projection and the persistence
+        fingerprint canonicalise the same value differently, two
+        subsystems reintroduce drift. This pins byte equivalence for the
+        overlapping (non-float) value space.
+        """
+        from bernstein.core.orchestration.schedule_projection import _canonicalize_last_state
+        from bernstein.core.persistence.fingerprint import _canonicalize
+
+        value = {"a": 1, "b": {2, 1}, "nested": [{"tags": {"x", "y"}}], "fz": frozenset({3, 1})}
+        assert json.dumps(_canonicalize_last_state(value), sort_keys=True) == json.dumps(
+            _canonicalize(value), sort_keys=True
+        )
+
+    def test_empty_mapping_is_genesis(self) -> None:
+        result = project_schedule_fire(
+            schedule_id="sched_alpha",
+            fire_time=1_700_000_000,
+            last_state={},
+            goal="g",
+        )
+        assert result.last_state_digest == "genesis"
+
+    def test_hash_seed_independent_for_set_state(self) -> None:
+        """Two processes with different PYTHONHASHSEED agree on the hash.
+
+        Set member order is hash-randomised per process; without
+        canonicalisation the digest forks between operators. We force two
+        distinct seeds in subprocesses and assert identical hashes.
+        """
+        snippet = (
+            "from bernstein.core.orchestration.schedule_projection import project_schedule_fire;"
+            "r = project_schedule_fire(schedule_id='s', fire_time=1700000000,"
+            " last_state={'tags': {'alpha', 'beta', 'gamma', 'delta'}}, goal='g');"
+            "print(r.projection_hash)"
+        )
+
+        def _run(seed: str) -> str:
+            proc = subprocess.run(
+                [sys.executable, "-c", snippet],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={"PYTHONHASHSEED": seed, "PYTHONPATH": _src_path()},
+            )
+            return proc.stdout.strip()
+
+        assert _run("0") == _run("12345")
+
+
+def _src_path() -> str:
+    """Return the bernstein src dir for subprocess PYTHONPATH propagation."""
+    import bernstein
+
+    # bernstein/__init__.py -> bernstein/ -> src/
+    return str(__import__("pathlib").Path(bernstein.__file__).resolve().parents[1])
 
 
 class TestProjectionPurity:

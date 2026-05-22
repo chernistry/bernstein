@@ -37,12 +37,15 @@ __all__ = [
     "GC_LOCK_RELPATH",
     "STALE_TRACE_AGE_S",
     "WORKTREE_GC_LIFECYCLE_EVENT",
+    "WORKTREE_REAP_EVENT",
     "ClassifiedWorktree",
+    "WorktreeFingerprint",
     "WorktreeState",
     "classify_worktrees",
     "format_size",
     "iter_worktree_dirs",
     "reap_worktree",
+    "worktree_fingerprint",
     "worktrees_root",
 ]
 
@@ -62,6 +65,17 @@ STALE_TRACE_AGE_S: int = 24 * 60 * 60
 #: registry. Adding a brand-new enum entry would ripple through the
 #: notify bridge, so the classifier uses a free-form event id instead.
 WORKTREE_GC_LIFECYCLE_EVENT = "worktree.gc"
+
+#: Issue #1833 - audit event-type appended to the HMAC-chained audit log
+#: (``.sdd/audit/``) for every reaped worktree. Distinct from the
+#: best-effort lifecycle event above: the audit entry is tamper-evident,
+#: signed, and written even when no plugin ``HookRegistry`` is installed.
+WORKTREE_REAP_EVENT = "worktree.reap"
+
+#: Timeout (seconds) for the per-worktree ``git`` calls used to capture a
+#: pre-deletion fingerprint. Kept short so a slow/hung git on a corrupt
+#: worktree degrades to "unknown" quickly rather than stalling GC.
+_FINGERPRINT_GIT_TIMEOUT_S = 10
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +135,28 @@ class ClassifiedWorktree:
     def is_reapable(self) -> bool:
         """Return ``True`` when the worktree is safe to delete."""
         return self.state in (WorktreeState.ORPHAN, WorktreeState.STALE, WorktreeState.CORRUPT)
+
+
+@dataclass(frozen=True, slots=True)
+class WorktreeFingerprint:
+    """Pre-deletion content fingerprint of a worktree (issue #1833).
+
+    Captured *before* :func:`reap_worktree` destroys the directory so the
+    audit entry proves what state the worktree was in at deletion time. A
+    ``corrupt`` worktree may have no readable ``.git``; in that case both
+    fields degrade to ``None`` (rendered ``"unknown"``/``null`` in the
+    audit payload) rather than raising.
+
+    Attributes:
+        head_sha: Full git HEAD sha of the worktree, or ``None`` when git
+            could not resolve it (corrupt/unreadable ``.git``).
+        dirty: ``True`` if the worktree had uncommitted/unmerged changes,
+            ``False`` if clean, ``None`` when the working-tree state could
+            not be determined.
+    """
+
+    head_sha: str | None
+    dirty: bool | None
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +341,112 @@ def _classify_one(
 # ---------------------------------------------------------------------------
 # Reaper
 # ---------------------------------------------------------------------------
+
+
+def worktree_fingerprint(path: Path) -> WorktreeFingerprint:
+    """Capture a worktree's git HEAD sha + dirty flag before deletion.
+
+    Issue #1833: this is the load-bearing forensic capture - it MUST run
+    before :func:`reap_worktree` removes the directory, and it MUST never
+    crash. A ``corrupt`` worktree (no readable ``.git``) is exactly the
+    case most likely to matter, so any git failure degrades to
+    ``head_sha=None`` / ``dirty=None`` instead of raising.
+
+    Args:
+        path: Absolute path to the (still-present) worktree directory.
+
+    Returns:
+        A :class:`WorktreeFingerprint`; both fields are ``None`` when git
+        cannot read the worktree.
+    """
+    # A corrupt worktree (no readable ``.git``) must NOT inherit the parent
+    # orchestrator repo's HEAD: git discovery walks up the tree, so running
+    # ``git`` with ``cwd`` inside ``.sdd/runtime/worktrees/<sid>`` would
+    # otherwise resolve the enclosing repo. We only trust git output when
+    # the worktree directory is itself the git top-level - otherwise we
+    # degrade to "unknown", which is the correct forensic answer.
+    if not _is_own_worktree_root(path):
+        return WorktreeFingerprint(head_sha=None, dirty=None)
+    head_sha = _git_head_sha(path)
+    dirty = _git_is_dirty(path)
+    return WorktreeFingerprint(head_sha=head_sha, dirty=dirty)
+
+
+def _is_own_worktree_root(path: Path) -> bool:
+    """Return ``True`` when ``path`` is itself a git work-tree top level.
+
+    Guards against git's upward repo discovery attributing an enclosing
+    repository's HEAD to a corrupt worktree that merely lives inside it.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_FINGERPRINT_GIT_TIMEOUT_S,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.debug("fingerprint: git show-toplevel failed for %s: %s", path, exc)
+        return False
+    if proc.returncode != 0:
+        return False
+    toplevel = proc.stdout.strip()
+    if not toplevel:
+        return False
+    try:
+        return Path(toplevel).resolve() == path.resolve()
+    except OSError:
+        return False
+
+
+def _git_head_sha(path: Path) -> str | None:
+    """Return the full HEAD sha of the worktree at ``path``, or ``None``.
+
+    Returns ``None`` on any failure (git missing, detached/unborn HEAD,
+    corrupt ``.git``, timeout) so the caller can degrade gracefully.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_FINGERPRINT_GIT_TIMEOUT_S,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.debug("fingerprint: git rev-parse failed for %s: %s", path, exc)
+        return None
+    if proc.returncode != 0:
+        return None
+    sha = proc.stdout.strip()
+    return sha or None
+
+
+def _git_is_dirty(path: Path) -> bool | None:
+    """Return whether the worktree at ``path`` has uncommitted changes.
+
+    ``True`` when ``git status --porcelain`` reports any tracked or
+    untracked change, ``False`` when the tree is clean, and ``None`` when
+    the state cannot be determined (git failure on a corrupt worktree).
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_FINGERPRINT_GIT_TIMEOUT_S,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.debug("fingerprint: git status failed for %s: %s", path, exc)
+        return None
+    if proc.returncode != 0:
+        return None
+    return bool(proc.stdout.strip())
 
 
 def reap_worktree(

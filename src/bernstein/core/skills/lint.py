@@ -1,12 +1,12 @@
-"""Advisory lint for installed skill directories (issue #1720, track 1 minimum).
+"""Lint for installed skill directories (issue #1720, track 1 minimum).
 
-The lint is intentionally non-blocking in this PR: ``bernstein skills install``
-and ``bernstein skills sync`` do not consult it. Operators run lint by hand
-or via CI to surface frontmatter typos, missing referenced files, sensitive
-patterns the sanitiser flags, and body conventions (heading order, max
-length).
+The default install and sync paths stay advisory for backward compatibility.
+When their strict mode is enabled, ERROR findings block the operation while
+WARNING findings remain advisory. Operators can also run lint by hand or via
+CI to surface frontmatter typos, missing referenced files, sensitive patterns
+the sanitiser flags, and body conventions (heading order, max length).
 
-Checks performed (all advisory):
+Checks performed:
 
 - Frontmatter parses as YAML and matches :class:`SkillManifest` after a
   loose pre-filter (extra Claude-style keys like ``whenToUse`` are
@@ -44,9 +44,8 @@ _VALID_BUCKETS: tuple[str, ...] = ("references", "scripts", "assets")
 class LintSeverity(StrEnum):
     """Severity of a lint finding.
 
-    ``WARNING`` is the default. ``ERROR`` does NOT block install in this
-    PR, but tests assert that real schema breakage is reported as ERROR
-    so a follow-up can flip the gate without a behaviour rewrite.
+    ``WARNING`` is the default. ``ERROR`` blocks install and sync only when
+    the caller opts in to strict mode.
     """
 
     ERROR = "error"

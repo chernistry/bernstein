@@ -11,6 +11,7 @@ from bernstein.core.skills.lifecycle import (
     SKILLS_LOCK_FILENAME,
     SKILLS_TOML_FILENAME,
     InstallScope,
+    SkillLifecycleError,
     SkillsTomlError,
     read_lock_entries,
     scope_root,
@@ -169,3 +170,38 @@ def test_sync_directory_source_round_trips_referenced_files(tmp_path: Path) -> N
 
     installed_ref = scope_root(InstallScope.PROJECT, workdir=workdir) / "gamma" / "references" / "notes.md"
     assert installed_ref.is_file()
+
+
+def test_sync_strict_lint_blocks_error_findings_but_default_syncs(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    broken = workdir / "sources" / "broken.md"
+    broken.parent.mkdir(parents=True)
+    broken.write_text(
+        textwrap.dedent(
+            """
+            ---
+            description: Missing the required skill name so lint reports an error.
+            ---
+
+            # Broken skill
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    toml_path = _write_manifest(workdir, [("broken", "./sources/broken.md")])
+
+    outcomes = sync_skills(toml_path, scope=InstallScope.PROJECT, workdir=workdir)
+    installed = scope_root(InstallScope.PROJECT, workdir=workdir) / "broken"
+    assert outcomes[0].action == "installed"
+    assert installed.is_dir()
+    remove = installed
+    for child in remove.iterdir():
+        child.unlink()
+    remove.rmdir()
+    (workdir / SKILLS_LOCK_FILENAME).unlink()
+
+    with pytest.raises(SkillLifecycleError, match="strict lint failed.*invalid-manifest"):
+        sync_skills(toml_path, scope=InstallScope.PROJECT, workdir=workdir, strict_lint=True)
+    assert not installed.exists()

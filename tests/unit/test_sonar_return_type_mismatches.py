@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -43,7 +45,7 @@ def test_s5886_cluster_avoids_direct_replace_returns() -> None:
     assert findings == []
 
 
-def test_direct_replace_scanner_detects_attribute_calls(tmp_path: Path) -> None:
+def test_direct_replace_scanner_detects_attribute_calls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The scanner should catch module-qualified replace calls too."""
     sample = tmp_path / "sample.py"
     sample.write_text(
@@ -60,12 +62,7 @@ def test_direct_replace_scanner_detects_attribute_calls(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    global PROJECT_ROOT
-    previous_root = PROJECT_ROOT
-    try:
-        PROJECT_ROOT = tmp_path
-        findings = _direct_replace_returns("sample.py")
-    finally:
-        PROJECT_ROOT = previous_root
+    monkeypatch.setattr("tests.unit.test_sonar_return_type_mismatches.PROJECT_ROOT", tmp_path)
+    findings = _direct_replace_returns("sample.py")
 
     assert findings == ["sample.py:update:6"]

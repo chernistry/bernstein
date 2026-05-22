@@ -200,6 +200,22 @@ For a complete loss of the orchestrator host:
      digest instead with `--expect <fingerprint>` (compared constant-time).
      A green gate proves the WAL decision trace matched, **not** that on-disk
      artefacts are identical.
+     - **On exit code 2 (divergence):** do not resume external triggers yet.
+       1. Note the named diverging entry (`seq` + decision type) the gate
+          printed, and archive both WALs
+          (`.sdd/runtime/wal/<recovered-run>.wal.jsonl` and
+          `<pre-incident-run>.wal.jsonl`) for root-cause analysis.
+       2. Restore an earlier known-good backup (or re-run recovery from the
+          same pre-incident baseline) so the recovered run replays from a
+          clean starting point.
+       3. Re-run the same
+          `bernstein verify --determinism <recovered-run> --baseline <pre-incident-run>`
+          (or pin the known-good digest with `--expect <fingerprint>`) and
+          confirm exit 0 before resuming traffic.
+       4. If divergence persists after a clean restore, open an incident with
+          the archived WALs attached - the diverging `seq` is the first
+          decision that differed and is the starting point for the
+          investigation.
    - `bernstein dr backup --to /tmp/drill.tar.gz --dry-run` (sanity).
 7. **Resume external triggers**: if any cron/CI/webhook was paused
    during failover, re-enable now.

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
@@ -105,11 +106,7 @@ def _sanitize(value: float) -> float:
         amount = value
     except (TypeError, ValueError):
         return 0.0
-    if amount != amount:  # NaN
-        return 0.0
-    if amount < 0.0:
-        return 0.0
-    if amount in (float("inf"), float("-inf")):
+    if not math.isfinite(amount) or amount < 0.0:
         return 0.0
     return round(amount, 2)
 
@@ -191,9 +188,7 @@ def load_history(
             cost = float(cost_raw)  # type: ignore[arg-type]
         except (TypeError, ValueError):
             continue
-        if cost != cost or cost < 0.0:  # NaN or negative
-            continue
-        if cost == float("inf"):
+        if not math.isfinite(cost) or cost < 0.0:
             continue
         matched.append(cost)
 

@@ -41,7 +41,13 @@ Storage layout
 ``<journal_root>/<bucket>.jsonl`` where ``<journal_root>`` is typically
 ``.sdd/runtime/journal/<agent_id>/``. One JSON object per line, one line
 per step, append-only. The chain head hash is recovered on open by
-walking the last bucket file from tail to head.
+walking the bucket file from genesis and **revalidating every step hash**
+(reusing ``compute_step_hash``); the tip is taken from the last recomputed
+hash, never read verbatim from the tail. Recovery fails closed: a parseable
+row whose chain does not verify raises :class:`JournalError` so a tampered
+or truncated-then-edited journal cannot be silently extended from a
+poisoned anchor (#1836). A torn/unparseable trailing line (crash mid-write)
+still degrades gracefully to the last validated row.
 
 Atomicity
 ---------
@@ -250,6 +256,140 @@ class VerificationResult:
 
 
 # ---------------------------------------------------------------------------
+# Recovery-time chain validation (#1836)
+# ---------------------------------------------------------------------------
+
+
+def _parse_journal_row(stripped: str) -> dict[str, Any] | None:
+    """Parse one stripped line into a journal row, or ``None`` if malformed.
+
+    A line is malformed (``None``) when it is not valid JSON, is not a JSON
+    object, or lacks the ``step_hash`` field - i.e. it cannot be a chain row.
+    Returning a concrete ``dict[str, Any]`` lets callers read fields without
+    re-narrowing on every access.
+    """
+    try:
+        row: Any = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(row, dict) or "step_hash" not in row:
+        return None
+    return row
+
+
+def _validate_chain_for_recovery(bucket_path: Path) -> tuple[str, int]:
+    """Walk *bucket_path* and revalidate the hash chain for tip recovery.
+
+    Returns ``(tip_hash, validated_count)`` where ``tip_hash`` is the last
+    *recomputed* ``step_hash`` (or :data:`GENESIS_HASH` for an empty file)
+    and ``validated_count`` is the number of rows that verified.
+
+    Fail-closed contract (the lever the replay/fork surface rests on):
+
+    * A parseable JSON object that is a journal row (has ``step_hash``) whose
+      recomputed ``step_hash`` does not match the stored value, whose
+      ``prev_hash`` does not chain onto the previous row, or whose ``seq``
+      skips a slot raises :class:`JournalError` naming the offending line.
+      This is interior/tail tampering and must not be silently adopted.
+    * A torn/unparseable trailing line (crash mid-write) is tolerated only
+      when it is the final non-empty line: recovery stops at the last
+      validated row. If a malformed line is *followed* by a well-formed row,
+      the malformed line is interior corruption and raises.
+
+    Reuses :func:`compute_step_hash` - the single chain primitive - so there
+    is no second hashing scheme to drift against :meth:`JournalReader.verify`.
+    """
+    prev_hash = GENESIS_HASH
+    expected_seq = 0
+    validated = 0
+    # A malformed line is only a legitimate torn tail if nothing well-formed
+    # follows it. Remember the first malformed line number and raise lazily if
+    # a later row proves it was an interior break.
+    pending_torn_line: int | None = None
+
+    with bucket_path.open(encoding="utf-8") as fh:
+        for line_no, raw in enumerate(fh, start=1):
+            stripped = raw.strip()
+            if not stripped:
+                continue
+
+            row = _parse_journal_row(stripped)
+            if row is None:
+                # Defer: could be a torn final line (ok) or an interior break.
+                if pending_torn_line is None:
+                    pending_torn_line = line_no
+                continue
+
+            if pending_torn_line is not None:
+                # A well-formed row appeared after a malformed line: the
+                # earlier line was interior corruption, not a torn tail.
+                msg = (
+                    f"journal {bucket_path}: line {pending_torn_line} is corrupt but "
+                    f"line {line_no} continues the chain; refusing to recover across a "
+                    f"broken interior row. Move the journal aside to recover."
+                )
+                raise JournalError(msg)
+
+            raw_seq = row.get("seq", -1)
+            try:
+                seq = int(raw_seq)
+            except (TypeError, ValueError) as exc:
+                msg = (
+                    f"journal {bucket_path}: line {line_no} has a non-integer seq "
+                    f"(got {raw_seq!r}); the row is tampered or inconsistent. "
+                    f"Move the journal aside to recover."
+                )
+                raise JournalError(msg) from exc
+            if seq != expected_seq:
+                msg = (
+                    f"journal {bucket_path}: line {line_no} seq mismatch "
+                    f"(expected {expected_seq}, got {seq}); chain is broken. "
+                    f"Move the journal aside to recover."
+                )
+                raise JournalError(msg)
+
+            stored_prev = str(row.get("prev_hash", ""))
+            if stored_prev != prev_hash:
+                msg = (
+                    f"journal {bucket_path}: line {line_no} prev_hash mismatch "
+                    f"(expected {prev_hash[:16]}..., got {stored_prev[:16]}...); "
+                    f"chain is broken. Move the journal aside to recover."
+                )
+                raise JournalError(msg)
+
+            recomputed = compute_step_hash(
+                prev_hash=stored_prev,
+                input_hash=str(row.get("input_hash", "")),
+                model=row.get("model"),
+                prompt=row.get("prompt"),
+                tool_call=row.get("tool_call"),
+                tool_result=row.get("tool_result"),
+            )
+            stored_hash = str(row.get("step_hash", ""))
+            if recomputed != stored_hash:
+                msg = (
+                    f"journal {bucket_path}: line {line_no} step_hash mismatch "
+                    f"(recomputed {recomputed[:16]}..., stored {stored_hash[:16]}...); "
+                    f"the row is tampered or inconsistent. Move the journal aside to recover."
+                )
+                raise JournalError(msg)
+
+            prev_hash = stored_hash
+            expected_seq += 1
+            validated += 1
+
+    if pending_torn_line is not None:
+        logger.warning(
+            "journal %s: torn trailing line %d ignored; recovered %d validated step(s)",
+            bucket_path,
+            pending_torn_line,
+            validated,
+        )
+
+    return prev_hash, validated
+
+
+# ---------------------------------------------------------------------------
 # Journal (writer)
 # ---------------------------------------------------------------------------
 
@@ -395,36 +535,28 @@ class Journal:
     # -- internal -----------------------------------------------------------
 
     def _recover_tail(self) -> None:
-        """Walk the bucket file from tail to head to recover ``tip_hash`` + ``seq``."""
+        """Recover ``tip_hash`` + ``seq`` by revalidating the chain on open.
+
+        The tip is recovered from the last *recomputed* ``step_hash`` and
+        ``seq`` is set to the count of validated rows - never read verbatim
+        from the tail. Recovery fails closed (#1836): a parseable row whose
+        chain does not verify (recomputed ``step_hash`` mismatch, ``prev_hash``
+        break, or ``seq`` gap) raises :class:`JournalError` naming the
+        offending line, so a tampered or truncated-then-edited journal cannot
+        be silently extended from a poisoned anchor. A torn/unparseable
+        trailing line (crash mid-write) still degrades gracefully to the last
+        validated row, preserving legitimate crash recovery.
+        """
         if not self._bucket_path.exists():
             return
-        # We scan the whole file because the chain may have been touched by
-        # a previous, crashed process. Re-validating on open is cheap relative
-        # to the rest of the agent lifecycle.
-        last_seq = -1
-        last_hash = GENESIS_HASH
         try:
-            with self._bucket_path.open(encoding="utf-8") as fh:
-                for raw in fh:
-                    stripped = raw.strip()
-                    if not stripped:
-                        continue
-                    try:
-                        row = json.loads(stripped)
-                    except json.JSONDecodeError:
-                        # Truncated / torn tail: stop and trust the prior good entry.
-                        logger.warning("journal %s: skipping unparseable tail line", self._bucket_path)
-                        continue
-                    if not isinstance(row, dict):
-                        continue
-                    last_seq = int(row.get("seq", last_seq + 1))
-                    last_hash = str(row.get("step_hash", last_hash))
+            tip_hash, validated = _validate_chain_for_recovery(self._bucket_path)
         except OSError as exc:
             msg = f"journal recovery failed: {exc}"
             raise JournalError(msg) from exc
 
-        self._tip_hash = last_hash
-        self._seq = last_seq + 1
+        self._tip_hash = tip_hash
+        self._seq = validated
 
 
 # ---------------------------------------------------------------------------

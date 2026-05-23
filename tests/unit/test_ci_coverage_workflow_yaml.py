@@ -90,7 +90,7 @@ def test_coverage_report_job_merges_shard_data(ci_doc: dict[str, object]) -> Non
     merge = next(step for step in steps if step.get("name") == "Merge coverage shards")
     merge_run = str(merge.get("run", ""))
     assert "coverage combine" in merge_run
-    assert "coverage xml -o coverage.xml" in merge_run
+    assert "coverage xml --ignore-errors -o coverage.xml" in merge_run
 
     upload = next(step for step in steps if step.get("name") == "Upload coverage report artifact")
     assert "actions/upload-artifact" in str(upload.get("uses", ""))

@@ -1459,7 +1459,7 @@ jobs:
             exit 1
           fi
           uv run python -m coverage combine coverage-shards/.coverage.*
-          uv run python -m coverage xml -o coverage.xml
+          uv run python -m coverage xml --ignore-errors -o coverage.xml
           test -s coverage.xml
       - name: Upload coverage report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

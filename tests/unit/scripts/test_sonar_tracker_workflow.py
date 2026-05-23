@@ -17,15 +17,27 @@ class RenderSyncEnv(TypedDict):
     GITHUB_TOKEN: str
 
 
-class WorkflowStep(TypedDict, total=False):
-    """Subset of a GitHub Actions step used by this test."""
+GitHubScriptConfig = TypedDict(
+    "GitHubScriptConfig",
+    {"github-token": str, "script": str},
+    total=False,
+)
 
-    name: str
-    env: RenderSyncEnv
+WorkflowPermissions = TypedDict(
+    "WorkflowPermissions",
+    {"contents": str, "issues": str, "pull-requests": str},
+    total=False,
+)
+
+WorkflowStep = TypedDict(
+    "WorkflowStep",
+    {"name": str, "env": RenderSyncEnv, "uses": str, "with": GitHubScriptConfig},
+    total=False,
+)
 
 
-class RenderJob(TypedDict):
-    """Subset of the tracker render job used by this test."""
+class WorkflowJob(TypedDict):
+    """Subset of a workflow job used by these tests."""
 
     steps: list[WorkflowStep]
 
@@ -33,7 +45,8 @@ class RenderJob(TypedDict):
 class WorkflowJobs(TypedDict):
     """Workflow jobs needed by this test."""
 
-    render: RenderJob
+    render: WorkflowJob
+    comment: WorkflowJob
 
 
 def test_sonar_tracker_workflow_exports_gh_token_for_cli() -> None:
@@ -47,3 +60,16 @@ def test_sonar_tracker_workflow_exports_gh_token_for_cli() -> None:
 
     assert env["GH_TOKEN"] == "${{ github.token }}"
     assert env["GITHUB_TOKEN"] == "${{ github.token }}"
+
+
+def test_sonar_pr_comment_workflow_can_update_issue_comments() -> None:
+    """The Sonar PR comment workflow must grant issue-comment access."""
+    workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "sonar-pr-comment.yml").read_text())
+    permissions = cast("WorkflowPermissions", workflow["permissions"])
+    jobs = cast("WorkflowJobs", workflow["jobs"])
+    comment_job = jobs["comment"]
+    script_step = next(step for step in comment_job["steps"] if step.get("name") == "Post or update sticky comment")
+    script_config = script_step["with"]
+
+    assert permissions["issues"] == "write"
+    assert script_config["github-token"] == "${{ github.token }}"

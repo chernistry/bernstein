@@ -44,7 +44,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -183,12 +183,12 @@ class Criterion:
         """
         if self.is_at_floor:
             raise CriterionExhaustedError(self)
-        updated: Criterion = replace(self, level=self.level - 1)
+        updated = cast(Criterion, replace(self, level=self.level - 1))
         return updated
 
     def reset(self) -> Criterion:
         """Return a new criterion restored to ``max_level``."""
-        updated: Criterion = replace(self, level=self.max_level)
+        updated = cast(Criterion, replace(self, level=self.max_level))
         return updated
 
 

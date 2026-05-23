@@ -31,6 +31,7 @@ follow-up PRs.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import cast
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +75,7 @@ class HarnessPolicy:
         Raises:
             TypeError: If a non-existent flag name is supplied.
         """
-        updated: HarnessPolicy = replace(self, **changes)
+        updated = cast(HarnessPolicy, replace(self, **changes))
         return updated
 
 

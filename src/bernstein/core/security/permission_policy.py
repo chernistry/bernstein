@@ -239,10 +239,11 @@ def _load_yaml_permissions(workdir: Path) -> Mapping[str, Any] | None:
         return None
     if not isinstance(raw, dict):
         return None
-    section = raw.get("permissions")
+    raw_mapping = cast("Mapping[str, Any]", raw)
+    section = raw_mapping.get("permissions")
     if not isinstance(section, dict):
         return None
-    return section
+    return cast("Mapping[str, Any]", section)
 
 
 def _load_toml_permissions(workdir: Path) -> Mapping[str, Any] | None:
@@ -260,7 +261,7 @@ def _load_toml_permissions(workdir: Path) -> Mapping[str, Any] | None:
     section = raw.get("permissions")
     if not isinstance(section, dict):
         return None
-    return section
+    return cast("Mapping[str, Any]", section)
 
 
 def load_permissions_config(workdir: Path | None = None) -> Mapping[str, Any] | None:
@@ -287,7 +288,7 @@ def resolve_profile(
     Returns ``None`` when nothing is configured - callers MUST treat that
     as "no policy installed" and preserve current default behaviour.
     """
-    section = load_permissions_config(workdir) or {}
+    section: Mapping[str, Any] = load_permissions_config(workdir) or {}
 
     chosen = cli_override or os.environ.get(ENV_PROFILE) or section.get("profile")
     if not chosen:
@@ -304,7 +305,7 @@ def resolve_profile(
 
     overrides = section.get(chosen_norm)
     if isinstance(overrides, dict):
-        return _merge_overrides(base, overrides)
+        return _merge_overrides(base, cast("Mapping[str, Any]", overrides))
     return base
 
 
@@ -333,7 +334,7 @@ class ToolCall:
     shell_cmd: str | None = None
     session_id: str = "unknown"
     actor: str = "agent"
-    extra: dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 def _match_glob(value: str, patterns: tuple[str, ...]) -> bool:
@@ -512,20 +513,20 @@ def _record_denial(
             )
 
 
-_TRACKER_SINGLETON: Any = None
+_tracker_singleton: Any = None
 
 
 def _default_tracker() -> Any:
     """Singleton DenialTracker for opt-in callers (best effort)."""
-    global _TRACKER_SINGLETON
-    if _TRACKER_SINGLETON is None:
+    global _tracker_singleton
+    if _tracker_singleton is None:
         try:
             from bernstein.core.security.denial_tracker import DenialTracker
 
-            _TRACKER_SINGLETON = DenialTracker()
+            _tracker_singleton = DenialTracker()
         except Exception:  # pragma: no cover - defensive
             return None
-    return _TRACKER_SINGLETON
+    return _tracker_singleton
 
 
 # ---------------------------------------------------------------------------

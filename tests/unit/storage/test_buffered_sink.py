@@ -85,11 +85,10 @@ class _CountingSink(LocalFsSink):
 
 async def _drain(sink: BufferedSink, timeout: float = 2.0) -> None:
     """Wait until all queued mirrors complete."""
-    deadline = asyncio.get_event_loop().time() + timeout
-    while sink.stats().pending_writes > 0:
-        if asyncio.get_event_loop().time() > deadline:
-            raise AssertionError("BufferedSink failed to drain")
-        await asyncio.sleep(0.01)
+    try:
+        await asyncio.wait_for(sink._queue.join(), timeout=timeout)
+    except TimeoutError as exc:
+        raise AssertionError("BufferedSink failed to drain") from exc
 
 
 @pytest.mark.asyncio
@@ -183,6 +182,58 @@ async def test_failed_mirror_counted(tmp_path: Path) -> None:
         assert stats.failed_mirrors == 2
         assert stats.completed_mirrors == 1
     finally:
+        await sink.close()
+
+
+@pytest.mark.asyncio
+async def test_drain_waits_for_in_flight_mirror(tmp_path: Path) -> None:
+    """The test drain helper must include the currently active mirror."""
+
+    class _FailsThenBlocks(LocalFsSink):
+        def __init__(self, root: Path) -> None:
+            super().__init__(root)
+            self.attempts = 0
+            self.active_success = asyncio.Event()
+            self.release_success = asyncio.Event()
+
+        async def write(
+            self,
+            key: str,
+            data: bytes,
+            *,
+            durable: bool = True,
+            content_type: str | None = None,
+        ) -> None:
+            self.attempts += 1
+            if self.attempts <= 2:
+                raise SinkError("simulated failure")
+            self.active_success.set()
+            await self.release_success.wait()
+            await super().write(
+                key,
+                data,
+                durable=durable,
+                content_type=content_type,
+            )
+
+    local = LocalFsSink(tmp_path / "local")
+    remote = _FailsThenBlocks(tmp_path / "remote")
+    sink = BufferedSink(local=local, remote=remote)
+    try:
+        await sink.write("a.txt", b"1")
+        await sink.write("b.txt", b"2")
+        await sink.write("c.txt", b"3")
+        await asyncio.wait_for(remote.active_success.wait(), timeout=2.0)
+        drain = asyncio.create_task(_drain(sink))
+        await asyncio.sleep(0)
+        assert not drain.done()
+        remote.release_success.set()
+        await drain
+        stats = sink.stats()
+        assert stats.failed_mirrors == 2
+        assert stats.completed_mirrors == 1
+    finally:
+        remote.release_success.set()
         await sink.close()
 
 

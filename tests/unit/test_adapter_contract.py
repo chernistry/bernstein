@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import inspect
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -227,7 +227,15 @@ def test_sonar_s2638_exclusion_is_scoped_to_adapter_spawn_contracts() -> None:
         if properties.get(f"sonar.issue.ignore.multicriteria.{criterion}.ruleKey") == "python:S2638"
     ]
 
-    assert matching_resource_keys == ["src/bernstein/adapters/**/*.py"]
+    assert matching_resource_keys == ["src/bernstein/adapters/*.py"]
+
+
+def test_sonar_s2638_exclusion_matches_top_level_adapters() -> None:
+    """The scoped S2638 exclusion must match Sonar's top-level adapter paths."""
+    properties = _sonar_properties()
+    resource_key = properties["sonar.issue.ignore.multicriteria.e18.resourceKey"]
+
+    assert PurePosixPath("src/bernstein/adapters/aichat.py").match(resource_key)
 
 
 # ---------------------------------------------------------------------------

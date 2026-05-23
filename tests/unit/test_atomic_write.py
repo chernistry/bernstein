@@ -227,6 +227,7 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
     observed_versions: set[int] = set()
     lock = threading.Lock()
     writer_started = threading.Event()
+    reader_observed_post_initial = threading.Event()
     latest_written = 0
 
     def writer() -> None:
@@ -261,6 +262,8 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
             if isinstance(v, int):
                 with lock:
                     observed_versions.add(v)
+                if v > 0:
+                    reader_observed_post_initial.set()
 
     w = threading.Thread(target=writer)
     readers = [threading.Thread(target=reader) for _ in range(4)]
@@ -269,7 +272,8 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
     w.start()
     try:
         assert writer_started.wait(timeout=5), "writer did not complete any atomic writes"
-        threading.Event().wait(0.5)
+        assert reader_observed_post_initial.wait(timeout=5), "readers did not observe any post-initial version"
+        threading.Event().wait(0.1)
     finally:
         stop.set()
         w.join(timeout=5)

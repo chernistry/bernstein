@@ -48,10 +48,7 @@ def test_pluggy_camel_case_hook_names_have_scoped_sonar_suppression() -> None:
     source = _read_source("sonar-project.properties")
 
     assert "sonar.issue.ignore.multicriteria.e19.ruleKey=python:S116" in source
-    assert (
-        "sonar.issue.ignore.multicriteria.e19.resourceKey=src/bernstein/core/lifecycle/pluggy_bridge.py"
-        in source
-    )
+    assert "sonar.issue.ignore.multicriteria.e19.resourceKey=src/bernstein/core/lifecycle/pluggy_bridge.py" in source
 
 
 def test_ranked_candidate_default_factory_uses_literal_constructor() -> None:

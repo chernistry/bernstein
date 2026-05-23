@@ -49,6 +49,7 @@ _DEFAULT_MAX_MB = 200
 _AST_CACHE: dict[str, bytes] = {}
 _AST_CACHE_LOCK = threading.Lock()
 
+
 def _canonicalize(value: Any) -> Any:
     """Recursively normalise *value* into a JSON-friendly, order-stable form.
 

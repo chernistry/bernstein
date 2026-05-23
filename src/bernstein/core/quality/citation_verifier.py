@@ -43,18 +43,22 @@ logger = logging.getLogger(__name__)
 
 # arXiv IDs use either the legacy "category/YYMMNNN" or the modern
 # "YYMM.NNNNN" form. We accept both. The optional "v<digit>" suffix is the
-# version pin.
+# version pin. Legacy archive/subject validation stays outside the regex to
+# keep the extraction pattern simple and auditable.
 _ARXIV_RE: Final[re.Pattern[str]] = re.compile(
     r"""(?ix)
     arxiv:\s*
     (
         \d{4}\.\d{4,5}(?:v\d+)?           # modern
         |
-        [a-z]{1,16}(?:-[a-z]{1,16}){0,3}
-        (?:\.[a-z]{1,16}(?:-[a-z]{1,16}){0,3})?/\d{7}  # legacy
+        [a-z][a-z.-]{0,79}/\d{7}          # legacy
     )
     """,
 )
+_MODERN_ARXIV_ID_RE: Final[re.Pattern[str]] = re.compile(r"\d{4}\.\d{4,5}(?:v\d+)?", re.IGNORECASE)
+_LEGACY_ARXIV_ID_RE: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z.-]{0,79}/\d{7}", re.IGNORECASE)
+_MAX_LEGACY_ARXIV_PARTS: Final[int] = 4
+_MAX_LEGACY_ARXIV_PART_LEN: Final[int] = 16
 
 # DOI grammar per Crossref: "10." + registrant + "/" + suffix. We restrict
 # the suffix to printable characters that are not whitespace so we do not
@@ -237,8 +241,9 @@ def extract_citations(text: str) -> list[Citation]:
             citations.append(Citation(kind="url", value=normalized, offset=match.start(1)))
 
     for match in _ARXIV_RE.finditer(text):
-        if _claim(match.start(), match.end()):
-            citations.append(Citation(kind="arxiv", value=match.group(1), offset=match.start(1)))
+        value = match.group(1)
+        if _is_arxiv_id(value) and _claim(match.start(), match.end()):
+            citations.append(Citation(kind="arxiv", value=value, offset=match.start(1)))
 
     for match in _DOI_RE.finditer(text):
         raw = match.group(1)
@@ -262,6 +267,28 @@ def extract_citations(text: str) -> list[Citation]:
 def _strip_trailing_punct(value: str) -> str:
     """Trim trailing punctuation that prose routinely appends to citations."""
     return value.rstrip(_DOI_TRAILING_PUNCT)
+
+
+def _is_arxiv_id(value: str) -> bool:
+    """Return True when *value* is a supported arXiv identifier."""
+    if _MODERN_ARXIV_ID_RE.fullmatch(value):
+        return True
+    if not _LEGACY_ARXIV_ID_RE.fullmatch(value):
+        return False
+
+    archive, _paper_id = value.split("/", maxsplit=1)
+    subject_parts = archive.split(".")
+    if len(subject_parts) > 2:
+        return False
+
+    for subject_part in subject_parts:
+        tokens = subject_part.split("-")
+        if len(tokens) > _MAX_LEGACY_ARXIV_PARTS:
+            return False
+        if any(not token.isalpha() or len(token) > _MAX_LEGACY_ARXIV_PART_LEN for token in tokens):
+            return False
+
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +399,7 @@ def _check_arxiv(citation: Citation, *, offline: bool) -> str:
     if offline:
         # Validate shape only: arXiv IDs are deterministic enough that a
         # shape check is meaningful even offline.
-        return "resolved" if _ARXIV_RE.fullmatch(f"arXiv:{citation.value}") else "unresolved"
+        return "resolved" if _is_arxiv_id(citation.value) else "unresolved"
     url = f"https://arxiv.org/abs/{citation.value}"
     probe = Citation(kind="url", value=url, offset=citation.offset)
     bucket, _ = _check_url(probe, offline=False, allowed_hosts=None)

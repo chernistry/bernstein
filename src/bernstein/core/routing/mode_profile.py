@@ -17,12 +17,20 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
+    return cast(DataclassT, replace(instance, **changes))
 
 
 @dataclass(frozen=True)
@@ -276,7 +284,7 @@ def apply_mode(
 def replace_profile(name: str, **changes: Any) -> ModeProfile:
     """Replace fields on the registry entry *name* and return the new instance."""
     current = MODE_REGISTRY[name]
-    updated = replace(current, **changes)
+    updated = _typed_replace(current, **changes)
     MODE_REGISTRY[name] = updated
     return updated
 

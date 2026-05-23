@@ -41,9 +41,17 @@ from collections import deque
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from itertools import count
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal, Protocol, cast
 
 logger = logging.getLogger(__name__)
+
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
+    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +166,7 @@ def _merge_task(
 
 
 def _replace_state(state: RunState, **changes: Any) -> RunState:
-    updated: RunState = replace(state, **changes)
+    updated = _typed_replace(state, **changes)
     return updated
 
 

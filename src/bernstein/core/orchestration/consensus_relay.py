@@ -65,7 +65,7 @@ import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Any, ClassVar, Final, Protocol, cast
 
 from bernstein.core.persistence.atomic_write import write_atomic_json
 
@@ -89,6 +89,14 @@ __all__ = [
 
 
 log = logging.getLogger(__name__)
+
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
+    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +310,7 @@ class RelayDocument:
     # ------------------------------------------------------------------
     def acknowledge(self) -> RelayDocument:
         """Return a copy with ``acknowledged=True``."""
-        updated: RelayDocument = replace(self, acknowledged=True)
+        updated = _typed_replace(self, acknowledged=True)
         return updated
 
     def with_next(self, next_action: str) -> RelayDocument:
@@ -311,7 +319,7 @@ class RelayDocument:
         The HMAC is cleared because the body changes; callers should
         re-sign before persisting.
         """
-        updated: RelayDocument = replace(self, next_action=next_action, operator_hmac="")
+        updated = _typed_replace(self, next_action=next_action, operator_hmac="")
         return updated
 
 
@@ -639,7 +647,7 @@ class RelayStore:
             acknowledged=False,
             operator_hmac="",
         )
-        signed = replace(unsigned, operator_hmac=compute_relay_hmac(unsigned, self._key))
+        signed = _typed_replace(unsigned, operator_hmac=compute_relay_hmac(unsigned, self._key))
         write_atomic_json(self._entry_path(cycle_id), signed.to_dict())
         new_index = [*existing, cycle_id]
         self._write_index(new_index)
@@ -660,8 +668,8 @@ class RelayStore:
         doc = self.read(cycle_id)
         if doc.acknowledged:
             return doc
-        updated = replace(doc, acknowledged=True, operator_hmac="")
-        signed = replace(updated, operator_hmac=compute_relay_hmac(updated, self._key))
+        updated = _typed_replace(doc, acknowledged=True, operator_hmac="")
+        signed = _typed_replace(updated, operator_hmac=compute_relay_hmac(updated, self._key))
         write_atomic_json(self._entry_path(cycle_id), signed.to_dict())
         return signed
 

@@ -32,14 +32,18 @@ def _uncast_replace_values(relative_path: str) -> list[str]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
+        if node.name == "_typed_replace":
+            continue
         for child in ast.walk(node):
-            if isinstance(child, ast.Return) and _is_replace_call(child.value):
+            if isinstance(child, ast.Return) and _is_replace_call(child.value) and not _is_casted_replace(child.value):
                 findings.append(f"{relative_path}:{node.name}:{child.lineno}")
             if (
                 isinstance(child, ast.AnnAssign)
                 and _is_replace_call(child.value)
                 and not _is_casted_replace(child.value)
             ):
+                findings.append(f"{relative_path}:{node.name}:{child.lineno}")
+            if isinstance(child, ast.Assign) and _is_replace_call(child.value) and not _is_casted_replace(child.value):
                 findings.append(f"{relative_path}:{node.name}:{child.lineno}")
 
     return findings
@@ -49,7 +53,11 @@ def test_s5886_cluster_avoids_uncast_replace_values() -> None:
     """Typed functions should not expose raw dataclasses.replace values."""
     paths = [
         "src/bernstein/core/agents/harness_policy.py",
+        "src/bernstein/core/orchestration/consensus_relay.py",
+        "src/bernstein/core/orchestration/run_actor.py",
         "src/bernstein/core/cost/retry_budget.py",
+        "src/bernstein/core/routing/criterion_profile.py",
+        "src/bernstein/core/routing/mode_profile.py",
     ]
 
     findings = [finding for path in paths for finding in _uncast_replace_values(path)]

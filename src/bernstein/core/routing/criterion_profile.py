@@ -50,12 +50,20 @@ import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Final, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
+    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------
@@ -659,7 +667,7 @@ def replace_in_registry(name: str, **changes: Any) -> CriterionProfile:
     if name not in CRITERION_PROFILE_REGISTRY:
         raise KeyError(name)
     current = CRITERION_PROFILE_REGISTRY[name]
-    updated = replace(current, **changes)
+    updated = _typed_replace(current, **changes)
     updated.validate()
     CRITERION_PROFILE_REGISTRY[name] = updated
     return updated

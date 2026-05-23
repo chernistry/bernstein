@@ -23,7 +23,6 @@ Eviction is approximate LRU sized by ``defaults.JANITOR.memo_max_mb``.
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import functools
 import hashlib
@@ -36,9 +35,9 @@ import pickle
 import textwrap
 import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -49,9 +48,6 @@ _DIGEST_BYTES = 32
 _DEFAULT_MAX_MB = 200
 _AST_CACHE: dict[str, bytes] = {}
 _AST_CACHE_LOCK = threading.Lock()
-
-F = TypeVar("F", bound=Callable[..., Any])
-
 
 def _canonicalize(value: Any) -> Any:
     """Recursively normalise *value* into a JSON-friendly, order-stable form.
@@ -65,11 +61,14 @@ def _canonicalize(value: Any) -> Any:
     hits in CI.  Dicts recurse so nested sets are also canonicalised.
     """
     if isinstance(value, dict):
-        return {str(k): _canonicalize(v) for k, v in sorted(value.items(), key=lambda kv: repr(kv[0]))}
+        items = cast("Iterable[tuple[Any, Any]]", value.items())
+        return {str(k): _canonicalize(v) for k, v in sorted(items, key=lambda kv: repr(kv[0]))}
     if isinstance(value, (set, frozenset)):
-        return ["__set__", sorted((_canonicalize(v) for v in value), key=repr)]
+        values = cast("Iterable[Any]", value)
+        return ["__set__", sorted((_canonicalize(v) for v in values), key=repr)]
     if isinstance(value, (list, tuple)):
-        return [_canonicalize(v) for v in value]
+        values = cast("Iterable[Any]", value)
+        return [_canonicalize(v) for v in values]
     return value
 
 
@@ -269,7 +268,7 @@ class MemoStore:
             return MemoStats(hits=self._hits, misses=self._misses, bytes_used=self.total_bytes())
 
 
-def memoize_persistent(store: MemoStore, *, site: str = "default") -> Callable[[F], F]:
+def memoize_persistent[F: Callable[..., Any]](store: MemoStore, *, site: str = "default") -> Callable[[F], F]:
     """Decorator that caches function results in *store* keyed by fingerprint.
 
     Use *site* as a stable label for metrics (e.g.
@@ -277,17 +276,17 @@ def memoize_persistent(store: MemoStore, *, site: str = "default") -> Callable[[
     can be partitioned per call-site without forcing a global registry.
     """
 
-    def decorator(fn: F) -> F:
-        if asyncio.iscoroutinefunction(fn):
+    def decorator(target: F) -> F:
+        if inspect.iscoroutinefunction(target):
 
-            @functools.wraps(fn)
+            @functools.wraps(target)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                digest = fingerprint(fn, *args, **kwargs)
+                digest = fingerprint(target, *args, **kwargs)
                 cached = store.get(digest)
                 if cached is not None:
                     _record_metric("hit", site)
                     return cached
-                value = await fn(*args, **kwargs)
+                value = await target(*args, **kwargs)
                 store.put(digest, value)
                 _record_metric("miss", site)
                 return value
@@ -296,14 +295,14 @@ def memoize_persistent(store: MemoStore, *, site: str = "default") -> Callable[[
             async_wrapper.__memo_site__ = site  # type: ignore[attr-defined]
             return cast("F", async_wrapper)
 
-        @functools.wraps(fn)
+        @functools.wraps(target)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            digest = fingerprint(fn, *args, **kwargs)
+            digest = fingerprint(target, *args, **kwargs)
             cached = store.get(digest)
             if cached is not None:
                 _record_metric("hit", site)
                 return cached
-            value = fn(*args, **kwargs)
+            value = target(*args, **kwargs)
             store.put(digest, value)
             _record_metric("miss", site)
             return value

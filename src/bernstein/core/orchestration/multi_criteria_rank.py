@@ -148,6 +148,10 @@ class CriterionProfile:
         return tuple(c.name for c in self.criteria)
 
 
+def _empty_normalised_scores() -> dict[str, float]:
+    return {}
+
+
 @dataclass(frozen=True)
 class RankedCandidate:
     """One row of :func:`rank_candidates` output.
@@ -166,7 +170,7 @@ class RankedCandidate:
     key: str
     rank: int
     closeness: float
-    normalised_scores: Mapping[str, float] = field(default_factory=lambda: dict[str, float]())
+    normalised_scores: Mapping[str, float] = field(default_factory=_empty_normalised_scores)
 
 
 # ---------------------------------------------------------------------------

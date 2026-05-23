@@ -38,6 +38,7 @@ def test_sonar_regex_findings_are_rewritten() -> None:
             disallowed_fragments=(
                 r"[a-z\-]+(?:\.[a-z]{2})?/\d{7}",
                 r"[a-z]+(?:-[a-z]+)*(?:\.[a-z]{2})?/\d{7}",
+                r"[a-z]{1,16}(?:-[a-z]{1,16}){0,3}",
             ),
         ),
         RegexFinding(
@@ -78,9 +79,12 @@ def test_sonar_regex_findings_are_rewritten() -> None:
 def test_remaining_regex_rewrites_preserve_representative_behavior() -> None:
     """The safer regex shapes keep the intended citation and promptware hits."""
     citation_values = {
-        citation.value for citation in extract_citations("Refs: arXiv: cs-ai/1234567 and arXiv: 2401.12345v2.")
+        citation.value
+        for citation in extract_citations(
+            "Refs: arXiv: cs-ai/1234567, arXiv: cond-mat.mtrl-sci/0301234, and arXiv: 2401.12345v2."
+        )
     }
-    assert {"cs-ai/1234567", "2401.12345v2"} <= citation_values
+    assert {"cs-ai/1234567", "cond-mat.mtrl-sci/0301234", "2401.12345v2"} <= citation_values
 
     detector = PromptwareDetector()
     base64_score = detector.classify("Please inspect: base64 -D <<< QkVHSU4=")

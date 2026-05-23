@@ -1,4 +1,4 @@
-"""Regression coverage for the scoped Sonar S8495 typing findings."""
+"""Regression coverage for the scoped Sonar S8495 tuple-return findings."""
 
 from __future__ import annotations
 
@@ -38,6 +38,12 @@ EXPECTATIONS: tuple[AnnotationExpectation, ...] = (
         target="value",
         expected="object",
     ),
+)
+
+TUPLE_RETURN_EXPECTATIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("src/bernstein/core/orchestration/federation.py", ("_to_string_tuple",)),
+    ("src/bernstein/core/security/auth_middleware.py", ("_normalise_expected_resource",)),
+    ("src/bernstein/core/security/permission_policy.py", ("_coerce_str_tuple",)),
 )
 
 
@@ -81,3 +87,22 @@ def test_scoped_s8495_function_annotations_are_resolved() -> None:
         function = _find_function(module, expectation.function_path)
         actual = _annotation_text(source, function, expectation.target)
         assert actual == expectation.expected
+
+
+def _direct_tuple_return_lengths(function: ast.FunctionDef) -> set[int]:
+    lengths: set[int] = set()
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Return):
+            continue
+        if isinstance(node.value, ast.Tuple):
+            lengths.add(len(node.value.elts))
+    return lengths
+
+
+def test_scoped_s8495_functions_do_not_return_mixed_tuple_literal_lengths() -> None:
+    """The scoped S8495 findings must avoid direct tuple literals with mixed lengths."""
+    for path, function_path in TUPLE_RETURN_EXPECTATIONS:
+        _source, module = _source_for(path)
+        function = _find_function(module, function_path)
+
+        assert len(_direct_tuple_return_lengths(function)) <= 1

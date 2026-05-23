@@ -10,8 +10,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
-class RenderSyncEnv(TypedDict):
-    """Environment block used by the tracker sync step."""
+class WorkflowEnv(TypedDict, total=False):
+    """Environment block used by the workflow steps under test."""
 
     GH_TOKEN: str
     GITHUB_TOKEN: str
@@ -31,14 +31,15 @@ WorkflowPermissions = TypedDict(
 
 WorkflowStep = TypedDict(
     "WorkflowStep",
-    {"name": str, "env": RenderSyncEnv, "uses": str, "with": GitHubScriptConfig},
+    {"name": str, "env": WorkflowEnv, "uses": str, "with": GitHubScriptConfig},
     total=False,
 )
 
 
-class WorkflowJob(TypedDict):
+class WorkflowJob(TypedDict, total=False):
     """Subset of a workflow job used by these tests."""
 
+    permissions: WorkflowPermissions
     steps: list[WorkflowStep]
 
 
@@ -47,6 +48,12 @@ class WorkflowJobs(TypedDict):
 
     render: WorkflowJob
     comment: WorkflowJob
+
+
+ReviewBotAckJobs = TypedDict(
+    "ReviewBotAckJobs",
+    {"review-bot-ack": WorkflowJob},
+)
 
 
 def test_sonar_tracker_workflow_exports_gh_token_for_cli() -> None:
@@ -73,3 +80,16 @@ def test_sonar_pr_comment_workflow_can_update_issue_comments() -> None:
 
     assert permissions["issues"] == "write"
     assert script_config["github-token"] == "${{ github.token }}"
+
+
+def test_review_bot_ack_workflow_uses_job_scoped_token() -> None:
+    """The review-bot acknowledgement workflow must use the live job token."""
+    workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "review-bot-ack.yml").read_text())
+    jobs = cast("ReviewBotAckJobs", workflow["jobs"])
+    ack_job = jobs["review-bot-ack"]
+    permissions = ack_job["permissions"]
+    gate_step = next(step for step in ack_job["steps"] if step.get("name") == "Run review-bot acknowledgement gate")
+    env = gate_step["env"]
+
+    assert permissions["issues"] == "write"
+    assert env["GH_TOKEN"] == "${{ github.token }}"

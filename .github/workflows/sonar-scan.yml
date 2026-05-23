@@ -1,12 +1,12 @@
 name: SonarQube scan
 
-# Runs after main CI reaches a terminal state or on manual dispatch.
+# Runs after main CI succeeds or on manual dispatch.
 #
 # The workflow consumes the coverage-report artifact from the same CI run
 # that triggered it. It intentionally does not run directly on push:
 # push-time scans can start before CI uploads coverage.xml and then report
 # a partial fallback coverage number for main.
-on:
+on:  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: ["CI"]
     branches: [main]
@@ -26,12 +26,13 @@ jobs:
     name: SonarQube scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Run after main CI completes or on manual dispatch.
+    # Run after main CI succeeds or on manual dispatch.
     # SONAR_HOST_URL must be configured as a repo variable.
     if: >-
       ${{ vars.SONAR_HOST_URL != '' &&
           (github.event_name == 'workflow_dispatch' ||
            (github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'success' &&
             github.event.workflow_run.head_branch == 'main')) }}
     steps:
       - name: Harden runner

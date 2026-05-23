@@ -14,7 +14,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | Auto-heal v2 | workflow_call | - | 2 |
 | .github/workflows/auto-release.yml | Auto-release | workflow_call | - | 5 |
 | .github/workflows/bernstein-ci-fix.yml | Bernstein CI Fix | workflow_call | - | 4 |
-| .github/workflows/bernstein-issues-decompose.yml | Bernstein Issue Decompose | issues | {"cancel-in-progress": "true", "group": "bernstein-decompose-${{ github.event.issue.number }}"} | 2 |
+| .github/workflows/bernstein-issues-decompose.yml | Bernstein Issue Decompose | issues | {"cancel-in-progress": "true", "group": "bernstein-decompose-${{ github.event.issue.number }}"} | 4 |
 | .github/workflows/bernstein-pr-review.yml | Bernstein PR Review | pull_request | {"cancel-in-progress": "true", "group": "bernstein-pr-${{ github.event.pull_request.number }}"} | 1 |
 | .github/workflows/bisect-on-red.yml | Bisect on Red | workflow_call | - | 1 |
 | .github/workflows/branch-protection-audit.yml | Branch protection audit | schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "branch-protection-audit-${{ github.ref }}"} | 1 |
@@ -71,7 +71,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard.yml | OSSF Scorecard | branch_protection_rule, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "scorecard-${{ github.ref }}"} | 2 |
 | .github/workflows/soc2-evidence-nightly.yml | soc2-evidence-nightly | schedule, workflow_dispatch | {"cancel-in-progress": "false", "group": "soc2-evidence-${{ github.ref }}"} | 2 |
 | .github/workflows/sonar-pr-comment.yml | SonarQube PR insights comment | pull_request | {"cancel-in-progress": "true", "group": "sonar-pr-comment-${{ github.event.pull_request.number }}"} | 1 |
-| .github/workflows/sonar-scan.yml | SonarQube scan | push, workflow_dispatch | {"cancel-in-progress": "false", "group": "sonar-scan-${{ github.ref }}"} | 1 |
+| .github/workflows/sonar-scan.yml | SonarQube scan | workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-scan-${{ github.ref }}"} | 1 |
 | .github/workflows/sonar-tracker.yml | SonarQube findings tracker | schedule, workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-tracker"} | 1 |
 | .github/workflows/stale.yml | Stale cleanup | schedule | {"cancel-in-progress": "false", "group": "stale-${{ github.ref }}"} | 1 |
 | .github/workflows/static-analysis-extended.yml | static-analysis (extended) | pull_request, push, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "static-analysis-extended-${{ github.ref }}"} | 6 |
@@ -94,7 +94,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | heal: Apply chosen strategy<br>triage: Triage and classify |
 | .github/workflows/auto-release.yml | alert-on-stale-release-trigger: Alert on stale release trigger<br>detect-stale-alerts: Detect open auto-release-skipped issues<br>gate: Release gate<br>release: Tag release<br>sweep-stale-alerts-on-success: Close auto-release-skipped issues on green main |
 | .github/workflows/bernstein-ci-fix.yml | fallback-issue: Open ci-fix issue (fallback)<br>fix: Auto-heal with Bernstein<br>tier3-shadow: Tier-3 OpenRouter shadow-mode escalation<br>triage: Triage CI failure |
-| .github/workflows/bernstein-issues-decompose.yml | decompose: Decompose issue with Bernstein<br>reject-untrusted-issue: Reject untrusted issue decomposition |
+| .github/workflows/bernstein-issues-decompose.yml | decompose: Implement approved issue plan<br>plan: Plan issue decomposition<br>reject-untrusted-issue: Reject untrusted issue decomposition<br>scope_gate: Require approved file scope |
 | .github/workflows/bernstein-pr-review.yml | review: Review with Bernstein |
 | .github/workflows/bisect-on-red.yml | bisect: Identify culprit PR |
 | .github/workflows/branch-protection-audit.yml | audit: Branch protection audit |
@@ -174,7 +174,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | heal: {"attestations": "write", "contents": "write", "id-token": "write", "pull-requests": "write"}<br>triage: {"actions": "read", "contents": "read", "pull-requests": "read"} | GITHUB_TOKEN, GLITCHTIP_DSN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID |
 | .github/workflows/auto-release.yml | alert-on-stale-release-trigger: {"contents": "read", "issues": "write"}<br>detect-stale-alerts: {"contents": "read", "issues": "read"}<br>gate: {"contents": "read"}<br>release: {"contents": "write"}<br>sweep-stale-alerts-on-success: {"contents": "read", "issues": "write"} | GITHUB_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID |
 | .github/workflows/bernstein-ci-fix.yml | fallback-issue: {"contents": "read", "issues": "write"}<br>fix: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>tier3-shadow: {"actions": "read", "contents": "read"}<br>triage: {"actions": "read", "contents": "read", "pull-requests": "read"} | GEMINI_API_KEY, GITHUB_TOKEN, GLITCHTIP_DSN, OPENROUTER_API_KEY_FREE |
-| .github/workflows/bernstein-issues-decompose.yml | workflow: {"contents": "read"}<br>decompose: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>reject-untrusted-issue: {"issues": "write"} | ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY |
+| .github/workflows/bernstein-issues-decompose.yml | workflow: {"contents": "read"}<br>decompose: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>plan: {"contents": "read"}<br>reject-untrusted-issue: {"issues": "write"}<br>scope_gate: {"issues": "write"} | ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY |
 | .github/workflows/bernstein-pr-review.yml | workflow: {"contents": "read", "pull-requests": "write"} | ANTHROPIC_API_KEY |
 | .github/workflows/bisect-on-red.yml | bisect: {"contents": "read", "issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/branch-protection-audit.yml | audit: {"contents": "read"} | - |
@@ -256,6 +256,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | --- | --- |
 | .github/workflows/adapter-contract-drift.yml | aggregate: download -<br>check: upload drift-${{ matrix.adapter }} |
 | .github/workflows/bernstein-ci-fix.yml | tier3-shadow: upload tier3-shadow-${{ needs.triage.outputs.short_sha }} |
+| .github/workflows/bernstein-issues-decompose.yml | decompose: download issue-decompose-plan-${{ github.event.issue.number }}<br>plan: upload issue-decompose-plan-${{ github.event.issue.number }} |
 | .github/workflows/ci.yml | diff-coverage: download coverage-report<br>dist-size: upload install-smoke-wheel<br>install-smoke-pipx: download install-smoke-wheel<br>install-smoke-uv: download install-smoke-wheel<br>test: upload ctrf-report<br>test: upload coverage-report |
 | .github/workflows/cifuzz-pr.yml | cifuzz: upload cifuzz-artifacts-address |
 | .github/workflows/cluster-e2e.yml | cluster-e2e: upload cluster-e2e-logs |

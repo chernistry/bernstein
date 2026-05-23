@@ -90,6 +90,12 @@ def test_extract_legacy_arxiv() -> None:
     assert arx and arx[0].value == "cs.LG/0701001"
 
 
+def test_extract_legacy_arxiv_rejects_oversized_archive_prefix() -> None:
+    oversized_archive = "a" * 80
+    cs = extract_citations(f"see arXiv:{oversized_archive}/0701001 for details")
+    assert not any(c.kind == "arxiv" for c in cs)
+
+
 def test_extract_arxiv_case_insensitive() -> None:
     cs = extract_citations("ARXIV:2401.12345")
     assert any(c.kind == "arxiv" for c in cs)

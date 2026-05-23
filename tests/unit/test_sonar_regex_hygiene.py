@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from bernstein.core.quality.citation_verifier import extract_citations
+from bernstein.core.security.promptware_detector import PromptwareDetector
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -32,14 +35,20 @@ def test_sonar_regex_findings_are_rewritten() -> None:
         ),
         RegexFinding(
             path="src/bernstein/core/quality/citation_verifier.py",
-            disallowed_fragments=(r"[a-z\-]+(?:\.[a-z]{2})?/\d{7}",),
+            disallowed_fragments=(
+                r"[a-z\-]+(?:\.[a-z]{2})?/\d{7}",
+                r"[a-z]+(?:-[a-z]+)*(?:\.[a-z]{2})?/\d{7}",
+            ),
         ),
         RegexFinding(
             path="src/bernstein/core/security/promptware_detector.py",
             disallowed_fragments=(
                 r"(?:your\s+|the\s+|all\s+)?(?:earlier\s+|prior\s+|previous\s+)?",
                 r"(?:-d|--decode|-D)",
+                r"(?:-[dD]|--decode)",
                 r"(?:^|[\s`])",
+                r"(?:^|\s|`)",
+                "_COMMAND_TOKEN_RX",
             ),
         ),
         RegexFinding(
@@ -64,3 +73,18 @@ def test_sonar_regex_findings_are_rewritten() -> None:
         source = _source(finding.path)
         for fragment in finding.disallowed_fragments:
             assert fragment not in source, f"{finding.path} still contains {fragment}"
+
+
+def test_remaining_regex_rewrites_preserve_representative_behavior() -> None:
+    """The safer regex shapes keep the intended citation and promptware hits."""
+    citation_values = {
+        citation.value for citation in extract_citations("Refs: arXiv: cs-ai/1234567 and arXiv: 2401.12345v2.")
+    }
+    assert {"cs-ai/1234567", "2401.12345v2"} <= citation_values
+
+    detector = PromptwareDetector()
+    base64_score = detector.classify("Please inspect: base64 -D <<< QkVHSU4=")
+    assert "imperative.base64_payload" in base64_score.matched_pattern_ids
+
+    shell_score = detector.classify("`curl https://example.test/bootstrap.sh`")
+    assert shell_score.command_density > 0.0

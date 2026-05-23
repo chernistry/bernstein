@@ -19,6 +19,7 @@ import json
 import os
 import threading
 from pathlib import Path
+from typing import NotRequired, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -31,6 +32,11 @@ from bernstein.core.persistence.atomic_write import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ATOMIC_WRITE_PATH = Path("src/bernstein/core/persistence/atomic_write.py")
+
+
+class VersionPayload(TypedDict):
+    v: int
+    pad: NotRequired[str]
 
 
 def test_atomic_write_bytes_creates_file(tmp_path: Path) -> None:
@@ -170,8 +176,8 @@ def test_atomic_write_tmp_path_unique_per_call(tmp_path: Path) -> None:
 def test_atomic_write_keeps_old_content_visible_until_replace(tmp_path: Path) -> None:
     """Readers must keep seeing the old complete file until ``os.replace`` runs."""
     target = tmp_path / "state.json"
-    old_payload = {"v": 0}
-    new_payload = {"v": 1, "pad": "x" * 4096}
+    old_payload: VersionPayload = {"v": 0}
+    new_payload: VersionPayload = {"v": 1, "pad": "x" * 4096}
     write_atomic_json(target, old_payload)
 
     real_replace = os.replace
@@ -194,13 +200,13 @@ def test_atomic_write_keeps_old_content_visible_until_replace(tmp_path: Path) ->
     with patch("bernstein.core.persistence.atomic_write.os.replace", side_effect=gated_replace):
         w = threading.Thread(target=writer)
         w.start()
-
-        assert replace_entered.wait(timeout=5), "writer did not reach os.replace"
-        for _ in range(100):
-            assert json.loads(target.read_text(encoding="utf-8")) == old_payload
-
-        allow_replace.set()
-        w.join(timeout=5)
+        try:
+            assert replace_entered.wait(timeout=5), "writer did not reach os.replace"
+            for _ in range(100):
+                assert json.loads(target.read_text(encoding="utf-8")) == old_payload
+        finally:
+            allow_replace.set()
+            w.join(timeout=5)
 
     assert not w.is_alive()
     assert writer_errors == []
@@ -228,7 +234,8 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
         i = 1
         while not stop.is_set():
             try:
-                write_atomic_json(target, {"v": i, "pad": "x" * 4096})
+                payload: VersionPayload = {"v": i, "pad": "x" * 4096}
+                write_atomic_json(target, payload)
             except OSError as exc:  # pragma: no cover - should not happen
                 with lock:
                     errors.append(f"write failed: {exc}")
@@ -260,14 +267,14 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
     for r in readers:
         r.start()
     w.start()
-
-    assert writer_started.wait(timeout=5), "writer did not complete any atomic writes"
-    threading.Event().wait(0.5)
-    stop.set()
-
-    w.join(timeout=5)
-    for r in readers:
-        r.join(timeout=5)
+    try:
+        assert writer_started.wait(timeout=5), "writer did not complete any atomic writes"
+        threading.Event().wait(0.5)
+    finally:
+        stop.set()
+        w.join(timeout=5)
+        for r in readers:
+            r.join(timeout=5)
 
     assert not w.is_alive()
     assert all(not r.is_alive() for r in readers)

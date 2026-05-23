@@ -174,7 +174,9 @@ _PATTERNS: Final[tuple[_Pattern, ...]] = (
     _Pattern(
         pattern_id="imperative.disregard_instructions",
         regex=re.compile(
-            r"(?i)\b(?:disregard|forget|override)\s+(?:your\s+|the\s+|all\s+)?(?:earlier\s+|prior\s+|previous\s+)?(?:instructions?|system\s+prompt|guardrails?)\b"
+            r"(?i)\b(?:disregard|forget|override)\s+"
+            r"(?:(?:your|the|all)\s+)?(?:(?:earlier|prior|previous)\s+)?"
+            r"(?:instructions?|system\s+prompt|guardrails?)\b"
         ),
         weight=0.90,
         reason="instruction to disregard guardrails",
@@ -199,7 +201,7 @@ _PATTERNS: Final[tuple[_Pattern, ...]] = (
     ),
     _Pattern(
         pattern_id="imperative.base64_payload",
-        regex=re.compile(r"(?i)base64\s+(?:-d|--decode|-D)"),
+        regex=re.compile(r"(?i)base64\s+(?:-[dD]|--decode)"),
         weight=0.65,
         reason="base64 decode payload",
     ),
@@ -227,7 +229,7 @@ _URL_RX: Final[re.Pattern[str]] = re.compile(r"https?://[^\s'\"<>)]+")
 
 # Shell-command-like tokens used for density features.
 _COMMAND_TOKEN_RX: Final[re.Pattern[str]] = re.compile(
-    r"(?i)(?:^|[\s`])(?:curl|wget|bash|sh|zsh|python3?|node|rm|mv|cp|chmod|chown|scp|rsync|nc|netcat|nmap|sudo|apt|brew|pip|npm)\b",
+    r"(?i)(?:^|\s|`)(?:curl|wget|bash|sh|zsh|python3?|node|rm|mv|cp|chmod|chown|scp|rsync|nc|netcat|nmap|sudo|apt|brew|pip|npm)\b",
 )
 
 

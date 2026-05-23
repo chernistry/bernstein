@@ -65,7 +65,8 @@ AssertionKind = Literal["file_exists", "import_resolves", "test_passes", "regex_
 DEFAULT_PYTEST_OUTPUT = Path("tests/spec/test_plan_contract.py")
 
 _RE_EXISTS = re.compile(r"^\s*(?:file\s+)?exists\s+(?P<path>\S.+?)\s*$", re.IGNORECASE)
-_RE_IMPORT = re.compile(r"^\s*import\s+(?P<module>[A-Za-z_][\w.]*)\s*$", re.IGNORECASE)
+_PY_IDENTIFIER = r"[A-Z_][A-Z0-9_]*"
+_RE_IMPORT = re.compile(rf"^\s*import\s+(?P<module>{_PY_IDENTIFIER}(?:\.{_PY_IDENTIFIER})*)\s*$", re.IGNORECASE)
 _RE_CONTAINS = re.compile(
     r"^\s*contains\s+(?P<path>\S+?)\s+/(?P<pattern>.+)/\s*$",
     re.IGNORECASE,

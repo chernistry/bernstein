@@ -50,7 +50,7 @@ _ARXIV_RE: Final[re.Pattern[str]] = re.compile(
     (
         \d{4}\.\d{4,5}(?:v\d+)?           # modern
         |
-        [a-z\-]+(?:\.[a-z]{2})?/\d{7}     # legacy
+        [a-z]+(?:-[a-z]+)*(?:\.[a-z]{2})?/\d{7}  # legacy
     )
     """,
 )

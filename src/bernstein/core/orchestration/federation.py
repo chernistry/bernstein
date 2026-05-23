@@ -51,7 +51,7 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final, Protocol, runtime_checkable
+from typing import Final, Protocol, cast, runtime_checkable
 
 from bernstein.core.orchestration.federation_contract import (
     Ticket,
@@ -440,9 +440,11 @@ def _to_string_tuple(value: object) -> tuple[str, ...]:
         return ()
     if isinstance(value, str):
         return (value,)
-    if isinstance(value, Iterable):
-        return tuple(item for item in value if isinstance(item, str))
-    return ()
+    try:
+        values = iter(cast("Iterable[object]", value))
+    except TypeError:
+        return ()
+    return tuple(item for item in values if isinstance(item, str))
 
 
 # ---------------------------------------------------------------------------

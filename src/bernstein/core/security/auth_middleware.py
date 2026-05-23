@@ -196,7 +196,7 @@ def _normalise_expected_resource(raw: str | list[str] | tuple[str, ...] | None) 
     """
     if raw is None:
         return ()
-    if isinstance(raw, list | tuple):
+    if isinstance(raw, (list, tuple)):
         return tuple(item.strip() for item in raw if item and item.strip())
     text = raw.strip()
     if not text:

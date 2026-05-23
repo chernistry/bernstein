@@ -572,7 +572,7 @@ class StreamableHTTPTransport:
                 # Seed a partial chunk so a cancel mid-flight preserves the
                 # in-progress context rather than returning an empty result.
                 call.append_partial(json.dumps({"status": "running", "tool": tool_name}))
-                task: asyncio.Task[str] = asyncio.ensure_future(self._execute_tool(tool_name, arguments))
+                task: asyncio.Task[str] = asyncio.create_task(self._execute_tool(tool_name, arguments))
                 await self._inflight.attach_task(req_id, task)  # type: ignore[arg-type]
                 text = await task
             else:

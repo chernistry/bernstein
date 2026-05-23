@@ -223,16 +223,16 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/release-major-minor.yml | workflow: {"contents": "read"}<br>release: {"attestations": "write", "contents": "write", "id-token": "write"} | GITHUB_TOKEN |
 | .github/workflows/release-please.yml | workflow: {"contents": "read"}<br>release-please: {"contents": "write", "issues": "write", "pull-requests": "write"} | GITHUB_TOKEN, RELEASE_PLEASE_PAT |
 | .github/workflows/required-check-canary.yml | verify: {"contents": "read"} | - |
-| .github/workflows/review-bot-ack.yml | review-bot-ack: {"contents": "read", "pull-requests": "write"} | GITHUB_TOKEN |
+| .github/workflows/review-bot-ack.yml | review-bot-ack: {"contents": "read", "issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/review-bot-sweep.yml | sweep: {"contents": "write", "pull-requests": "write"} | GITHUB_TOKEN, LANDING_REPO_PAT |
 | .github/workflows/sbom-upload.yml | workflow: {"contents": "read"} | DT_API_KEY |
 | .github/workflows/sbom.yml | workflow: {"contents": "read"}<br>sbom: {"contents": "write"} | - |
 | .github/workflows/scorecard-90d-check.yml | workflow: {"contents": "read"}<br>age-check: {"contents": "read"}<br>scorecard-rerun: {"actions": "read", "contents": "read", "id-token": "write", "issues": "write", "security-events": "write"} | - |
 | .github/workflows/scorecard.yml | workflow: {"contents": "read"}<br>analysis: {"actions": "read", "contents": "read", "id-token": "write", "security-events": "write"}<br>upload: {"contents": "read", "security-events": "write"} | - |
 | .github/workflows/soc2-evidence-nightly.yml | workflow: {"contents": "read"} | SOC2_EVIDENCE_ENABLED |
-| .github/workflows/sonar-pr-comment.yml | workflow: {"contents": "read", "pull-requests": "write"} | SONAR_TOKEN |
+| .github/workflows/sonar-pr-comment.yml | workflow: {"contents": "read", "issues": "write", "pull-requests": "write"} | SONAR_TOKEN |
 | .github/workflows/sonar-scan.yml | workflow: {"actions": "read", "contents": "read"} | GITHUB_TOKEN, SONAR_TOKEN |
-| .github/workflows/sonar-tracker.yml | workflow: {"contents": "read"}<br>render: {"contents": "read", "issues": "write"} | GITHUB_TOKEN, SONAR_TOKEN |
+| .github/workflows/sonar-tracker.yml | workflow: {"contents": "read"}<br>render: {"contents": "read", "issues": "write"} | SONAR_TOKEN |
 | .github/workflows/stale.yml | workflow: {"issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/static-analysis-extended.yml | workflow: {"contents": "read"}<br>perflint: {"contents": "read", "security-events": "write"}<br>refurb: {"contents": "read", "security-events": "write"}<br>semgrep: {"contents": "read", "security-events": "write"}<br>trivy-fs: {"contents": "read", "security-events": "write"}<br>trivy-iac: {"contents": "read", "security-events": "write"}<br>vulture: {"contents": "read", "security-events": "write"} | - |
 | .github/workflows/sweep-sonar-findings.yml | workflow: {"contents": "read"}<br>sweep: {"contents": "write", "pull-requests": "write"} | GITHUB_TOKEN, SONAR_TOKEN |

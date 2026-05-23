@@ -16,11 +16,14 @@ are honoured via ``Task.metadata['mode']`` (e.g. ``mode=fast``).
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +176,9 @@ def select_mode(
 
     if task is not None:
         metadata = getattr(task, "metadata", None)
-        if isinstance(metadata, dict):
-            override = metadata.get("mode")
+        if isinstance(metadata, Mapping):
+            metadata_map = cast(Mapping[str, object], metadata)
+            override = metadata_map.get("mode")
             if isinstance(override, str) and override in table:
                 return table[override]
 
@@ -186,9 +190,13 @@ def select_mode(
 def _coerce_profile(name: str, raw: dict[str, Any]) -> ModeProfile | None:
     """Build a :class:`ModeProfile` from a YAML-decoded dict; return ``None`` on bad input."""
     try:
-        tool_subset_raw = raw.get("tool_subset", []) or []
-        if not isinstance(tool_subset_raw, list):
-            raise TypeError(f"tool_subset must be a list, got {type(tool_subset_raw).__name__}")
+        tool_subset_value = raw.get("tool_subset", [])
+        if tool_subset_value is None:
+            tool_subset_raw: list[object] = []
+        elif isinstance(tool_subset_value, list):
+            tool_subset_raw = cast(list[object], tool_subset_value)
+        else:
+            raise TypeError(f"tool_subset must be a list, got {type(tool_subset_value).__name__}")
         return ModeProfile(
             name=str(raw.get("name", name)),
             system_prompt_preamble=str(raw.get("system_prompt_preamble", "")),
@@ -227,7 +235,7 @@ def load_profiles_from_dir(path: Path) -> dict[str, ModeProfile]:
         if not isinstance(raw, dict):
             logger.warning("Mode profile %s does not contain a mapping; skipped", yaml_file)
             continue
-        profile = _coerce_profile(yaml_file.stem, raw)
+        profile = _coerce_profile(yaml_file.stem, cast(dict[str, Any], raw))
         if profile is not None:
             loaded[profile.name] = profile
     return loaded
@@ -276,7 +284,7 @@ def apply_mode(
 def replace_profile(name: str, **changes: Any) -> ModeProfile:
     """Replace fields on the registry entry *name* and return the new instance."""
     current = MODE_REGISTRY[name]
-    updated = replace(current, **changes)
+    updated = _typed_replace(current, **changes)
     MODE_REGISTRY[name] = updated
     return updated
 

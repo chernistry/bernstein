@@ -49,11 +49,13 @@ import logging
 import math
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 
 logger = logging.getLogger(__name__)
 
@@ -659,7 +661,7 @@ def replace_in_registry(name: str, **changes: Any) -> CriterionProfile:
     if name not in CRITERION_PROFILE_REGISTRY:
         raise KeyError(name)
     current = CRITERION_PROFILE_REGISTRY[name]
-    updated = replace(current, **changes)
+    updated = _typed_replace(current, **changes)
     updated.validate()
     CRITERION_PROFILE_REGISTRY[name] = updated
     return updated

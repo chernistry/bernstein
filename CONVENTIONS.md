@@ -13,6 +13,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 |-----------------------------|---------|
 | `compat_redirect_ledger.py` | Compatibility ledger for legacy ``bernstein.core`` redirects |
 | `credential_scoping.py`     | Agent credential scope minimization for least-privilege API keys |
+| `dataclass_helpers.py`      | Helpers for preserving dataclass instance types through updates |
 | `defaults.py`               | Centralized default values for the Bernstein orchestrator |
 | `streaming_merge.py`        | Streaming task results for long-running agents (incremental merge) |
 | `agents/`                   | agents sub-package |

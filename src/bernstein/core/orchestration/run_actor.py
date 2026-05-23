@@ -39,9 +39,11 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from itertools import count
 from typing import Any, Literal
+
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +160,7 @@ def _merge_task(
 
 
 def _replace_state(state: RunState, **changes: Any) -> RunState:
-    updated: RunState = replace(state, **changes)
+    updated = _typed_replace(state, **changes)
     return updated
 
 

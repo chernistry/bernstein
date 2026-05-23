@@ -39,7 +39,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.core.security.policy_engine import (
     DecisionType,
@@ -47,7 +47,7 @@ from bernstein.core.security.policy_engine import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -201,12 +201,12 @@ def list_builtin_profiles() -> tuple[PermissionProfile, ...]:
 # ---------------------------------------------------------------------------
 
 
-def _coerce_str_tuple(value: Any) -> tuple[str, ...]:
+def _coerce_str_tuple(value: object) -> tuple[str, ...]:
     """Normalize a YAML/TOML list-of-strings into ``tuple[str, ...]``."""
     if value is None:
         return ()
     if isinstance(value, (list, tuple)):
-        return tuple(str(item) for item in value if item is not None)
+        return tuple(str(item) for item in cast("Sequence[object]", value) if item is not None)
     if isinstance(value, str):
         return (value,)
     return ()

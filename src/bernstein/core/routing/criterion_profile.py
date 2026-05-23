@@ -49,21 +49,15 @@ import logging
 import math
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Final, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
+
 logger = logging.getLogger(__name__)
-
-
-class _DataclassInstance(Protocol):
-    __dataclass_fields__: ClassVar[dict[str, Any]]
-
-
-def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
-    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------

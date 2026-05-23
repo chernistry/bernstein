@@ -63,10 +63,11 @@ import os
 import re
 import time
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Final, Protocol, cast
+from typing import Any, Final, cast
 
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 from bernstein.core.persistence.atomic_write import write_atomic_json
 
 __all__ = [
@@ -89,14 +90,6 @@ __all__ = [
 
 
 log = logging.getLogger(__name__)
-
-
-class _DataclassInstance(Protocol):
-    __dataclass_fields__: ClassVar[dict[str, Any]]
-
-
-def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
-    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------

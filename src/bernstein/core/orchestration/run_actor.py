@@ -39,19 +39,13 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from itertools import count
-from typing import Any, ClassVar, Literal, Protocol, cast
+from typing import Any, Literal
+
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 
 logger = logging.getLogger(__name__)
-
-
-class _DataclassInstance(Protocol):
-    __dataclass_fields__: ClassVar[dict[str, Any]]
-
-
-def _typed_replace[DataclassT: _DataclassInstance](instance: DataclassT, **changes: Any) -> DataclassT:
-    return cast(DataclassT, replace(instance, **changes))
 
 
 # ---------------------------------------------------------------------------

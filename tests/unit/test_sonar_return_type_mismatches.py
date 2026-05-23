@@ -32,6 +32,7 @@ def _uncast_replace_values(relative_path: str) -> list[str]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
+        # The typed wrapper is the one allowed bare dataclasses.replace call.
         if node.name == "_typed_replace":
             continue
         for child in ast.walk(node):

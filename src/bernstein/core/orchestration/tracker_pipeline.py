@@ -52,12 +52,13 @@ import contextlib
 import hashlib
 import logging
 import sqlite3
+import threading
 import time
 import uuid
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     from bernstein.core.lifecycle.hooks import HookRegistry
@@ -228,15 +229,16 @@ class PipelineConfig:
         stages_raw = raw.get("pipeline_stages", ())
         stages: list[PipelineStage] = []
         if isinstance(stages_raw, Iterable) and not isinstance(stages_raw, (str, bytes)):
-            for item in stages_raw:
+            for item in cast(Iterable[object], stages_raw):
                 if isinstance(item, Mapping):
-                    stages.append(PipelineStage.from_dict(item))
+                    stages.append(PipelineStage.from_dict(cast(Mapping[str, object], item)))
         ttl_raw = raw.get("claim_lock_ttl_seconds", DEFAULT_CLAIM_LOCK_TTL_SECONDS)
         ttl = int(ttl_raw) if isinstance(ttl_raw, (int, float)) else DEFAULT_CLAIM_LOCK_TTL_SECONDS
-        concurrency_raw = raw.get("concurrency", {}) or {}
         max_in_flight = DEFAULT_PER_ROLE_MAX_IN_FLIGHT
+        concurrency_raw = raw.get("concurrency")
         if isinstance(concurrency_raw, Mapping):
-            value = concurrency_raw.get("per_role_max_in_flight", DEFAULT_PER_ROLE_MAX_IN_FLIGHT)
+            concurrency = cast(Mapping[str, object], concurrency_raw)
+            value = concurrency.get("per_role_max_in_flight", DEFAULT_PER_ROLE_MAX_IN_FLIGHT)
             if isinstance(value, (int, float)):
                 max_in_flight = max(1, int(value))
         return cls(
@@ -528,9 +530,9 @@ class ClaimLedger:
     :meth:`try_claim` re-acquires it.
 
     The implementation pins ``check_same_thread=False`` and serialises
-    writes via a process-local lock; the underlying SQLite connection
-    is opened lazily so test code may instantiate many ledgers without
-    paying file-system cost up front.
+    writes via a per-database process-local lock; the underlying
+    SQLite connection is opened lazily so test code may instantiate
+    many ledgers without paying file-system cost up front.
     """
 
     _SCHEMA: Final[str] = """
@@ -545,41 +547,56 @@ class ClaimLedger:
             PRIMARY KEY (tracker, ticket_id, role)
         )
     """
+    _locks: ClassVar[dict[str, threading.RLock]] = {}
+    _locks_guard: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
+        self._lock = self._lock_for_path(db_path)
 
     @property
     def db_path(self) -> Path:
         """Filesystem path the ledger persists at."""
         return self._db_path
 
+    @classmethod
+    def _lock_for_path(cls, db_path: Path) -> threading.RLock:
+        key = str(db_path.expanduser().resolve(strict=False))
+        with cls._locks_guard:
+            lock = cls._locks.get(key)
+            if lock is None:
+                lock = threading.RLock()
+                cls._locks[key] = lock
+            return lock
+
     def _connect(self) -> sqlite3.Connection:
-        if self._conn is not None:
-            return self._conn
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(
-            str(self._db_path),
-            isolation_level=None,  # autocommit; we use explicit BEGIN IMMEDIATE
-            check_same_thread=False,
-        )
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
-        conn.execute(self._SCHEMA)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_claims_role ON claims(role)",
-        )
-        self._conn = conn
-        return conn
+        with self._lock:
+            if self._conn is not None:
+                return self._conn
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(
+                str(self._db_path),
+                isolation_level=None,  # autocommit; we use explicit BEGIN IMMEDIATE
+                check_same_thread=False,
+            )
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+            conn.execute(self._SCHEMA)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_claims_role ON claims(role)",
+            )
+            self._conn = conn
+            return conn
 
     def close(self) -> None:
         """Close the underlying SQLite connection (idempotent)."""
-        if self._conn is not None:
-            try:
-                self._conn.close()
-            finally:
-                self._conn = None
+        with self._lock:
+            if self._conn is not None:
+                try:
+                    self._conn.close()
+                finally:
+                    self._conn = None
 
     # ------------------------------------------------------------------
     # Claim lifecycle
@@ -621,77 +638,79 @@ class ClaimLedger:
         """
         current = float(time.time() if now is None else now)
         expires_at = current + max(1, ttl_seconds)
-        conn = self._connect()
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            # Concurrency-ceiling check: count non-expired claims for the role.
-            row = conn.execute(
-                "SELECT COUNT(*) FROM claims WHERE role = ? AND lease_expires_at > ?",
-                (role, current),
-            ).fetchone()
-            in_flight = int(row[0]) if row else 0
-            # Drop expired rows so the next INSERT can succeed.
-            conn.execute(
-                "DELETE FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND lease_expires_at <= ?",
-                (tracker, ticket_id, role, current),
-            )
-            existing = conn.execute(
-                "SELECT claimer_id, lease_expires_at FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
-                (tracker, ticket_id, role),
-            ).fetchone()
-            if existing is not None:
-                conn.execute("ROLLBACK")
-                return ClaimOutcome(
-                    granted=False,
-                    reason="held",
-                    claimer_id=str(existing[0]),
-                    lease_expires_at=float(existing[1]),
-                )
-            if per_role_max_in_flight >= 1 and in_flight >= per_role_max_in_flight:
-                conn.execute("ROLLBACK")
-                return ClaimOutcome(
-                    granted=False,
-                    reason="concurrency_ceiling",
-                    claimer_id="",
-                    lease_expires_at=0.0,
-                )
+        with self._lock:
+            conn = self._connect()
             try:
+                conn.execute("BEGIN IMMEDIATE")
+                # Concurrency-ceiling check: count non-expired claims for the role.
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM claims WHERE role = ? AND lease_expires_at > ?",
+                    (role, current),
+                ).fetchone()
+                in_flight = int(row[0]) if row else 0
+                # Drop expired rows so the next INSERT can succeed.
                 conn.execute(
-                    "INSERT OR FAIL INTO claims "
-                    "(tracker, ticket_id, role, claimer_id, lease_expires_at, stage_attempt, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, 0, ?)",
-                    (tracker, ticket_id, role, claimer_id, expires_at, current),
+                    "DELETE FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND lease_expires_at <= ?",
+                    (tracker, ticket_id, role, current),
                 )
-            except sqlite3.IntegrityError:
-                conn.execute("ROLLBACK")
-                row2 = conn.execute(
+                existing = conn.execute(
                     "SELECT claimer_id, lease_expires_at FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
                     (tracker, ticket_id, role),
                 ).fetchone()
-                if row2 is None:
+                if existing is not None:
+                    conn.execute("ROLLBACK")
                     return ClaimOutcome(
                         granted=False,
-                        reason="ledger_error",
+                        reason="held",
+                        claimer_id=str(existing[0]),
+                        lease_expires_at=float(existing[1]),
+                    )
+                if per_role_max_in_flight >= 1 and in_flight >= per_role_max_in_flight:
+                    conn.execute("ROLLBACK")
+                    return ClaimOutcome(
+                        granted=False,
+                        reason="concurrency_ceiling",
                         claimer_id="",
                         lease_expires_at=0.0,
                     )
+                try:
+                    conn.execute(
+                        "INSERT OR FAIL INTO claims "
+                        "(tracker, ticket_id, role, claimer_id, lease_expires_at, stage_attempt, created_at) "
+                        "VALUES (?, ?, ?, ?, ?, 0, ?)",
+                        (tracker, ticket_id, role, claimer_id, expires_at, current),
+                    )
+                except sqlite3.IntegrityError:
+                    conn.execute("ROLLBACK")
+                    row2 = conn.execute(
+                        "SELECT claimer_id, lease_expires_at FROM claims "
+                        "WHERE tracker = ? AND ticket_id = ? AND role = ?",
+                        (tracker, ticket_id, role),
+                    ).fetchone()
+                    if row2 is None:
+                        return ClaimOutcome(
+                            granted=False,
+                            reason="ledger_error",
+                            claimer_id="",
+                            lease_expires_at=0.0,
+                        )
+                    return ClaimOutcome(
+                        granted=False,
+                        reason="held",
+                        claimer_id=str(row2[0]),
+                        lease_expires_at=float(row2[1]),
+                    )
+                conn.execute("COMMIT")
+            except sqlite3.OperationalError:
+                log.exception("tracker_pipeline: ledger transaction failed")
+                with contextlib.suppress(sqlite3.Error):
+                    conn.execute("ROLLBACK")
                 return ClaimOutcome(
                     granted=False,
-                    reason="held",
-                    claimer_id=str(row2[0]),
-                    lease_expires_at=float(row2[1]),
+                    reason="ledger_error",
+                    claimer_id="",
+                    lease_expires_at=0.0,
                 )
-            conn.execute("COMMIT")
-        except sqlite3.OperationalError:
-            log.exception("tracker_pipeline: ledger transaction failed")
-            with contextlib.suppress(sqlite3.Error):
-                conn.execute("ROLLBACK")
-            return ClaimOutcome(
-                granted=False,
-                reason="ledger_error",
-                claimer_id="",
-                lease_expires_at=0.0,
-            )
         return ClaimOutcome(
             granted=True,
             reason="granted",
@@ -708,76 +727,81 @@ class ClaimLedger:
         callers can render a deterministic snapshot.
         """
         current = float(time.time() if now is None else now)
-        cursor = self._connect().execute(
-            "SELECT tracker, ticket_id, role, claimer_id, lease_expires_at, "
-            "stage_attempt FROM claims WHERE lease_expires_at > ? "
-            "ORDER BY tracker, role, ticket_id",
-            (current,),
-        )
-        rows: list[dict[str, Any]] = [
-            {
-                "tracker": tracker,
-                "ticket_id": ticket_id,
-                "role": role,
-                "claimer_id": claimer_id,
-                "stage_attempt": int(attempt),
-                "lease_seconds_remaining": float(expires) - current,
-            }
-            for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall()
-        ]
-        return rows
+        with self._lock:
+            cursor = self._connect().execute(
+                "SELECT tracker, ticket_id, role, claimer_id, lease_expires_at, "
+                "stage_attempt FROM claims WHERE lease_expires_at > ? "
+                "ORDER BY tracker, role, ticket_id",
+                (current,),
+            )
+            rows: list[dict[str, Any]] = [
+                {
+                    "tracker": tracker,
+                    "ticket_id": ticket_id,
+                    "role": role,
+                    "claimer_id": claimer_id,
+                    "stage_attempt": int(attempt),
+                    "lease_seconds_remaining": float(expires) - current,
+                }
+                for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall()
+            ]
+            return rows
 
     def release(self, *, tracker: str, ticket_id: str, role: str, claimer_id: str) -> bool:
         """Drop the claim if ``claimer_id`` still owns it.
 
         Returns ``True`` when a row was removed.
         """
-        cursor = self._connect().execute(
-            "DELETE FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
-            (tracker, ticket_id, role, claimer_id),
-        )
-        return bool(cursor.rowcount)
+        with self._lock:
+            cursor = self._connect().execute(
+                "DELETE FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
+                (tracker, ticket_id, role, claimer_id),
+            )
+            return bool(cursor.rowcount)
 
     def attempt_count(self, *, tracker: str, ticket_id: str, role: str) -> int:
         """Return ``stage_attempt`` for the live or last claim row, or ``0``."""
-        row = (
-            self._connect()
-            .execute(
-                "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
-                (tracker, ticket_id, role),
+        with self._lock:
+            row = (
+                self._connect()
+                .execute(
+                    "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
+                    (tracker, ticket_id, role),
+                )
+                .fetchone()
             )
-            .fetchone()
-        )
-        if row is None:
-            return 0
-        return int(row[0])
+            if row is None:
+                return 0
+            return int(row[0])
 
     def bump_attempt(self, *, tracker: str, ticket_id: str, role: str, claimer_id: str) -> int:
         """Increment and return ``stage_attempt`` for the held claim.
 
         Returns ``-1`` when no live claim exists for ``claimer_id``.
         """
-        conn = self._connect()
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            row = conn.execute(
-                "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
-                (tracker, ticket_id, role, claimer_id),
-            ).fetchone()
-            if row is None:
+        with self._lock:
+            conn = self._connect()
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                row = conn.execute(
+                    "SELECT stage_attempt FROM claims "
+                    "WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
+                    (tracker, ticket_id, role, claimer_id),
+                ).fetchone()
+                if row is None:
+                    conn.execute("ROLLBACK")
+                    return -1
+                attempt = int(row[0]) + 1
+                conn.execute(
+                    "UPDATE claims SET stage_attempt = ? "
+                    "WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
+                    (attempt, tracker, ticket_id, role, claimer_id),
+                )
+                conn.execute("COMMIT")
+            except sqlite3.Error:
                 conn.execute("ROLLBACK")
-                return -1
-            attempt = int(row[0]) + 1
-            conn.execute(
-                "UPDATE claims SET stage_attempt = ? "
-                "WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
-                (attempt, tracker, ticket_id, role, claimer_id),
-            )
-            conn.execute("COMMIT")
-        except sqlite3.Error:
-            conn.execute("ROLLBACK")
-            raise
-        return attempt
+                raise
+            return attempt
 
 
 # ---------------------------------------------------------------------------
@@ -824,6 +848,7 @@ class PipelineDispatcher(Protocol):
         idempotency_key: str,
     ) -> DispatchOutcome:
         """Run ``role`` against ``ticket`` and return an outcome."""
+        ...
 
 
 # ---------------------------------------------------------------------------
@@ -855,6 +880,10 @@ class StageHandoff:
             "outcome": self.outcome,
             "idempotency_key": self.idempotency_key,
         }
+
+
+def _new_handoff_log() -> list[StageHandoff]:
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -906,7 +935,7 @@ class TrackerPipeline:
     dispatcher: PipelineDispatcher
     claimer_id: str = field(default_factory=lambda: f"worker-{uuid.uuid4().hex[:12]}")
     hook_registry: HookRegistry | None = None
-    handoffs: list[StageHandoff] = field(default_factory=list)
+    handoffs: list[StageHandoff] = field(default_factory=_new_handoff_log)
     """In-process log of handoffs emitted by the most recent ticks.
 
     Operators who do not wire a :class:`HookRegistry` can still inspect
@@ -1026,8 +1055,9 @@ class TrackerPipeline:
         # does not yet mandate one; we degrade to body-only matching
         # when the adapter does not provide it.
         haystacks: list[str] = [ticket.body or ""]
-        list_comments = getattr(adapter, "list_comments", None)
-        if callable(list_comments):
+        list_comments_raw = getattr(adapter, "list_comments", None)
+        if callable(list_comments_raw):
+            list_comments = cast(Callable[[str], Iterable[object]], list_comments_raw)
             try:
                 for comment in list_comments(ticket.id):
                     body = getattr(comment, "body", "")

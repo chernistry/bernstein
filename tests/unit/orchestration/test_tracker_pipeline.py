@@ -443,6 +443,11 @@ class TestClaimLedger:
         assert len(losers) == 7
         assert all(r.reason == "held" for r in losers)
 
+    def test_same_database_ledgers_share_process_lock(self, tmp_path: Path) -> None:
+        ledger_a = ClaimLedger(tmp_path / "claims.db")
+        ledger_b = ClaimLedger(tmp_path / "nested" / ".." / "claims.db")
+        assert ledger_a._lock is ledger_b._lock
+
     def test_attempt_counter_starts_at_zero_then_bumps(self, tmp_path: Path) -> None:
         ledger = ClaimLedger(tmp_path / "claims.db")
         ledger.try_claim(

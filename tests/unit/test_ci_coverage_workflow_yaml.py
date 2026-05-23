@@ -12,7 +12,8 @@ except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
     pytest.skip("pyyaml not installed", allow_module_level=True)
 
 
-CI_WF = Path(".github/workflows/ci.yml")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CI_WF = REPO_ROOT / ".github/workflows/ci.yml"
 
 
 @pytest.fixture(scope="module")

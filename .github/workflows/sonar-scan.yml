@@ -148,15 +148,11 @@ jobs:
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
           # `sonar.projectKey` and `sonar.projectName` come from
-          # `sonar-project.properties`. The overrides below cover values
-          # the workflow needs to differ from the file (e.g. broader
-          # python.version matrix, top-level `src/` for full-tree scans,
-          # workflow-run SHA pinning).
+          # `sonar-project.properties`. Keep source, test, exclusion,
+          # and coverage-exclusion scope in that file so local and CI
+          # scans use the same analysis boundary.
           args: >
             -Dsonar.python.version=3.12,3.13
-            -Dsonar.sources=src
-            -Dsonar.tests=tests
             -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.exclusions=src/bernstein/_default_templates/**,src/bernstein/grpc_gen/**
             -Dsonar.scm.revision=${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
             -Dsonar.ws.timeout=600

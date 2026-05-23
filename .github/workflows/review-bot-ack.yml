@@ -41,6 +41,7 @@ jobs:
     if: github.event.pull_request != null
     permissions:
       contents: read
+      issues: write
       pull-requests: write
     steps:
       - name: Harden runner (audit mode)
@@ -59,7 +60,7 @@ jobs:
 
       - name: Run review-bot acknowledgement gate
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

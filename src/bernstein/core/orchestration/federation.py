@@ -446,13 +446,13 @@ class FederationConfig:
 
 def _to_string_tuple(value: object) -> _StringTuple:
     if value is None:
-        return ()
+        return tuple()
     if isinstance(value, str):
         return (value,)
     try:
         values = iter(cast("Iterable[object]", value))
     except TypeError:
-        return ()
+        return tuple()
     return tuple(item for item in values if isinstance(item, str))
 
 

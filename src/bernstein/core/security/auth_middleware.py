@@ -198,11 +198,11 @@ def _normalise_expected_resource(raw: _ExpectedResourceConfig) -> tuple[str, ...
     claim by :func:`_resource_indicator_check`.
     """
     if raw is None:
-        return ()
+        return tuple()
     if isinstance(raw, str):
         text = raw.strip()
         if not text:
-            return ()
+            return tuple()
         if "," in text:
             return tuple(part.strip() for part in text.split(",") if part.strip())
         return (text,)

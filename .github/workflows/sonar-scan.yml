@@ -157,5 +157,5 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=src/bernstein/_default_templates/**,src/bernstein/grpc_gen/**
-            -Dsonar.scm.revision=${{ github.sha }}
+            -Dsonar.scm.revision=${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
             -Dsonar.ws.timeout=600

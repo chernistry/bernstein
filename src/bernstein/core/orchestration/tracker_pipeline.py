@@ -58,7 +58,7 @@ import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     from bernstein.core.lifecycle.hooks import HookRegistry
@@ -530,9 +530,9 @@ class ClaimLedger:
     :meth:`try_claim` re-acquires it.
 
     The implementation pins ``check_same_thread=False`` and serialises
-    writes via a process-local lock; the underlying SQLite connection
-    is opened lazily so test code may instantiate many ledgers without
-    paying file-system cost up front.
+    writes via a per-database process-local lock; the underlying
+    SQLite connection is opened lazily so test code may instantiate
+    many ledgers without paying file-system cost up front.
     """
 
     _SCHEMA: Final[str] = """
@@ -547,16 +547,28 @@ class ClaimLedger:
             PRIMARY KEY (tracker, ticket_id, role)
         )
     """
+    _locks: ClassVar[dict[str, threading.RLock]] = {}
+    _locks_guard: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
-        self._lock = threading.RLock()
+        self._lock = self._lock_for_path(db_path)
 
     @property
     def db_path(self) -> Path:
         """Filesystem path the ledger persists at."""
         return self._db_path
+
+    @classmethod
+    def _lock_for_path(cls, db_path: Path) -> threading.RLock:
+        key = str(db_path.expanduser().resolve(strict=False))
+        with cls._locks_guard:
+            lock = cls._locks.get(key)
+            if lock is None:
+                lock = threading.RLock()
+                cls._locks[key] = lock
+            return lock
 
     def _connect(self) -> sqlite3.Connection:
         with self._lock:

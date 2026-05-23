@@ -15,6 +15,7 @@ on:
       # filter and the "tag exists?" check inside auto-release.yml.
       # Documentation & prose
       - "docs/**"
+      - "!docs/operations/ci-topology.md"
       - "*.md"
       - "!README.md"
       - "LICENSE"
@@ -64,6 +65,7 @@ on:
     paths-ignore:
       # Documentation & prose
       - "docs/**"
+      - "!docs/operations/ci-topology.md"
       - "*.md"
       - "!README.md"
       - "LICENSE"

@@ -40,6 +40,7 @@ on:
     paths:
       # Documentation & prose
       - "docs/**"
+      - "!docs/operations/ci-topology.md"
       - "*.md"
       - "!README.md"
       - "LICENSE"

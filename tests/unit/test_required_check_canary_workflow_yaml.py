@@ -51,6 +51,8 @@ REQUIRED_CONTEXT = "CI gate"
 REQUIRED_JOB_KEY = "ci-gate"
 MACOS_JOB_KEY = "test-macos"
 MACOS_JOB_NAME = "Test (macos-latest, Python 3.13)"
+TOPOLOGY_REPORT_PATH = "docs/operations/ci-topology.md"
+TOPOLOGY_REPORT_UNIGNORE = f"!{TOPOLOGY_REPORT_PATH}"
 
 # Allow-listed `CI gate` emitters. Branch protection still depends on
 # a single required-context *name*, but two workflow files now legitimately
@@ -289,6 +291,38 @@ def test_stub_paths_mirror_ci_paths_ignore(ci_doc: dict[str, object], stub_doc: 
         f"  ci.yml paths-ignore : {ci_paths_ignore}\n"
         f"  stub paths          : {stub_paths}\n"
         "When you add or remove an entry in one file, update the other in the same PR."
+    )
+
+
+def test_ci_topology_report_changes_trigger_real_ci(ci_doc: dict[str, object], stub_doc: dict[str, object]) -> None:
+    """Topology report repairs must not be docs-only skipped.
+
+    The report is generated from workflow YAML. When a workflow change lands
+    with stale topology docs, the repair PR must exercise the real CI gate
+    again so main gets a fresh green check on the repaired head.
+    """
+    ci_on = ci_doc.get(True, ci_doc.get("on"))
+    assert isinstance(ci_on, dict)
+
+    for event_name in ("push", "pull_request"):
+        event = ci_on.get(event_name)
+        assert isinstance(event, dict)
+        paths_ignore = event.get("paths-ignore")
+        assert isinstance(paths_ignore, list)
+        assert TOPOLOGY_REPORT_UNIGNORE in paths_ignore, (
+            f"ci.yml {event_name}.paths-ignore must unignore {TOPOLOGY_REPORT_PATH!r}. "
+            "Otherwise topology repairs can merge without a fresh real CI gate on the repaired head."
+        )
+
+    stub_on = stub_doc.get(True, stub_doc.get("on"))
+    assert isinstance(stub_on, dict)
+    stub_pr = stub_on.get("pull_request")
+    assert isinstance(stub_pr, dict)
+    stub_paths = stub_pr.get("paths")
+    assert isinstance(stub_paths, list)
+    assert TOPOLOGY_REPORT_UNIGNORE in stub_paths, (
+        "ci-gate-stub.yml must mirror the topology-report unignore so the stub "
+        "does not emit CI gate for topology report repairs."
     )
 
 

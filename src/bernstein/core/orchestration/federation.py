@@ -86,6 +86,8 @@ log = logging.getLogger(__name__)
 type _StringTuple = tuple[str, ...]
 
 
+_EMPTY_STRING_TUPLE: Final[_StringTuple] = ()
+
 DEFAULT_AUDIT_RELPATH: Final[Path] = Path("lineage") / "cross-tracker-audit.jsonl"
 """Path under ``.sdd/`` where cross-tracker audit records land by default."""
 
@@ -446,13 +448,13 @@ class FederationConfig:
 
 def _to_string_tuple(value: object) -> _StringTuple:
     if value is None:
-        return tuple()
+        return _EMPTY_STRING_TUPLE
     if isinstance(value, str):
         return (value,)
     try:
         values = iter(cast("Iterable[object]", value))
     except TypeError:
-        return tuple()
+        return _EMPTY_STRING_TUPLE
     return tuple(item for item in values if isinstance(item, str))
 
 

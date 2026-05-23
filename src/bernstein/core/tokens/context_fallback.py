@@ -64,8 +64,7 @@ _FENCED_CODE_RE = re.compile(
 
 #: Regex for traceback blocks (Python-style).
 _TRACEBACK_RE = re.compile(
-    r"(Traceback \(most recent call last\):.*?)(?=\n\n|\Z)",
-    re.DOTALL,
+    r"(Traceback \(most recent call last\):(?:\n(?!\n).*)*)(?=\n\n|\Z)",
 )
 
 

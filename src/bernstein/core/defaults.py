@@ -37,6 +37,9 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Literal
 
+PY_IDENTIFIER_RE_FRAGMENT = r"[A-Z_][A-Z0-9_]*"
+"""Regex fragment for Python identifiers when compiled with ``re.IGNORECASE``."""
+
 
 @dataclass(frozen=True)
 class DashboardStaticAsset:

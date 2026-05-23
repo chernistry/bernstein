@@ -62,7 +62,7 @@ _DEFAULT_BIN_COUNT: Final[int] = 10
 """Default number of reliability buckets - the standard 10-bin ECE config."""
 
 _DURATION_RE: Final[re.Pattern[str]] = re.compile(
-    r"^\s*(\d+)\s*(s|m|h|d|w)\s*$",
+    r"^\s*(\d+)\s*([smhdw])\s*$",
     re.IGNORECASE,
 )
 

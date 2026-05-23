@@ -90,6 +90,12 @@ def test_extract_legacy_arxiv() -> None:
     assert arx and arx[0].value == "cs.LG/0701001"
 
 
+def test_extract_legacy_arxiv_with_dotted_hyphenated_subject() -> None:
+    cs = extract_citations("see arXiv:cond-mat.mtrl-sci/0301234 for details")
+    arx = [c for c in cs if c.kind == "arxiv"]
+    assert arx and arx[0].value == "cond-mat.mtrl-sci/0301234"
+
+
 def test_extract_legacy_arxiv_rejects_oversized_archive_prefix() -> None:
     oversized_archive = "a" * 80
     cs = extract_citations(f"see arXiv:{oversized_archive}/0701001 for details")

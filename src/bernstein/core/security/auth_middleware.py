@@ -47,7 +47,7 @@ import logging
 import os
 import re
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast
 
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -65,6 +65,8 @@ _PERM_TASKS_WRITE = "tasks:write"
 _PERM_ADMIN_MANAGE = "admin:manage"
 
 type _ExpectedResourceConfig = str | Sequence[str] | None
+
+_EMPTY_EXPECTED_RESOURCES: Final[tuple[str, ...]] = ()
 
 logger = logging.getLogger(__name__)
 
@@ -198,11 +200,11 @@ def _normalise_expected_resource(raw: _ExpectedResourceConfig) -> tuple[str, ...
     claim by :func:`_resource_indicator_check`.
     """
     if raw is None:
-        return tuple()
+        return _EMPTY_EXPECTED_RESOURCES
     if isinstance(raw, str):
         text = raw.strip()
         if not text:
-            return tuple()
+            return _EMPTY_EXPECTED_RESOURCES
         if "," in text:
             return tuple(part.strip() for part in text.split(",") if part.strip())
         return (text,)

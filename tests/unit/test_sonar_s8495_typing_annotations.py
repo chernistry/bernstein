@@ -99,6 +99,18 @@ def _direct_tuple_return_lengths(function: ast.FunctionDef) -> set[int]:
     return lengths
 
 
+def _empty_tuple_constructor_lines(function: ast.FunctionDef) -> list[int]:
+    lines: list[int] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id == "tuple" and not node.args and not node.keywords:
+            lines.append(node.lineno)
+    return lines
+
+
 def test_scoped_s8495_functions_do_not_return_mixed_tuple_literal_lengths() -> None:
     """The scoped S8495 findings must avoid direct tuple literals with mixed lengths."""
     for path, function_path in TUPLE_RETURN_EXPECTATIONS:
@@ -106,3 +118,12 @@ def test_scoped_s8495_functions_do_not_return_mixed_tuple_literal_lengths() -> N
         function = _find_function(module, function_path)
 
         assert len(_direct_tuple_return_lengths(function)) <= 1
+
+
+def test_scoped_tuple_functions_do_not_call_empty_tuple_constructor() -> None:
+    """The scoped S7498 findings must avoid no-arg tuple constructors."""
+    for path, function_path in TUPLE_RETURN_EXPECTATIONS:
+        _source, module = _source_for(path)
+        function = _find_function(module, function_path)
+
+        assert _empty_tuple_constructor_lines(function) == []

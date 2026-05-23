@@ -154,6 +154,24 @@ def test_sonar_scan_references_coverage_xml_in_args(sonar_doc: dict[str, object]
     )
 
 
+def test_sonar_scan_scope_comes_from_project_properties(sonar_doc: dict[str, object]) -> None:
+    """The workflow must not clobber the canonical Sonar scope config."""
+    jobs = sonar_doc.get("jobs", {})
+    scan = jobs.get("scan", {})
+    steps = scan.get("steps", [])
+    sonar_step = next(
+        (s for s in steps if isinstance(s, dict) and "SonarSource/sonarqube-scan-action" in (s.get("uses") or "")),
+        None,
+    )
+    assert sonar_step is not None, "Workflow must invoke SonarSource/sonarqube-scan-action"
+    args = (sonar_step.get("with") or {}).get("args", "")
+
+    assert "sonar.sources=" not in args
+    assert "sonar.tests=" not in args
+    assert "sonar.exclusions=" not in args
+    assert "sonar.coverage.exclusions=" not in args
+
+
 def test_sonar_scan_revision_matches_workflow_run_head_sha(sonar_doc: dict[str, object]) -> None:
     """Workflow-run scans must report the same commit that was checked out."""
     jobs = sonar_doc.get("jobs", {})

@@ -1294,10 +1294,10 @@ jobs:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }}, shard ${{ matrix.shard }})
     needs: [lint]  # fast-fail: don't waste 45min if lint fails
     runs-on: ${{ matrix.os }}
-    # Per-shard the unit suite is ~1/4 of the old wall time. The coverage
-    # re-run (ubuntu/3.13/push only) runs on shard 1 alone and still
-    # iterates every file (~25 min) since it has its own file loop; 90
-    # leaves headroom for that cell without inviting hangs on slow runners.
+    # Per-shard the unit suite is ~1/4 of the old wall time. Push-time
+    # coverage is collected during the existing ubuntu/3.13 shard runs and
+    # combined by coverage-report below, so no shard performs a serial
+    # full-suite coverage rerun.
     timeout-minutes: 90
     permissions:
       contents: read
@@ -1355,6 +1355,7 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           EVENT_NAME: ${{ github.event_name }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
           SHARD: ${{ matrix.shard }}
           SHARD_COUNT: ${{ env.TEST_SHARD_COUNT }}
         run: |
@@ -1362,13 +1363,19 @@ jobs:
           # discovered (and, on PRs, affected) file list. On PRs the
           # affected set is sharded too, so each runner runs ~1/N of the
           # impacted files.
+          coverage_args=()
+          if [ "${EVENT_NAME}" = "push" ] && [ "${RUNNER_OS}" = "Linux" ] && [ "${PYTHON_VERSION}" = "3.13" ]; then
+            coverage_args=(--coverage)
+          fi
           if [ "${EVENT_NAME}" = "pull_request" ] && \
              git rev-parse --verify "refs/remotes/origin/${BASE_REF}" >/dev/null 2>&1; then
             uv run python scripts/run_tests.py --parallel 4 \
+              "${coverage_args[@]}" \
               --shard "${SHARD}/${SHARD_COUNT}" \
               --affected "refs/remotes/origin/${BASE_REF}"
           else
             uv run python scripts/run_tests.py --parallel 4 \
+              "${coverage_args[@]}" \
               --shard "${SHARD}/${SHARD_COUNT}"
           fi
       - name: Run isolated test suite (Windows)
@@ -1398,143 +1405,71 @@ jobs:
         run: |
           uv run pytest tests/integration/test_capability_matrix_spawn_refusal.py `
             -x -q --tb=short --timeout=120
-      - name: Generate coverage and JUnit reports (ubuntu, 3.13, shard 1 only)
-        # Pinned to shard 1 so coverage is generated exactly once even
-        # though ubuntu/3.13 now fans out across 4 shards. This step has
-        # its OWN file loop (rglob over all of tests/unit below), so it
-        # still covers every file regardless of which shard runs it - the
-        # shard pin only deduplicates, it does not narrow coverage.
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
-        continue-on-error: true
-        timeout-minutes: 25
+      - name: Prepare coverage shard artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         run: |
-          # Run each test file in its own process with coverage to avoid OOM.
-          # pytest --cov on ~1.4k files in one process exceeds 7GB runner RAM.
-          # JUnit XML is accumulated across all runs via --junitxml append logic.
-          uv run python -c "
-          import subprocess, sys, os
-          from pathlib import Path
-
-          os.environ['COVERAGE_FILE'] = '.coverage'
-          test_dir = Path('tests/unit')
-          files = sorted(test_dir.rglob('test_*.py'))
-          failed = 0
-          junit_parts = []
-          for i, f in enumerate(files):
-              junit_part = f'.junit_part_{i}.xml'
-              cmd = [
-                  sys.executable, '-m', 'coverage', 'run',
-                  '--source=src/bernstein', '--parallel-mode',
-                  '-m', 'pytest', str(f), '-x', '-q', '--tb=no', '--timeout=120', '-s',
-                  '-p', 'no:cacheprovider',
-                  f'--junitxml={junit_part}',
-                  '-o', 'junit_family=legacy',
-              ]
-              r = subprocess.run(cmd, capture_output=True, timeout=180)
-              if r.returncode != 0:
-                  failed += 1
-              if Path(junit_part).exists():
-                  junit_parts.append(junit_part)
-              if (i + 1) % 50 == 0:
-                  print(f'  coverage: {i+1}/{len(files)} files done', flush=True)
-          print(f'Coverage collected from {len(files)} files ({failed} had failures)')
-
-          # Merge JUnit XML parts into a single junit.xml
-          if junit_parts:
-              import xml.etree.ElementTree as ET
-              root = ET.Element('testsuites')
-              for part in junit_parts:
-                  try:
-                      tree = ET.parse(part)
-                      for suite in tree.getroot():
-                          root.append(suite)
-                  except Exception:
-                      pass
-              ET.ElementTree(root).write('junit.xml', encoding='unicode', xml_declaration=True)
-              print(f'Merged {len(junit_parts)} JUnit XML files into junit.xml')
-          "
-          uv run python -m coverage combine || true
-          uv run python -m coverage xml -o coverage.xml || true
-          if [ ! -f coverage.xml ]; then
-            echo "::warning::coverage.xml was not generated"
+          if [ ! -f .coverage ]; then
+            echo "::error::.coverage was not generated for shard ${{ matrix.shard }}"
+            exit 1
           fi
-          if [ ! -f junit.xml ]; then
-            echo "::warning::junit.xml was not generated"
-          fi
-      - name: Publish JUnit + flake summary
-        # Surfaces test results and flaky-test annotations in the PR check
-        # tab. `flaky_summary: true` lists tests that passed on a retry -
-        # pair with `pytest-rerunfailures` (separate PR) for full coverage.
-        # `fail_on_failure: false` so we don't double-fail; the test job
-        # already reports its own non-zero exit.
-        #
-        # Gated to ubuntu/3.13 shard 1 on push because that is the only
-        # matrix cell emitting junit.xml (see the coverage step above).
-        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
-        uses: mikepenz/action-junit-report@3a81627bfac62268172037048872e8ebd4207e6d # v6.4.1
-        with:
-          report_paths: '**/junit.xml'
-          flaky_summary: true
-          check_retries: true
-          fail_on_failure: false
-          require_tests: false
-      - name: CTRF test reporter (markdown summary + flaky breakdown)
-        # Renders a markdown test-result summary in the workflow Step
-        # Summary tab and (when the triggering event is a PR) posts the
-        # same content as a PR comment. The action ingests our existing
-        # junit.xml in-place; no extra producer step required. Pairs
-        # with the nightly flake-quarantine.yml workflow which auto-PRs
-        # quarantine markers for tests that flake repeatedly.
-        #
-        # Gated to the same matrix cell as the JUnit producer step so we
-        # only invoke the reporter when junit.xml actually exists.
-        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
-        uses: ctrf-io/github-test-reporter@0f299074936c32ccaab5be5230511f6b2b9080aa # v1.0.28
-        with:
-          report-path: junit.xml
-          summary-report: true
-          failed-report: true
-          flaky-report: true
-          test-list-report: false
-          pull-request: true
-          update-comment: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload CTRF report artifact
-        # Persist the CTRF JSON the reporter emits so the nightly flake-
-        # quarantine job has a 7-day window of historical reports to
-        # mine. retention-days lines up with the xflaky look-back window.
-        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
+          mv .coverage ".coverage.${{ matrix.shard }}"
+      - name: Upload coverage shard artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ctrf-report
-          path: |
-            ctrf/
-            junit.xml
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Upload coverage artifact
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
+          name: coverage-data-${{ matrix.shard }}
+          path: .coverage.${{ matrix.shard }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+  coverage-report:
+    name: Coverage report
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
+        with:
+          python-version: "3.13"
+      - name: Download coverage shard artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-data-*
+          path: coverage-shards
+          merge-multiple: true
+      - name: Merge coverage shards
+        run: |
+          shard_count=$(find coverage-shards -name '.coverage.*' -type f | wc -l | tr -d ' ')
+          if [ "$shard_count" -lt 4 ]; then
+            echo "::error::expected 4 coverage shard files, found $shard_count"
+            find coverage-shards -maxdepth 2 -type f -print
+            exit 1
+          fi
+          uv run python -m coverage combine coverage-shards/.coverage.*
+          uv run python -m coverage xml -o coverage.xml
+          test -s coverage.xml
+      - name: Upload coverage report artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-report
-          path: |
-            coverage.xml
-            junit.xml
-          if-no-files-found: warn
+          path: coverage.xml
+          if-no-files-found: error
           retention-days: 1
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push'
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           files: coverage.xml
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && matrix.shard == 1 && github.event_name == 'push' && !cancelled()
-        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1
-        with:
-          files: junit.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -1875,6 +1810,7 @@ jobs:
       - adapter-integration
       - adapter-integration-macos
       - test
+      - coverage-report
       - test-macos
     timeout-minutes: 3
     permissions:
@@ -1923,6 +1859,9 @@ jobs:
           # the diff is macos_sensitive or the PR carries the
           # `macos-needed` label. Always run on push events.
           MACOS_GATED = {"test-macos", "adapter-integration-macos"}
+          # Push-only jobs are required on native main pushes but skip
+          # intentionally on PR, workflow_dispatch, and merge_group runs.
+          PUSH_ONLY = {"coverage-report"}
           # Events under which a macOS-gated skip is intentional. PRs and
           # manual dispatch already gate macOS behind macos_sensitive /
           # label. merge_group must be included too: a merge queue runs CI
@@ -1958,6 +1897,8 @@ jobs:
               if r == "success":
                   continue
               if r == "skipped":
+                  if name in PUSH_ONLY and event != "push":
+                      continue
                   if docs_only and name in DOCS_ONLY_SKIPPABLE:
                       continue
                   # macOS-gated jobs are allowed to skip on:

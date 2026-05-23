@@ -36,6 +36,13 @@ def _payload() -> DailyActivePayload:
     return DailyActivePayload(day_iso="2026-05-22")
 
 
+def _test_env(tmp_home: Path, overrides: dict[str, str] | None = None) -> dict[str, str]:
+    env = {"XDG_CONFIG_HOME": str(tmp_home / ".config")}
+    if overrides is not None:
+        env.update(overrides)
+    return env
+
+
 def _emit_with(
     tmp_home: Path,
     transport: _RecordingTransport,
@@ -58,13 +65,14 @@ def _emit_with(
 
 def test_share_flag_and_endpoint_send_same_event_with_detached_receipt(tmp_home: Path) -> None:
     """Explicit share consent plus endpoint emits a signed copy of the event."""
-    consent.write_share_flag(True, home=tmp_home)
+    env = _test_env(tmp_home, {SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"})
+    consent.write_share_flag(True, env=env, home=tmp_home)
     transport = _RecordingTransport()
 
     assert _emit_with(
         tmp_home,
         transport,
-        env={SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"},
+        env=env,
     )
 
     assert [request.url.host for request in transport.requests] == [
@@ -93,12 +101,13 @@ def test_share_flag_and_endpoint_send_same_event_with_detached_receipt(tmp_home:
 
 def test_share_endpoint_without_share_consent_does_not_send_or_create_key(tmp_home: Path) -> None:
     """Endpoint configuration alone is not consent."""
+    env = _test_env(tmp_home, {SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"})
     transport = _RecordingTransport()
 
     assert _emit_with(
         tmp_home,
         transport,
-        env={SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"},
+        env=env,
     )
 
     assert [request.url.host for request in transport.requests] == ["operator.example.test"]
@@ -107,10 +116,11 @@ def test_share_endpoint_without_share_consent_does_not_send_or_create_key(tmp_ho
 
 def test_share_consent_without_endpoint_does_not_send_or_create_key(tmp_home: Path) -> None:
     """Consent alone is inert until the endpoint is configured out of package."""
-    consent.write_share_flag(True, home=tmp_home)
+    env = _test_env(tmp_home)
+    consent.write_share_flag(True, env=env, home=tmp_home)
     transport = _RecordingTransport()
 
-    assert _emit_with(tmp_home, transport, env={})
+    assert _emit_with(tmp_home, transport, env=env)
 
     assert [request.url.host for request in transport.requests] == ["operator.example.test"]
     assert not share_private_key_path(tmp_home).exists()
@@ -118,13 +128,14 @@ def test_share_consent_without_endpoint_does_not_send_or_create_key(tmp_home: Pa
 
 def test_share_consent_with_non_https_endpoint_does_not_send_or_create_key(tmp_home: Path) -> None:
     """The maintainer-share endpoint must be supplied as HTTPS."""
-    consent.write_share_flag(True, home=tmp_home)
+    env = _test_env(tmp_home, {SHARE_ENDPOINT_ENV: "http://maintainer.example.test/v1/events"})
+    consent.write_share_flag(True, env=env, home=tmp_home)
     transport = _RecordingTransport()
 
     assert _emit_with(
         tmp_home,
         transport,
-        env={SHARE_ENDPOINT_ENV: "http://maintainer.example.test/v1/events"},
+        env=env,
     )
 
     assert [request.url.host for request in transport.requests] == ["operator.example.test"]
@@ -136,7 +147,8 @@ def test_share_consent_does_not_send_when_local_audit_append_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The share sink requires the local audit queue copy to exist first."""
-    consent.write_share_flag(True, home=tmp_home)
+    env = _test_env(tmp_home, {SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"})
+    consent.write_share_flag(True, env=env, home=tmp_home)
     transport = _RecordingTransport()
 
     from bernstein.core.telemetry import client as client_mod
@@ -149,7 +161,7 @@ def test_share_consent_does_not_send_when_local_audit_append_fails(
     assert _emit_with(
         tmp_home,
         transport,
-        env={SHARE_ENDPOINT_ENV: "https://maintainer.example.test/v1/events"},
+        env=env,
     )
 
     assert [request.url.host for request in transport.requests] == ["operator.example.test"]

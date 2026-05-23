@@ -39,6 +39,14 @@ class CacheBreakReason(Enum):
     UNKNOWN = "unknown"  # cause not determined
 
 
+def _empty_str_list() -> list[str]:
+    return []
+
+
+def _empty_metadata() -> dict[str, Any]:
+    return {}
+
+
 # Savings-per-token at Anthropic's cached-input discount (90% off vs standard
 # claude-sonnet-4 input price of $3.00/MTok).  Standard - cached = $2.70/MTok.
 CACHED_SAVINGS_PER_TOKEN: float = 2.70 / 1_000_000
@@ -356,7 +364,7 @@ class AgentCacheTracker:
 
         evicted: str | None = None
         if len(self._entries) >= self.max_entries:
-            evicted, _ = self._entries.popitem(last=False)  # oldest = FIFO
+            evicted, _ = self._entries.popitem(last=False)  # FIFO: remove oldest session.
             logger.debug(
                 "AgentCacheTracker: evicted session %s (cap=%d reached)",
                 evicted,
@@ -782,7 +790,7 @@ class CacheBreak:
     new_hash: str
     old_content: str
     new_content: str
-    diff_lines: list[str] = field(default_factory=list)
+    diff_lines: list[str] = field(default_factory=_empty_str_list)
     timestamp: float = field(default_factory=time.time)
 
     def generate_diff(self, context_lines: int = 3) -> None:
@@ -847,7 +855,7 @@ class CacheBaselineAlert:
     drop_percentage: float
     threshold: float
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=_empty_metadata)
 
 
 class CacheBaselineMonitor:

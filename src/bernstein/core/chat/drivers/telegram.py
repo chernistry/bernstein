@@ -217,7 +217,7 @@ class TelegramBridge(BridgeProtocol):
         text: str = str(message.text or "")
         if not text.startswith("/"):
             return
-        parts: list[str] = [p for p in text.split()]
+        parts: list[str] = text.split()
         name = parts[0][1:].split("@", 1)[0]  # strip @botname suffix
         handler = self._command_handlers.get(name)
         if handler is None:

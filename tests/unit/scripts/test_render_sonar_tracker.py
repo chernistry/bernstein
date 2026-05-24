@@ -71,6 +71,28 @@ def _issue(
     }
 
 
+def _hotspot(
+    key: str,
+    *,
+    rule_key: str = "python:S5042",
+    component: str = "bernstein:src/bernstein/core/persistence/disaster_recovery.py",
+    line: int | None = 349,
+    status: str = "TO_REVIEW",
+    security_category: str = "command-injection",
+    vulnerability_probability: str = "HIGH",
+) -> dict[str, Any]:
+    return {
+        "key": key,
+        "ruleKey": rule_key,
+        "component": component,
+        "line": line,
+        "status": status,
+        "securityCategory": security_category,
+        "vulnerabilityProbability": vulnerability_probability,
+        "message": "vendor hotspot message that must never be rendered",
+    }
+
+
 def _snapshot(
     tracker: ModuleType,
     findings: list[dict[str, Any]],
@@ -78,6 +100,7 @@ def _snapshot(
     quality_gate: str = "ERROR",
     coverage: float | None = 19.3,
     quality_gate_conditions: list[Any] | None = None,
+    security_hotspots: list[Any] | None = None,
 ) -> Any:
     normalised = [tracker._normalise_issue(raw) for raw in findings]
     return tracker.SonarSnapshot(
@@ -87,6 +110,7 @@ def _snapshot(
         host=HOST,
         project_key=PROJECT,
         quality_gate_conditions=quality_gate_conditions or [],
+        security_hotspots=security_hotspots or [],
     )
 
 
@@ -185,6 +209,41 @@ def test_body_renders_quality_gate_conditions(tracker: ModuleType) -> None:
             "error_threshold": "80",
             "metric_key": "branch_coverage",
             "status": "ERROR",
+        }
+    ]
+
+
+def test_body_renders_security_hotspots_without_vendor_message(tracker: ModuleType) -> None:
+    hotspot = tracker.SecurityHotspot(
+        key="HS-1",
+        rule_key="python:S5042",
+        component="bernstein:src/bernstein/core/persistence/disaster_recovery.py",
+        line=349,
+        status="TO_REVIEW",
+        security_category="command-injection",
+        vulnerability_probability="HIGH",
+    )
+    snapshot = _snapshot(tracker, [], security_hotspots=[hotspot])
+
+    body = tracker.render_body(snapshot, generated_at="2026-05-21T00:00:00+00:00")
+
+    assert "## Security Hotspots To Review" in body
+    assert "| `python:S5042` | TO_REVIEW | command-injection | HIGH |" in body
+    assert "`src/bernstein/core/persistence/disaster_recovery.py:349`" in body
+    assert f"{HOST}/security_hotspots?id={PROJECT}&hotspots=HS-1" in body
+    assert "vendor hotspot message" not in body
+    start = body.index("```json") + len("```json")
+    end = body.index("```", start)
+    parsed = json.loads(body[start:end])
+    assert parsed["security_hotspots"] == [
+        {
+            "component": "bernstein:src/bernstein/core/persistence/disaster_recovery.py",
+            "key": "HS-1",
+            "line": 349,
+            "rule_key": "python:S5042",
+            "security_category": "command-injection",
+            "status": "TO_REVIEW",
+            "vulnerability_probability": "HIGH",
         }
     ]
 
@@ -462,6 +521,15 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
                 json={"component": {"measures": [{"metric": "coverage", "value": "19.3"}]}},
             )
         )
+        mock.get(f"{HOST}/api/hotspots/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "hotspots": [_hotspot("HS-1")],
+                    "paging": {"pageIndex": 1, "pageSize": 500, "total": 1},
+                },
+            )
+        )
         snapshot = tracker.collect_snapshot(config)
 
     assert len(snapshot.findings) == 750
@@ -477,6 +545,17 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
     ]
     assert snapshot.coverage is not None
     assert snapshot.coverage == pytest.approx(19.3, abs=0.001)  # pyright: ignore[reportUnknownMemberType]
+    assert snapshot.security_hotspots == [
+        tracker.SecurityHotspot(
+            key="HS-1",
+            rule_key="python:S5042",
+            component="bernstein:src/bernstein/core/persistence/disaster_recovery.py",
+            line=349,
+            status="TO_REVIEW",
+            security_category="command-injection",
+            vulnerability_probability="HIGH",
+        )
+    ]
 
 
 def test_fetch_all_findings_raises_on_non_object_payload(tracker: ModuleType) -> None:

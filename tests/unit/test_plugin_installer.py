@@ -107,6 +107,15 @@ class TestExtractArchive:
         _extract_archive(archive, dest)
         assert (dest / "hello.txt").read_text() == "world"
 
+    def test_extract_zip_rejects_sibling_prefix_escape(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "plugin.zip", {"../out_evil/pwned.txt": "owned"})
+        dest = tmp_path / "out"
+
+        with pytest.raises(ValueError, match="Zip entry would escape target directory"):
+            _extract_archive(archive, dest)
+
+        assert not (tmp_path / "out_evil" / "pwned.txt").exists()
+
     def test_extract_tar_gz(self, tmp_path: Path) -> None:
         archive = _make_tgz(tmp_path / "plugin.tar.gz", {"readme.md": "# Plugin"})
         dest = tmp_path / "out"

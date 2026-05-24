@@ -77,6 +77,7 @@ def _snapshot(
     *,
     quality_gate: str = "ERROR",
     coverage: float | None = 19.3,
+    quality_gate_conditions: list[Any] | None = None,
 ) -> Any:
     normalised = [tracker._normalise_issue(raw) for raw in findings]
     return tracker.SonarSnapshot(
@@ -85,6 +86,7 @@ def _snapshot(
         coverage=coverage,
         host=HOST,
         project_key=PROJECT,
+        quality_gate_conditions=quality_gate_conditions or [],
     )
 
 
@@ -150,6 +152,41 @@ def test_json_summary_block_shape(tracker: ModuleType) -> None:
     assert parsed["by_severity"] == {"BLOCKER": 1, "CRITICAL": 2, "MAJOR": 1}
     assert parsed["blocker_keys"] == ["b1"]
     assert sorted(parsed["critical_keys"]) == ["c1", "c2"]
+
+
+def test_body_renders_quality_gate_conditions(tracker: ModuleType) -> None:
+    condition = tracker.QualityGateCondition(
+        metric_key="branch_coverage",
+        status="ERROR",
+        comparator="LT",
+        error_threshold="80",
+        actual_value="71.2",
+    )
+    snapshot = _snapshot(
+        tracker,
+        [],
+        quality_gate="ERROR",
+        coverage=80.1,
+        quality_gate_conditions=[condition],
+    )
+
+    body = tracker.render_body(snapshot, generated_at="2026-05-21T00:00:00+00:00")
+
+    assert "## Quality Gate Conditions" in body
+    assert "| Metric | Status | Actual | Comparator | Threshold |" in body
+    assert "| `branch_coverage` | ERROR | 71.2 | LT | 80 |" in body
+    start = body.index("```json") + len("```json")
+    end = body.index("```", start)
+    parsed = json.loads(body[start:end])
+    assert parsed["quality_gate_conditions"] == [
+        {
+            "actual_value": "71.2",
+            "comparator": "LT",
+            "error_threshold": "80",
+            "metric_key": "branch_coverage",
+            "status": "ERROR",
+        }
+    ]
 
 
 def test_blocker_and_critical_rendered_as_checkboxes_with_permalink(tracker: ModuleType) -> None:
@@ -401,7 +438,23 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
     with respx.mock(assert_all_called=False) as mock:
         mock.get(f"{HOST}/api/issues/search").mock(side_effect=_issues_responder)
         mock.get(f"{HOST}/api/qualitygates/project_status").mock(
-            return_value=httpx.Response(200, json={"projectStatus": {"status": "ERROR"}})
+            return_value=httpx.Response(
+                200,
+                json={
+                    "projectStatus": {
+                        "status": "ERROR",
+                        "conditions": [
+                            {
+                                "metricKey": "branch_coverage",
+                                "status": "ERROR",
+                                "comparator": "LT",
+                                "errorThreshold": "80",
+                                "actualValue": "71.2",
+                            }
+                        ],
+                    }
+                },
+            )
         )
         mock.get(f"{HOST}/api/measures/component").mock(
             return_value=httpx.Response(
@@ -413,7 +466,17 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
 
     assert len(snapshot.findings) == 750
     assert snapshot.quality_gate == "ERROR"
-    assert snapshot.coverage == pytest.approx(19.3)
+    assert snapshot.quality_gate_conditions == [
+        tracker.QualityGateCondition(
+            metric_key="branch_coverage",
+            status="ERROR",
+            comparator="LT",
+            error_threshold="80",
+            actual_value="71.2",
+        )
+    ]
+    assert snapshot.coverage is not None
+    assert snapshot.coverage == pytest.approx(19.3, abs=0.001)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_fetch_all_findings_raises_on_non_object_payload(tracker: ModuleType) -> None:

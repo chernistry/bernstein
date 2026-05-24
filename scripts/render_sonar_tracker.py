@@ -152,6 +152,35 @@ _TRACKER_FORBIDDEN: tuple[str, ...] = _SWEEPER_FORBIDDEN
 # ---------------------------------------------------------------------------
 
 
+@dataclasses.dataclass(frozen=True)
+class QualityGateCondition:
+    """One condition row from SonarQube's project quality-gate status."""
+
+    metric_key: str
+    status: str
+    comparator: str | None
+    error_threshold: str | None
+    actual_value: str | None
+
+    def as_json(self) -> dict[str, str | None]:
+        """Return a stable JSON shape for the tracker summary."""
+        return {
+            "actual_value": self.actual_value,
+            "comparator": self.comparator,
+            "error_threshold": self.error_threshold,
+            "metric_key": self.metric_key,
+            "status": self.status,
+        }
+
+
+@dataclasses.dataclass(frozen=True)
+class QualityGateResult:
+    """Quality-gate status plus its condition rows."""
+
+    status: str
+    conditions: list[QualityGateCondition] = dataclasses.field(default_factory=list)
+
+
 def fetch_all_findings(
     config: SonarConfig,
     *,
@@ -219,6 +248,15 @@ def fetch_quality_gate(
     Returns ``"UNKNOWN"`` when the server omits the field or the call
     fails; the tracker still renders with the issue counts.
     """
+    return fetch_quality_gate_details(config, client=client).status
+
+
+def fetch_quality_gate_details(
+    config: SonarConfig,
+    *,
+    client: httpx.Client | None = None,
+) -> QualityGateResult:
+    """Return the project quality-gate status and condition rows."""
     url = f"{config.host}/api/qualitygates/project_status"
     params = {"projectKey": config.project_key}
     owns_client = client is None
@@ -229,22 +267,45 @@ def fetch_quality_gate(
         try:
             resp = _request_with_retries(client, url, params)
         except SonarAPIError:
-            return "UNKNOWN"
+            return QualityGateResult("UNKNOWN")
         try:
             payload = resp.json()
         except ValueError:
-            return "UNKNOWN"
+            return QualityGateResult("UNKNOWN")
     finally:
         if owns_client:
             client.close()
     if not isinstance(payload, dict):
-        return "UNKNOWN"
+        return QualityGateResult("UNKNOWN")
     status = payload.get("projectStatus")
     if isinstance(status, dict):
         value = status.get("status")
         if isinstance(value, str) and value:
-            return value
-    return "UNKNOWN"
+            return QualityGateResult(value, _parse_quality_gate_conditions(status.get("conditions")))
+    return QualityGateResult("UNKNOWN")
+
+
+def _parse_quality_gate_conditions(raw_conditions: Any) -> list[QualityGateCondition]:
+    if not isinstance(raw_conditions, list):
+        return []
+    conditions: list[QualityGateCondition] = []
+    for raw in raw_conditions:
+        if not isinstance(raw, dict):
+            continue
+        metric_key = _opt_str(raw.get("metricKey"))
+        status = _opt_str(raw.get("status"))
+        if metric_key is None or status is None:
+            continue
+        conditions.append(
+            QualityGateCondition(
+                metric_key=metric_key,
+                status=status,
+                comparator=_opt_str(raw.get("comparator")),
+                error_threshold=_opt_str(raw.get("errorThreshold")),
+                actual_value=_opt_str(raw.get("actualValue")),
+            )
+        )
+    return conditions
 
 
 def fetch_coverage(
@@ -294,6 +355,7 @@ class SonarSnapshot:
     coverage: float | None
     host: str
     project_key: str
+    quality_gate_conditions: list[QualityGateCondition] = dataclasses.field(default_factory=list)
 
 
 def collect_snapshot(
@@ -308,17 +370,18 @@ def collect_snapshot(
     assert client is not None
     try:
         findings = fetch_all_findings(config, client=client)
-        quality_gate = fetch_quality_gate(config, client=client)
+        quality_gate = fetch_quality_gate_details(config, client=client)
         coverage = fetch_coverage(config, client=client)
     finally:
         if owns_client:
             client.close()
     return SonarSnapshot(
         findings=findings,
-        quality_gate=quality_gate,
+        quality_gate=quality_gate.status,
         coverage=coverage,
         host=config.host,
         project_key=config.project_key,
+        quality_gate_conditions=quality_gate.conditions,
     )
 
 
@@ -377,6 +440,12 @@ def _coverage_text(coverage: float | None) -> str:
     if coverage is None:
         return "n/a"
     return f"{coverage:.1f}%"
+
+
+def _condition_text(value: str | None) -> str:
+    if value is None or value == "":
+        return "n/a"
+    return value
 
 
 def _tldr_table(
@@ -460,6 +529,29 @@ def _counts_only_section(severity: str, items: list[Finding], host: str, project
     return [f"- **{severity}**: {len(items)} open ([view]({link}))", ""]
 
 
+def _quality_gate_conditions_section(conditions: Sequence[QualityGateCondition]) -> list[str]:
+    """Render Sonar quality-gate condition rows."""
+    if not conditions:
+        return []
+    lines = [
+        "## Quality Gate Conditions",
+        "",
+        "| Metric | Status | Actual | Comparator | Threshold |",
+        "| --- | --- | ---: | --- | ---: |",
+    ]
+    for condition in conditions:
+        lines.append(
+            "| "
+            f"`{condition.metric_key}` | "
+            f"{condition.status} | "
+            f"{_condition_text(condition.actual_value)} | "
+            f"{_condition_text(condition.comparator)} | "
+            f"{_condition_text(condition.error_threshold)} |"
+        )
+    lines.append("")
+    return lines
+
+
 def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding]], generated_at: str) -> list[str]:
     """Build the trailing machine-readable JSON summary.
 
@@ -472,6 +564,7 @@ def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding
     summary: dict[str, Any] = {
         "generated_at": generated_at,
         "quality_gate": snapshot.quality_gate,
+        "quality_gate_conditions": [condition.as_json() for condition in snapshot.quality_gate_conditions],
         "coverage": snapshot.coverage,
         "by_severity": by_severity,
     }
@@ -551,6 +644,7 @@ def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> 
                 coverage=snapshot.coverage,
             )
         )
+        parts.extend(_quality_gate_conditions_section(snapshot.quality_gate_conditions))
         for sev in SEVERITY_ORDER + tuple(extra_severities):
             items = buckets.get(sev, [])
             if not items:
@@ -798,7 +892,14 @@ def _load_fixture(path: Path) -> SonarSnapshot:
         coverage=_opt_float(payload.get("coverage")),
         host=str(payload.get("host", "https://sonar.bernstein.run")),
         project_key=str(payload.get("project_key", "bernstein")),
+        quality_gate_conditions=_parse_quality_gate_conditions(payload.get("quality_gate_conditions")),
     )
+
+
+def _opt_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
 
 
 def _opt_float(value: Any) -> float | None:

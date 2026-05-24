@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 _ANALYZER_CACHE_VERSION = "2"
 _COMPAT_CACHE_VERSION = "2"
+_WORKFLOW_PATH_PREFIX = ".github/workflows/"
 
 
 type _JsonObject = dict[str, object]
@@ -252,6 +253,16 @@ def _collect_changed_test_files(
     return affected
 
 
+def _has_workflow_change(changed_files: list[str]) -> bool:
+    """Return True when a changed path is a GitHub Actions workflow."""
+    return any(Path(path).as_posix().startswith(_WORKFLOW_PATH_PREFIX) for path in changed_files)
+
+
+def _workflow_test_files(test_files: list[str]) -> set[str]:
+    """Return tests that validate workflow YAML or workflow tooling."""
+    return {test_file for test_file in test_files if "workflow" in Path(test_file).name}
+
+
 def _collect_tests_for_modules(
     all_affected: set[str],
     module_to_tests: dict[str, set[str]],
@@ -292,6 +303,8 @@ def compat_get_affected_tests(
 
     all_affected = _expand_transitive_modules(changed_modules, source_imports)
     affected_tests = _collect_changed_test_files(changed_files, root, test_deps)
+    if _has_workflow_change(changed_files):
+        affected_tests.update(_workflow_test_files(list(test_deps)))
     affected_tests.update(_collect_tests_for_modules(all_affected, module_to_tests))
 
     return sorted(root / rel for rel in affected_tests)
@@ -449,6 +462,16 @@ class TestImpactAnalyzer:
 
         affected: set[str] = set()
         mappings: list[TestMapping] = []
+        workflow_tests = sorted(_workflow_test_files(all_tests)) if _has_workflow_change(normalized) else []
+        if workflow_tests:
+            affected.update(workflow_tests)
+            mappings.append(
+                TestMapping(
+                    source_file=_WORKFLOW_PATH_PREFIX.rstrip("/"),
+                    test_files=workflow_tests,
+                    reason="workflow",
+                )
+            )
         changed_sources = [
             path for path in normalized if path.endswith(".py") and (self._root / path).is_relative_to(self._src_root)
         ]

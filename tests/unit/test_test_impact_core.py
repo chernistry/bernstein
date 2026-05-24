@@ -101,6 +101,27 @@ def test_direct_test_file_change_is_always_selected(tmp_path: Path) -> None:
     assert analysis.affected_tests == ["tests/unit/test_core.py"]
 
 
+def test_workflow_change_selects_workflow_yaml_tests(tmp_path: Path) -> None:
+    _write(tmp_path / "src" / "demo" / "__init__.py", "")
+    _write(tmp_path / ".github" / "workflows" / "ci.yml", "name: CI\n")
+    _write(tmp_path / "tests" / "unit" / "test_ci_workflow_yaml.py", "def test_ci() -> None:\n    assert True\n")
+    _write(
+        tmp_path / "tests" / "unit" / "test_autoheal_workflow_yaml.py",
+        "def test_autoheal() -> None:\n    assert True\n",
+    )
+    _write(tmp_path / "tests" / "unit" / "test_models.py", "def test_model() -> None:\n    assert True\n")
+
+    analyzer = ImpactAnalyzer(tmp_path, test_dirs=[tmp_path / "tests" / "unit"])
+    analysis = analyzer.analyze([".github/workflows/ci.yml"])
+
+    assert analysis.fallback_used is False
+    assert analysis.coverage_pct == pytest.approx(100.0)
+    assert analysis.affected_tests == [
+        "tests/unit/test_autoheal_workflow_yaml.py",
+        "tests/unit/test_ci_workflow_yaml.py",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # get_dependent_source_files
 # ---------------------------------------------------------------------------

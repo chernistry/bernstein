@@ -117,7 +117,7 @@ def strip_media_blocks(text: str) -> str:
         Cleaned text with media blocks replaced by placeholders.
     """
     # Strip markdown images: ![alt](url_or_data)
-    cleaned = re.sub(r"!\[.*?\]\(data:.*?\)", "[image stripped]", text)
+    cleaned = re.sub(r"!\[[^\]\n]*\]\(data:[^\)\n]*\)", "[image stripped]", text)
     # Strip fenced code blocks with media data URIs
     cleaned = re.sub(
         r"```[a-zA-Z]*\ndata:[^\n]*\n```",

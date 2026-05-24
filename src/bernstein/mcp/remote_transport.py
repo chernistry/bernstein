@@ -15,11 +15,14 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
 from bernstein.mcp.streaming import InFlightRegistry, cancelled_envelope
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +68,12 @@ def _is_localhost(host: str) -> bool:
 def _constant_time_eq(left: str, right: str) -> bool:
     """Constant-time string compare that tolerates length differences."""
     return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
+
+
+def _task_server_auth_headers() -> dict[str, str]:
+    """Return task-server auth headers when a bearer token is configured."""
+    token = os.environ.get("BERNSTEIN_AUTH_TOKEN", "")
+    return {"Authorization": f"Bearer {token}"} if token else {}
 
 
 @dataclass(frozen=True)
@@ -129,7 +138,7 @@ class MCPSession:
     created_at: float = field(default_factory=time.time)
     last_active: float = field(default_factory=time.time)
     tools_listed: bool = False
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 def _jsonrpc_error(
@@ -386,15 +395,23 @@ class StreamableHTTPTransport:
         # Batch support.
         if isinstance(message, list):
             results: list[dict[str, Any]] = []
-            for msg in message:
-                result = await self._handle_jsonrpc(session, msg)
+            for msg in cast("list[object]", message):
+                if not isinstance(msg, dict):
+                    result = _jsonrpc_error(_INVALID_REQUEST, "Invalid request")
+                else:
+                    result = await self._handle_jsonrpc(session, cast("dict[str, Any]", msg))
                 if result is not None:
                     results.append(result)
             if not results:
                 return (204, resp_headers, b"")
             return (200, resp_headers, json.dumps(results).encode())
 
-        result = await self._handle_jsonrpc(session, message)
+        if not isinstance(message, dict):
+            err = _jsonrpc_error(_INVALID_REQUEST, "Invalid request")
+            return (200, resp_headers, json.dumps(err).encode())
+
+        message_dict = cast("dict[str, Any]", message)
+        result = await self._handle_jsonrpc(session, message_dict)
         if result is None:
             # Notification - no response.
             return (204, resp_headers, b"")
@@ -567,42 +584,47 @@ class StreamableHTTPTransport:
 
         meter_ctx = measure_call(tool_name)
         meter = meter_ctx.__enter__()
+        meter_finalised = False
+        text = ""
         try:
             if call is not None:
+                assert req_id is not None
                 # Seed a partial chunk so a cancel mid-flight preserves the
                 # in-progress context rather than returning an empty result.
                 call.append_partial(json.dumps({"status": "running", "tool": tool_name}))
-                task: asyncio.Task[str] = asyncio.ensure_future(self._execute_tool(tool_name, arguments))
-                await self._inflight.attach_task(req_id, task)  # type: ignore[arg-type]
-                text = await task
+                task: asyncio.Task[str] = asyncio.create_task(self._execute_tool(tool_name, arguments))
+                await self._inflight.attach_task(req_id, task)
+                task_result = (await asyncio.gather(task, return_exceptions=True))[0]
+                if isinstance(task_result, asyncio.CancelledError):
+                    current = await self._inflight.get(req_id)
+                    if current is not None and current.cancelled:
+                        meter_ctx.__exit__(None, None, None)
+                        meter_finalised = True
+                        return cancelled_envelope(current, meter.to_dict())
+                    raise task_result
+                if isinstance(task_result, BaseException):
+                    raise task_result
+                text = task_result
             else:
                 text = await self._execute_tool(tool_name, arguments)
-        except asyncio.CancelledError:
-            # Client-initiated cancel: preserve and return partial output.
-            meter_ctx.__exit__(None, None, None)
-            current = await self._inflight.get(req_id) if req_id is not None else None
-            if req_id is not None:
-                await self._inflight.discard(req_id)
-            if current is not None and current.cancelled:
-                return cancelled_envelope(current, meter.to_dict())
-            # A cancel we did not initiate (e.g. transport shutdown): re-raise.
-            raise
         except Exception as exc:
             # Finalise the meter for the failed call, then emit it alongside
             # the error so observability covers failures too.
             with suppress(Exception):
                 meter_ctx.__exit__(type(exc), exc, exc.__traceback__)
-            if req_id is not None:
-                await self._inflight.discard(req_id)
+            meter_finalised = True
             logger.warning("Tool %s failed: %s", tool_name, exc)
             error_payload = wrap_envelope(json.dumps({"error": str(exc)}), meter)
             return {
                 "content": [{"type": "text", "text": error_payload}],
                 "isError": True,
             }
-        meter_ctx.__exit__(None, None, None)
-        if req_id is not None:
-            await self._inflight.discard(req_id)
+        finally:
+            if req_id is not None:
+                await self._inflight.discard(req_id)
+            if not meter_finalised:
+                with suppress(Exception):
+                    meter_ctx.__exit__(None, None, None)
         return {
             "content": [{"type": "text", "text": wrap_envelope(text, meter)}],
         }
@@ -637,29 +659,50 @@ class StreamableHTTPTransport:
         Raises:
             ValueError: When the requested prompt name is unknown.
         """
-        from bernstein.mcp.prompts import (
-            _cost_recap_template,
-            _orchestrate_goal_template,
-            _triage_failed_tasks_template,
+        from bernstein.mcp import prompts
+
+        prompt_attrs = vars(prompts)
+        orchestrate_goal_template = cast(
+            "Callable[[str, str, str], str]",
+            prompt_attrs["_orchestrate_goal_template"],
+        )
+        triage_failed_tasks_template = cast(
+            "Callable[[int], str]",
+            prompt_attrs["_triage_failed_tasks_template"],
+        )
+        cost_recap_template = cast(
+            "Callable[[str], str]",
+            prompt_attrs["_cost_recap_template"],
         )
 
-        name = params.get("name", "")
-        arguments = params.get("arguments", {}) or {}
+        name_raw = params.get("name", "")
+        name = name_raw if isinstance(name_raw, str) else ""
+        arguments_raw = params.get("arguments", {})
+        arguments = cast("dict[str, object]", arguments_raw) if isinstance(arguments_raw, dict) else {}
         if name == "orchestrate_goal":
-            body = _orchestrate_goal_template(
-                goal=arguments.get("goal", ""),
-                role=arguments.get("role", "backend"),
-                scope=arguments.get("scope", "medium"),
+            goal = arguments.get("goal", "")
+            role = arguments.get("role", "backend")
+            scope = arguments.get("scope", "medium")
+            body = orchestrate_goal_template(
+                goal if isinstance(goal, str) else "",
+                role if isinstance(role, str) else "backend",
+                scope if isinstance(scope, str) else "medium",
             )
         elif name == "triage_failed_tasks":
             limit_raw = arguments.get("limit", 5)
-            try:
-                limit = int(limit_raw)
-            except (TypeError, ValueError):
+            if isinstance(limit_raw, int):
+                limit = limit_raw
+            elif isinstance(limit_raw, str):
+                try:
+                    limit = int(limit_raw)
+                except ValueError:
+                    limit = 5
+            else:
                 limit = 5
-            body = _triage_failed_tasks_template(limit=limit)
+            body = triage_failed_tasks_template(limit)
         elif name == "cost_recap":
-            body = _cost_recap_template(window=arguments.get("window", "today"))
+            window = arguments.get("window", "today")
+            body = cost_recap_template(window if isinstance(window, str) else "today")
         else:
             msg = f"Unknown prompt: {name}"
             raise ValueError(msg)
@@ -799,26 +842,22 @@ class StreamableHTTPTransport:
         params: dict[str, str] | None = None,
     ) -> str:
         """GET request to Bernstein task server."""
-        from bernstein.mcp.server import _auth_headers
-
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             resp = await client.get(
                 f"{self._server_url}{path}",
                 params=params,
-                headers=_auth_headers(),
+                headers=_task_server_auth_headers(),
             )
             resp.raise_for_status()
             return resp.text
 
     async def _proxy_post(self, path: str, payload: dict[str, Any]) -> str:
         """POST request to Bernstein task server."""
-        from bernstein.mcp.server import _auth_headers
-
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             resp = await client.post(
                 f"{self._server_url}{path}",
                 json=payload,
-                headers=_auth_headers(),
+                headers=_task_server_auth_headers(),
             )
             resp.raise_for_status()
             return resp.text

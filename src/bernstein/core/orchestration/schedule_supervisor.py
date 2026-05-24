@@ -375,13 +375,8 @@ class ScheduleSupervisor:
                 fires_dispatched += 1
             current_anchor = next_fire
 
-        if skipped_windows and schedule.misfire_policy == "skip":
-            # Emit one counterfactual receipt summarising the skipped windows.
-            receipts.append(
-                self._record_counterfactual(schedule, skipped_windows, now_epoch),
-            )
-        elif skipped_windows and schedule.misfire_policy == "catch_up":
-            # catch_up hit the cap; record the remainder as a counterfactual
+        if skipped_windows and schedule.misfire_policy in {"skip", "catch_up"}:
+            # Emit one counterfactual receipt summarising skipped windows.
             receipts.append(
                 self._record_counterfactual(schedule, skipped_windows, now_epoch),
             )

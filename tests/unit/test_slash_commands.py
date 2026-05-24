@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from bernstein.github_app.slash_commands import parse_slash_command, slash_command_to_task
@@ -78,6 +79,15 @@ class TestParseSlashCommand:
     def test_slash_bernstein_alone_returns_none(self) -> None:
         # No action word after /bernstein
         assert parse_slash_command("/bernstein") is None
+
+    def test_large_blank_comment_without_command_is_fast(self) -> None:
+        text = "\n" * 50_000
+
+        started = time.perf_counter()
+        assert parse_slash_command(text) is None
+        elapsed = time.perf_counter() - started
+
+        assert elapsed < 0.5
 
 
 # ---------------------------------------------------------------------------

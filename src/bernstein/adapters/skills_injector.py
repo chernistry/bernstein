@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
 import yaml
 
@@ -30,12 +30,18 @@ from bernstein.core.skills.activation_log import (
     ActivationRecord,
     log_activation,
 )
+from bernstein.core.skills.routing import auto_route_enabled, select_auto_route_templates
 from bernstein.core.skills.sanitizer import sanitize_skill_body
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from bernstein.core.models import Task
+    from bernstein.core.skills.routing import RoutableTask
+
+    class Task(RoutableTask, Protocol):
+        """Task fields used by the skill injector."""
+
+        id: str
 
 
 class _FrontmatterSchema(TypedDict, total=False):
@@ -162,7 +168,16 @@ def inject_skills(
     skills_dest_dir = workdir / ".claude" / "skills"
     skills_dest_dir.mkdir(parents=True, exist_ok=True)
 
-    templates_to_inject = _ALWAYS_INJECT + ROLE_SKILL_MAP.get(role, [])
+    templates_to_inject = list(dict.fromkeys(_ALWAYS_INJECT + ROLE_SKILL_MAP.get(role, [])))
+    trigger_by_template = {template_name: "role-binding" for template_name in templates_to_inject}
+    if auto_route_enabled():
+        for candidate in select_auto_route_templates(
+            skills_source_dir,
+            tasks,
+            excluded_templates=templates_to_inject,
+        ):
+            templates_to_inject.append(candidate.template_name)
+            trigger_by_template[candidate.template_name] = "auto-route"
 
     for template_name in templates_to_inject:
         source_path = skills_source_dir / template_name
@@ -213,7 +228,7 @@ def inject_skills(
                         skill=skill_name,
                         role=role,
                         task_id=task.id,
-                        trigger_source="role-binding",
+                        trigger_source=trigger_by_template[template_name],
                         version=version,
                         digest=digest,
                     ),
@@ -225,7 +240,7 @@ def inject_skills(
                         skill=skill_name,
                         role=role,
                         task_id="",
-                        trigger_source="role-binding",
+                        trigger_source=trigger_by_template[template_name],
                         version=version,
                         digest=digest,
                     ),

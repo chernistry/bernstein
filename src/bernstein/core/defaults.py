@@ -35,10 +35,16 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 PY_IDENTIFIER_RE_FRAGMENT = r"[A-Z_][A-Z0-9_]*"
 """Regex fragment for Python identifiers when compiled with ``re.IGNORECASE``."""
+
+SKILLS_AUTO_ROUTE_ENV: Final[str] = "BERNSTEIN_SKILLS_AUTO_ROUTE"
+"""Environment variable enabling deterministic skill auto-routing."""
+
+SKILLS_AUTO_ROUTE_DEFAULT_LIMIT: Final[int] = 2
+"""Default number of auto-routed skill templates to inject."""
 
 
 @dataclass(frozen=True)

@@ -17,7 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 BOOTSTRAP_ACTION = REPO_ROOT / ".github" / "actions" / "bootstrap" / "action.yml"
-PINNED_UV_VERSION = "0.11.3"
+PINNED_UV_VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
 
 OWNED_WORKFLOWS = (
     "sonar-scan.yml",
@@ -107,4 +107,10 @@ def test_local_bootstrap_action_pins_setup_uv_version() -> None:
         with_block = step.get("with")
         assert isinstance(with_block, dict)
         with_values = cast(dict[str, object], with_block)
-        assert with_values.get("version") == PINNED_UV_VERSION
+        uv_version = with_values.get("version")
+        assert isinstance(uv_version, str)
+        assert PINNED_UV_VERSION_RE.fullmatch(uv_version), f"uv must use an explicit semver pin: {uv_version}"
+        assert uv_version != "latest"
+
+    pinned_versions = {cast(str, cast(dict[str, object], step["with"])["version"]) for step in setup_uv_steps}
+    assert len(pinned_versions) == 1, "bootstrap setup-uv steps must install the same uv version"

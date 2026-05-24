@@ -11,12 +11,16 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import yaml
 
+from bernstein.core.defaults import (
+    SKILLS_AUTO_ROUTE_DEFAULT_LIMIT as DEFAULT_ROUTE_LIMIT,
+)
+from bernstein.core.defaults import (
+    SKILLS_AUTO_ROUTE_ENV as ENV_AUTO_ROUTE,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
     from pathlib import Path
-
-ENV_AUTO_ROUTE = "BERNSTEIN_SKILLS_AUTO_ROUTE"
-DEFAULT_ROUTE_LIMIT = 2
 
 _ENABLE_TOKENS = frozenset({"1", "true", "yes", "on"})
 _TOKEN_RE: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -166,7 +170,10 @@ def _split_frontmatter(raw: str) -> tuple[dict[str, object], str]:
     front: list[str] = []
     for idx in range(1, len(lines)):
         if lines[idx].rstrip() == "---":
-            loaded_obj: object = yaml.safe_load("\n".join(front)) if front else {}
+            try:
+                loaded_obj: object = yaml.safe_load("\n".join(front)) if front else {}
+            except yaml.YAMLError:
+                return ({}, "\n".join(lines[idx + 1 :]))
             if not isinstance(loaded_obj, dict):
                 return ({}, "\n".join(lines[idx + 1 :]))
             typed: dict[str, object] = {}

@@ -274,6 +274,62 @@ def test_skills_bisect_outputs_local_replay_plan(
     assert [candidate["skill"] for candidate in payload["candidates"]] == ["pytest-helper", "docs-helper"]
 
 
+def test_skills_bisect_uses_latest_task_metric(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    activations_dir = workdir / ".sdd" / "skills"
+    activations_dir.mkdir(parents=True)
+    activations_dir.joinpath("activations.jsonl").write_text(
+        json.dumps(
+            {
+                "skill": "pytest-helper",
+                "version": "1.0.0",
+                "digest": "aaa",
+                "role": "backend",
+                "task_id": "task-2",
+                "trigger_source": "role-binding",
+                "timestamp": "2026-05-22T12:00:00.000Z",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    metrics_dir = workdir / ".sdd" / "metrics"
+    metrics_dir.mkdir(parents=True)
+    metrics_dir.joinpath("task_completion_time_2026-05-22.jsonl").write_text(
+        "\n".join(
+            json.dumps(row, sort_keys=True)
+            for row in (
+                {
+                    "metric_type": "task_completion_time",
+                    "timestamp": 1.0,
+                    "value": 3.0,
+                    "labels": {"task_id": "task-2", "role": "backend", "model": "sonnet", "success": "False"},
+                },
+                {
+                    "metric_type": "task_completion_time",
+                    "timestamp": 2.0,
+                    "value": 4.0,
+                    "labels": {"task_id": "task-2", "role": "backend", "model": "sonnet", "success": "True"},
+                },
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(workdir)
+    runner = CliRunner()
+
+    result = runner.invoke(skills_group, ["bisect", "task-2", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["outcome"] == "passed"
+
+
 def test_skills_bisect_fails_for_task_without_activations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

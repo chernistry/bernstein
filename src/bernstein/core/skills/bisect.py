@@ -122,16 +122,24 @@ def _load_task_candidates(workdir: Path, task_id: str) -> tuple[SkillBisectCandi
 
 
 def _task_outcome(workdir: Path, task_id: str) -> str:
+    latest_key: tuple[float, int] | None = None
+    latest_success: bool | None = None
+    sequence = 0
     for path in iter_metric_files(workdir / ".sdd" / "metrics", _METRIC_TYPE):
         for row in _iter_jsonl_objects(path):
             labels = _mapping_field(row, "labels")
             if labels is None or _string_field(labels, "task_id") != task_id:
                 continue
-            success = _success_value(labels.get("success"))
-            if success is True:
-                return "passed"
-            if success is False:
-                return "failed"
+            sequence += 1
+            timestamp = _numeric_field(row, "timestamp")
+            candidate_key = (timestamp if timestamp is not None else float("-inf"), sequence)
+            if latest_key is None or candidate_key > latest_key:
+                latest_key = candidate_key
+                latest_success = _success_value(labels.get("success"))
+    if latest_success is True:
+        return "passed"
+    if latest_success is False:
+        return "failed"
     return "unknown"
 
 
@@ -172,6 +180,15 @@ def _mapping_field(row: dict[str, object], key: str) -> dict[str, object] | None
 def _string_field(row: dict[str, object], key: str) -> str:
     value = row.get(key)
     return value if isinstance(value, str) else ""
+
+
+def _numeric_field(row: dict[str, object], key: str) -> float | None:
+    value = row.get(key)
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    return None
 
 
 def _success_value(value: object) -> bool | None:

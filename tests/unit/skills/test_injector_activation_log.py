@@ -151,3 +151,31 @@ def test_inject_skills_auto_route_adds_matching_skill_when_enabled(
     auto_rows = [row for row in rows if row["skill"] == "pytest-helper"]
     assert len(auto_rows) == 1
     assert auto_rows[0]["trigger_source"] == "auto-route"
+
+
+def test_inject_skills_auto_route_ignores_malformed_frontmatter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A malformed skill template does not abort deterministic routing."""
+    monkeypatch.setenv("BERNSTEIN_SKILLS_AUTO_ROUTE", "1")
+    templates_dir = _make_skill_templates(tmp_path)
+    skills_dir = templates_dir.parent / "skills"
+    (skills_dir / "bad-frontmatter.md").write_text(
+        "---\nname: [unterminated\n---\n\n# Bad frontmatter\npytest routing should continue.\n",
+        encoding="utf-8",
+    )
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+
+    inject_skills(
+        workdir=workdir,
+        role="security",
+        tasks=[
+            Task(id="T-005", title="Fix pytest regression", description="The pytest suite is failing.", role="security")
+        ],
+        session_id="sec-mno",
+        templates_dir=templates_dir,
+    )
+
+    assert (workdir / ".claude" / "skills" / "pytest-helper.md").is_file()

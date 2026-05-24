@@ -10,6 +10,9 @@ this file is the criterion-aware (issue #1352) suite.
 
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import pytest
 
 from bernstein.core.cost.retry_budget import (
@@ -418,6 +421,20 @@ class TestParseSpec:
         b = parse_retry_budget_spec("2; coverage>tests")
         assert b.retries == 2
         assert len(b.criterion_degradation) == 2
+
+    def test_rejects_adversarial_policy_without_regex_backtracking(self) -> None:
+        code = """
+from bernstein.core.cost.retry_budget import parse_retry_budget_spec
+try:
+    parse_retry_budget_spec("1, " + ("a>" * 50) + ",")
+except ValueError:
+    pass
+"""
+        subprocess.run(
+            [sys.executable, "-c", code],
+            check=True,
+            timeout=5,
+        )
 
 
 # ---------------------------------------------------------------------------

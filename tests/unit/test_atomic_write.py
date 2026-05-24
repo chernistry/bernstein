@@ -14,10 +14,12 @@ These tests cover the crash-safe persistence contract:
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import threading
 from pathlib import Path
+from typing import NotRequired, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -27,6 +29,14 @@ from bernstein.core.persistence.atomic_write import (
     write_atomic_json,
     write_atomic_text,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ATOMIC_WRITE_PATH = Path("src/bernstein/core/persistence/atomic_write.py")
+
+
+class VersionPayload(TypedDict):
+    v: int
+    pad: NotRequired[str]
 
 
 def test_atomic_write_bytes_creates_file(tmp_path: Path) -> None:
@@ -121,6 +131,25 @@ def test_atomic_write_crash_during_write_cleans_tmp(tmp_path: Path) -> None:
     assert os.fsync is original_fsync
 
 
+def test_atomic_write_has_no_redundant_catch_and_rethrow() -> None:
+    """Atomic write cleanup handlers should do work before rethrowing."""
+    source = (REPO_ROOT / ATOMIC_WRITE_PATH).read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(ATOMIC_WRITE_PATH))
+
+    redundant_handlers = [
+        handler
+        for handler in ast.walk(tree)
+        if isinstance(handler, ast.ExceptHandler)
+        and isinstance(handler.type, ast.Name)
+        and handler.type.id == "BaseException"
+        and len(handler.body) == 1
+        and isinstance(handler.body[0], ast.Raise)
+        and handler.body[0].exc is None
+    ]
+
+    assert not redundant_handlers
+
+
 def test_atomic_write_tmp_path_unique_per_call(tmp_path: Path) -> None:
     """Two concurrent writers must use distinct temp names to avoid collision."""
     target = tmp_path / "state.json"
@@ -144,6 +173,46 @@ def test_atomic_write_tmp_path_unique_per_call(tmp_path: Path) -> None:
     assert len(unique) >= 2
 
 
+def test_atomic_write_keeps_old_content_visible_until_replace(tmp_path: Path) -> None:
+    """Readers must keep seeing the old complete file until ``os.replace`` runs."""
+    target = tmp_path / "state.json"
+    old_payload: VersionPayload = {"v": 0}
+    new_payload: VersionPayload = {"v": 1, "pad": "x" * 4096}
+    write_atomic_json(target, old_payload)
+
+    real_replace = os.replace
+    replace_entered = threading.Event()
+    allow_replace = threading.Event()
+    writer_errors: list[BaseException] = []
+
+    def gated_replace(src: str, dst: str) -> None:
+        replace_entered.set()
+        if not allow_replace.wait(timeout=5):
+            raise AssertionError("timed out waiting to release os.replace")
+        real_replace(src, dst)
+
+    def writer() -> None:
+        try:
+            write_atomic_json(target, new_payload)
+        except BaseException as exc:  # pragma: no cover - surfaced after join
+            writer_errors.append(exc)
+
+    with patch("bernstein.core.persistence.atomic_write.os.replace", side_effect=gated_replace):
+        w = threading.Thread(target=writer)
+        w.start()
+        try:
+            assert replace_entered.wait(timeout=5), "writer did not reach os.replace"
+            for _ in range(100):
+                assert json.loads(target.read_text(encoding="utf-8")) == old_payload
+        finally:
+            allow_replace.set()
+            w.join(timeout=5)
+
+    assert not w.is_alive()
+    assert writer_errors == []
+    assert json.loads(target.read_text(encoding="utf-8")) == new_payload
+
+
 def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Path) -> None:
     """Readers running while another thread repeatedly overwrites the target
     must always see a fully-parseable JSON document - never a partial/torn
@@ -156,15 +225,25 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
     stop = threading.Event()
     errors: list[str] = []
     observed_versions: set[int] = set()
+    lock = threading.Lock()
+    writer_started = threading.Event()
+    reader_observed_post_initial = threading.Event()
+    latest_written = 0
 
     def writer() -> None:
+        nonlocal latest_written
         i = 1
         while not stop.is_set():
             try:
-                write_atomic_json(target, {"v": i, "pad": "x" * 4096})
+                payload: VersionPayload = {"v": i, "pad": "x" * 4096}
+                write_atomic_json(target, payload)
             except OSError as exc:  # pragma: no cover - should not happen
-                errors.append(f"write failed: {exc}")
+                with lock:
+                    errors.append(f"write failed: {exc}")
                 return
+            with lock:
+                latest_written = i
+            writer_started.set()
             i += 1
 
     def reader() -> None:
@@ -176,30 +255,38 @@ def test_atomic_write_reads_during_concurrent_writes_see_old_or_new(tmp_path: Pa
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError as exc:
-                errors.append(f"torn read: {exc!r} on {raw[:80]!r}")
+                with lock:
+                    errors.append(f"torn read: {exc!r} on {raw[:80]!r}")
                 return
             v = data.get("v")
             if isinstance(v, int):
-                observed_versions.add(v)
+                with lock:
+                    observed_versions.add(v)
+                if v > 0:
+                    reader_observed_post_initial.set()
 
     w = threading.Thread(target=writer)
     readers = [threading.Thread(target=reader) for _ in range(4)]
-    w.start()
     for r in readers:
         r.start()
+    w.start()
+    try:
+        assert writer_started.wait(timeout=5), "writer did not complete any atomic writes"
+        assert reader_observed_post_initial.wait(timeout=5), "readers did not observe any post-initial version"
+        threading.Event().wait(0.1)
+    finally:
+        stop.set()
+        w.join(timeout=5)
+        for r in readers:
+            r.join(timeout=5)
 
-    # Let them race for a short while.
-    threading.Event().wait(0.5)
-    stop.set()
-
-    w.join(timeout=5)
-    for r in readers:
-        r.join(timeout=5)
-
-    assert errors == [], f"concurrent access produced torn reads: {errors}"
-    # We should have observed many distinct versions - proves the reader/writer
-    # actually interleaved.
-    assert len(observed_versions) >= 5
+    assert not w.is_alive()
+    assert all(not r.is_alive() for r in readers)
+    with lock:
+        assert latest_written >= 1
+        assert observed_versions
+        assert all(0 <= version <= latest_written for version in observed_versions)
+        assert errors == [], f"concurrent access produced torn reads: {errors}"
 
 
 def test_persistence_write_session_json_atomic(tmp_path: Path) -> None:

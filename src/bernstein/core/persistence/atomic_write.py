@@ -108,14 +108,10 @@ def write_atomic_bytes(path: Path, data: bytes) -> None:
             os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
             0o600,
         )
-        try:
-            with os.fdopen(fd, "wb") as fh:
-                fh.write(data)
-                fh.flush()
-                os.fsync(fh.fileno())
-        except BaseException:
-            # os.fdopen took ownership; close is idempotent via contextmanager.
-            raise
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
         os.replace(str(tmp), str(path))
     except BaseException:
         with contextlib.suppress(OSError):

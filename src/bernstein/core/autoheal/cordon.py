@@ -110,19 +110,10 @@ def _glob_to_regex(pattern: str) -> re.Pattern[str]:
             # zero-or-more components: a sequence of "<comp>/" any
             # number of times.
             out.append("(?:[^/]+/)*")
-            # If the next token exists, the literal slash that joins
-            # us to it is already consumed by the (?:[^/]+/)*; do not
-            # emit another one.
             continue
         out.append(tok)
         if i != len(tokens) - 1:
-            # Append a slash unless the next token is **, which already
-            # carries its own consume-the-slash semantics.
-            if tokens[i + 1] == "**":
-                # consume slash now since ** prefix is "(?:[^/]+/)*"
-                out.append("/")
-            else:
-                out.append("/")
+            out.append("/")
     body = "".join(out)
     return re.compile(r"\A" + body + r"\Z")
 

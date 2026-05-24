@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING
 import click
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from bernstein.core.tunnels.protocol import TunnelHandle
     from bernstein.core.tunnels.registry import TunnelRegistry
 
@@ -105,7 +107,7 @@ def read_passphrase_file(path: Path) -> dict[str, str] | None:
     return result
 
 
-def _print_onboarding(url: str, passphrase: str, *, echo: object = None) -> str:
+def _print_onboarding(url: str, passphrase: str, *, echo: Callable[[str], object] | None = None) -> str:
     """Format the operator-facing onboarding block and return the rendered text.
 
     The QR is rendered alongside a short instruction block.  The function
@@ -127,7 +129,7 @@ def _print_onboarding(url: str, passphrase: str, *, echo: object = None) -> str:
         click.echo(out)
     else:
         # Test-injection seam: callers can pass a list-append or similar.
-        echo(out)  # type: ignore[operator]
+        echo(out)
     return out
 
 

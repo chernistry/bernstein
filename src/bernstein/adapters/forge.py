@@ -34,6 +34,7 @@ class ForgeAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch a Forge CLI process for the given prompt.
 
@@ -56,6 +57,7 @@ class ForgeAdapter(CLIAdapter):
             RuntimeError: The ``forge`` binary is missing from PATH or the
                 current user lacks permission to execute it.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

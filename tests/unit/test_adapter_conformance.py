@@ -542,6 +542,13 @@ def test_scaffold_contains_spawn_method() -> None:
     assert "def spawn(" in code
 
 
+def test_scaffold_spawn_signature_matches_optional_base_kwargs() -> None:
+    code = generate_adapter_scaffold("MyAgent", "MyAgentAdapter", "myagent", "myagent")
+    assert "budget_multiplier: float = 1.0" in code
+    assert 'system_addendum: str = ""' in code
+    assert "multimodal_context: Any | None = None" in code
+
+
 def test_scaffold_is_valid_python_syntax() -> None:
     import ast
 

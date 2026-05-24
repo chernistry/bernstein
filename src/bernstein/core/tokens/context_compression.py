@@ -176,7 +176,6 @@ class DependencyGraph:
             if candidate.is_file():
                 with suppress(ValueError):
                     file_deps.append(candidate.relative_to(self.workdir).as_posix())
-                    continue
 
         return file_deps
 

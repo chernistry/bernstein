@@ -298,7 +298,14 @@ def skills_init(name: str, scope: str, description: str | None) -> None:
     default=False,
     help="Fail install when skill lint reports ERROR findings.",
 )
-def skills_install(source: Path, scope: str, override_name: str | None, strict: bool) -> None:
+@click.option(
+    "--accept-risk",
+    "accept_risk",
+    is_flag=True,
+    default=False,
+    help="Allow installs that require explicit risk acceptance.",
+)
+def skills_install(source: Path, scope: str, override_name: str | None, strict: bool, accept_risk: bool) -> None:
     """Install a skill from a local path.
 
     \b
@@ -313,6 +320,7 @@ def skills_install(source: Path, scope: str, override_name: str | None, strict: 
             workdir=Path.cwd(),
             override_name=override_name,
             strict_lint=strict,
+            accept_risk=accept_risk,
         )
     except SkillLifecycleError as exc:
         console.print(f"[red]install failed:[/red] {exc}")
@@ -364,7 +372,14 @@ def skills_remove(name: str, scope: str) -> None:
     default=False,
     help="Fail sync when skill lint reports ERROR findings.",
 )
-def skills_sync(manifest: Path | None, scope: str, strict: bool) -> None:
+@click.option(
+    "--accept-risk",
+    "accept_risk",
+    is_flag=True,
+    default=False,
+    help="Allow installs that require explicit risk acceptance.",
+)
+def skills_sync(manifest: Path | None, scope: str, strict: bool, accept_risk: bool) -> None:
     """Install every skill declared in ``bernstein-skills.toml``.
 
     Re-runs are idempotent: skills whose digest already matches are
@@ -379,6 +394,7 @@ def skills_sync(manifest: Path | None, scope: str, strict: bool) -> None:
             scope=install_scope,
             workdir=Path.cwd(),
             strict_lint=strict,
+            accept_risk=accept_risk,
         )
     except (SkillsTomlError, SkillLifecycleError) as exc:
         console.print(f"[red]sync failed:[/red] {exc}")
@@ -536,6 +552,61 @@ def skills_bench(suite: Path, skills_root: Path | None, iterations: int) -> None
     )
     if not result.suite.passed:
         raise SystemExit(1)
+
+
+@skills_group.command("helpfulness")
+def skills_helpfulness() -> None:
+    """Rebuild the local skill helpfulness report."""
+    from bernstein.core.skills.helpfulness import build_helpfulness_report, write_helpfulness_report
+
+    report = build_helpfulness_report(Path.cwd())
+    path = write_helpfulness_report(Path.cwd(), report=report)
+    console.print(f"[green]wrote[/green] {path}")
+    if not report.skills:
+        console.print("[dim]no matched skill activations[/dim]")
+        return
+    ranked = sorted(report.skills.values(), key=lambda item: (-item.posterior_mean, item.skill))
+    for item in ranked[:10]:
+        console.print(
+            f"{item.skill}: {item.posterior_mean:.2f} "
+            f"({item.successes}/{item.observations} successful, {item.failures} failed)"
+        )
+    if report.unmatched_activations:
+        console.print(f"[dim]{report.unmatched_activations} activation(s) had no task outcome yet[/dim]")
+
+
+@skills_group.command("bisect")
+@click.argument("task_id")
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Print the bisect plan as JSON.",
+)
+def skills_bisect(task_id: str, json_output: bool) -> None:
+    """Build a local skill-activation bisect plan for a task."""
+    from bernstein.core.skills.bisect import SkillBisectError, build_skill_bisect_plan
+
+    try:
+        plan = build_skill_bisect_plan(Path.cwd(), task_id)
+    except SkillBisectError as exc:
+        console.print(f"[red]bisect failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    payload = plan.as_payload()
+    if json_output:
+        click.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    console.print(f"[bold]task[/bold] {plan.task_id}: {plan.outcome}; {plan.candidate_count} candidate skill(s)")
+    console.print("[bold]next probe[/bold]")
+    console.print("disable: " + (", ".join(plan.next_probe.disable) or "(none)"))
+    console.print("keep: " + (", ".join(plan.next_probe.keep) or "(none)"))
+    for candidate in plan.candidates:
+        console.print(
+            f"- {candidate.skill} ({candidate.trigger_source or 'unknown'}, role={candidate.role or 'unknown'})"
+        )
 
 
 @skills_group.command("watch")

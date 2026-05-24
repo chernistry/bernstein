@@ -19,6 +19,10 @@ import sys
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Key under ``mcpServers`` that Bernstein owns in any host config.
 SERVER_ID = "bernstein"
@@ -166,7 +170,7 @@ class HostSpec:
     config_format: ConfigFormat = ConfigFormat.JSON
     scope: str = "user"
     notes: str = ""
-    _path_resolver: object = field(default=None, repr=False, compare=False)
+    _path_resolver: Callable[[], Path] | None = field(default=None, repr=False, compare=False)
 
     @property
     def supported(self) -> bool:
@@ -181,7 +185,7 @@ class HostSpec:
         resolver = self._path_resolver
         if resolver is None:
             return None
-        return resolver()  # type: ignore[operator]
+        return resolver()
 
 
 def bernstein_server_entry() -> dict[str, object]:

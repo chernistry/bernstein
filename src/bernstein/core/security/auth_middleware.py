@@ -46,7 +46,8 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Final, cast
 
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -57,11 +58,15 @@ if TYPE_CHECKING:
     from fastapi import Request
     from starlette.responses import Response as StarletteResponse
 
-    from bernstein.core.agent_identity import AgentIdentityStore
+    from bernstein.core.agents.agent_identity import AgentIdentityStore
     from bernstein.core.security.auth import AuthService
 
 _PERM_TASKS_WRITE = "tasks:write"
 _PERM_ADMIN_MANAGE = "admin:manage"
+
+type _ExpectedResourceConfig = str | Sequence[str] | None
+
+_EMPTY_EXPECTED_RESOURCES: Final[tuple[str, ...]] = ()
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +186,7 @@ _ROUTE_PERMISSIONS: dict[str, str] = {
 }
 
 
-def _normalise_expected_resource(raw: str | list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
+def _normalise_expected_resource(raw: _ExpectedResourceConfig) -> tuple[str, ...]:
     """Coerce ``expected_resource`` into a tuple of trimmed values.
 
     Accepts:
@@ -195,15 +200,15 @@ def _normalise_expected_resource(raw: str | list[str] | tuple[str, ...] | None) 
     claim by :func:`_resource_indicator_check`.
     """
     if raw is None:
-        return ()
-    if isinstance(raw, list | tuple):
-        return tuple(item.strip() for item in raw if item and item.strip())
-    text = raw.strip()
-    if not text:
-        return ()
-    if "," in text:
-        return tuple(part.strip() for part in text.split(",") if part.strip())
-    return (text,)
+        return _EMPTY_EXPECTED_RESOURCES
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return _EMPTY_EXPECTED_RESOURCES
+        if "," in text:
+            return tuple(part.strip() for part in text.split(",") if part.strip())
+        return (text,)
+    return tuple(item.strip() for item in raw if item and item.strip())
 
 
 def expected_resource_from_env() -> tuple[str, ...]:
@@ -245,8 +250,17 @@ def _resource_indicator_check(
     # array of URI strings. Anything else is malformed.
     if isinstance(resource, str):
         candidates: tuple[str, ...] = (resource,)
-    elif isinstance(resource, list) and all(isinstance(item, str) for item in resource):
-        candidates = tuple(resource)
+    elif isinstance(resource, list):
+        resource_items = cast("list[object]", resource)
+        if not all(isinstance(item, str) for item in resource_items):
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "Token resource indicator is not a string or array of strings",
+                },
+                headers={"WWW-Authenticate": _RESOURCE_MALFORMED_CHALLENGE},
+            )
+        candidates = tuple(cast("list[str]", resource_items))
     else:
         return JSONResponse(
             status_code=401,
@@ -355,7 +369,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         legacy_token: str | None = None,
         agent_identity_store: AgentIdentityStore | None = None,
         auth_disabled: bool | None = None,
-        expected_resource: str | list[str] | tuple[str, ...] | None = None,
+        expected_resource: _ExpectedResourceConfig = None,
     ) -> None:
         super().__init__(app)
         self._auth_service = auth_service

@@ -139,7 +139,7 @@ class ValidationReport:
 # ---------------------------------------------------------------------------
 
 _SCHEMA_CACHE: dict[str, dict[str, Any]] = {}
-_VERSION_RE = re.compile(r"^v[0-9]+(?:\.[0-9]+)?$")
+_VERSION_RE = re.compile(r"^v\d+(?:\.\d+)?$", re.ASCII)
 
 
 def _coerce_version(version: str) -> str:
@@ -175,7 +175,7 @@ def load_schema(version: str = "v1") -> dict[str, Any]:
     if not isinstance(loaded_raw, dict):
         raise SchemaNotFoundError(f"schema {filename} is not a JSON object")
     loaded_dict = cast("dict[str, Any]", loaded_raw)
-    loaded: dict[str, Any] = {k: v for k, v in loaded_dict.items()}
+    loaded: dict[str, Any] = dict(loaded_dict)
     # Sanity-check it really is Draft-07 compatible.
     jsonschema.Draft7Validator.check_schema(loaded)
     _SCHEMA_CACHE[canonical] = loaded

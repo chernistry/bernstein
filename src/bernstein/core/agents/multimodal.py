@@ -219,6 +219,7 @@ def build_multimodal_context(files: list[str | Path]) -> MultiModalContext:
 
 _MULTIMODAL_ADAPTERS: frozenset[str] = frozenset(
     {
+        "antigravity",
         "claude",
         "gemini",
     }

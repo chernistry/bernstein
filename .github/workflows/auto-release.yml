@@ -1,7 +1,8 @@
 name: Auto-release
 
 # Triggers after CI passes on main - pushes an operator-approved version tag
-# Only releases when meaningful source/test/template files changed.
+# Only releases when an explicit version bump and meaningful source/test/template
+# changes are present.
 #
 # This workflow is invoked by `post-ci-dispatcher.yml` via workflow_call.
 # The dispatcher pays the workflow_run cold start once and routes here
@@ -294,6 +295,19 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
             echo "No previous release - proceeding"
+            exit 0
+          fi
+
+          # The latest version must be introduced by the triggering commit.
+          # Otherwise an intentionally absent tag can be recreated by an
+          # unrelated green main run that merely compares differently from
+          # the previous release tag.
+          VERSION_FILE_CHANGED=$(gh api "repos/${REPO}/commits/${HEAD_SHA}" \
+            --jq '[.files[]? | select(.filename == "pyproject.toml" and ((.patch // "") | test("(?m)^[+-]version = "))) ] | length')
+          echo "Triggering commit pyproject.toml version changes: ${VERSION_FILE_CHANGED:-0}"
+          if [ "${VERSION_FILE_CHANGED:-0}" = "0" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: triggering commit did not change pyproject.toml version"
             exit 0
           fi
 

@@ -84,7 +84,7 @@ def test_load_history_accepts_cli_and_model_aliases(metrics_dir: Path) -> None:
 
 
 def test_load_history_skips_invalid_records(metrics_dir: Path) -> None:
-    """Corrupt lines, negative/NaN/non-numeric costs must be silently skipped."""
+    """Corrupt lines and non-finite costs must be silently skipped."""
     history = metrics_dir / "cost.jsonl"
     history.write_text(
         "\n".join(
@@ -92,6 +92,7 @@ def test_load_history_skips_invalid_records(metrics_dir: Path) -> None:
                 "not-json",
                 json.dumps({"role": "backend", "adapter": "claude", "cost_usd": -1.0}),
                 json.dumps({"role": "backend", "adapter": "claude", "cost_usd": "NaN"}),
+                json.dumps({"role": "backend", "adapter": "claude", "cost_usd": "Infinity"}),
                 json.dumps({"role": "backend", "adapter": "claude", "cost_usd": "oops"}),
                 json.dumps({"role": "backend", "adapter": "claude", "cost_usd": 1.5}),
                 "",
@@ -104,6 +105,13 @@ def test_load_history_skips_invalid_records(metrics_dir: Path) -> None:
 
     samples = load_history(history, role="backend", adapter="claude")
     assert samples == [1.5]
+
+
+def test_cost_preflight_uses_explicit_finite_checks() -> None:
+    """Avoid self-comparison NaN checks flagged by static analysis."""
+    source = Path("src/bernstein/core/cost/preflight.py").read_text(encoding="utf-8")
+    assert "amount != amount" not in source
+    assert "cost != cost" not in source
 
 
 def test_load_history_keeps_only_last_n(metrics_dir: Path) -> None:

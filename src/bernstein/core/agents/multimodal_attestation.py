@@ -213,7 +213,7 @@ def build_attachment_context(
             resolutions=(),
         )
 
-    paths: list[str | Path] = [a for a in attachments]
+    paths: list[str | Path] = list(attachments)
     context = build_multimodal_context(paths)
 
     resolutions: list[AttachmentResolution] = []

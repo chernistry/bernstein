@@ -149,10 +149,7 @@ def install_catalog_entry(
                 f"plugin installer failed for {entry.id!r}: {install_result.error or 'unknown error'}",
             )
 
-        try:
-            skill_root = _locate_skill_root(install_result.install_path)
-        except CatalogInstallError:
-            raise
+        skill_root = _locate_skill_root(install_result.install_path)
 
         try:
             promote_result: InstallResult = install_local(

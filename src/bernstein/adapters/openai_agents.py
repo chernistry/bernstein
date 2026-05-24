@@ -232,6 +232,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch the OpenAI Agents runner subprocess.
 
@@ -240,6 +241,7 @@ class OpenAIAgentsAdapter(PluginAdapter):
         line to stdout; the spawner collects those events via the log
         file and Bernstein's existing log tail/hook machinery.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

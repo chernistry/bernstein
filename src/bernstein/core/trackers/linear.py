@@ -380,10 +380,7 @@ class LinearTracker(AbstractTrackerAdapter):
         schema = self._ensure_schema()
         state_id = self._resolve_state_id(schema, status_id)
         variables = {"issueId": ticket_id, "stateId": state_id}
-        try:
-            data = self._graphql(_MUTATION_UPDATE_STATE, variables, etag=etag)
-        except OptimisticConcurrencyError:
-            raise
+        data = self._graphql(_MUTATION_UPDATE_STATE, variables, etag=etag)
         block = (data.get("data") or {}).get("issueUpdate") or {}
         if not block.get("success"):
             msg = f"Linear issueUpdate did not succeed: {block!r}"

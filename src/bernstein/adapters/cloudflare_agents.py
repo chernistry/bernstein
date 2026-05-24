@@ -55,6 +55,7 @@ class CloudflareAgentsAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch a Cloudflare Agents worker via ``npx wrangler dev``.
 
@@ -76,6 +77,7 @@ class CloudflareAgentsAdapter(CLIAdapter):
             RuntimeError: If ``npx`` is not found or permission is denied.
             NetworkPolicyDenied: When the active --allow-network policy denies api.cloudflare.com.
         """
+        self.refuse_multimodal_if_needed(multimodal_context)
         self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)

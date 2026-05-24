@@ -46,12 +46,13 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
+from cryptography.x509.oid import ExtendedKeyUsageOID
 from cryptography.x509.verification import (
     Criticality,
     ExtensionPolicy,
@@ -69,9 +70,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: Supported message-imprint hash OIDs → ``hashlib`` constructor name.
+
+class _Asn1Node(Protocol):
+    def __getitem__(self, key: str) -> Any: ...
+
+
+#: Recognized message-imprint hash OIDs -> ``hashlib`` constructor name.
 _HASH_OID_TO_NAME: dict[str, str] = {
-    "1.3.14.3.2.26": "sha1",  # legacy; flagged but accepted for back-compat
+    "1.3.14.3.2.26": "sha1",
     "2.16.840.1.101.3.4.2.1": "sha256",
     "2.16.840.1.101.3.4.2.2": "sha384",
     "2.16.840.1.101.3.4.2.3": "sha512",
@@ -93,6 +99,10 @@ _ACCEPTED_HASH_OIDS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 
+def _empty_str_list() -> list[str]:
+    return []
+
+
 @dataclass(frozen=True, slots=True)
 class RFC3161Verification:
     """Outcome of :func:`verify_rfc3161_token`.
@@ -109,16 +119,16 @@ class RFC3161Verification:
         eku_timestamping: ``True`` when the TSA cert advertises the
             ``id-kp-timeStamping`` extended key usage. Surfaced for
             callers that want to enforce the policy bit.
-        warnings: Non-fatal messages (e.g. weak hash algorithm).
+        warnings: Non-fatal messages for compatibility diagnostics.
     """
 
     ok: bool
-    errors: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=_empty_str_list)
     gen_time: datetime | None = None
     tsa_subject: str | None = None
     hash_algorithm: str | None = None
     eku_timestamping: bool = False
-    warnings: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=_empty_str_list)
 
 
 # ---------------------------------------------------------------------------
@@ -166,9 +176,9 @@ def load_trusted_tsa_certs(bundle_path: Path) -> list[x509.Certificate]:
 
 def _try_parse_response_or_token(
     token_bytes: bytes,
-    tsp_module: object,
-    cms_module: object,
-) -> object:
+    tsp_module: Any,
+    cms_module: Any,
+) -> _Asn1Node:
     """Parse *token_bytes* as either ``TimeStampResp`` or bare ``ContentInfo``.
 
     Returns the wrapping ``ContentInfo``. Raises :class:`ValueError` when:
@@ -180,12 +190,12 @@ def _try_parse_response_or_token(
     * Both shapes fail to parse.
     """
     try:
-        resp = tsp_module.TimeStampResp.load(token_bytes)  # type: ignore[attr-defined]
+        resp = tsp_module.TimeStampResp.load(token_bytes)
         status = resp["status"]["status"].native
     except (ValueError, KeyError, TypeError) as exc:
         # Not a TimeStampResp shape - fall through to ContentInfo.
         try:
-            return cms_module.ContentInfo.load(token_bytes)  # type: ignore[attr-defined]
+            return cms_module.ContentInfo.load(token_bytes)
         except (ValueError, KeyError, TypeError) as exc2:
             raise ValueError(
                 f"could not parse RFC 3161 token: {exc2} (and not a TimeStampResp: {exc})",
@@ -195,7 +205,7 @@ def _try_parse_response_or_token(
     return resp["time_stamp_token"]
 
 
-def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certificate], object]:
+def _parse_token(token_bytes: bytes) -> tuple[_Asn1Node, _Asn1Node, list[x509.Certificate], _Asn1Node]:
     """Extract SignedData, TSTInfo, embedded certs, and the SignerInfo.
 
     Accepts either:
@@ -214,7 +224,7 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
     # Lazy import: keeps the dep optional at import time when no caller
     # actually wires RFC 3161 verification.
     try:
-        from asn1crypto import cms, tsp
+        from asn1crypto import cms, tsp  # type: ignore[reportMissingTypeStubs]
     except ImportError as exc:
         raise ValueError(
             "asn1crypto is required for RFC 3161 verification. Reinstall bernstein or `pip install asn1crypto`.",
@@ -239,12 +249,13 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
             f"unexpected eContentType: {encap['content_type'].native!r}",
         )
     tst_info = encap["content"].parsed
-    raw_certs = signed_data["certificates"] or []
+    raw_certs = cast("list[Any]", signed_data["certificates"] or [])
     embedded_certs: list[x509.Certificate] = []
     for choice in raw_certs:
         # CMS ChoiceOfCertificate - only X.509 certs interest us.
         cert = choice.chosen
-        embedded_certs.append(x509.load_der_x509_certificate(cert.dump()))
+        cert_der = cast(bytes, cert.dump())
+        embedded_certs.append(x509.load_der_x509_certificate(cert_der))
     signer_infos = signed_data["signer_infos"]
     if len(signer_infos) != 1:
         raise ValueError(
@@ -259,7 +270,7 @@ def _parse_token(token_bytes: bytes) -> tuple[object, object, list[x509.Certific
 
 
 def _signing_cert(
-    signer_info: object,
+    signer_info: _Asn1Node,
     embedded_certs: list[x509.Certificate],
 ) -> x509.Certificate:
     """Find the cert in ``embedded_certs`` that matches ``signer_info.sid``.
@@ -267,16 +278,16 @@ def _signing_cert(
     SignerInfo.sid is either ``IssuerAndSerialNumber`` or
     ``SubjectKeyIdentifier``; we handle both.
     """
-    sid = signer_info["sid"]  # type: ignore[index]
+    sid = signer_info["sid"]
     sid_kind = sid.name
     if sid_kind == "issuer_and_serial_number":
-        target_issuer_dn = sid.chosen["issuer"].chosen.dump()  # type: ignore[union-attr]
-        target_serial = int(sid.chosen["serial_number"].native)  # type: ignore[union-attr]
+        target_issuer_dn = sid.chosen["issuer"].chosen.dump()
+        target_serial = int(sid.chosen["serial_number"].native)
         for cert in embedded_certs:
             if cert.serial_number == target_serial and cert.issuer.public_bytes() == target_issuer_dn:
                 return cert
     elif sid_kind == "subject_key_identifier":
-        target_ski = bytes(sid.chosen.native)  # type: ignore[union-attr]
+        target_ski = bytes(sid.chosen.native)
         for cert in embedded_certs:
             try:
                 ski_ext = cert.extensions.get_extension_for_class(
@@ -298,7 +309,7 @@ def _signing_cert(
 
 
 def _verify_signed_attrs_signature(
-    signer_info: object,
+    signer_info: _Asn1Node,
     signing_cert: x509.Certificate,
     tst_info_bytes: bytes,
 ) -> None:
@@ -319,10 +330,10 @@ def _verify_signed_attrs_signature(
             mismatches.
         InvalidSignature: When the signature does not validate.
     """
-    digest_alg = signer_info["digest_algorithm"]["algorithm"].native  # type: ignore[index]
-    sig_alg = signer_info["signature_algorithm"]["algorithm"].native  # type: ignore[index]
-    sig_bytes = bytes(signer_info["signature"].native)  # type: ignore[index]
-    signed_attrs = signer_info["signed_attrs"]  # type: ignore[index]
+    digest_alg = signer_info["digest_algorithm"]["algorithm"].native
+    sig_alg = signer_info["signature_algorithm"]["algorithm"].native
+    sig_bytes = bytes(signer_info["signature"].native)
+    signed_attrs = signer_info["signed_attrs"]
 
     hash_obj = _hash_for_oid_or_name(digest_alg)
     if hash_obj is None:
@@ -358,23 +369,14 @@ def _verify_signed_attrs_signature(
 def _hash_for_oid_or_name(name_or_oid: str) -> hashes.HashAlgorithm | None:
     """Map digest OID/name to a ``cryptography.hazmat`` hash instance.
 
-    SHA-1 is parsed (some legacy TSAs still issue it) but the verifier
-    surfaces a warning at the message-imprint step; we do not preemptively
-    reject because operators with archival TSAs need to be able to read
-    historical tokens.
+    Only SHA-256 / SHA-384 / SHA-512 are accepted for signature
+    verification. Legacy SHA-1 identifiers are recognized elsewhere only
+    so the verifier can report a clear message-imprint policy error.
     """
-    # Interoperability: legacy RFC 3161 TSAs still issue tokens with SHA-1
-    # message imprints; we parse them so operators can read historical
-    # tokens. The verifier surfaces a warning at message-imprint time and
-    # never accepts SHA-1 as authoritative for new tokens.
     table: dict[str, hashes.HashAlgorithm] = {
-        # nosemgrep: python.cryptography.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
-        "sha1": hashes.SHA1(),
         "sha256": hashes.SHA256(),
         "sha384": hashes.SHA384(),
         "sha512": hashes.SHA512(),
-        # nosemgrep: python.cryptography.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
-        "1.3.14.3.2.26": hashes.SHA1(),
         "2.16.840.1.101.3.4.2.1": hashes.SHA256(),
         "2.16.840.1.101.3.4.2.2": hashes.SHA384(),
         "2.16.840.1.101.3.4.2.3": hashes.SHA512(),
@@ -477,13 +479,13 @@ def verify_rfc3161_token(
 
     # Step 4 (early) - message imprint. Fails fast before chain walk.
     try:
-        mi = tst_info["message_imprint"]  # type: ignore[index]
+        mi = tst_info["message_imprint"]
         hash_oid = mi["hash_algorithm"]["algorithm"].dotted
         embedded_hash = bytes(mi["hashed_message"].native)
         hash_alg_name = _HASH_OID_TO_NAME.get(hash_oid, hash_oid)
         if hash_oid not in _ACCEPTED_HASH_OIDS:
-            warnings.append(
-                f"TSA used weak hash algorithm: {hash_alg_name}",
+            errors.append(
+                f"messageImprint uses unsupported or weak hash algorithm: {hash_alg_name}",
             )
         if embedded_hash != payload_hash:
             errors.append(
@@ -493,7 +495,7 @@ def verify_rfc3161_token(
         errors.append(f"messageImprint: {exc}")
 
     try:
-        gen_time = tst_info["gen_time"].native  # type: ignore[index]
+        gen_time = tst_info["gen_time"].native
     except (KeyError, AttributeError):
         errors.append("TSTInfo missing genTime")
 
@@ -504,7 +506,7 @@ def verify_rfc3161_token(
         eku_timestamping = _has_timestamping_eku(signing_cert)
     except ValueError as exc:
         errors.append(f"trust: {exc}")
-        signing_cert = None  # type: ignore[assignment]
+        signing_cert = None
 
     if signing_cert is not None:
         chain_time = verification_time or gen_time or datetime.now(tz=signing_cert.not_valid_after_utc.tzinfo)
@@ -524,7 +526,7 @@ def verify_rfc3161_token(
     if signing_cert is not None:
         try:
             tst_info_bytes = bytes(
-                signed_data["encap_content_info"]["content"].contents,  # type: ignore[index]
+                signed_data["encap_content_info"]["content"].contents,
             )
             _verify_signed_attrs_signature(signer_info, signing_cert, tst_info_bytes)
         except (InvalidSignature, ValueError) as exc:
@@ -547,7 +549,7 @@ def _has_timestamping_eku(cert: x509.Certificate) -> bool:
         eku = cert.extensions.get_extension_for_class(x509.ExtendedKeyUsage)
     except x509.ExtensionNotFound:
         return False
-    return x509.ExtendedKeyUsageOID.TIME_STAMPING in eku.value
+    return ExtendedKeyUsageOID.TIME_STAMPING in eku.value
 
 
 def _walk_chain(

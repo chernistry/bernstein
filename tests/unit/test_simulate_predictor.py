@@ -176,6 +176,12 @@ def test_load_traces_skips_nan_latency(tmp_path: Path) -> None:
     assert samples == (7.0,)
 
 
+def test_load_traces_uses_explicit_finite_latency_check() -> None:
+    source = Path("src/bernstein/core/simulate/predictor.py").read_text(encoding="utf-8")
+
+    assert "value != value" not in source
+
+
 def test_load_traces_trims_to_limit(tmp_path: Path) -> None:
     lines = [
         '{"role": "backend", "adapter": "mock", "status": "completed", "latency_seconds": ' + str(float(i)) + "}\n"

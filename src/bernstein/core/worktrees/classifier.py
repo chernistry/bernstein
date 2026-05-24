@@ -257,12 +257,10 @@ def classify_worktrees(
         One :class:`ClassifiedWorktree` per directory, sorted by name.
     """
     clock = time.time() if now is None else now
-    git_paths = _git_worktree_paths(repo_root)
     rows: list[ClassifiedWorktree] = [
         _classify_one(
             path,
             repo_root=repo_root,
-            git_paths=git_paths,
             now=clock,
             stale_trace_age_s=stale_trace_age_s,
         )
@@ -275,7 +273,6 @@ def _classify_one(
     path: Path,
     *,
     repo_root: Path,
-    git_paths: frozenset[str],
     now: float,
     stale_trace_age_s: int,
 ) -> ClassifiedWorktree:
@@ -677,29 +674,6 @@ def reap_worktree(
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
-
-
-def _git_worktree_paths(repo_root: Path) -> frozenset[str]:
-    """Return absolute paths git considers active worktrees."""
-    try:
-        proc = subprocess.run(
-            ["git", "worktree", "list", "--porcelain"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=15,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
-        logger.debug("git worktree list failed: %s", exc)
-        return frozenset()
-    if proc.returncode != 0:
-        return frozenset()
-    paths: set[str] = set()
-    for line in proc.stdout.splitlines():
-        if line.startswith("worktree "):
-            paths.add(line[len("worktree ") :].strip())
-    return frozenset(paths)
 
 
 def _read_pid_record(repo_root: Path, session_id: str) -> dict[str, object] | None:

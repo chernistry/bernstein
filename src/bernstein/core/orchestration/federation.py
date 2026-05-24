@@ -51,7 +51,7 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final, Protocol, runtime_checkable
+from typing import Final, Protocol, cast, runtime_checkable
 
 from bernstein.core.orchestration.federation_contract import (
     Ticket,
@@ -82,6 +82,11 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
+
+type _StringTuple = tuple[str, ...]
+
+
+_EMPTY_STRING_TUPLE: Final[_StringTuple] = ()
 
 DEFAULT_AUDIT_RELPATH: Final[Path] = Path("lineage") / "cross-tracker-audit.jsonl"
 """Path under ``.sdd/`` where cross-tracker audit records land by default."""
@@ -138,10 +143,14 @@ class LinkDetector(Protocol):
     instances. Detectors MUST be side-effect-free.
     """
 
-    name: str
+    @property
+    def name(self) -> str:
+        """Stable detector name used in config."""
+        ...
 
     def detect(self, source: Ticket, adapters: Sequence[TrackerAdapter]) -> Iterable[LinkRef]:
         """Yield detected refs from ``source`` to other tickets."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -329,8 +338,8 @@ class FederatedTicketGraph:
     therefore ``dict[node_key, GraphNode]`` plus a list of edges.
     """
 
-    nodes: dict[tuple[str, str], GraphNode] = field(default_factory=dict)
-    edges: list[GraphEdge] = field(default_factory=list)
+    nodes: dict[tuple[str, str], GraphNode] = field(default_factory=dict[tuple[str, str], GraphNode])
+    edges: list[GraphEdge] = field(default_factory=list[GraphEdge])
 
     def add_ticket(self, ticket: Ticket) -> GraphNode:
         """Insert a ticket as a node, returning the canonical instance."""
@@ -399,7 +408,7 @@ class FederationConfig:
 
     linked_trackers: tuple[str, ...] = ()
     link_detector_names: tuple[str, ...] = ("url", "custom_field", "comment_mention")
-    cross_tracker_dispatch_allow: Mapping[str, frozenset[str]] = field(default_factory=dict)
+    cross_tracker_dispatch_allow: Mapping[str, frozenset[str]] = field(default_factory=dict[str, frozenset[str]])
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, object]) -> FederationConfig:
@@ -412,11 +421,13 @@ class FederationConfig:
             detectors = ("url", "custom_field", "comment_mention")
         else:
             detectors = _to_string_tuple(detectors_raw)
-        allow_raw = raw.get("cross_tracker_dispatch") or {}
-        allow_block = allow_raw.get("allow", {}) if isinstance(allow_raw, Mapping) else {}
+        allow_raw = raw.get("cross_tracker_dispatch")
+        allow_block: object = {}
+        if isinstance(allow_raw, Mapping):
+            allow_block = cast("Mapping[object, object]", allow_raw).get("allow", {})
         allow: dict[str, frozenset[str]] = {}
         if isinstance(allow_block, Mapping):
-            for role, trackers in allow_block.items():
+            for role, trackers in cast("Mapping[object, object]", allow_block).items():
                 if not isinstance(role, str):
                     continue
                 allow[role] = frozenset(_to_string_tuple(trackers))
@@ -435,14 +446,16 @@ class FederationConfig:
         return "*" in scopes or tracker in scopes
 
 
-def _to_string_tuple(value: object) -> tuple[str, ...]:
+def _to_string_tuple(value: object) -> _StringTuple:
     if value is None:
-        return ()
+        return _EMPTY_STRING_TUPLE
     if isinstance(value, str):
         return (value,)
-    if isinstance(value, Iterable):
-        return tuple(item for item in value if isinstance(item, str))
-    return ()
+    try:
+        values = iter(cast("Iterable[object]", value))
+    except TypeError:
+        return _EMPTY_STRING_TUPLE
+    return tuple(item for item in values if isinstance(item, str))
 
 
 # ---------------------------------------------------------------------------

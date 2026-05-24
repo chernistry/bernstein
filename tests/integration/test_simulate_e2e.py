@@ -103,12 +103,14 @@ def test_simulate_large_plan_critical_path_smaller_than_sum(tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_cli_end_to_end_on_seed_plan(tmp_path: Path) -> None:
+def test_cli_end_to_end_on_seed_plan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     plans = _seed_plans()
     if not plans:
         pytest.skip("no seed plans found")
     plan = plans[0]
     out_path = tmp_path / "report.json"
+    # Keep repo-local .sdd calibration dirs from changing the CLI defaults under test.
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     result = runner.invoke(
         simulate_cmd,

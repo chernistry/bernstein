@@ -167,8 +167,27 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/bootstrap
-      - name: Run pip-audit including dev deps
-        run: uv run pip-audit --strict
+      - name: Export production requirements (no project, hashed)
+        run: uv export --no-dev --no-emit-project --format requirements-txt -o /tmp/req-prod.txt
+      - name: Export dev requirements (no project, hashed)
+        run: uv export --no-emit-project --format requirements-txt -o /tmp/req-dev.txt
+      - name: Production deps (strict)
+        # `--no-deps` is safe: the exported file is fully pinned and the
+        # transitive closure is resolved by `uv.lock`. `--disable-pip`
+        # avoids spinning up a sub-venv just to run `pip install`.
+        #
+        # `--ignore-vuln PYSEC-2025-183` (CVE-2025-45768): disputed advisory
+        # against pyjwt that affects all released versions (introduced at 0,
+        # no fix version published) and is pulled in transitively via `mcp`.
+        # The maintainer disputes it because the key length is chosen by the
+        # calling application, not the library. There is nothing to upgrade
+        # to, so it is ignored with the rationale recorded here.
+        run: uv run pip-audit -r /tmp/req-prod.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
+      - name: Dev deps (strict)
+        # Keep the dev-dependency audit on the same exported lockfile input as
+        # production so the local editable project package is not treated as a
+        # PyPI dependency.
+        run: uv run pip-audit -r /tmp/req-dev.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
 
   stress-leak-suite:
     # TC-C: resource-leak + memory-growth + lock-contention probes.

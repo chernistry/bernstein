@@ -83,6 +83,13 @@ def _ci_test_steps(data: dict[object, Any]) -> list[dict[str, Any]]:
     return typed_steps
 
 
+def _ci_trigger(data: dict[object, Any], event: str) -> dict[str, Any]:
+    """Return the CI workflow trigger block for ``event``."""
+    on_section_raw = data.get(True, data.get("on", {}))
+    on_section = cast("dict[str, Any]", on_section_raw if isinstance(on_section_raw, dict) else {})
+    return cast("dict[str, Any]", on_section.get(event, {}))
+
+
 class TestCIWorkflowExists:
     """Validate the existing CI workflow file."""
 
@@ -111,12 +118,25 @@ class TestCIWorkflowExists:
 
     def test_ci_uses_main_branch(self) -> None:
         data = _load_ci_workflow()
-        # PyYAML parses bare `on:` as boolean True, so check both keys
-        on_section_raw = data["on"] if "on" in data else data.get(True, {})
-        on_section = cast("dict[str, Any]", on_section_raw if isinstance(on_section_raw, dict) else {})
-        push = cast("dict[str, Any]", on_section.get("push", {}))
+        push = _ci_trigger(data, "push")
         branches = cast("list[str]", push.get("branches", []))
         assert "main" in branches, "CI push trigger must include 'main' branch"
+
+    def test_observability_docs_prs_trigger_ci(self) -> None:
+        data = _load_ci_workflow()
+        for event in ("push", "pull_request"):
+            trigger = _ci_trigger(data, event)
+            paths_ignore = cast("list[str]", trigger.get("paths-ignore", []))
+            assert "docs/**" in paths_ignore, f"missing docs/** pattern in {event} paths-ignore: {paths_ignore}"
+            assert "!docs/observability/**" in paths_ignore, (
+                f"missing !docs/observability/** pattern in {event} paths-ignore: {paths_ignore}"
+            )
+            docs_pattern = paths_ignore.index("docs/**")
+            observability_pattern = paths_ignore.index("!docs/observability/**")
+            assert observability_pattern > docs_pattern, (
+                f"!docs/observability/** must follow docs/** in {event} paths-ignore: "
+                f"docs_pattern={docs_pattern}, observability_pattern={observability_pattern}"
+            )
 
     def test_pull_request_test_job_fetches_base_ref_for_impacted_tests(self) -> None:
         data = _load_ci_workflow()

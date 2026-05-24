@@ -41,6 +41,7 @@ on:
       # Documentation & prose
       - "docs/**"
       - "!docs/operations/ci-topology.md"
+      - "!docs/observability/**"
       - "*.md"
       - "!README.md"
       - "LICENSE"

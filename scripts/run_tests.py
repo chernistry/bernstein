@@ -33,7 +33,22 @@ _TEST_REQUIRED_PREFIXES = (
     "tests/",
 )
 
-TEST_FILE_TIMEOUT_SECONDS = 300
+DEFAULT_TEST_FILE_TIMEOUT_SECONDS = 300
+TEST_FILE_TIMEOUT_ENV = "BERNSTEIN_TEST_FILE_TIMEOUT_SECONDS"
+
+
+def test_file_timeout_seconds() -> int:
+    """Return the per-file subprocess timeout in seconds."""
+    raw = os.environ.get(TEST_FILE_TIMEOUT_ENV)
+    if raw is None or raw == "":
+        return DEFAULT_TEST_FILE_TIMEOUT_SECONDS
+    try:
+        timeout = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{TEST_FILE_TIMEOUT_ENV} must be an integer number of seconds") from exc
+    if timeout < 1:
+        raise ValueError(f"{TEST_FILE_TIMEOUT_ENV} must be at least 1 second")
+    return timeout
 
 
 def _default_workers() -> int:
@@ -132,7 +147,7 @@ def run_file(path: Path, extra_args: list[str], coverage: bool = False) -> tuple
             *extra_args,
         ]
     start = time.monotonic()
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=TEST_FILE_TIMEOUT_SECONDS)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=test_file_timeout_seconds())
     duration = time.monotonic() - start
     output = result.stdout + result.stderr
     return path, result.returncode, duration, output
@@ -195,8 +210,8 @@ def run_sequential(files: list[Path], extra_args: list[str], fail_fast: bool, co
         label = f"[{i}/{len(files)}] {path.name}"
         try:
             _fpath, code, duration, output = run_file(path, extra_args, coverage=coverage)
-        except subprocess.TimeoutExpired:
-            print(f"  TIMEOUT {label} (>{TEST_FILE_TIMEOUT_SECONDS}s)")
+        except subprocess.TimeoutExpired as exc:
+            print(f"  TIMEOUT {label} (>{exc.timeout:g}s)")
             failed += 1
             if fail_fast:
                 break

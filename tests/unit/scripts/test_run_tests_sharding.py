@@ -256,6 +256,31 @@ def test_sequential_timeout_message_matches_subprocess_timeout(
     assert "TIMEOUT [1/1] test_slow.py (>300s)" in capsys.readouterr().out
 
 
+def test_run_file_uses_timeout_env_override(
+    run_tests_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    timeouts: list[int] = []
+
+    def fake_run(
+        cmd: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        timeout = kwargs["timeout"]
+        assert isinstance(timeout, int)
+        timeouts.append(timeout)
+        return subprocess.CompletedProcess(cmd, 0, "ok\n", "")
+
+    monkeypatch.setenv("BERNSTEIN_TEST_FILE_TIMEOUT_SECONDS", "600")
+    monkeypatch.setattr(run_tests_module.subprocess, "run", fake_run)
+
+    _path, code, _duration, output = run_tests_module.run_file(Path("tests/unit/test_slow.py"), [])
+
+    assert code == 0
+    assert output == "ok\n"
+    assert timeouts == [600]
+
+
 def test_discover_changed_files_falls_back_to_two_dot_diff_without_merge_base(
     run_tests_module: ModuleType,
     monkeypatch: pytest.MonkeyPatch,

@@ -1316,6 +1316,9 @@ jobs:
       # denominator below and the per-shard slice both key off this; bump
       # it (and the `shard:` list) together to rescale the fan-out.
       TEST_SHARD_COUNT: "4"
+      # Main push coverage runs are slower than local file runs; keep the
+      # per-file guard, but allow heavy adapter contract files to finish.
+      BERNSTEIN_TEST_FILE_TIMEOUT_SECONDS: "600"
     strategy:
       fail-fast: false
       matrix:

@@ -70,6 +70,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard-90d-check.yml | Scorecard 90d MaintainedID re-check | schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "scorecard-90d-check-${{ github.ref }}"} | 2 |
 | .github/workflows/scorecard.yml | OSSF Scorecard | branch_protection_rule, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "scorecard-${{ github.ref }}"} | 2 |
 | .github/workflows/soc2-evidence-nightly.yml | soc2-evidence-nightly | schedule, workflow_dispatch | {"cancel-in-progress": "false", "group": "soc2-evidence-${{ github.ref }}"} | 2 |
+| .github/workflows/sonar-hotspot-review.yml | SonarQube hotspot review | workflow_dispatch | {"cancel-in-progress": "false", "group": "sonar-hotspot-review"} | 1 |
 | .github/workflows/sonar-pr-comment.yml | SonarQube PR insights comment | pull_request | {"cancel-in-progress": "true", "group": "sonar-pr-comment-${{ github.event.pull_request.number }}"} | 1 |
 | .github/workflows/sonar-scan.yml | SonarQube scan | workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-scan-${{ github.ref }}"} | 1 |
 | .github/workflows/sonar-tracker.yml | SonarQube findings tracker | schedule, workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-tracker"} | 1 |
@@ -150,6 +151,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard-90d-check.yml | age-check: 90-day age gate<br>scorecard-rerun: Scorecard rerun + report |
 | .github/workflows/scorecard.yml | analysis: Scorecard analysis<br>upload: Filter suppressions and upload to Code Scanning |
 | .github/workflows/soc2-evidence-nightly.yml | pack: generate evidence pack<br>preflight: preflight (gate) |
+| .github/workflows/sonar-hotspot-review.yml | review: Apply hotspot review manifest |
 | .github/workflows/sonar-pr-comment.yml | comment: Sonar smells delta comment |
 | .github/workflows/sonar-scan.yml | scan: SonarQube scan |
 | .github/workflows/sonar-tracker.yml | render: Render Sonar tracker issue |
@@ -230,6 +232,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard-90d-check.yml | workflow: {"contents": "read"}<br>age-check: {"contents": "read"}<br>scorecard-rerun: {"actions": "read", "contents": "read", "id-token": "write", "issues": "write", "security-events": "write"} | - |
 | .github/workflows/scorecard.yml | workflow: {"contents": "read"}<br>analysis: {"actions": "read", "contents": "read", "id-token": "write", "security-events": "write"}<br>upload: {"contents": "read", "security-events": "write"} | - |
 | .github/workflows/soc2-evidence-nightly.yml | workflow: {"contents": "read"} | SOC2_EVIDENCE_ENABLED |
+| .github/workflows/sonar-hotspot-review.yml | workflow: {"contents": "read"} | SONAR_TOKEN |
 | .github/workflows/sonar-pr-comment.yml | workflow: {"contents": "read", "issues": "write", "pull-requests": "write"} | SONAR_TOKEN |
 | .github/workflows/sonar-scan.yml | workflow: {"actions": "read", "contents": "read"} | GITHUB_TOKEN, SONAR_TOKEN |
 | .github/workflows/sonar-tracker.yml | workflow: {"contents": "read"}<br>render: {"contents": "read", "issues": "write"} | SONAR_TOKEN |

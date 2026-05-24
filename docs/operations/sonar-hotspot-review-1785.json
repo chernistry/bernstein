@@ -616,6 +616,30 @@
       "line": 60,
       "resolution": "SAFE",
       "comment": "Reviewed for #1785: bounded parser or trusted local input; no adversarial regex surface."
+    },
+    {
+      "key": "7e33243a-1db9-4c83-bfee-8b551e5141bb",
+      "rule_key": "python:S5042",
+      "component": "bernstein:src/bernstein/core/plugins_core/plugin_installer.py",
+      "line": 261,
+      "resolution": "SAFE",
+      "comment": "Reviewed for #1785: archive extraction is constrained by zip path checks and tar data filters."
+    },
+    {
+      "key": "51c01a0a-da03-4029-afcf-c1beecb3e41b",
+      "rule_key": "python:S5852",
+      "component": "bernstein:src/bernstein/github_app/slash_commands.py",
+      "line": 25,
+      "resolution": "SAFE",
+      "comment": "Reviewed for #1785: anchored line parser with bounded whitespace and argument classes."
+    },
+    {
+      "key": "04cb9f75-abdf-4fd0-8ba7-3452a771031a",
+      "rule_key": "python:S5852",
+      "component": "bernstein:src/bernstein/gitlab_app/slash_commands.py",
+      "line": 19,
+      "resolution": "SAFE",
+      "comment": "Reviewed for #1785: anchored line parser with bounded whitespace and argument classes."
     }
   ]
 }

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import ast
+import inspect
 import json
+import textwrap
 import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from bernstein.mcp import remote_transport as remote_transport_module
 from bernstein.mcp.remote_transport import (
     MCPSession,
     RemoteMCPConfig,
@@ -82,6 +86,12 @@ def _tool_result(text: str) -> dict:
     if isinstance(parsed, dict) and "_meter" in parsed:
         return parsed["result"]
     return parsed
+
+
+def _matches_cancelled_error(node: ast.expr | None) -> bool:
+    if isinstance(node, ast.Attribute) and node.attr == "CancelledError":
+        return isinstance(node.value, ast.Name) and node.value.id == "asyncio"
+    return isinstance(node, ast.Name) and node.id == "CancelledError"
 
 
 # ---------------------------------------------------------------------------
@@ -425,6 +435,16 @@ class TestMCPMethods:
 
 
 class TestToolExecution:
+    def test_tools_call_does_not_catch_cancelled_error(self) -> None:
+        source = inspect.getsource(remote_transport_module.StreamableHTTPTransport._method_tools_call)
+        tree = ast.parse(textwrap.dedent(source))
+        cancelled_handlers = [
+            node.lineno
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ExceptHandler) and _matches_cancelled_error(node.type)
+        ]
+        assert cancelled_handlers == []
+
     @pytest.mark.anyio
     async def test_health_tool(self, transport: StreamableHTTPTransport) -> None:
         body = _jsonrpc_request("tools/call", {"name": "bernstein_health", "arguments": {}})

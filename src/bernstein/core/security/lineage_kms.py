@@ -233,10 +233,7 @@ class EnvBasedKMSAdapter:
         # Reuse the on-disk loader's parser so the error messages are
         # identical regardless of source -- one less surprise for the
         # operator who flips between file/env adapters.
-        try:
-            private_key = _load_ed25519_private(data, Path(f"<env:{env_var}>"))
-        except LineageSignerError:
-            raise
+        private_key = _load_ed25519_private(data, Path(f"<env:{env_var}>"))
         if scrub_env:
             # Best-effort scrub. We cannot guarantee no other thread/
             # process snapshotted ``os.environ`` between import and now,

@@ -200,7 +200,7 @@ class TestFinalizeRunOutputFallback:
 
     def test_fallback_when_textual_unsupported(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When Textual is not supported but is TTY, fallback display is used."""
-        from bernstein.cli import run_cmd
+        from bernstein.cli import run_cmd, run_preflight
 
         mock_caps = MagicMock()
         mock_caps.supports_textual = False
@@ -211,14 +211,14 @@ class TestFinalizeRunOutputFallback:
             lambda: mock_caps,
         )
         mock_fallback = MagicMock()
-        monkeypatch.setattr(run_cmd, "_try_fallback_display", mock_fallback)
+        monkeypatch.setattr(run_preflight, "_try_fallback_display", mock_fallback)
 
         run_cmd._finalize_run_output(quiet=False)
         mock_fallback.assert_called_once()
 
     def test_summary_when_not_tty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When not a TTY, the static summary is shown."""
-        from bernstein.cli import run_cmd
+        from bernstein.cli import run_cmd, run_preflight
 
         mock_caps = MagicMock()
         mock_caps.supports_textual = False
@@ -229,7 +229,7 @@ class TestFinalizeRunOutputFallback:
             lambda: mock_caps,
         )
         mock_summary = MagicMock()
-        monkeypatch.setattr(run_cmd, "_show_run_summary", mock_summary)
+        monkeypatch.setattr(run_preflight, "_show_run_summary", mock_summary)
 
         run_cmd._finalize_run_output(quiet=False)
         mock_summary.assert_called_once()
@@ -261,14 +261,14 @@ class TestFinalizeRunOutputFallback:
 
     def test_try_fallback_display_catches_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """_try_fallback_display falls back to summary on error."""
-        from bernstein.cli import run_cmd
+        from bernstein.cli import run_cmd, run_preflight
 
         monkeypatch.setattr(
             "bernstein.tui.fallback.FallbackDisplay",
             MagicMock(side_effect=ImportError("no rich")),
         )
         mock_summary = MagicMock()
-        monkeypatch.setattr(run_cmd, "_show_run_summary", mock_summary)
+        monkeypatch.setattr(run_preflight, "_show_run_summary", mock_summary)
 
         run_cmd._try_fallback_display()
         mock_summary.assert_called_once()

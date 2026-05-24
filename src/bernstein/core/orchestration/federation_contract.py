@@ -74,7 +74,7 @@ class Comment:
 
     author: str
     body: str
-    custom_fields: dict[str, str] = field(default_factory=dict)
+    custom_fields: dict[str, str] = field(default_factory=dict[str, str])
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +91,7 @@ class Ticket:
     title: str
     body: str
     comments: tuple[Comment, ...] = ()
-    custom_fields: dict[str, str] = field(default_factory=dict)
+    custom_fields: dict[str, str] = field(default_factory=dict[str, str])
     url: str = ""
 
 
@@ -110,12 +110,20 @@ class TrackerAdapter(Protocol):
 
     def list_tickets(self) -> Iterable[Ticket]:  # pragma: no cover - protocol
         """Return the open tickets visible to the federation builder."""
+        ...
 
     def get_ticket(self, ticket_id: str) -> Ticket:  # pragma: no cover - protocol
         """Fetch a single ticket by id; raise ``TrackerUnknownError`` if missing."""
+        ...
+
+    def fetch_ticket(self, ticket_id: str) -> Ticket:  # pragma: no cover - protocol
+        """Fetch a single ticket by id; legacy federation dispatcher spelling."""
+        ...
 
     def add_comment(self, ticket_id: str, body: str) -> None:  # pragma: no cover - protocol
         """Post a comment; raise ``TrackerReadOnlyError`` if not writable."""
+        ...
 
     def transition(self, ticket_id: str, state: str) -> None:  # pragma: no cover - protocol
         """Transition the ticket to ``state``; raise ``TrackerReadOnlyError`` if not writable."""
+        ...

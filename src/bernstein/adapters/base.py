@@ -467,6 +467,39 @@ class CLIAdapter(ABC):
         for host, port in self.external_endpoints:
             policy.check(host, port, source=f"adapter:{self.name()}")
 
+    def refuse_multimodal_if_needed(self, multimodal_context: Any | None) -> None:
+        """Reject attachments for adapters that do not support multimodal input.
+
+        Args:
+            multimodal_context: Optional multimodal context from the worker
+                launch path.
+
+        Raises:
+            CapabilityRefusal: When attachments are present and this adapter is
+                not registered as multimodal-capable.
+        """
+        if multimodal_context is None:
+            return
+
+        inputs = getattr(multimodal_context, "inputs", ()) or ()
+        attachments: list[str] = []
+        for input_item in inputs:
+            content_path = getattr(input_item, "content_path", None)
+            if content_path is not None:
+                attachments.append(str(content_path))
+                continue
+            description = getattr(input_item, "description", "") or "<inline attachment>"
+            attachments.append(str(description))
+        if not attachments:
+            return
+
+        from bernstein.core.agents.multimodal_attestation import refuse_when_incapable
+
+        refuse_when_incapable(
+            adapter_name=self._derive_session_namespace(),
+            attachments=tuple(attachments),
+        )
+
     def set_resource_limits(self, limits: ResourceLimits | None) -> None:
         """Configure OS-level resource limits applied to spawned child processes.
 

@@ -14,14 +14,14 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | Auto-heal v2 | workflow_call | - | 2 |
 | .github/workflows/auto-release.yml | Auto-release | workflow_call | - | 5 |
 | .github/workflows/bernstein-ci-fix.yml | Bernstein CI Fix | workflow_call | - | 4 |
-| .github/workflows/bernstein-issues-decompose.yml | Bernstein Issue Decompose | issues | {"cancel-in-progress": "true", "group": "bernstein-decompose-${{ github.event.issue.number }}"} | 2 |
+| .github/workflows/bernstein-issues-decompose.yml | Bernstein Issue Decompose | issues | {"cancel-in-progress": "true", "group": "bernstein-decompose-${{ github.event.issue.number }}"} | 4 |
 | .github/workflows/bernstein-pr-review.yml | Bernstein PR Review | pull_request | {"cancel-in-progress": "true", "group": "bernstein-pr-${{ github.event.pull_request.number }}"} | 1 |
 | .github/workflows/bisect-on-red.yml | Bisect on Red | workflow_call | - | 1 |
 | .github/workflows/branch-protection-audit.yml | Branch protection audit | schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "branch-protection-audit-${{ github.ref }}"} | 1 |
 | .github/workflows/ci-gate-stub.yml | CI gate stub | pull_request | {"cancel-in-progress": "true", "group": "ci-gate-stub-${{ github.event.pull_request.number \|\| github.ref }}"} | 1 |
 | .github/workflows/ci-macos-nightly.yml | CI (macOS nightly) | push, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "ci-macos-nightly-${{ github.workflow }}-${{ github.ref }}"} | 2 |
 | .github/workflows/ci-weekly-digest.yml | CI Weekly Digest | schedule, workflow_dispatch | {"cancel-in-progress": "false", "group": "ci-weekly-digest"} | 1 |
-| .github/workflows/ci.yml | CI | merge_group, pull_request, push, workflow_dispatch | {"cancel-in-progress": "true", "group": "ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) \|\| format('branch-{0}', github.ref) }}"} | 29 |
+| .github/workflows/ci.yml | CI | merge_group, pull_request, push, workflow_dispatch | {"cancel-in-progress": "true", "group": "ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) \|\| format('branch-{0}', github.ref) }}"} | 30 |
 | .github/workflows/cifuzz-pr.yml | CIFuzz (ClusterFuzzLite, PR) | pull_request | {"cancel-in-progress": "true", "group": "cifuzz-pr-${{ github.ref }}"} | 1 |
 | .github/workflows/cleanup-runs.yml | Cleanup Action Runs | workflow_dispatch | {"cancel-in-progress": "false", "group": "cleanup-runs-${{ github.ref }}"} | 1 |
 | .github/workflows/cluster-e2e.yml | cluster-e2e | pull_request, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "cluster-e2e-${{ github.ref }}"} | 1 |
@@ -70,8 +70,9 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard-90d-check.yml | Scorecard 90d MaintainedID re-check | schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "scorecard-90d-check-${{ github.ref }}"} | 2 |
 | .github/workflows/scorecard.yml | OSSF Scorecard | branch_protection_rule, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "scorecard-${{ github.ref }}"} | 2 |
 | .github/workflows/soc2-evidence-nightly.yml | soc2-evidence-nightly | schedule, workflow_dispatch | {"cancel-in-progress": "false", "group": "soc2-evidence-${{ github.ref }}"} | 2 |
+| .github/workflows/sonar-hotspot-review.yml | SonarQube hotspot review | workflow_dispatch | {"cancel-in-progress": "false", "group": "sonar-hotspot-review"} | 1 |
 | .github/workflows/sonar-pr-comment.yml | SonarQube PR insights comment | pull_request | {"cancel-in-progress": "true", "group": "sonar-pr-comment-${{ github.event.pull_request.number }}"} | 1 |
-| .github/workflows/sonar-scan.yml | SonarQube scan | push, workflow_dispatch | {"cancel-in-progress": "false", "group": "sonar-scan-${{ github.ref }}"} | 1 |
+| .github/workflows/sonar-scan.yml | SonarQube scan | workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-scan-${{ github.ref }}"} | 1 |
 | .github/workflows/sonar-tracker.yml | SonarQube findings tracker | schedule, workflow_dispatch, workflow_run | {"cancel-in-progress": "false", "group": "sonar-tracker"} | 1 |
 | .github/workflows/stale.yml | Stale cleanup | schedule | {"cancel-in-progress": "false", "group": "stale-${{ github.ref }}"} | 1 |
 | .github/workflows/static-analysis-extended.yml | static-analysis (extended) | pull_request, push, schedule, workflow_dispatch | {"cancel-in-progress": "true", "group": "static-analysis-extended-${{ github.ref }}"} | 6 |
@@ -94,14 +95,14 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | heal: Apply chosen strategy<br>triage: Triage and classify |
 | .github/workflows/auto-release.yml | alert-on-stale-release-trigger: Alert on stale release trigger<br>detect-stale-alerts: Detect open auto-release-skipped issues<br>gate: Release gate<br>release: Tag release<br>sweep-stale-alerts-on-success: Close auto-release-skipped issues on green main |
 | .github/workflows/bernstein-ci-fix.yml | fallback-issue: Open ci-fix issue (fallback)<br>fix: Auto-heal with Bernstein<br>tier3-shadow: Tier-3 OpenRouter shadow-mode escalation<br>triage: Triage CI failure |
-| .github/workflows/bernstein-issues-decompose.yml | decompose: Decompose issue with Bernstein<br>reject-untrusted-issue: Reject untrusted issue decomposition |
+| .github/workflows/bernstein-issues-decompose.yml | decompose: Implement approved issue plan<br>plan: Plan issue decomposition<br>reject-untrusted-issue: Reject untrusted issue decomposition<br>scope_gate: Require approved file scope |
 | .github/workflows/bernstein-pr-review.yml | review: Review with Bernstein |
 | .github/workflows/bisect-on-red.yml | bisect: Identify culprit PR |
 | .github/workflows/branch-protection-audit.yml | audit: Branch protection audit |
 | .github/workflows/ci-gate-stub.yml | ci-gate: CI gate |
 | .github/workflows/ci-macos-nightly.yml | open-failure-issue: Open / update macOS nightly failure issue<br>test-macos-nightly: Test (macos-latest, Python ${{ matrix.python-version }}) |
 | .github/workflows/ci-weekly-digest.yml | digest: Build and publish weekly digest |
-| .github/workflows/ci.yml | actionlint: Workflow lint<br>adapter-integration: Adapter integration (fake-CLI)<br>adapter-integration-macos: Adapter integration (fake-CLI, macOS)<br>autofix: Auto-fix lint<br>bandit: Bandit (security)<br>beartype: Beartype (type contracts)<br>ci-gate: CI gate<br>close-ci-issues: Close resolved CI issues<br>dead-code: Dead code (Vulture)<br>determine-changes: Determine changes<br>diff-coverage: Diff coverage report<br>dist-size: Package size check<br>install-smoke-pipx: Install smoke - pipx (${{ matrix.os }}, Python ${{ matrix.python-version }})<br>install-smoke-uv: Install smoke - uv tool (${{ matrix.os }})<br>lineage-gate: Lineage Gate<br>lint: Lint<br>mutmut-diff: Mutation report (diff-only)<br>pip-audit: pip-audit (deps)<br>pr-summary: PR CI summary<br>property-tests: Property tests (Hypothesis smoke)<br>pyright-strict-zone: Pyright strict (security + cluster)<br>repo-hygiene: Repo hygiene<br>schemathesis-smoke: Schemathesis smoke<br>semgrep: Semgrep (custom rules)<br>snapshot-tests: Snapshot tests (syrupy)<br>spelling: Spelling (typos)<br>test: Test (${{ matrix.os }}, Python ${{ matrix.python-version }}, shard ${{ matrix.shard }})<br>test-macos: Test (macos-latest, Python 3.13)<br>typecheck: Type check report |
+| .github/workflows/ci.yml | actionlint: Workflow lint<br>adapter-integration: Adapter integration (fake-CLI)<br>adapter-integration-macos: Adapter integration (fake-CLI, macOS)<br>autofix: Auto-fix lint<br>bandit: Bandit (security)<br>beartype: Beartype (type contracts)<br>ci-gate: CI gate<br>close-ci-issues: Close resolved CI issues<br>coverage-report: Coverage report<br>dead-code: Dead code (Vulture)<br>determine-changes: Determine changes<br>diff-coverage: Diff coverage report<br>dist-size: Package size check<br>install-smoke-pipx: Install smoke - pipx (${{ matrix.os }}, Python ${{ matrix.python-version }})<br>install-smoke-uv: Install smoke - uv tool (${{ matrix.os }})<br>lineage-gate: Lineage Gate<br>lint: Lint<br>mutmut-diff: Mutation report (diff-only)<br>pip-audit: pip-audit (deps)<br>pr-summary: PR CI summary<br>property-tests: Property tests (Hypothesis smoke)<br>pyright-strict-zone: Pyright strict (security + cluster)<br>repo-hygiene: Repo hygiene<br>schemathesis-smoke: Schemathesis smoke<br>semgrep: Semgrep (custom rules)<br>snapshot-tests: Snapshot tests (syrupy)<br>spelling: Spelling (typos)<br>test: Test (${{ matrix.os }}, Python ${{ matrix.python-version }}, shard ${{ matrix.shard }})<br>test-macos: Test (macos-latest, Python 3.13)<br>typecheck: Type check report |
 | .github/workflows/cifuzz-pr.yml | cifuzz: Build and run fuzzers |
 | .github/workflows/cleanup-runs.yml | cleanup |
 | .github/workflows/cluster-e2e.yml | cluster-e2e: cluster-e2e (linux) |
@@ -150,6 +151,7 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/scorecard-90d-check.yml | age-check: 90-day age gate<br>scorecard-rerun: Scorecard rerun + report |
 | .github/workflows/scorecard.yml | analysis: Scorecard analysis<br>upload: Filter suppressions and upload to Code Scanning |
 | .github/workflows/soc2-evidence-nightly.yml | pack: generate evidence pack<br>preflight: preflight (gate) |
+| .github/workflows/sonar-hotspot-review.yml | review: Apply hotspot review manifest |
 | .github/workflows/sonar-pr-comment.yml | comment: Sonar smells delta comment |
 | .github/workflows/sonar-scan.yml | scan: SonarQube scan |
 | .github/workflows/sonar-tracker.yml | render: Render Sonar tracker issue |
@@ -174,14 +176,14 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/auto-heal.yml | heal: {"attestations": "write", "contents": "write", "id-token": "write", "pull-requests": "write"}<br>triage: {"actions": "read", "contents": "read", "pull-requests": "read"} | GITHUB_TOKEN, GLITCHTIP_DSN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID |
 | .github/workflows/auto-release.yml | alert-on-stale-release-trigger: {"contents": "read", "issues": "write"}<br>detect-stale-alerts: {"contents": "read", "issues": "read"}<br>gate: {"contents": "read"}<br>release: {"contents": "write"}<br>sweep-stale-alerts-on-success: {"contents": "read", "issues": "write"} | GITHUB_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID |
 | .github/workflows/bernstein-ci-fix.yml | fallback-issue: {"contents": "read", "issues": "write"}<br>fix: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>tier3-shadow: {"actions": "read", "contents": "read"}<br>triage: {"actions": "read", "contents": "read", "pull-requests": "read"} | GEMINI_API_KEY, GITHUB_TOKEN, GLITCHTIP_DSN, OPENROUTER_API_KEY_FREE |
-| .github/workflows/bernstein-issues-decompose.yml | workflow: {"contents": "read"}<br>decompose: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>reject-untrusted-issue: {"issues": "write"} | ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY |
+| .github/workflows/bernstein-issues-decompose.yml | workflow: {"contents": "read"}<br>decompose: {"contents": "write", "issues": "write", "pull-requests": "write"}<br>plan: {"contents": "read"}<br>reject-untrusted-issue: {"issues": "write"}<br>scope_gate: {"issues": "write"} | ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY |
 | .github/workflows/bernstein-pr-review.yml | workflow: {"contents": "read", "pull-requests": "write"} | ANTHROPIC_API_KEY |
 | .github/workflows/bisect-on-red.yml | bisect: {"contents": "read", "issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/branch-protection-audit.yml | audit: {"contents": "read"} | - |
 | .github/workflows/ci-gate-stub.yml | workflow: {"contents": "read"}<br>ci-gate: {"contents": "read"} | - |
 | .github/workflows/ci-macos-nightly.yml | workflow: {"contents": "read"}<br>open-failure-issue: {"contents": "read", "issues": "write"}<br>test-macos-nightly: {"checks": "write", "contents": "read"} | GITHUB_TOKEN |
 | .github/workflows/ci-weekly-digest.yml | digest: {"contents": "read", "issues": "write"} | - |
-| .github/workflows/ci.yml | workflow: {"contents": "read"}<br>actionlint: {"contents": "read"}<br>adapter-integration: {"contents": "read"}<br>adapter-integration-macos: {"contents": "read"}<br>autofix: {"contents": "write"}<br>bandit: {"contents": "read"}<br>beartype: {"contents": "read"}<br>ci-gate: {"contents": "read"}<br>close-ci-issues: {"contents": "read", "issues": "write"}<br>dead-code: {"contents": "read"}<br>determine-changes: {"contents": "read"}<br>diff-coverage: {"contents": "read"}<br>dist-size: {"contents": "read"}<br>install-smoke-pipx: {"contents": "read"}<br>install-smoke-uv: {"contents": "read"}<br>lineage-gate: {"contents": "read"}<br>lint: {"contents": "read"}<br>mutmut-diff: {"contents": "read"}<br>pip-audit: {"contents": "read"}<br>pr-summary: {"pull-requests": "write"}<br>property-tests: {"contents": "read"}<br>pyright-strict-zone: {"contents": "read"}<br>repo-hygiene: {"contents": "read"}<br>schemathesis-smoke: {"contents": "read"}<br>semgrep: {"contents": "read"}<br>snapshot-tests: {"contents": "read"}<br>spelling: {"contents": "read"}<br>test: {"checks": "write", "contents": "read", "pull-requests": "write"}<br>test-macos: {"checks": "write", "contents": "read"}<br>typecheck: {"contents": "read"} | CODECOV_TOKEN, GITHUB_TOKEN |
+| .github/workflows/ci.yml | workflow: {"contents": "read"}<br>actionlint: {"contents": "read"}<br>adapter-integration: {"contents": "read"}<br>adapter-integration-macos: {"contents": "read"}<br>autofix: {"contents": "write"}<br>bandit: {"contents": "read"}<br>beartype: {"contents": "read"}<br>ci-gate: {"contents": "read"}<br>close-ci-issues: {"contents": "read", "issues": "write"}<br>coverage-report: {"contents": "read"}<br>dead-code: {"contents": "read"}<br>determine-changes: {"contents": "read"}<br>diff-coverage: {"contents": "read"}<br>dist-size: {"contents": "read"}<br>install-smoke-pipx: {"contents": "read"}<br>install-smoke-uv: {"contents": "read"}<br>lineage-gate: {"contents": "read"}<br>lint: {"contents": "read"}<br>mutmut-diff: {"contents": "read"}<br>pip-audit: {"contents": "read"}<br>pr-summary: {"pull-requests": "write"}<br>property-tests: {"contents": "read"}<br>pyright-strict-zone: {"contents": "read"}<br>repo-hygiene: {"contents": "read"}<br>schemathesis-smoke: {"contents": "read"}<br>semgrep: {"contents": "read"}<br>snapshot-tests: {"contents": "read"}<br>spelling: {"contents": "read"}<br>test: {"checks": "write", "contents": "read", "pull-requests": "write"}<br>test-macos: {"checks": "write", "contents": "read"}<br>typecheck: {"contents": "read"} | CODECOV_TOKEN, GITHUB_TOKEN |
 | .github/workflows/cifuzz-pr.yml | workflow: {"contents": "read"}<br>cifuzz: {"contents": "read"} | GITHUB_TOKEN |
 | .github/workflows/cleanup-runs.yml | workflow: {"contents": "read"}<br>cleanup: {"actions": "write"} | GITHUB_TOKEN |
 | .github/workflows/cluster-e2e.yml | workflow: {"contents": "read"} | - |
@@ -223,16 +225,17 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | .github/workflows/release-major-minor.yml | workflow: {"contents": "read"}<br>release: {"attestations": "write", "contents": "write", "id-token": "write"} | GITHUB_TOKEN |
 | .github/workflows/release-please.yml | workflow: {"contents": "read"}<br>release-please: {"contents": "write", "issues": "write", "pull-requests": "write"} | GITHUB_TOKEN, RELEASE_PLEASE_PAT |
 | .github/workflows/required-check-canary.yml | verify: {"contents": "read"} | - |
-| .github/workflows/review-bot-ack.yml | review-bot-ack: {"contents": "read", "pull-requests": "write"} | GITHUB_TOKEN |
+| .github/workflows/review-bot-ack.yml | review-bot-ack: {"contents": "read", "issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/review-bot-sweep.yml | sweep: {"contents": "write", "pull-requests": "write"} | GITHUB_TOKEN, LANDING_REPO_PAT |
 | .github/workflows/sbom-upload.yml | workflow: {"contents": "read"} | DT_API_KEY |
 | .github/workflows/sbom.yml | workflow: {"contents": "read"}<br>sbom: {"contents": "write"} | - |
 | .github/workflows/scorecard-90d-check.yml | workflow: {"contents": "read"}<br>age-check: {"contents": "read"}<br>scorecard-rerun: {"actions": "read", "contents": "read", "id-token": "write", "issues": "write", "security-events": "write"} | - |
 | .github/workflows/scorecard.yml | workflow: {"contents": "read"}<br>analysis: {"actions": "read", "contents": "read", "id-token": "write", "security-events": "write"}<br>upload: {"contents": "read", "security-events": "write"} | - |
 | .github/workflows/soc2-evidence-nightly.yml | workflow: {"contents": "read"} | SOC2_EVIDENCE_ENABLED |
-| .github/workflows/sonar-pr-comment.yml | workflow: {"contents": "read", "pull-requests": "write"} | SONAR_TOKEN |
+| .github/workflows/sonar-hotspot-review.yml | workflow: {"contents": "read"} | SONAR_TOKEN |
+| .github/workflows/sonar-pr-comment.yml | workflow: {"contents": "read", "issues": "write", "pull-requests": "write"} | SONAR_TOKEN |
 | .github/workflows/sonar-scan.yml | workflow: {"actions": "read", "contents": "read"} | GITHUB_TOKEN, SONAR_TOKEN |
-| .github/workflows/sonar-tracker.yml | workflow: {"contents": "read"}<br>render: {"contents": "read", "issues": "write"} | GITHUB_TOKEN, SONAR_TOKEN |
+| .github/workflows/sonar-tracker.yml | workflow: {"contents": "read"}<br>render: {"contents": "read", "issues": "write"} | SONAR_TOKEN |
 | .github/workflows/stale.yml | workflow: {"issues": "write", "pull-requests": "write"} | - |
 | .github/workflows/static-analysis-extended.yml | workflow: {"contents": "read"}<br>perflint: {"contents": "read", "security-events": "write"}<br>refurb: {"contents": "read", "security-events": "write"}<br>semgrep: {"contents": "read", "security-events": "write"}<br>trivy-fs: {"contents": "read", "security-events": "write"}<br>trivy-iac: {"contents": "read", "security-events": "write"}<br>vulture: {"contents": "read", "security-events": "write"} | - |
 | .github/workflows/sweep-sonar-findings.yml | workflow: {"contents": "read"}<br>sweep: {"contents": "write", "pull-requests": "write"} | GITHUB_TOKEN, SONAR_TOKEN |
@@ -256,7 +259,8 @@ This report lists the workflow graph surfaces reviewers need to inspect when CI 
 | --- | --- |
 | .github/workflows/adapter-contract-drift.yml | aggregate: download -<br>check: upload drift-${{ matrix.adapter }} |
 | .github/workflows/bernstein-ci-fix.yml | tier3-shadow: upload tier3-shadow-${{ needs.triage.outputs.short_sha }} |
-| .github/workflows/ci.yml | diff-coverage: download coverage-report<br>dist-size: upload install-smoke-wheel<br>install-smoke-pipx: download install-smoke-wheel<br>install-smoke-uv: download install-smoke-wheel<br>test: upload ctrf-report<br>test: upload coverage-report |
+| .github/workflows/bernstein-issues-decompose.yml | decompose: download issue-decompose-plan-${{ github.event.issue.number }}<br>plan: upload issue-decompose-plan-${{ github.event.issue.number }} |
+| .github/workflows/ci.yml | coverage-report: download -<br>coverage-report: upload coverage-report<br>diff-coverage: download coverage-report<br>dist-size: upload install-smoke-wheel<br>install-smoke-pipx: download install-smoke-wheel<br>install-smoke-uv: download install-smoke-wheel<br>test: upload coverage-data-${{ matrix.shard }} |
 | .github/workflows/cifuzz-pr.yml | cifuzz: upload cifuzz-artifacts-address |
 | .github/workflows/cluster-e2e.yml | cluster-e2e: upload cluster-e2e-logs |
 | .github/workflows/cluster-tunnel-e2e.yml | cluster-tunnel-e2e: upload cluster-tunnel-e2e-logs |

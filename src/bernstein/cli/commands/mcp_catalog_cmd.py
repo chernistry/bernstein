@@ -287,11 +287,12 @@ def install_cmd(entry_id: str, yes: bool, refresh: bool) -> None:
         if not outcome.confirmed:
             console.print("[yellow]Install aborted by user.[/yellow]")
             return
-    else:
-        console.print(
-            f"[green]Installed[/green] {outcome.installed.id} "
-            f"({outcome.installed.version_pin}) into {service.user_config_path}"
-        )
+        return
+
+    console.print(
+        f"[green]Installed[/green] {outcome.installed.id} "
+        f"({outcome.installed.version_pin}) into {service.user_config_path}"
+    )
 
 
 @catalog_group.command("list-installed")

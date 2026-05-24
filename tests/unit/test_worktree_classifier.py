@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -163,6 +164,22 @@ def test_corrupt_empty_dir_is_reapable(repo_root: Path) -> None:
     row = _row(repo_root, "corrupt-empty")
     assert row.state is WorktreeState.CORRUPT
     assert row.has_unsaved_work is False
+    assert row.is_reapable is True
+
+
+def test_corrupt_empty_dir_does_not_need_git_worktree_paths(repo_root: Path) -> None:
+    """A corrupt directory is classified from local filesystem state only."""
+    base = repo_root / ".sdd" / "runtime" / "worktrees"
+    base.mkdir(parents=True, exist_ok=True)
+    empty = base / "corrupt-empty"
+    empty.mkdir()
+
+    with patch(
+        "bernstein.core.worktrees.classifier.subprocess.run",
+        side_effect=AssertionError("git should not be queried for corrupt directory classification"),
+    ):
+        row = _row(repo_root, "corrupt-empty")
+    assert row.state is WorktreeState.CORRUPT
     assert row.is_reapable is True
 
 

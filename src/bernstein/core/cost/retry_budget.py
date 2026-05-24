@@ -42,10 +42,9 @@ This file is pyright-strict and ruff clean.  Mutating state lives in
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -184,11 +183,13 @@ class Criterion:
         """
         if self.is_at_floor:
             raise CriterionExhaustedError(self)
-        return replace(self, level=self.level - 1)
+        updated = cast(Criterion, replace(self, level=self.level - 1))
+        return updated
 
     def reset(self) -> Criterion:
         """Return a new criterion restored to ``max_level``."""
-        return replace(self, level=self.max_level)
+        updated = cast(Criterion, replace(self, level=self.max_level))
+        return updated
 
 
 # ---------------------------------------------------------------------------
@@ -277,9 +278,9 @@ class RetryBudget:
     """
 
     retries: int
-    criterion_degradation: Sequence[Criterion] = field(default_factory=list)
+    criterion_degradation: Sequence[Criterion] = field(default_factory=list[Criterion])
     _attempts_used: int = field(default=0, init=False)
-    _criteria: dict[str, Criterion] = field(default_factory=dict, init=False)
+    _criteria: dict[str, Criterion] = field(default_factory=dict[str, Criterion], init=False)
 
     def __post_init__(self) -> None:
         if self.retries < 0:
@@ -513,22 +514,50 @@ class RetryBudget:
 # must be the first token (integer).  The degradation list is optional
 # and defaults to empty.
 
-_SPEC_RE: Final = re.compile(
-    r"""
-    ^\s*
-    (?P<retries>\d+)
-    \s*
-    (?:retr(?:y|ies)|attempts?)?
-    \s*
-    (?:
-        [,;]\s*
-        (?:degrade\s*:)?\s*
-        (?P<policy>[^,;]+(?:>[^,;]+)*)
-    )?
-    \s*$
-    """,
-    re.IGNORECASE | re.VERBOSE,
-)
+_RETRY_KEYWORDS: Final = ("retries", "retry", "attempts", "attempt")
+
+
+def _is_criterion_name(name: str) -> bool:
+    """Return True when *name* matches ``[A-Za-z_][A-Za-z0-9_-]*``."""
+    if not name:
+        return False
+    first = name[0]
+    if not (first == "_" or "A" <= first <= "Z" or "a" <= first <= "z"):
+        return False
+    return all(ch == "_" or ch == "-" or "0" <= ch <= "9" or "A" <= ch <= "Z" or "a" <= ch <= "z" for ch in name[1:])
+
+
+def _split_retry_budget_spec(spec: str) -> tuple[int, str | None]:
+    """Split a retry-budget CLI spec into retry count and optional policy."""
+    digit_end = 0
+    while digit_end < len(spec) and spec[digit_end].isdigit():
+        digit_end += 1
+    if digit_end == 0:
+        raise ValueError(f"could not parse retry budget spec: {spec!r}")
+
+    retries = int(spec[:digit_end])
+    remainder = spec[digit_end:].lstrip()
+    lowered = remainder.lower()
+    for keyword in _RETRY_KEYWORDS:
+        if lowered.startswith(keyword):
+            remainder = remainder[len(keyword) :].lstrip()
+            break
+
+    if not remainder:
+        return retries, None
+    if remainder[0] not in {",", ";"}:
+        raise ValueError(f"could not parse retry budget spec: {spec!r}")
+
+    policy = remainder[1:].lstrip()
+    if policy.lower().startswith("degrade"):
+        after_keyword = policy[len("degrade") :].lstrip()
+        if after_keyword.startswith(":"):
+            policy = after_keyword[1:].lstrip()
+
+    policy = policy.strip()
+    if not policy or "," in policy or ";" in policy:
+        raise ValueError(f"could not parse retry budget spec: {spec!r}")
+    return retries, policy
 
 
 def parse_retry_budget_spec(
@@ -567,11 +596,7 @@ def parse_retry_budget_spec(
     stripped = spec.strip()
     if not stripped:
         raise ValueError("retry budget spec is empty")
-    match = _SPEC_RE.match(stripped)
-    if match is None:
-        raise ValueError(f"could not parse retry budget spec: {spec!r}")
-    retries = int(match.group("retries"))
-    raw_policy = match.group("policy")
+    retries, raw_policy = _split_retry_budget_spec(stripped)
     criteria: list[Criterion] = []
     if raw_policy is not None:
         seen: set[str] = set()
@@ -579,7 +604,7 @@ def parse_retry_budget_spec(
             name = raw_name.strip()
             if not name:
                 raise ValueError(f"empty criterion name in retry budget spec: {spec!r}")
-            if not re.match(r"^[A-Za-z_][A-Za-z0-9_-]*$", name):
+            if not _is_criterion_name(name):
                 raise ValueError(f"invalid criterion name {name!r} in retry budget spec")
             if name in seen:
                 raise DuplicateCriterionError(name)

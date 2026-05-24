@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Matches /bernstein <action> [rest of line]
 _SLASH_RE = re.compile(
-    r"^\s*/bernstein\s+(\w+)(?:\s+(.+))?$",
+    r"^[ \t]*/bernstein[ \t]+(\w+)(?:[ \t]+([^\r\n]*))?$",
     re.MULTILINE | re.IGNORECASE,
 )
 

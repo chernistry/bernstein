@@ -243,15 +243,17 @@ def schedule_audit(as_json: bool) -> None:
     for r in report.results:
         ts = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r.fire_time))
         proj_short = (r.recorded_projection_hash or "-")[:16]
-        chain_short = ("ok" if r.chain_match else "MISMATCH") if not r.counterfactual else "-"
         if r.counterfactual:
+            chain_short = "-"
             status = "skip"
-        elif r.rev_skipped:
-            status = "rev-skip"
-        elif r.verified:
-            status = "verified"
         else:
-            status = "MISMATCH"
+            chain_short = "ok" if r.chain_match else "MISMATCH"
+            if r.rev_skipped:
+                status = "rev-skip"
+            elif r.verified:
+                status = "verified"
+            else:
+                status = "MISMATCH"
         click.echo(f"{ts:<20} {r.schedule_id:<24} {proj_short:<18} {status:<10} {chain_short}")
 
     if not report.ok:

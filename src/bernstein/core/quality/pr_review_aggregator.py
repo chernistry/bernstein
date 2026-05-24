@@ -132,7 +132,9 @@ _STOPWORDS: frozenset[str] = frozenset(
 # whitespace / colon-space.  Tightened to reduce false positives on
 # arbitrary dotted names that happen to look like file paths.
 _FILE_LINE_RE = re.compile(
-    r"(?P<file>(?:[\w./\-]+/)?[\w\-]+\.[A-Za-z]{1,8})(?::(?P<line>\d+))?",
+    r"(?<![A-Za-z0-9_.:/-])"
+    r"(?P<file>(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_-]+\.[A-Za-z]{1,8})(?::(?P<line>\d+))?"
+    r"(?![A-Za-z0-9_.:/-])",
 )
 
 # Severity tag forms seen in the wild from cheap-tier reviewers:
@@ -382,7 +384,7 @@ def parse_findings_from_agent(agent: AgentVerdict) -> list[PRFinding]:
 
 def _normalise_tokens(text: str) -> frozenset[str]:
     """Lowercase, drop stopwords, return a token set for Jaccard similarity."""
-    tokens = re.findall(r"[A-Za-z_][A-Za-z_0-9]+", text.lower())
+    tokens = re.findall(r"[^\W\d]\w+", text.lower(), flags=re.ASCII)
     return frozenset(t for t in tokens if t not in _STOPWORDS and len(t) >= 3)
 
 

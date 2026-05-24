@@ -24,6 +24,13 @@ from bernstein.core.models import ApiTierInfo, ModelConfig
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.registry import _ADAPTERS, get_adapter
+from bernstein.core.agents.multimodal import (
+    ModalityType,
+    MultiModalContext,
+    MultiModalInput,
+    is_multimodal_capable,
+)
+from bernstein.core.agents.multimodal_attestation import CapabilityRefusal
 
 # ---------------------------------------------------------------------------
 # Adapter factories - enumerate every known adapter
@@ -88,6 +95,15 @@ class TestAdapterProtocolCompliance:
     def test_spawn_has_optional_timeout(self, adapter_name: str, adapter: CLIAdapter) -> None:
         sig = inspect.signature(adapter.spawn)
         assert "timeout_seconds" in sig.parameters, f"{adapter_name}.spawn() should accept timeout_seconds"
+
+    def test_spawn_has_optional_multimodal_context(self, adapter_name: str, adapter: CLIAdapter) -> None:
+        sig = inspect.signature(adapter.spawn)
+        assert "multimodal_context" in sig.parameters, f"{adapter_name}.spawn() should accept multimodal_context"
+        multimodal_param = sig.parameters["multimodal_context"]
+        assert multimodal_param.default is None, f"{adapter_name}.spawn() multimodal_context should default to None"
+        assert multimodal_param.kind is inspect.Parameter.KEYWORD_ONLY, (
+            f"{adapter_name}.spawn() multimodal_context should be keyword-only"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +172,48 @@ class TestAdapterSpawnResult:
         assert isinstance(result.pid, int), f"{adapter_name}: pid must be int"
         assert result.pid > 0, f"{adapter_name}: pid must be positive, got {result.pid}"
         assert isinstance(result.log_path, Path), f"{adapter_name}: log_path must be a Path"
+
+
+@pytest.mark.parametrize(
+    "adapter_name",
+    [name for name, _adapter in _TESTABLE_ADAPTERS],
+    ids=[t[0] for t in _TESTABLE_ADAPTERS],
+)
+class TestAdapterMultimodalRefusal:
+    """Adapters that cannot consume attachments must refuse before spawning."""
+
+    def test_non_multimodal_adapter_refuses_multimodal_context(
+        self,
+        adapter_name: str,
+        tmp_path: Path,
+    ) -> None:
+        if is_multimodal_capable(adapter_name):
+            pytest.skip(f"{adapter_name} supports multimodal attachments")
+
+        adapter = _instantiate_adapter(adapter_name)
+        attachment = tmp_path / "screenshot.png"
+        attachment.write_bytes(b"fake image")
+        context = MultiModalContext(
+            inputs=(
+                MultiModalInput(
+                    modality=ModalityType.IMAGE,
+                    content_path=attachment,
+                    mime_type="image/png",
+                    description="screenshot",
+                ),
+            ),
+            primary_modality=ModalityType.IMAGE,
+        )
+
+        with pytest.raises(CapabilityRefusal):
+            adapter.spawn(
+                prompt="Test prompt",
+                workdir=tmp_path,
+                model_config=ModelConfig(model="sonnet", effort="high"),
+                session_id="test-sess-001",
+                timeout_seconds=0,
+                multimodal_context=context,
+            )
 
 
 # ---------------------------------------------------------------------------

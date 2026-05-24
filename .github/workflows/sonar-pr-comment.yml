@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 concurrency:
@@ -87,6 +88,7 @@ jobs:
           HOTSPOTS: ${{ steps.query.outputs.security_hotspots }}
           COVERAGE: ${{ steps.query.outputs.coverage }}
         with:
+          github-token: ${{ github.token }}
           script: |
             const marker = '<!-- sonar-pr-comment:smells -->';
             const prNumber = Number(process.env.PR_NUMBER);

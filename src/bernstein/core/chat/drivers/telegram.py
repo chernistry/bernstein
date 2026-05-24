@@ -217,7 +217,7 @@ class TelegramBridge(BridgeProtocol):
         text: str = str(message.text or "")
         if not text.startswith("/"):
             return
-        parts: list[str] = [p for p in text.split()]
+        parts: list[str] = text.split()
         name = parts[0][1:].split("@", 1)[0]  # strip @botname suffix
         handler = self._command_handlers.get(name)
         if handler is None:
@@ -270,13 +270,7 @@ class TelegramBridge(BridgeProtocol):
         key: str,
     ) -> None:
         """Sleep ``delay`` then flush the pending body for ``key``."""
-        try:
-            await asyncio.sleep(delay)
-        except asyncio.CancelledError:
-            # Propagate cancellation after releasing local state; swallowing
-            # CancelledError silently would desync the asyncio task tree
-            # (Sonar python:S7497).
-            raise
+        await asyncio.sleep(delay)
         async with self._edit_lock:
             state = self._edit_state.get(key)
             if state is None or not state.pending_text:

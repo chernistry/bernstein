@@ -46,5 +46,6 @@ jobs:
           # Upload SARIF to Code Scanning even on findings; CI does not fail
           # the build on findings, GH Security tab is the source of truth.
           advanced-security: true
-        env:
-          GH_TOKEN: ${{ github.token }}
+          # The default repository token can be rejected by external action
+          # tag lookups. Keep this required workflow on offline audits.
+          online-audits: false

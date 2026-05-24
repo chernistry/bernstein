@@ -50,6 +50,7 @@ import argparse
 import dataclasses
 import datetime as _dt
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -129,6 +130,7 @@ _DETAILS_ITEM_CAP = 80
 # pathological project. When a list is truncated a ``*_keys_truncated`` count
 # is emitted alongside it so a consumer can tell the list is partial.
 _JSON_KEYS_CAP = 200
+_HOTSPOT_ITEM_CAP = 80
 
 _LIFECYCLE_NOTE = (
     "This thread is auto-rendered from Sonar on each scan. Resolve an item "
@@ -149,6 +151,60 @@ _TRACKER_FORBIDDEN: tuple[str, ...] = _SWEEPER_FORBIDDEN
 # ---------------------------------------------------------------------------
 # Sonar fetch: issues, quality gate, coverage
 # ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class QualityGateCondition:
+    """One condition row from SonarQube's project quality-gate status."""
+
+    metric_key: str
+    status: str
+    comparator: str | None
+    error_threshold: str | None
+    actual_value: str | None
+
+    def as_json(self) -> dict[str, str | None]:
+        """Return a stable JSON shape for the tracker summary."""
+        return {
+            "actual_value": self.actual_value,
+            "comparator": self.comparator,
+            "error_threshold": self.error_threshold,
+            "metric_key": self.metric_key,
+            "status": self.status,
+        }
+
+
+@dataclasses.dataclass(frozen=True)
+class QualityGateResult:
+    """Quality-gate status plus its condition rows."""
+
+    status: str
+    conditions: list[QualityGateCondition] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass(frozen=True)
+class SecurityHotspot:
+    """One SonarQube security hotspot row safe to render publicly."""
+
+    key: str
+    rule_key: str
+    component: str
+    line: int | None
+    status: str
+    security_category: str | None
+    vulnerability_probability: str | None
+
+    def as_json(self) -> dict[str, str | int | None]:
+        """Return a stable JSON shape for the tracker summary."""
+        return {
+            "component": self.component,
+            "key": self.key,
+            "line": self.line,
+            "rule_key": self.rule_key,
+            "security_category": self.security_category,
+            "status": self.status,
+            "vulnerability_probability": self.vulnerability_probability,
+        }
 
 
 def fetch_all_findings(
@@ -208,6 +264,58 @@ def fetch_all_findings(
     return findings
 
 
+def fetch_security_hotspots(
+    config: SonarConfig,
+    *,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    client: httpx.Client | None = None,
+) -> list[SecurityHotspot]:
+    """Page through SonarQube security hotspots awaiting review."""
+    url = f"{config.host}/api/hotspots/search"
+    hotspots: list[SecurityHotspot] = []
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        page = 1
+        while page <= MAX_PAGES:
+            params: dict[str, Any] = {
+                "projectKey": config.project_key,
+                "status": "TO_REVIEW",
+                "ps": str(page_size),
+                "p": str(page),
+            }
+            resp = _request_with_retries(client, url, params)
+            try:
+                payload = resp.json()
+            except ValueError as exc:
+                raise SonarAPIError("hotspot search returned invalid JSON") from exc
+            if not isinstance(payload, dict):
+                raise SonarAPIError("hotspot search returned a non-object payload")
+            raw_hotspots = payload.get("hotspots") or []
+            for raw in raw_hotspots:
+                if isinstance(raw, dict):
+                    hotspot = _normalise_hotspot(raw)
+                    if hotspot is not None:
+                        hotspots.append(hotspot)
+            paging = payload.get("paging") or {}
+            try:
+                total = int(paging.get("total", 0))
+                page_idx = int(paging.get("pageIndex", page))
+                size = int(paging.get("pageSize", page_size))
+            except (TypeError, ValueError) as exc:
+                raise SonarAPIError("hotspot search returned invalid paging metadata") from exc
+            if size <= 0 or page_idx * size >= total:
+                break
+            page += 1
+    finally:
+        if owns_client:
+            client.close()
+    hotspots.sort(key=lambda item: (_component_path(item.component), item.line or 0, item.key))
+    return hotspots
+
+
 def fetch_quality_gate(
     config: SonarConfig,
     *,
@@ -218,6 +326,15 @@ def fetch_quality_gate(
     Returns ``"UNKNOWN"`` when the server omits the field or the call
     fails; the tracker still renders with the issue counts.
     """
+    return fetch_quality_gate_details(config, client=client).status
+
+
+def fetch_quality_gate_details(
+    config: SonarConfig,
+    *,
+    client: httpx.Client | None = None,
+) -> QualityGateResult:
+    """Return the project quality-gate status and condition rows."""
     url = f"{config.host}/api/qualitygates/project_status"
     params = {"projectKey": config.project_key}
     owns_client = client is None
@@ -228,22 +345,63 @@ def fetch_quality_gate(
         try:
             resp = _request_with_retries(client, url, params)
         except SonarAPIError:
-            return "UNKNOWN"
+            return QualityGateResult("UNKNOWN")
         try:
             payload = resp.json()
         except ValueError:
-            return "UNKNOWN"
+            return QualityGateResult("UNKNOWN")
     finally:
         if owns_client:
             client.close()
     if not isinstance(payload, dict):
-        return "UNKNOWN"
+        return QualityGateResult("UNKNOWN")
     status = payload.get("projectStatus")
     if isinstance(status, dict):
         value = status.get("status")
         if isinstance(value, str) and value:
-            return value
-    return "UNKNOWN"
+            return QualityGateResult(value, _parse_quality_gate_conditions(status.get("conditions")))
+    return QualityGateResult("UNKNOWN")
+
+
+def _parse_quality_gate_conditions(raw_conditions: Any) -> list[QualityGateCondition]:
+    if not isinstance(raw_conditions, list):
+        return []
+    conditions: list[QualityGateCondition] = []
+    for raw in raw_conditions:
+        if not isinstance(raw, dict):
+            continue
+        metric_key = _opt_str(raw.get("metricKey"))
+        status = _opt_str(raw.get("status"))
+        if metric_key is None or status is None:
+            continue
+        conditions.append(
+            QualityGateCondition(
+                metric_key=metric_key,
+                status=status,
+                comparator=_opt_str(raw.get("comparator")),
+                error_threshold=_opt_str(raw.get("errorThreshold")),
+                actual_value=_opt_str(raw.get("actualValue")),
+            )
+        )
+    return conditions
+
+
+def _normalise_hotspot(raw: dict[str, Any]) -> SecurityHotspot | None:
+    key = _opt_str(raw.get("key"))
+    rule_key = _opt_str(raw.get("ruleKey") or raw.get("rule"))
+    component = _opt_str(raw.get("component"))
+    status = _opt_str(raw.get("status"))
+    if key is None or rule_key is None or component is None or status is None:
+        return None
+    return SecurityHotspot(
+        key=key,
+        rule_key=rule_key,
+        component=component,
+        line=_opt_int(raw.get("line")),
+        status=status,
+        security_category=_opt_str(raw.get("securityCategory")),
+        vulnerability_probability=_opt_str(raw.get("vulnerabilityProbability")),
+    )
 
 
 def fetch_coverage(
@@ -293,6 +451,8 @@ class SonarSnapshot:
     coverage: float | None
     host: str
     project_key: str
+    quality_gate_conditions: list[QualityGateCondition] = dataclasses.field(default_factory=list)
+    security_hotspots: list[SecurityHotspot] = dataclasses.field(default_factory=list)
 
 
 def collect_snapshot(
@@ -307,17 +467,20 @@ def collect_snapshot(
     assert client is not None
     try:
         findings = fetch_all_findings(config, client=client)
-        quality_gate = fetch_quality_gate(config, client=client)
+        quality_gate = fetch_quality_gate_details(config, client=client)
         coverage = fetch_coverage(config, client=client)
+        security_hotspots = fetch_security_hotspots(config, client=client)
     finally:
         if owns_client:
             client.close()
     return SonarSnapshot(
         findings=findings,
-        quality_gate=quality_gate,
+        quality_gate=quality_gate.status,
         coverage=coverage,
         host=config.host,
         project_key=config.project_key,
+        quality_gate_conditions=quality_gate.conditions,
+        security_hotspots=security_hotspots,
     )
 
 
@@ -378,11 +541,18 @@ def _coverage_text(coverage: float | None) -> str:
     return f"{coverage:.1f}%"
 
 
+def _condition_text(value: str | None) -> str:
+    if value is None or value == "":
+        return "n/a"
+    return value
+
+
 def _tldr_table(
     buckets: dict[str, list[Finding]],
     *,
     quality_gate: str,
     coverage: float | None,
+    security_hotspot_count: int,
 ) -> list[str]:
     """Build the header summary table lines."""
     total = sum(len(v) for v in buckets.values())
@@ -396,6 +566,7 @@ def _tldr_table(
         f"- Quality gate: **{quality_gate}**",
         f"- Coverage: **{_coverage_text(coverage)}**",
         f"- Open findings: **{total}**",
+        f"- Security hotspots to review: **{security_hotspot_count}**",
         "",
         "| Severity | Open |",
         "| --- | ---: |",
@@ -459,6 +630,65 @@ def _counts_only_section(severity: str, items: list[Finding], host: str, project
     return [f"- **{severity}**: {len(items)} open ([view]({link}))", ""]
 
 
+def _quality_gate_conditions_section(conditions: Sequence[QualityGateCondition]) -> list[str]:
+    """Render Sonar quality-gate condition rows."""
+    if not conditions:
+        return []
+    lines = [
+        "## Quality Gate Conditions",
+        "",
+        "| Metric | Status | Actual | Comparator | Threshold |",
+        "| --- | --- | ---: | --- | ---: |",
+    ]
+    for condition in conditions:
+        lines.append(
+            "| "
+            f"`{condition.metric_key}` | "
+            f"{condition.status} | "
+            f"{_condition_text(condition.actual_value)} | "
+            f"{_condition_text(condition.comparator)} | "
+            f"{_condition_text(condition.error_threshold)} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _hotspot_permalink(host: str, project_key: str, hotspot_key: str) -> str:
+    """Build the deep link to a single security hotspot in the Sonar UI."""
+    return f"{host}/security_hotspots?id={project_key}&hotspots={hotspot_key}"
+
+
+def _security_hotspots_section(hotspots: Sequence[SecurityHotspot], host: str, project_key: str) -> list[str]:
+    """Render security hotspots that still need Sonar-side review."""
+    if not hotspots:
+        return []
+    shown = hotspots[:_HOTSPOT_ITEM_CAP]
+    remainder = len(hotspots) - len(shown)
+    lines = [
+        "## Security Hotspots To Review",
+        "",
+        "| Rule | Status | Category | Probability | Location |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for hotspot in shown:
+        location = _component_path(hotspot.component)
+        if hotspot.line is not None:
+            location = f"{location}:{hotspot.line}"
+        link = _hotspot_permalink(host, project_key, hotspot.key)
+        lines.append(
+            "| "
+            f"`{hotspot.rule_key}` | "
+            f"{hotspot.status} | "
+            f"{_condition_text(hotspot.security_category)} | "
+            f"{_condition_text(hotspot.vulnerability_probability)} | "
+            f"`{location}` ([view]({link})) |"
+        )
+    if remainder > 0:
+        lines.append(f"| n/a | n/a | n/a | n/a | {remainder} more, see Sonar |")
+    lines.append("")
+    return lines
+
+
 def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding]], generated_at: str) -> list[str]:
     """Build the trailing machine-readable JSON summary.
 
@@ -471,9 +701,14 @@ def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding
     summary: dict[str, Any] = {
         "generated_at": generated_at,
         "quality_gate": snapshot.quality_gate,
+        "quality_gate_conditions": [condition.as_json() for condition in snapshot.quality_gate_conditions],
+        "security_hotspots": [hotspot.as_json() for hotspot in snapshot.security_hotspots[:_JSON_KEYS_CAP]],
         "coverage": snapshot.coverage,
         "by_severity": by_severity,
     }
+    hotspot_truncated = len(snapshot.security_hotspots) - len(snapshot.security_hotspots[:_JSON_KEYS_CAP])
+    if hotspot_truncated > 0:
+        summary["security_hotspots_truncated"] = hotspot_truncated
     for name, severity in (("blocker", "BLOCKER"), ("critical", "CRITICAL")):
         all_keys = [f.key for f in buckets.get(severity, [])]
         summary[f"{name}_keys"] = all_keys[:_JSON_KEYS_CAP]
@@ -484,12 +719,21 @@ def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding
     return ["## Machine-readable summary", "", "```json", blob, "```", ""]
 
 
-def _assert_no_forbidden(body: str) -> None:
-    """Raise if the rendered body carries any disallowed substring."""
+def _contains_forbidden(body: str, forbidden: str) -> bool:
+    """Return true when ``forbidden`` appears as a standalone token or phrase."""
     lower = body.lower()
+    needle = forbidden.lower()
+    if not needle.isalnum():
+        return needle in lower
+    pattern = rf"(?<![A-Za-z0-9_]){re.escape(needle)}(?![A-Za-z0-9_])"
+    return re.search(pattern, lower) is not None
+
+
+def _assert_no_forbidden(body: str) -> None:
+    """Raise if the rendered body carries any disallowed token or phrase."""
     for forbidden in _TRACKER_FORBIDDEN:
-        if forbidden.lower() in lower:
-            raise AssertionError(f"rendered tracker body contains forbidden substring {forbidden!r}")
+        if _contains_forbidden(body, forbidden):
+            raise AssertionError(f"rendered tracker body contains forbidden token or phrase {forbidden!r}")
 
 
 def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> str:
@@ -539,8 +783,11 @@ def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> 
                 buckets,
                 quality_gate=snapshot.quality_gate,
                 coverage=snapshot.coverage,
+                security_hotspot_count=len(snapshot.security_hotspots),
             )
         )
+        parts.extend(_quality_gate_conditions_section(snapshot.quality_gate_conditions))
+        parts.extend(_security_hotspots_section(snapshot.security_hotspots, host, project_key))
         for sev in SEVERITY_ORDER + tuple(extra_severities):
             items = buckets.get(sev, [])
             if not items:
@@ -788,7 +1035,15 @@ def _load_fixture(path: Path) -> SonarSnapshot:
         coverage=_opt_float(payload.get("coverage")),
         host=str(payload.get("host", "https://sonar.bernstein.run")),
         project_key=str(payload.get("project_key", "bernstein")),
+        quality_gate_conditions=_parse_quality_gate_conditions(payload.get("quality_gate_conditions")),
+        security_hotspots=_parse_security_hotspots(payload.get("security_hotspots")),
     )
+
+
+def _opt_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
 
 
 def _opt_float(value: Any) -> float | None:
@@ -798,6 +1053,28 @@ def _opt_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _opt_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_security_hotspots(raw_hotspots: Any) -> list[SecurityHotspot]:
+    if not isinstance(raw_hotspots, list):
+        return []
+    hotspots: list[SecurityHotspot] = []
+    for raw in raw_hotspots:
+        if isinstance(raw, dict):
+            hotspot = _normalise_hotspot(raw)
+            if hotspot is not None:
+                hotspots.append(hotspot)
+    hotspots.sort(key=lambda item: (_component_path(item.component), item.line or 0, item.key))
+    return hotspots
 
 
 def run(args: argparse.Namespace) -> int:

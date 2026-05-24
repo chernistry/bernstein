@@ -19,6 +19,7 @@ import math
 import pytest
 
 from bernstein.core.security.promptware_detector import (
+    _PATTERNS,
     ABORT_THRESHOLD,
     ENV_FLAG,
     WARN_THRESHOLD,
@@ -212,6 +213,24 @@ def test_pattern_true_negative(detector: PromptwareDetector, phrase: str) -> Non
     score = detector.classify(phrase)
     assert score.is_warn is False
     assert score.is_abort is False
+
+
+# ---------------------------------------------------------------------------
+# Regex hygiene
+# ---------------------------------------------------------------------------
+
+
+def test_base64_decode_pattern_has_no_casefold_duplicate_aliases() -> None:
+    source = _pattern_source("imperative.base64_payload")
+    aliases = source.split("(?:", maxsplit=1)[1].split(")", maxsplit=1)[0].split("|")
+    casefolded_aliases = [alias.casefold() for alias in aliases]
+    assert len(casefolded_aliases) == len(set(casefolded_aliases))
+
+
+def test_command_density_does_not_depend_on_regex_alternation() -> None:
+    import bernstein.core.security.promptware_detector as detector_module
+
+    assert not hasattr(detector_module, "_COMMAND_TOKEN_RX")
 
 
 # ---------------------------------------------------------------------------
@@ -413,6 +432,13 @@ def _auroc(positive: list[float], negative: list[float]) -> float:
             elif math.isclose(p, n):
                 total += 0.5
     return total / (len(positive) * len(negative))
+
+
+def _pattern_source(pattern_id: str) -> str:
+    for pattern in _PATTERNS:
+        if pattern.pattern_id == pattern_id:
+            return pattern.regex.pattern
+    raise AssertionError(f"missing promptware pattern {pattern_id!r}")
 
 
 # ---------------------------------------------------------------------------

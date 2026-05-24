@@ -68,6 +68,7 @@ class MockAgentAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Spawn a mock agent subprocess that applies demo changes.
 
@@ -82,6 +83,7 @@ class MockAgentAdapter(CLIAdapter):
             SpawnResult with mock process PID and log path.
         """
         # Create log file
+        self.refuse_multimodal_if_needed(multimodal_context)
         log_path = workdir / ".sdd" / "runtime" / f"agent-{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -315,15 +317,16 @@ def _idle_mode(log_path: Path) -> None:
             write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
             return default
 
-    def _float_env(key: str, default: float) -> float:
+    def _float_env(key: str, default: float, *, invalid_default: float | None = None) -> float:
         raw = os.environ.get(key, "").strip()
         if not raw:
             return default
         try:
             return float(raw)
         except ValueError:
-            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
-            return default
+            fallback = default if invalid_default is None else invalid_default
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {fallback}")
+            return fallback
 
     lo = _int_env("BERNSTEIN_MOCK_IDLE_MIN_S", 15)
     hi = _int_env("BERNSTEIN_MOCK_IDLE_MAX_S", 120)
@@ -332,7 +335,7 @@ def _idle_mode(log_path: Path) -> None:
     hi = max(0, hi)
     if hi < lo:
         lo, hi = hi, lo
-    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05)
+    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05, invalid_default=0.0)
     will_fail = random.random() < fail_rate
     sleep_s = random.randint(lo, hi) if hi > 0 else 0
 

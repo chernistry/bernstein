@@ -18,6 +18,10 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+def _contains_wrapped(output: str, needle: str) -> bool:
+    return needle in output or needle in output.replace("\n", "")
+
+
 def test_cli_exits_zero_for_valid_minimal_fixture(runner: CliRunner) -> None:
     result = runner.invoke(
         ticket_group,
@@ -25,7 +29,8 @@ def test_cli_exits_zero_for_valid_minimal_fixture(runner: CliRunner) -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "[OK]" in result.output or "minimal.md" in result.output
+    assert "[OK]" in result.output or "[WARN]" in result.output
+    assert _contains_wrapped(result.output, "minimal.md")
 
 
 def test_cli_exits_one_for_invalid_fixture(runner: CliRunner) -> None:
@@ -35,7 +40,7 @@ def test_cli_exits_one_for_invalid_fixture(runner: CliRunner) -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 1
-    assert "bad_status.md" in result.output
+    assert _contains_wrapped(result.output, "bad_status.md")
 
 
 def test_cli_glob_expands_multiple_files(runner: CliRunner, tmp_path: Path) -> None:
@@ -48,8 +53,8 @@ def test_cli_glob_expands_multiple_files(runner: CliRunner, tmp_path: Path) -> N
         catch_exceptions=False,
     )
     assert result.exit_code == 0
-    assert "minimal.md" in result.output
-    assert "rich.md" in result.output
+    assert _contains_wrapped(result.output, "minimal.md")
+    assert _contains_wrapped(result.output, "rich.md")
 
 
 def test_cli_glob_mixed_pass_fail_exits_one(runner: CliRunner, tmp_path: Path) -> None:
@@ -61,8 +66,8 @@ def test_cli_glob_mixed_pass_fail_exits_one(runner: CliRunner, tmp_path: Path) -
         catch_exceptions=False,
     )
     assert result.exit_code == 1
-    assert "ok.md" in result.output
-    assert "fail.md" in result.output
+    assert _contains_wrapped(result.output, "ok.md")
+    assert _contains_wrapped(result.output, "fail.md")
 
 
 def test_cli_strict_promotes_warnings_to_errors(runner: CliRunner) -> None:

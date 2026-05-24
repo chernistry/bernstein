@@ -370,6 +370,35 @@ def test_install_local_accepts_invisible_unicode_when_explicitly_allowed(tmp_pat
     assert "\U000e0048" in (result.install_dir / "SKILL.md").read_text(encoding="utf-8")
 
 
+def test_install_local_rejects_sandbox_profile_without_accept_risk(tmp_path: Path) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    source = tmp_path / "sandboxed-skill.md"
+    source.write_text(
+        textwrap.dedent(
+            """
+            ---
+            name: sandboxed-skill
+            description: Valid skill declaring a sandbox profile for future injector support.
+            sandbox_profile: read-only
+            ---
+
+            # Sandboxed skill
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    install_dir = scope_root(InstallScope.PROJECT, workdir=workdir) / "sandboxed-skill"
+    with pytest.raises(SkillLifecycleError, match="sandbox_profile"):
+        install_local(source, scope=InstallScope.PROJECT, workdir=workdir)
+    assert not install_dir.exists()
+
+    result = install_local(source, scope=InstallScope.PROJECT, workdir=workdir, accept_risk=True)
+    assert result.install_dir.is_dir()
+
+
 def test_install_overwrites_previous(
     tmp_path: Path,
     single_file_skill: Path,

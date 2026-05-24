@@ -108,6 +108,26 @@ class LanguageBreakdown:
     pct: float  # of total source files in the repo
 
 
+def _language_breakdowns() -> list[LanguageBreakdown]:
+    """Return a typed empty language-breakdown list."""
+    return []
+
+
+def _paths() -> list[Path]:
+    """Return a typed empty path list."""
+    return []
+
+
+def _file_line_pairs() -> list[tuple[Path, int]]:
+    """Return a typed empty file-line list."""
+    return []
+
+
+def _strings() -> list[str]:
+    """Return a typed empty string list."""
+    return []
+
+
 @dataclass
 class RepoAnalysis:
     """Result of analyzing a repo for orchestration readiness."""
@@ -119,7 +139,7 @@ class RepoAnalysis:
     largest_file_lines: int = 0
     largest_file_path: Path | None = None
 
-    languages: list[LanguageBreakdown] = field(default_factory=list)
+    languages: list[LanguageBreakdown] = field(default_factory=_language_breakdowns)
 
     test_files: int = 0
     source_files_without_tests_estimate: int = 0  # source files that have no matching test
@@ -128,13 +148,13 @@ class RepoAnalysis:
     has_ci: bool = False
     ci_kind: str = ""  # "github", "gitlab", "jenkins", or ""
 
-    modules_without_tests: list[Path] = field(default_factory=list)
-    files_over_300_lines: list[tuple[Path, int]] = field(default_factory=list)
+    modules_without_tests: list[Path] = field(default_factory=_paths)
+    files_over_300_lines: list[tuple[Path, int]] = field(default_factory=_file_line_pairs)
     python_files_without_type_hints: int = 0  # files where no `: ` annotation found
 
     readiness_score: float = 0.0  # 0-10 scale
-    strengths: list[str] = field(default_factory=list)
-    opportunities: list[str] = field(default_factory=list)
+    strengths: list[str] = field(default_factory=_strings)
+    opportunities: list[str] = field(default_factory=_strings)
     recommended_first_run: str = ""
 
 
@@ -157,15 +177,12 @@ def analyze_repo(root: Path) -> RepoAnalysis:
     analysis = RepoAnalysis(root=root)
 
     files_by_language: dict[str, int] = {}
-    other_files = 0
-
     # Single-pass walk.
     for path in _walk_files(root):
         analysis.total_files += 1
         ext = path.suffix.lower()
         lang = _LANGUAGE_BY_EXT.get(ext)
         if lang is None:
-            other_files += 1
             continue
 
         analysis.total_source_files += 1
@@ -381,7 +398,8 @@ def _compute_score_and_narrative(a: RepoAnalysis) -> None:
         a.readiness_score = round((c_tests + c_mod + c_ci + c_typed) / 4, 1)
 
     # Narrative.
-    strengths, opps = [], []
+    strengths: list[str] = []
+    opps: list[str] = []
 
     if c_tests >= 6:
         strengths.append("Good test coverage - agents can verify their work")

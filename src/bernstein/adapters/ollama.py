@@ -195,7 +195,9 @@ class OllamaAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
+        self.refuse_multimodal_if_needed(multimodal_context)
         from urllib.parse import urlparse
 
         from bernstein.core.security.network_policy import policy_from_env

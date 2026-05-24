@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -304,7 +305,7 @@ class ScheduleSupervisor:
                 upcoming = self.next_fire_for(schedule, anchor_epoch=int(now))
             except Exception:  # pragma: no cover - defensive
                 continue
-            if next_fire == 0.0 or upcoming < next_fire:
+            if math.isclose(next_fire, 0.0, abs_tol=1e-12) or upcoming < next_fire:
                 next_fire = float(upcoming)
                 next_id = schedule.id
         return SupervisorStatus(
@@ -374,13 +375,8 @@ class ScheduleSupervisor:
                 fires_dispatched += 1
             current_anchor = next_fire
 
-        if skipped_windows and schedule.misfire_policy == "skip":
-            # Emit one counterfactual receipt summarising the skipped windows.
-            receipts.append(
-                self._record_counterfactual(schedule, skipped_windows, now_epoch),
-            )
-        elif skipped_windows and schedule.misfire_policy == "catch_up":
-            # catch_up hit the cap; record the remainder as a counterfactual
+        if skipped_windows and schedule.misfire_policy in {"skip", "catch_up"}:
+            # Emit one counterfactual receipt summarising skipped windows.
             receipts.append(
                 self._record_counterfactual(schedule, skipped_windows, now_epoch),
             )

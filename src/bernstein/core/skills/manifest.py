@@ -13,6 +13,7 @@ Schema (all fields strict-validated by Pydantic):
 - ``references``  - list of files under ``<skill>/references/``
 - ``scripts``     - list of files under ``<skill>/scripts/``
 - ``assets``      - list of files under ``<skill>/assets/``
+- ``sandbox_profile`` - optional sandbox profile label, reserved for injector support
 - ``version``     - semver-ish; defaults to ``1.0.0``
 - ``author``      - optional free-form attribution
 
@@ -81,6 +82,12 @@ class SkillManifest(BaseModel):
     references: list[str] = Field(default_factory=list[str])
     scripts: list[str] = Field(default_factory=list[str])
     assets: list[str] = Field(default_factory=list[str])
+    sandbox_profile: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z][a-z0-9-]*$",
+    )
     version: str = "1.0.0"
     author: str | None = None
 

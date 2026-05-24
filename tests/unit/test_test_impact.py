@@ -411,6 +411,30 @@ class TestGetAffectedTests:
 
         assert affected == []
 
+    def test_workflow_change_selects_workflow_yaml_tests(self, tmp_path: Path) -> None:
+        import test_impact as ti  # type: ignore[import]
+
+        src = tmp_path / "src"
+        self._make_dep_map(tmp_path, src=src)
+        test_dir = tmp_path / "tests" / "unit"
+        (test_dir / "test_ci_workflow_yaml.py").write_text("def test_ci() -> None:\n    assert True\n")
+        (test_dir / "test_autoheal_workflow_yaml.py").write_text("def test_autoheal() -> None:\n    assert True\n")
+
+        orig_src, orig_root = ti.SRC_ROOT, ti.ROOT
+        ti.SRC_ROOT = src
+        ti.ROOT = tmp_path
+        try:
+            dep_map = build_dep_map(test_dirs=[test_dir])
+            affected = get_affected_tests([".github/workflows/ci.yml"], dep_map)
+        finally:
+            ti.SRC_ROOT = orig_src
+            ti.ROOT = orig_root
+
+        assert [path.relative_to(tmp_path).as_posix() for path in affected] == [
+            "tests/unit/test_autoheal_workflow_yaml.py",
+            "tests/unit/test_ci_workflow_yaml.py",
+        ]
+
     def test_conftest_change_runs_all(self, tmp_path: Path) -> None:
         import test_impact as ti  # type: ignore[import]
 

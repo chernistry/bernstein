@@ -9,6 +9,8 @@ Pure unit tests - no LLM, no subprocess calls.
 
 from __future__ import annotations
 
+import time
+
 from bernstein.core.quality.pr_review_aggregator import (
     DEFAULT_TOP_K,
     FindingCluster,
@@ -111,6 +113,17 @@ class TestParseFinding:
         )
         assert f is not None
         assert f.confidence == 0.4
+
+    def test_slash_only_non_path_input_is_fast(self) -> None:
+        text = "/" * 10_000 + " no path here"
+
+        started = time.perf_counter()
+        f = parse_finding(text, source_role="r", source_model="m")
+        elapsed = time.perf_counter() - started
+
+        assert f is not None
+        assert f.file == ""
+        assert elapsed < 0.5
 
 
 # ---------------------------------------------------------------------------

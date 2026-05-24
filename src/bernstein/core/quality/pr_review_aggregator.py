@@ -132,7 +132,7 @@ _STOPWORDS: frozenset[str] = frozenset(
 # whitespace / colon-space.  Tightened to reduce false positives on
 # arbitrary dotted names that happen to look like file paths.
 _FILE_LINE_RE = re.compile(
-    r"(?P<file>(?:[\w./\-]+/)?[\w\-]+\.[A-Za-z]{1,8})(?::(?P<line>\d+))?",
+    r"(?P<file>(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_-]+\.[A-Za-z]{1,8})(?::(?P<line>\d+))?",
 )
 
 # Severity tag forms seen in the wild from cheap-tier reviewers:

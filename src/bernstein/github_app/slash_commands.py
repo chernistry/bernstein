@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Matches /bernstein <action> [rest of line]
-_SLASH_RE = re.compile(r"^\s*/bernstein\s+(\w+)(?:\s+(.+))?$", re.MULTILINE | re.IGNORECASE)
+_SLASH_RE = re.compile(r"^[ \t]*/bernstein[ \t]+(\w+)(?:[ \t]+([^\r\n]*))?$", re.MULTILINE | re.IGNORECASE)
 
 # Supported actions and their task_type / role mappings
 _ACTION_MAP: dict[str, dict[str, str]] = {

@@ -208,3 +208,82 @@ def test_skills_helpfulness_writes_local_report(
     assert "wrote" in result.output
     assert "pytest-helper" in result.output
     assert (workdir / ".sdd" / "skills" / "helpfulness.json").is_file()
+
+
+def test_skills_bisect_outputs_local_replay_plan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    activations_dir = workdir / ".sdd" / "skills"
+    activations_dir.mkdir(parents=True)
+    activations_dir.joinpath("activations.jsonl").write_text(
+        "\n".join(
+            json.dumps(row, sort_keys=True)
+            for row in (
+                {
+                    "skill": "pytest-helper",
+                    "version": "1.0.0",
+                    "digest": "aaa",
+                    "role": "backend",
+                    "task_id": "task-1",
+                    "trigger_source": "role-binding",
+                    "timestamp": "2026-05-22T12:00:00.000Z",
+                },
+                {
+                    "skill": "docs-helper",
+                    "version": "1.0.0",
+                    "digest": "bbb",
+                    "role": "docs",
+                    "task_id": "task-1",
+                    "trigger_source": "auto-route",
+                    "timestamp": "2026-05-22T12:01:00.000Z",
+                },
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    metrics_dir = workdir / ".sdd" / "metrics"
+    metrics_dir.mkdir(parents=True)
+    metrics_dir.joinpath("task_completion_time_2026-05-22.jsonl").write_text(
+        json.dumps(
+            {
+                "metric_type": "task_completion_time",
+                "timestamp": 1.0,
+                "value": 3.0,
+                "labels": {"task_id": "task-1", "role": "backend", "model": "sonnet", "success": "False"},
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(workdir)
+    runner = CliRunner()
+
+    result = runner.invoke(skills_group, ["bisect", "task-1", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["task_id"] == "task-1"
+    assert payload["outcome"] == "failed"
+    assert payload["candidate_count"] == 2
+    assert payload["next_probe"]["disable"] == ["pytest-helper"]
+    assert [candidate["skill"] for candidate in payload["candidates"]] == ["pytest-helper", "docs-helper"]
+
+
+def test_skills_bisect_fails_for_task_without_activations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+    runner = CliRunner()
+
+    result = runner.invoke(skills_group, ["bisect", "missing-task"])
+
+    assert result.exit_code == 1
+    assert "no activations found" in result.output

@@ -28,6 +28,15 @@ def _make_skill_templates(root: Path) -> Path:
         "version: 2.0.0\n---\n\n# Signal\nSignals at {{SESSION_ID}}\n",
         encoding="utf-8",
     )
+    (skills_dir / "pytest-helper.md").write_text(
+        "---\nname: pytest-helper\n"
+        "description: Use for pytest regressions, failing unit tests, and test isolation work.\n"
+        "trigger_keywords:\n"
+        "  - pytest\n"
+        "  - regression\n"
+        "version: 1.0.0\n---\n\n# Pytest helper\nUse this for pytest regression fixes.\n",
+        encoding="utf-8",
+    )
     return root / "templates" / "roles"
 
 
@@ -92,3 +101,53 @@ def test_inject_skills_respects_activation_log_env_opt_out(
     assert (workdir / ".claude" / "skills" / "bernstein-completion-protocol.md").is_file()
     # But the activation log is not created.
     assert not activation_log_path(workdir).exists()
+
+
+def test_inject_skills_auto_route_is_off_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """TF-IDF auto-routing is opt-in; role binding remains the default."""
+    monkeypatch.delenv("BERNSTEIN_SKILLS_AUTO_ROUTE", raising=False)
+    templates_dir = _make_skill_templates(tmp_path)
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+
+    inject_skills(
+        workdir=workdir,
+        role="security",
+        tasks=[
+            Task(id="T-003", title="Fix pytest regression", description="The pytest suite is failing.", role="security")
+        ],
+        session_id="sec-ghi",
+        templates_dir=templates_dir,
+    )
+
+    assert not (workdir / ".claude" / "skills" / "pytest-helper.md").exists()
+
+
+def test_inject_skills_auto_route_adds_matching_skill_when_enabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Opt-in TF-IDF routing injects deterministic task-matched skills."""
+    monkeypatch.setenv("BERNSTEIN_SKILLS_AUTO_ROUTE", "1")
+    templates_dir = _make_skill_templates(tmp_path)
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+
+    inject_skills(
+        workdir=workdir,
+        role="security",
+        tasks=[
+            Task(id="T-004", title="Fix pytest regression", description="The pytest suite is failing.", role="security")
+        ],
+        session_id="sec-jkl",
+        templates_dir=templates_dir,
+    )
+
+    assert (workdir / ".claude" / "skills" / "pytest-helper.md").is_file()
+    rows = [json.loads(line) for line in activation_log_path(workdir).read_text(encoding="utf-8").splitlines()]
+    auto_rows = [row for row in rows if row["skill"] == "pytest-helper"]
+    assert len(auto_rows) == 1
+    assert auto_rows[0]["trigger_source"] == "auto-route"

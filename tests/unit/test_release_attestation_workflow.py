@@ -235,16 +235,16 @@ def test_auto_release_does_not_create_github_releases() -> None:
     assert "gh release upload" not in text
 
 
-def test_npm_publish_failures_block_tag_publish() -> None:
-    """The tag publish workflow must not silently ignore npm publish failures."""
+def test_npm_publish_failures_do_not_block_python_release() -> None:
+    """The npm wrapper is advisory and must not block Python release publication."""
     data = _load_yaml(PUBLISH_WF)
     job = _job(data, "publish-npm")
     assert job.get("name") == "Publish npm wrapper"
 
     publish_step = _step(data, "publish-npm", "Publish to npm")
-    assert publish_step.get("continue-on-error") is not True
     run = publish_step.get("run")
     assert isinstance(run, str)
-    assert "NPM_TOKEN is required for npm publish" in run
+    assert "::error::" not in run
+    assert "::warning::NPM_TOKEN is not configured; skipping npm wrapper publish" in run
+    assert "::warning::npm wrapper publish failed; continuing release" in run
     assert "npm publish --access public" in run
-    assert "continuing release" not in run

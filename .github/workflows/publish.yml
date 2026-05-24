@@ -282,8 +282,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "${NPM_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN is required for npm publish"
-            exit 1
+            echo "::warning::NPM_TOKEN is not configured; skipping npm wrapper publish"
+            exit 0
           fi
           cd packaging/npm
-          npm publish --access public
+          if ! npm publish --access public; then
+            echo "::warning::npm wrapper publish failed; continuing release"
+          fi

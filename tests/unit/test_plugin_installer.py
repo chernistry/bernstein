@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import stat
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -30,6 +32,15 @@ def _make_zip(dest: Path, contents: dict[str, str]) -> Path:
     with zipfile.ZipFile(dest, "w") as zf:
         for name, data in contents.items():
             zf.writestr(name, data)
+    return dest
+
+
+def _make_zip_with_mode(dest: Path, name: str, data: str, mode: int) -> Path:
+    """Create a zip archive containing one entry with a Unix mode."""
+    info = zipfile.ZipInfo(filename=name)
+    info.external_attr = mode << 16
+    with zipfile.ZipFile(dest, "w") as zf:
+        zf.writestr(info, data)
     return dest
 
 
@@ -106,6 +117,24 @@ class TestExtractArchive:
         dest = tmp_path / "out"
         _extract_archive(archive, dest)
         assert (dest / "hello.txt").read_text() == "world"
+
+    def test_extract_zip_rejects_sibling_prefix_escape(self, tmp_path: Path) -> None:
+        archive = _make_zip(tmp_path / "plugin.zip", {"../out_evil/pwned.txt": "owned"})
+        dest = tmp_path / "out"
+
+        with pytest.raises(ValueError, match="Zip entry would escape target directory"):
+            _extract_archive(archive, dest)
+
+        assert not (tmp_path / "out_evil" / "pwned.txt").exists()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix mode bits are POSIX-only")
+    def test_extract_zip_preserves_unix_file_mode(self, tmp_path: Path) -> None:
+        archive = _make_zip_with_mode(tmp_path / "plugin.zip", "bin/plugin", "#!/bin/sh\n", 0o755)
+        dest = tmp_path / "out"
+
+        _extract_archive(archive, dest)
+
+        assert stat.S_IMODE((dest / "bin" / "plugin").stat().st_mode) == 0o755
 
     def test_extract_tar_gz(self, tmp_path: Path) -> None:
         archive = _make_tgz(tmp_path / "plugin.tar.gz", {"readme.md": "# Plugin"})

@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 _GITHUB_API_RELEASE_URL = "https://api.github.com/repos/{repo}/releases/{tag}"
 _GITHUB_API_LATEST = "latest"
 _DEFAULT_ASSET_SUFFIXES = (".zip", ".tar.gz", ".tgz")
+_ZIP_UNIX_MODE_MASK = 0o777
 
 # ---------------------------------------------------------------------------
 # PluginSource union - 5 source variants
@@ -216,6 +217,19 @@ def _fetch_github_release_asset_url(repo: str, tag: str, asset: str | None) -> s
     )
 
 
+def _zip_unix_mode(info: zipfile.ZipInfo) -> int | None:
+    """Return Unix permission bits stored in a ZIP entry, when present."""
+    raw_mode = info.external_attr >> 16
+    mode = raw_mode & _ZIP_UNIX_MODE_MASK
+    return mode or None
+
+
+def _apply_zip_unix_mode(path: Path, info: zipfile.ZipInfo) -> None:
+    mode = _zip_unix_mode(info)
+    if mode is not None:
+        path.chmod(mode)
+
+
 def _extract_archive(archive_path: Path, dest: Path) -> None:
     """Extract a .zip or .tar.gz archive into *dest*.
 
@@ -230,14 +244,19 @@ def _extract_archive(archive_path: Path, dest: Path) -> None:
     name = archive_path.name
     if name.endswith(".zip"):
         with zipfile.ZipFile(archive_path) as zf:
-            # Validate member paths to prevent Zip Slip (path traversal via
-            # absolute paths or ".." components).
             resolved_dest = dest.resolve()
             for info in zf.infolist():
                 target = (resolved_dest / info.filename).resolve()
-                if not str(target).startswith(str(resolved_dest)):
+                if not target.is_relative_to(resolved_dest):
                     raise ValueError(f"Zip entry would escape target directory: {info.filename}")
-            zf.extractall(dest)
+                if info.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    _apply_zip_unix_mode(target, info)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, target.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                _apply_zip_unix_mode(target, info)
     elif name.endswith((".tar.gz", ".tgz")):
         with tarfile.open(archive_path, "r:gz") as tf:
             tf.extractall(dest, filter="data")  # type: ignore[call-arg]

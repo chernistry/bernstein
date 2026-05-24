@@ -298,8 +298,10 @@ def _safe_filename(task_id: str) -> str:
     cannot escape the diary directory via path traversal.
     """
     cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", task_id.strip())
-    if not cleaned or cleaned in {".", ".."}:
+    if not cleaned:
         raise DiaryError(f"invalid task_id for filename: {task_id!r}")
+    if cleaned in {".", ".."}:
+        cleaned = cleaned.replace(".", "_")
     return f"{cleaned}.json"
 
 

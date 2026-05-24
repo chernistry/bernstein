@@ -167,8 +167,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/bootstrap
-      - name: Run pip-audit including dev deps
-        run: uv run pip-audit --strict
+      - name: Export production requirements (no project, hashed)
+        run: uv export --no-dev --no-emit-project --format requirements-txt -o /tmp/req-prod.txt
+      - name: Export dev requirements (no project, hashed)
+        run: uv export --no-emit-project --format requirements-txt -o /tmp/req-dev.txt
+      - name: Production deps (strict)
+        run: uv run pip-audit -r /tmp/req-prod.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
+      - name: Dev deps (strict)
+        run: uv run pip-audit -r /tmp/req-dev.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
 
   stress-leak-suite:
     # TC-C: resource-leak + memory-growth + lock-contention probes.

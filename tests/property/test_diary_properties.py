@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import hypothesis.strategies as st
 import pytest
@@ -133,6 +134,12 @@ def test_write_diary_does_not_escape_tree(
     sdd_dir = tmp_path_factory.mktemp("sdd")
     path = write_diary_from_transcript(task_id, transcript, sdd_dir)
     assert sdd_dir in path.parents
+
+
+def test_write_diary_sanitizes_dot_task_id(tmp_path: Path) -> None:
+    path = write_diary_from_transcript(".", "worked\n", tmp_path)
+    assert tmp_path in path.parents
+    assert path.name == "_.json"
 
 
 # ---------------------------------------------------------------------------

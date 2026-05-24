@@ -476,7 +476,7 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
         )
     ]
     assert snapshot.coverage is not None
-    assert abs(snapshot.coverage - 19.3) < 0.001
+    assert snapshot.coverage == pytest.approx(19.3, abs=0.001)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_fetch_all_findings_raises_on_non_object_payload(tracker: ModuleType) -> None:

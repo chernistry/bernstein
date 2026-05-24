@@ -141,6 +141,10 @@ def test_write_diary_sanitizes_dot_task_id(tmp_path: Path) -> None:
     assert tmp_path in path.parents
     assert path.name == "_.json"
 
+    parent_path = write_diary_from_transcript("..", "worked\n", tmp_path)
+    assert tmp_path in parent_path.parents
+    assert parent_path.name == "__.json"
+
 
 # ---------------------------------------------------------------------------
 # Jaccard + clustering

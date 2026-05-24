@@ -114,6 +114,16 @@ class TestParseFinding:
         assert f is not None
         assert f.confidence == 0.4
 
+    def test_does_not_extract_path_inside_larger_token(self) -> None:
+        f = parse_finding(
+            "prefixsrc/auth.py:42suffix should not be treated as a file citation",
+            source_role="r",
+            source_model="m",
+        )
+        assert f is not None
+        assert f.file == ""
+        assert f.line is None
+
     def test_slash_only_non_path_input_is_fast(self) -> None:
         text = "/" * 10_000 + " no path here"
 
@@ -123,6 +133,7 @@ class TestParseFinding:
 
         assert f is not None
         assert f.file == ""
+        assert f.line is None
         assert elapsed < 0.5
 
 

@@ -21,6 +21,7 @@ PINNED_UV_VERSION = "0.11.3"
 
 OWNED_WORKFLOWS = (
     "sonar-scan.yml",
+    "sonar-hotspot-review.yml",
     "docs-observability-snapshot.yml",
     "pr-observability-summary.yml",
     "glitchtip-ingester.yml",
@@ -75,6 +76,7 @@ def test_owned_workflows_do_not_install_uv_with_unpinned_pip(workflow_name: str)
     "workflow_name",
     (
         "sonar-scan.yml",
+        "sonar-hotspot-review.yml",
         "docs-observability-snapshot.yml",
         "pr-observability-summary.yml",
         "glitchtip-ingester.yml",

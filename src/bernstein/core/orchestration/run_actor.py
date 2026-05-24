@@ -39,9 +39,11 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from itertools import count
 from typing import Any, Literal
+
+from bernstein.core.dataclass_helpers import typed_replace as _typed_replace
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ class Event:
         seq: Monotonic sequence number assigned by the actor. ``-1`` for
             unstamped events.
         source: Free-form caller tag for tracing (``"watchdog"``,
-            ``"worker"``, …).
+            ``"worker"``, ...).
     """
 
     kind: EventKind
@@ -157,6 +159,11 @@ def _merge_task(
     return new
 
 
+def _replace_state(state: RunState, **changes: Any) -> RunState:
+    updated = _typed_replace(state, **changes)
+    return updated
+
+
 def apply_event(state: RunState, event: Event) -> RunState:
     """Pure reducer mapping ``(state, event)`` to a new state.
 
@@ -190,18 +197,18 @@ def apply_event(state: RunState, event: Event) -> RunState:
     payload = event.payload
 
     if kind == "session_started":
-        return replace(state, status="running", last_seq=event.seq)
+        return _replace_state(state, status="running", last_seq=event.seq)
 
     if kind == "session_ended":
         end_status = payload.get("status", "done")
         if end_status not in {"done", "failed"}:
             end_status = "done"
-        return replace(state, status=end_status, last_seq=event.seq)
+        return _replace_state(state, status=end_status, last_seq=event.seq)
 
     if kind in {"task_started", "task_progress", "task_completed", "task_failed"}:
         task_id = str(payload.get("task_id", ""))
         if not task_id:
-            return replace(state, last_seq=event.seq)
+            return _replace_state(state, last_seq=event.seq)
         status_map = {
             "task_started": "running",
             "task_progress": "running",
@@ -212,7 +219,7 @@ def apply_event(state: RunState, event: Event) -> RunState:
         for k, v in payload.items():
             if k != "task_id":
                 patch[k] = v
-        return replace(
+        return _replace_state(
             state,
             tasks=_merge_task(state.tasks, task_id, patch),
             last_seq=event.seq,
@@ -221,7 +228,7 @@ def apply_event(state: RunState, event: Event) -> RunState:
     if kind in {"approval_requested", "approval_granted", "approval_denied"}:
         approval_id = str(payload.get("approval_id", ""))
         if not approval_id:
-            return replace(state, last_seq=event.seq)
+            return _replace_state(state, last_seq=event.seq)
         status_map_a: dict[str, Literal["pending", "granted", "denied"]] = {
             "approval_requested": "pending",
             "approval_granted": "granted",
@@ -229,15 +236,15 @@ def apply_event(state: RunState, event: Event) -> RunState:
         }
         new_approvals = dict(state.approvals)
         new_approvals[approval_id] = status_map_a[kind]
-        return replace(state, approvals=new_approvals, last_seq=event.seq)
+        return _replace_state(state, approvals=new_approvals, last_seq=event.seq)
 
     if kind == "watchdog_tick":
         # Pure liveness ping; only advances seq.
-        return replace(state, last_seq=event.seq)
+        return _replace_state(state, last_seq=event.seq)
 
     # Unknown kind: advance seq so we do not block the log, but do not mutate.
     logger.warning("apply_event: unknown event kind %r; advancing seq only", kind)
-    return replace(state, last_seq=event.seq)
+    return _replace_state(state, last_seq=event.seq)
 
 
 # ---------------------------------------------------------------------------
@@ -480,7 +487,7 @@ def fold(events: Iterable[Event], initial: RunState) -> RunState:
 
     Args:
         events: Stamped events in ascending sequence order.
-        initial: Starting state (typically ``RunState(session_id=…)``).
+        initial: Starting state (typically ``RunState(session_id=...)``).
 
     Returns:
         Final state after every event has been applied.

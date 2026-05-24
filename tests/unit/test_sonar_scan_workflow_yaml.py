@@ -1,13 +1,14 @@
 """Structural assertions on the SonarQube scan workflow.
 
 These tests pin the contract that the Sonar scan consumes the coverage
-artifact from the CI run for the same main commit. The scan must not
-start on the raw push event and fall back before the matching CI
-coverage artifact exists.
+artifact from a successful CI run for the same main commit. The scan
+must not start on the raw push event or on a cancelled CI run before the
+matching CI coverage artifact exists.
 
 The tests below assert the workflow has:
 
     * a ``workflow_run`` trigger for completed main CI runs,
+    * a job guard that accepts only successful main CI workflow runs,
     * no direct ``push`` trigger, because that races the CI artifact,
     * a workflow-run artifact download keyed to the triggering CI run,
     * a thin fallback limited to manual dispatch only.
@@ -65,8 +66,8 @@ def test_sonar_scan_keeps_workflow_dispatch(sonar_doc: dict[str, object]) -> Non
     assert "workflow_dispatch" in on_block, "Sonar scan must keep its manual dispatch trigger"
 
 
-def test_sonar_scan_job_if_accepts_workflow_run_and_dispatch(sonar_doc: dict[str, object]) -> None:
-    """The job-level `if` must accept completed CI runs and manual dispatch."""
+def test_sonar_scan_job_if_accepts_successful_workflow_run_and_dispatch(sonar_doc: dict[str, object]) -> None:
+    """The job-level `if` must accept successful CI runs and manual dispatch."""
     jobs = sonar_doc.get("jobs")
     assert isinstance(jobs, dict) and jobs, "Workflow must declare a `jobs:` block"
     scan_job = jobs.get("scan")
@@ -76,6 +77,9 @@ def test_sonar_scan_job_if_accepts_workflow_run_and_dispatch(sonar_doc: dict[str
     flat = " ".join(job_if.split())
     assert "workflow_dispatch" in flat, "Job `if` must accept workflow_dispatch events"
     assert "workflow_run" in flat, "Job `if` must accept workflow_run events from CI"
+    assert "github.event.workflow_run.conclusion == 'success'" in flat, (
+        "Workflow-run scans must ignore cancelled or failed CI runs that do not produce coverage artifacts"
+    )
     assert "head_branch" in flat and "main" in flat, "Workflow-run scans must stay pinned to main"
 
 
@@ -148,3 +152,36 @@ def test_sonar_scan_references_coverage_xml_in_args(sonar_doc: dict[str, object]
     assert "sonar.python.coverage.reportPaths=coverage.xml" in args, (
         "Sonar scan args must point at coverage.xml so Python coverage is ingested"
     )
+
+
+def test_sonar_scan_scope_comes_from_project_properties(sonar_doc: dict[str, object]) -> None:
+    """The workflow must not clobber the canonical Sonar scope config."""
+    jobs = sonar_doc.get("jobs", {})
+    scan = jobs.get("scan", {})
+    steps = scan.get("steps", [])
+    sonar_step = next(
+        (s for s in steps if isinstance(s, dict) and "SonarSource/sonarqube-scan-action" in (s.get("uses") or "")),
+        None,
+    )
+    assert sonar_step is not None, "Workflow must invoke SonarSource/sonarqube-scan-action"
+    args = (sonar_step.get("with") or {}).get("args", "")
+
+    assert "sonar.sources=" not in args
+    assert "sonar.tests=" not in args
+    assert "sonar.exclusions=" not in args
+    assert "sonar.coverage.exclusions=" not in args
+
+
+def test_sonar_scan_revision_matches_workflow_run_head_sha(sonar_doc: dict[str, object]) -> None:
+    """Workflow-run scans must report the same commit that was checked out."""
+    jobs = sonar_doc.get("jobs", {})
+    scan = jobs.get("scan", {})
+    steps = scan.get("steps", [])
+    sonar_step = next(
+        (s for s in steps if isinstance(s, dict) and "SonarSource/sonarqube-scan-action" in (s.get("uses") or "")),
+        None,
+    )
+    assert sonar_step is not None, "Workflow must invoke SonarSource/sonarqube-scan-action"
+    args = (sonar_step.get("with") or {}).get("args", "")
+
+    assert "github.event.workflow_run.head_sha" in args

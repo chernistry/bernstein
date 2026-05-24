@@ -13,6 +13,10 @@ Covers:
 
 from __future__ import annotations
 
+import ast
+import inspect
+import textwrap
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 import pytest
@@ -47,6 +51,26 @@ TEST_SEED_HEX = "01" * 32
 # A reproducible nonce for cryptographic-vector tests.
 TEST_NONCE = bytes.fromhex("0123456789abcdef0123")
 assert len(TEST_NONCE) == NONCE_BYTES
+
+
+def _exception_names(node: ast.expr | None) -> set[str]:
+    if node is None:
+        return set()
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Tuple):
+        names: set[str] = set()
+        for item in node.elts:
+            names.update(_exception_names(item))
+        return names
+    return set()
+
+
+_KNOWN_EXCEPTION_TYPES = {
+    "ImportError": ImportError,
+    "ModuleNotFoundError": ModuleNotFoundError,
+    "PackageNotFoundError": PackageNotFoundError,
+}
 
 
 @pytest.fixture(autouse=True)
@@ -144,6 +168,27 @@ class TestTokenShape:
 
 class TestDeterminism:
     """The install-stability promise: same install → same token."""
+
+    def test_version_byte_handles_package_not_found_before_module_not_found(self) -> None:
+        """PackageNotFoundError must not be shadowed by its base class."""
+        assert issubclass(PackageNotFoundError, ModuleNotFoundError)
+
+        source = textwrap.dedent(inspect.getsource(ir._version_byte))
+        tree = ast.parse(source)
+        function = tree.body[0]
+        assert isinstance(function, ast.FunctionDef)
+
+        for try_node in (node for node in ast.walk(function) if isinstance(node, ast.Try)):
+            earlier: list[type[BaseException]] = []
+            for handler in try_node.handlers:
+                current = [
+                    exc_type
+                    for name in _exception_names(handler.type)
+                    if (exc_type := _KNOWN_EXCEPTION_TYPES.get(name)) is not None
+                ]
+                for exc_type in current:
+                    assert not any(issubclass(exc_type, previous) for previous in earlier)
+                earlier.extend(current)
 
     def test_compute_token_is_deterministic(self) -> None:
         seed = bytes.fromhex(TEST_SEED_HEX)

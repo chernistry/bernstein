@@ -3153,7 +3153,7 @@ def _move_backlog_ticket(workdir: Any, task: Any) -> None:
             continue
         for line in text.splitlines():
             if line.startswith("# "):
-                heading = re.sub(r"^[0-9a-fA-F]+\s*[-:\-]\s*", "", line[2:].strip())
+                heading = re.sub(r"^[0-9a-fA-F]+\s*[:-]\s*", "", line[2:].strip())
                 heading_slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
                 if heading_slug == title_slug:
                     with contextlib.suppress(OSError):

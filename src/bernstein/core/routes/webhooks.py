@@ -629,7 +629,7 @@ async def gitlab_webhook(request: Request) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": "Bad JSON payload"})
 
     event_type = data.get("object_kind", "")
-    raw_headers: dict[str, str] = {k: v for k, v in request.headers.items()}
+    raw_headers: dict[str, str] = dict(request.headers.items())
 
     match event_type:
         case "pipeline":

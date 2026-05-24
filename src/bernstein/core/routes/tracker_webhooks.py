@@ -99,7 +99,7 @@ async def tracker_webhook(adapter: str, request: Request) -> JSONResponse:
 
     receiver = _get_receiver(request)
     body = await request.body()
-    headers = {k: v for k, v in request.headers.items()}
+    headers = dict(request.headers.items())
 
     result = receiver.receive(adapter, headers, body)
 

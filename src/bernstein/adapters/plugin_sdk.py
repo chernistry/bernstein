@@ -141,6 +141,7 @@ class PluginAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Launch an agent process with the given prompt."""
         ...

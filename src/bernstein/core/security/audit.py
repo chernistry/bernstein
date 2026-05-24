@@ -30,7 +30,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 _JSONL_GLOB = "*.jsonl"
 
@@ -183,6 +183,14 @@ def load_or_create_audit_key(key_path: Path | None = None) -> bytes:
     return key
 
 
+def _empty_str_list() -> list[str]:
+    return []
+
+
+def _empty_details() -> dict[str, Any]:
+    return {}
+
+
 @dataclass(frozen=True)
 class RetentionPolicy:
     """Configurable audit log retention and auto-archive settings.
@@ -207,9 +215,9 @@ class ArchiveResult:
         skipped: List of file names skipped (already archived or too recent).
     """
 
-    archived: list[str] = field(default_factory=list)
+    archived: list[str] = field(default_factory=_empty_str_list)
     archive_dir: str = ""
-    skipped: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=_empty_str_list)
 
 
 @dataclass(frozen=True)
@@ -232,7 +240,7 @@ class AuditEvent:
     actor: str
     resource_type: str
     resource_id: str
-    details: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=_empty_details)
     prev_hmac: str = _GENESIS_HMAC
     hmac: str = ""
 
@@ -290,13 +298,14 @@ def _verify_log_bytes(
         if raw_line == b"":
             continue
         try:
-            entry = json.loads(raw_line)
+            parsed_entry = json.loads(raw_line)
         except json.JSONDecodeError as exc:
             errors.append(f"{display_name}:{line_no}: invalid JSON - {exc}")
             continue
-        if not isinstance(entry, dict):
+        if not isinstance(parsed_entry, dict):
             errors.append(f"{display_name}:{line_no}: entry is not a JSON object")
             continue
+        entry = cast("dict[str, Any]", parsed_entry)
 
         # Tamper-evidence beyond JSON: ``json.loads`` accepts incidental
         # whitespace (e.g. a trailing ``\r`` after ``}``) which would
@@ -309,7 +318,7 @@ def _verify_log_bytes(
             errors.append(f"{display_name}:{line_no}: non-canonical line bytes")
             continue
 
-        stored_hmac = entry.pop("hmac", "")
+        stored_hmac = str(entry.pop("hmac", ""))
         entry_prev = str(entry.get("prev_hmac", ""))
         # Constant-time compare on the chain link - verification is offline
         # but a leaky compare in audit code is a CodeQL/Bandit smell and
@@ -386,15 +395,16 @@ def _chain_tail_from_bytes(raw_bytes: bytes) -> str | None:
         if raw_line == b"":
             continue
         try:
-            entry = json.loads(raw_line)
+            parsed_entry = json.loads(raw_line)
         except (json.JSONDecodeError, UnicodeDecodeError):
             # ``json.loads`` on raw bytes raises ``UnicodeDecodeError`` (not
             # ``JSONDecodeError``) when a flipped byte yields invalid UTF-8;
             # both mean the record is unusable, so skip it and keep scanning
             # rather than letting the decode error wedge ``AuditLog`` startup.
             continue
-        if not isinstance(entry, dict):
+        if not isinstance(parsed_entry, dict):
             continue
+        entry = cast("dict[str, Any]", parsed_entry)
         # Mirror the verifier's byte-for-byte canonical check so recovery and
         # verification agree on record framing: a single-byte tamper that
         # survives ``json.loads`` (e.g. injected whitespace) is non-canonical
@@ -510,13 +520,15 @@ class AuditLog:
         into the archive resumes from the true tip instead of forking back
         to genesis (issue #1835).
         """
-        live_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
-        for log_path in reversed(live_files):
+        live_files = sorted(self._audit_dir.glob(_JSONL_GLOB), reverse=True)
+        for log_path in live_files:
             tip = _chain_tail_from_bytes(log_path.read_bytes())
             if tip is not None:
                 return tip
 
-        for gz_path in reversed(_archived_segment_paths(self._audit_dir)):
+        archived_files = _archived_segment_paths(self._audit_dir)
+        archived_files.reverse()
+        for gz_path in archived_files:
             try:
                 with gzip.open(gz_path, "rb") as fh:
                     raw = fh.read()

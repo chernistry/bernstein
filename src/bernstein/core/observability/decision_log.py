@@ -353,7 +353,7 @@ def record_decision(
         confidence=confidence,
         rationale=_truncate_rationale(rationale),
         parent_decision_id=parent_decision_id,
-        policy_path=tuple(p for p in policy_path),
+        policy_path=tuple(policy_path),
         winner_score=winner_score,
         inputs=dict(inputs or {}),
     )

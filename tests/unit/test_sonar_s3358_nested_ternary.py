@@ -9,6 +9,7 @@ S3358_TARGETS: tuple[Path, ...] = (
     Path("src/bernstein/cli/commands/analyze_cmd.py"),
     Path("src/bernstein/cli/commands/doctor/backends.py"),
     Path("src/bernstein/cli/commands/recipes_cmd.py"),
+    Path("src/bernstein/cli/commands/schedule_cmd.py"),
     Path("src/bernstein/cli/commands/workflow_cmd.py"),
     Path("src/bernstein/cli/commands/worktrees_cmd.py"),
     Path("src/bernstein/core/security/network_policy.py"),

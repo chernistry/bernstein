@@ -185,7 +185,7 @@ _RE_HEADING_OUT_OF_SCOPE = re.compile(r"^\s{0,3}#{1,6}\s*out[\s-]+of[\s-]+scope\
 _RE_HEADING_TESTED_VIA = re.compile(r"^\s{0,3}#{1,6}\s*tested[\s-]+via\b", re.IGNORECASE | re.MULTILINE)
 _RE_TODO = re.compile(r"\bTODO\b", re.IGNORECASE)
 _RE_PLACEHOLDER = re.compile(r"<[A-Z][A-Z0-9_\s-]{2,}>|\bTBD\b|\bXXX\b")
-_RE_PATH_TOKEN = re.compile(r"`(?P<path>[\w./_-]+\.[A-Za-z0-9]{1,6})`")
+_RE_PATH_TOKEN = re.compile(r"`(?P<path>[\w./-]+\.[A-Za-z0-9]{1,6})`")
 
 
 def _check_acceptance_criteria(spec_text: str, workspace_root: Path | None) -> RuleResult:
@@ -251,7 +251,7 @@ def _check_no_placeholders(spec_text: str, workspace_root: Path | None) -> RuleR
     matches = _RE_PLACEHOLDER.findall(spec_text)
     if not matches:
         return RuleResult(rule_id="no_placeholder_tokens", passed=True)
-    sample = ", ".join(sorted({m for m in matches})[:3])
+    sample = ", ".join(sorted(set(matches))[:3])
     return RuleResult(
         rule_id="no_placeholder_tokens",
         passed=False,

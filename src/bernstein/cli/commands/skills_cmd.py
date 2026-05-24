@@ -575,6 +575,40 @@ def skills_helpfulness() -> None:
         console.print(f"[dim]{report.unmatched_activations} activation(s) had no task outcome yet[/dim]")
 
 
+@skills_group.command("bisect")
+@click.argument("task_id")
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Print the bisect plan as JSON.",
+)
+def skills_bisect(task_id: str, json_output: bool) -> None:
+    """Build a local skill-activation bisect plan for a task."""
+    from bernstein.core.skills.bisect import SkillBisectError, build_skill_bisect_plan
+
+    try:
+        plan = build_skill_bisect_plan(Path.cwd(), task_id)
+    except SkillBisectError as exc:
+        console.print(f"[red]bisect failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    payload = plan.as_payload()
+    if json_output:
+        click.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    console.print(f"[bold]task[/bold] {plan.task_id}: {plan.outcome}; {plan.candidate_count} candidate skill(s)")
+    console.print("[bold]next probe[/bold]")
+    console.print("disable: " + (", ".join(plan.next_probe.disable) or "(none)"))
+    console.print("keep: " + (", ".join(plan.next_probe.keep) or "(none)"))
+    for candidate in plan.candidates:
+        console.print(
+            f"- {candidate.skill} ({candidate.trigger_source or 'unknown'}, role={candidate.role or 'unknown'})"
+        )
+
+
 @skills_group.command("watch")
 @click.argument(
     "path",

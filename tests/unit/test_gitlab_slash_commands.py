@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from bernstein.gitlab_app.slash_commands import parse_slash_command, slash_command_to_task
@@ -59,6 +60,15 @@ class TestParseSlashCommand:
 
     def test_unicode_args(self) -> None:
         assert parse_slash_command("/bernstein fix добавить тест") == ("fix", "добавить тест")
+
+    def test_large_blank_note_without_command_is_fast(self) -> None:
+        text = "\n" * 50_000
+
+        started = time.perf_counter()
+        assert parse_slash_command(text) is None
+        elapsed = time.perf_counter() - started
+
+        assert elapsed < 0.5
 
 
 class TestSlashCommandToTask:

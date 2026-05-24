@@ -844,7 +844,7 @@ def _safe_tag(value: str) -> str:
     Used so an exception class like ``ValueError`` becomes the tag
     ``valueerror`` without colons, dots, or other YAML-hostile bytes.
     """
-    out = re.sub(r"[^A-Za-z0-9_]+", "_", value.strip()).strip("_")
+    out = re.sub(r"\W+", "_", value.strip(), flags=re.ASCII).strip("_")
     return out.lower() or "unknown"
 
 
@@ -902,12 +902,12 @@ def _redact(text: str) -> str | None:
 # pii_output_gate.SECRET_RULES. Regex-only is sufficient because the
 # scanner is also regex-only - anything it flags one of these will mask.
 _SECRET_REDACTION_RES: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\bghp_[A-Za-z0-9]{36,}\b"),
+    re.compile(r"\bAKIA[\dA-Z]{16}\b", re.ASCII),
+    re.compile(r"\bghp_[^\W_]{36,}\b", re.ASCII),
     re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),
-    re.compile(r"\bsk_(?:live|test)_[A-Za-z0-9]{16,}\b"),
+    re.compile(r"\bsk_(?:live|test)_[^\W_]{16,}\b", re.ASCII),
     re.compile(r"\beyJ[A-Za-z0-9_=\-]+?\.[A-Za-z0-9._=\-]+?\.[A-Za-z0-9._\-+/=]+\b"),
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]+?-----END [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
     re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     re.compile(r"\b(?:\+?\d{1,2}[ \-.])?\(?\d{3}\)?[ \-.]\d{3}[ \-.]\d{4}\b"),

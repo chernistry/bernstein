@@ -174,7 +174,9 @@ _PATTERNS: Final[tuple[_Pattern, ...]] = (
     _Pattern(
         pattern_id="imperative.disregard_instructions",
         regex=re.compile(
-            r"(?i)\b(?:disregard|forget|override)\s+(?:your\s+|the\s+|all\s+)?(?:earlier\s+|prior\s+|previous\s+)?(?:instructions?|system\s+prompt|guardrails?)\b"
+            r"(?i)\b(?:disregard|forget|override)\s+"
+            r"(?:(?:your|the|all)\s+)?(?:(?:earlier|prior|previous)\s+)?"
+            r"(?:instructions?|system\s+prompt|guardrails?)\b"
         ),
         weight=0.90,
         reason="instruction to disregard guardrails",
@@ -199,7 +201,7 @@ _PATTERNS: Final[tuple[_Pattern, ...]] = (
     ),
     _Pattern(
         pattern_id="imperative.base64_payload",
-        regex=re.compile(r"(?i)base64\s+(?:-d|--decode|-D)"),
+        regex=re.compile(r"(?i)base64\s+(?:-d|--decode)"),
         weight=0.65,
         reason="base64 decode payload",
     ),
@@ -225,10 +227,56 @@ _PATTERNS: Final[tuple[_Pattern, ...]] = (
 # Plain URL detection - used for density features.
 _URL_RX: Final[re.Pattern[str]] = re.compile(r"https?://[^\s'\"<>)]+")
 
-# Shell-command-like tokens used for density features.
-_COMMAND_TOKEN_RX: Final[re.Pattern[str]] = re.compile(
-    r"(?i)(?:^|[\s`])(?:curl|wget|bash|sh|zsh|python3?|node|rm|mv|cp|chmod|chown|scp|rsync|nc|netcat|nmap|sudo|apt|brew|pip|npm)\b",
+# Shell-command-like tokens used for density features. Keep longer tokens
+# before prefixes such as "python" and "net" so scanning is deterministic.
+_COMMAND_TOKENS: Final[tuple[str, ...]] = (
+    "python3",
+    "netcat",
+    "chmod",
+    "chown",
+    "rsync",
+    "curl",
+    "wget",
+    "bash",
+    "zsh",
+    "node",
+    "sudo",
+    "brew",
+    "python",
+    "sh",
+    "rm",
+    "mv",
+    "cp",
+    "scp",
+    "nc",
+    "nmap",
+    "apt",
+    "pip",
+    "npm",
 )
+
+
+def _count_command_tokens(text: str) -> int:
+    lowered = text.casefold()
+    count = 0
+
+    for index, char in enumerate(lowered):
+        if index > 0 and not (lowered[index - 1].isspace() or lowered[index - 1] == "`"):
+            continue
+        for token in _COMMAND_TOKENS:
+            end = index + len(token)
+            if char == token[0] and lowered.startswith(token, index) and _is_command_token_end(lowered, end):
+                count += 1
+                break
+
+    return count
+
+
+def _is_command_token_end(text: str, index: int) -> bool:
+    if index >= len(text):
+        return True
+    char = text[index]
+    return not (char == "_" or char.isalnum())
 
 
 # ---------------------------------------------------------------------------
@@ -379,7 +427,7 @@ class PromptwareDetector:
                 log_odds += _log(likelihood_ratio) * (1.0 - 0.5 ** (hits - 1))
 
         url_density = (len(_URL_RX.findall(text)) * 1000.0) / max(byte_length, 1)
-        command_density = (len(_COMMAND_TOKEN_RX.findall(text)) * 1000.0) / max(byte_length, 1)
+        command_density = (_count_command_tokens(text) * 1000.0) / max(byte_length, 1)
 
         if url_density >= 2.0:
             reason = f"high URL density ({url_density:.2f} per 1k bytes)"

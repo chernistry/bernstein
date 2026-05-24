@@ -37,8 +37,8 @@ if TYPE_CHECKING:
 MessageId = str
 
 # ``@`` followed by a session-id-like token (alnum, ``-``, ``_``).
-# Anchored on ``\B@`` so emails (``user@host``) do not match.
-_MENTION_RE = re.compile(r"(?<![A-Za-z0-9_])@([A-Za-z0-9][A-Za-z0-9_\-]*)")
+# Anchored on an ASCII word boundary so emails (``user@host``) do not match.
+_MENTION_RE = re.compile(r"(?<!\w)@([^\W_][\w-]*)", re.ASCII)
 
 
 @dataclass(frozen=True)

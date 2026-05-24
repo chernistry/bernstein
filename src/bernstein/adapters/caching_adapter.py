@@ -106,6 +106,7 @@ class CachingAdapter(CLIAdapter):
         task_scope: str = "medium",
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
+        multimodal_context: Any | None = None,
     ) -> SpawnResult:
         """Spawn agent with caching: process prompt, check response cache, then delegate.
 
@@ -165,7 +166,7 @@ class CachingAdapter(CLIAdapter):
         )
         cached_entry, similarity = self._response_cache.lookup_entry(key)
 
-        if cached_entry and cached_entry.verified:
+        if multimodal_context is None and cached_entry and cached_entry.verified:
             logger.info(
                 "Response cache hit (similarity=%.3f) for session %s -- skipping spawn",
                 similarity,
@@ -193,6 +194,7 @@ class CachingAdapter(CLIAdapter):
             task_scope=task_scope,
             budget_multiplier=budget_multiplier,
             system_addendum=system_addendum,
+            multimodal_context=multimodal_context,
         )
 
     def name(self) -> str:

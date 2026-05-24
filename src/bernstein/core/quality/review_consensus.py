@@ -267,7 +267,7 @@ def bucket_for_score(score: float) -> ConsensusLevel:
 
 def _normalise_tokens(text: str) -> frozenset[str]:
     """Lowercase, drop stopwords / short tokens, return a set for Jaccard."""
-    tokens = re.findall(r"[A-Za-z_][A-Za-z_0-9]+", text.lower())
+    tokens = re.findall(r"[^\W\d]\w+", text.lower(), flags=re.ASCII)
     return frozenset(t for t in tokens if t not in _STOPWORDS and len(t) >= 3)
 
 

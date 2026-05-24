@@ -36,12 +36,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Install test dependencies
-          uv pip install mcp a2a
-
-          # Run protocol tests
+          # Run protocol tests with protocol packages injected by uv.
+          # Bare uv package installation fails on tag runners before
+          # the first `uv run` creates the project environment.
           set +e
-          uv run pytest tests/protocol/ -v 2>&1 | tee test-output.log
+          uv run --with mcp --with a2a pytest tests/protocol/ -v 2>&1 | tee test-output.log
           pytest_exit_code=${PIPESTATUS[0]}
           set -e
 
